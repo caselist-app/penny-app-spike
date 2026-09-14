@@ -56,9 +56,15 @@ Android Studio, deliberately (see `notes.md`):
     adb/fastboot   /opt/homebrew/bin, Homebrew android-platform-tools
 
 **The APK is hand-built, not Gradle-built.** `probe2a/build.sh` runs the
-four stages directly — `aapt2 link`, `javac`, `d8`, `apksigner` — all from
-`build-tools;37.0.0`, with `JAVA_HOME` pinned to Temurin 21 inside the
-script. Nothing is downloaded and no build system negotiates versions with
+five stages directly — `aapt2 link`, `javac` for the stubs, `javac` for
+the app, `d8`, `apksigner` — all from `build-tools;37.0.0`, with
+`JAVA_HOME` pinned to Temurin 21 inside the script. The stubs compile to
+a separate directory and are passed to `d8` with `--lib`, exactly as
+`android.jar` is: visible to the compiler, absent from the APK. The
+script ends by grepping the built dex for `Landroid/system/virtualmachine/`
+and printing the count, which must be 0 — if a stub ever shipped, the app
+would carry a fake copy of a platform class and which one won would be a
+coin toss worth losing. Nothing is downloaded and no build system negotiates versions with
 anything. That is deliberate: rung 2 exists to read a precise runtime
 refusal, and an AGP/Gradle/JDK version mismatch fails in a way that reads
 as a permission or code error — the exact signal we are trying to measure.
@@ -131,6 +137,14 @@ APEX — a privileged, platform-signed system app. We are not that.
 CONSEQUENCE: this cannot be compiled in Android Studio against the stock
 `android.jar` — the classes are simply absent from it.
 
+**The stub route is PROVEN as of 2b.** Five hand-written compile-only
+stubs in `probe2a/stubs/android/system/virtualmachine/` were enough to
+create and boot a VM with no reflection anywhere in the 2b path. The
+signatures were not recalled — they were extracted from the device's own
+`framework-virtualization.jar` by pulling it and running `dexdump -e` on
+the Mac, which is far cheaper than a build-install-run cycle per guess
+and is the method to reuse for 2c.
+
 **DECIDED 14 Sept: reflection for 2a, self-written stub classes for
 2b/2c.** The gate is enforced at runtime, not at compile time, and is
 identical however the compiler was satisfied — so a 2a verdict reached by
@@ -159,11 +173,19 @@ gets its own `notes.md` entry. Do not collapse them.
   The non-SDK restriction worry is **dead**: the class loads from
   `BootClassLoader` and `@SystemApi` members are gated by permission, not
   by the hidden-API blocklist. `pm grant` is the only gate.
-- **2b. Does it own a VM with Google's stock payload?** Same app, booting
-  a stock microdroid payload.
-  DONE MEANS: `vm list` shows a VM whose `requesterUid` is the sideloaded
-  app's UID — not 2000, not 10179 — and the Terminal app knows nothing
-  about it.
+- **2b. Does it own a VM with Google's stock payload? ANSWERED YES.**
+  `com.pennyspike.probe2a` created and booted a microdroid VM named
+  `penny2b`. `vm list` reported `requesterUid: 10192`, `requesterPid`
+  matching the app's process, cid 2050 — alongside the Terminal app's
+  `debian` at 10179, two owners enumerated together. The payload was
+  Google's own `MicrodroidEmptyPayloadJniLib.so`, read out of
+  `EmptyPayloadApp.apk` in the `com.android.virt` APEX via
+  `setApkPath()`; `onPayloadReady` fired ~1s after `run()`, so the guest
+  genuinely booted rather than merely being registered. The VM's state
+  lives under the app's OWN data dir
+  (`/data/user/0/com.pennyspike.probe2a/vm/penny2b`), not the Terminal
+  app's — VM ownership is per-app, and the Terminal app has no handle on
+  it. Built with compile-only stubs, no reflection.
 - **2c. Does it own a VM running OUR guest?** Same again, with
   `USE_CUSTOM_VIRTUAL_MACHINE` granted and a custom config.
   `USE_CUSTOM_VIRTUAL_MACHINE` carries no `@RequiresPermission` anywhere
@@ -203,6 +225,19 @@ Do not work ahead of the current rung.
 
 ## Traps that have already cost time
 
+- **Not every member of these classes is callable, even though the class
+  is.** `VirtualMachine.getCid()` and `VirtualMachineConfig.getOs()` both
+  threw `NoSuchMethodError` from the app in rung 2b — with signatures
+  taken verbatim off the device's own dex, so the methods demonstrably
+  exist in `framework-virtualization.jar`. Meanwhile `create`, `run`,
+  `setCallback`, `getStatus`, `getName`, `delete` and `getCapabilities`
+  all worked. Leading explanation, NOT yet proven: those two are `@hide`
+  rather than `@SystemApi`, so the non-SDK blocklist does apply to them —
+  which refines rung 2a's finding rather than contradicting it (2a said
+  `@SystemApi` members are gated by permission, and that still holds).
+  Practical rule: a `NoSuchMethodError` on a signature you read off the
+  dex is a runtime block, not a typo. Get the value another way — the CID
+  came from `vm list` instead, and nothing was lost.
 - `VirtualMachineManager.getInstance(Context)` **does not exist**. Use
   `getSystemService(VirtualMachineManager.class)`. This matters beyond
   the typo: a wrong method name comes back as `NoSuchMethodException`,

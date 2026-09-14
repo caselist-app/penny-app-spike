@@ -578,3 +578,186 @@ currently running top-most instance" and `onCreate` never re-ran, so the
 log showed nothing new. `adb shell am force-stop com.pennyspike.probe2a`
 before `am start` is required on every re-run of a probe that does its
 work in `onCreate`.
+
+## 2026-09-14 — rung 2b ANSWERED YES. A sideloaded app created, booted and owns a microdroid VM running Google's stock payload.
+
+Device: Pixel 6a bluejay, GrapheneOS 2026091001, Android 17, build
+CP2A.260705.006, bootloader LOCKED, `verifiedbootstate=yellow`.
+App: `com.pennyspike.probe2a`, **uid 10192**, hand-built APK signed with a
+throwaway local RSA key, sideloaded. Not platform-signed, not
+preinstalled, not privileged. Both VM permissions granted by
+`adb shell pm grant` and confirmed `granted=true` in `dumpsys package`
+after the reinstall (the signing key was unchanged, so they survived).
+Build toolchain unchanged: Temurin 21.0.12.1, build-tools 37.0.0,
+platform android-37.0, no Gradle.
+
+**THE RESULT, from outside the app rather than from its own log:**
+
+    $ adb shell /apex/com.android.virt/bin/vm list
+    Running VMs: [
+        VirtualMachineDebugInfo {
+            name: "penny2b",
+            cid: 2050,
+            temporaryDirectory: "/data/misc/virtualizationservice/2050",
+            requesterUid: 10192,          <-- the sideloaded app
+            requesterPid: 5783,
+            hostConsoleName: None,
+        },
+        VirtualMachineDebugInfo {
+            name: "debian",
+            cid: 2049,
+            temporaryDirectory: "/data/misc/virtualizationservice/2049",
+            requesterUid: 10179,          <-- the Terminal app
+            requesterPid: 3760,
+            hostConsoleName: None,
+        },
+    ]
+
+`requesterUid: 10192`. Not 2000 (the adb `shell` user, which rung 1
+already proved and which proves nothing about apps). Not 10179 (the
+privileged, platform-signed Terminal app). The app's own uid. Two VMs,
+two unrelated owners, enumerated side by side — rung 1's coexistence
+result reproduced, but this time with an ordinary app as one of the
+owners.
+
+**The process tree, which is the strongest form of the evidence:**
+
+    USER      PID   PPID  NAME
+    system    4103  1     virtualizationservice
+    u0_a179   4209  3760  virtmgr_zation.terminal
+    u0_a179   4230  4209  crosvm
+    u0_a179   4241  4209  crosvm_debian
+    u0_a192   5783  793   com.pennyspike.probe2a
+    u0_a192   5812  5783  virtmgr_nyspike.probe2a
+    u0_a192   5829  5812  crosvm_penny2b
+
+`crosvm_penny2b` — the process actually running the guest — executes as
+`u0_a192`, our app's uid, under a `virtmgr` spawned as a child of our
+app's process. The Terminal app's VM sits in a completely separate tree
+under `u0_a179`. Each app gets its own manager and its own crosvm; the
+single system-uid `virtualizationservice` brokers, it does not own. This
+is what "the app owns the VM" means concretely, and it is worth being
+able to say in one sentence: *the hypervisor process for Penny's VM runs
+as Penny's app, not as the operating system.*
+
+**"The Terminal app knows nothing about it" — the evidence.** VM state is
+stored per-app. The probe's `delete()` of a non-existent VM reported the
+exact path it looked in:
+
+    java.nio.file.NoSuchFileException: /data/user/0/com.pennyspike.probe2a/vm/penny2b
+
+That is our app's private data directory, not the Terminal app's, and not
+a shared location. Combined with the separate process trees and distinct
+`requesterUid`s, the Terminal app has no handle on `penny2b` and no way
+to enumerate it. `vm list` sees both only because it is a debug tool
+talking to `virtualizationservice` directly, over adb.
+
+**What was booted, and why it counts as Google's payload rather than
+ours.** microdroid does not run an APK; it runs one native binary named
+inside the config. The config pointed at:
+
+    apk     /apex/com.android.virt/app/EmptyPayloadApp@CP2A.260705.006/EmptyPayloadApp.apk
+    payload MicrodroidEmptyPayloadJniLib.so
+
+Both come out of the `com.android.virt` APEX — Google's code, shipped
+with the OS, `-rw-r--r--` and therefore readable by an ordinary app. The
+APK contains exactly one native library, confirmed by pulling it to the
+Mac and listing it. The APEX directory name carries the OS build ID, so
+the probe resolves it at runtime by prefix match rather than hard-coding
+`CP2A.260705.006`.
+
+Notably, `setApkPath()` pointing at an APK the app does **not** own was
+accepted. No permission complaint, no ownership check. That was a genuine
+unknown going in.
+
+**It actually booted.** Not merely registered:
+
+    14:40:08.889  STEP5 create() returned VirtualMachine(name:penny2b, ...)
+    14:40:08.930  STEP6 run() returned, status=RUNNING
+    14:40:09.795  CB onPayloadStarted
+    14:40:09.813  CB onPayloadReady — microdroid booted the stock payload
+
+~940ms from `run()` to `onPayloadReady`, consistent with rung 1's 1.14s
+for the same payload launched from the adb shell. `onPayloadReady` is
+sent by code running *inside* the guest, so it is proof of a booted
+kernel and a started payload, not just an accepted request.
+
+**Route: stubs, not reflection, exactly as CLAUDE.md decided.** Five
+compile-only stub classes were written under
+`probe2a/stubs/android/system/virtualmachine/` —
+`VirtualMachineManager`, `VirtualMachineConfig` (with its `Builder`),
+`VirtualMachine`, `VirtualMachineCallback`, `VirtualMachineException`.
+They declare only the members 2b calls. `build.sh` grew from four stages
+to five: the stubs compile to `build/stubs` and are handed to `d8` with
+`--lib`, the same way `android.jar` is — visible to the compiler, absent
+from the APK. The script now ends by grepping the built dex for
+`Landroid/system/virtualmachine/` and printing the count; it printed 0.
+That check is not ceremony: a shipped stub would put a fake copy of a
+platform class in the APK and the winner would be a coin toss.
+
+**Method: the signatures were extracted, not recalled.** Rather than
+guess at `VirtualMachineConfig.Builder` and burn a build-install-run
+cycle per wrong guess, the device's own boot-classpath jar was pulled and
+disassembled on the Mac:
+
+    adb pull /apex/com.android.virt/javalib/framework-virtualization.jar
+    unzip -o framework-virtualization.jar classes.dex
+    build-tools/37.0.0/dexdump -e classes.dex
+
+That yields every class, method signature and constant in the real
+implementation, offline, in one step. **This is the technique to reuse
+for 2c** — it is the reason 2b worked on the first device run. It also
+produced the full `Builder` surface, of which 2b used `setApkPath`,
+`setPayloadBinaryName`, `setDebugLevel`, `setProtectedVm`,
+`setMemoryBytes`, `setCpuTopology`. The one that matters for 2c and was
+deliberately NOT touched here is `setPayloadConfigPath` — and next to it
+`setCustomImageConfig`, plus a whole `VirtualMachineCustomImageConfig`
+builder carrying `setKernelPath`, `setInitrdPath`, `addDisk`,
+`addSharedPath`, `useNetwork`. That is the 2c surface, recorded now while
+it is in front of us, and not exercised.
+
+**A NEW AND UNEXPECTED FINDING: class-level access does not imply
+member-level access.** Two calls failed at runtime:
+
+    NoSuchMethodError: No virtual method getOs()Ljava/lang/String;
+      in class Landroid/system/virtualmachine/VirtualMachineConfig;
+      (declaration appears in /apex/com.android.virt/javalib/framework-virtualization.jar)
+    NoSuchMethodError: No virtual method getCid()I
+      in class Landroid/system/virtualmachine/VirtualMachine;
+
+These are not typos and not stale stubs. Both signatures were copied
+verbatim out of the `dexdump` of the very jar the error names, so the
+methods provably exist in the loaded class. Meanwhile `create`,
+`getOrCreate`, `delete`, `run`, `setCallback`, `getStatus`, `getName`,
+`getApkPath`, `getPayloadBinaryName`, `isProtectedVm` and
+`getCapabilities` all worked from the same app in the same process.
+
+Leading explanation, and it is **NOT yet proven**: `getCid()` and
+`getOs()` are `@hide` rather than `@SystemApi`, so the non-SDK interface
+blocklist applies to them, while the `@SystemApi` members are gated by
+permission only. That refines rung 2a rather than contradicting it — 2a's
+claim was about `@SystemApi` members and still stands. The alternatives
+not yet ruled out: a different hidden-API list tier, or a deliberate
+GrapheneOS restriction. Distinguishing them would mean flipping
+`settings put global hidden_api_policy`, which changes device-wide state
+and was not done. Not chased, because it cost nothing: the CID was
+obtained from `vm list` instead.
+
+**The practical rule, now in CLAUDE.md:** a `NoSuchMethodError` on a
+signature you read off the device's own dex is a runtime block, not a
+mistake. Get the value another way rather than re-deriving the signature.
+
+**What 2b does NOT establish. Be strict about this.**
+- Nothing about running **our** guest. The payload was Google's, from a
+  Google-signed APK inside the OS image. Whether a custom config and our
+  own image is permitted is rung 2c, untouched, and it is where
+  `USE_CUSTOM_VIRTUAL_MACHINE` finally gets exercised — the permission
+  has now been held, unused, through two rungs.
+- Nothing about surviving anything. The VM is a child of the app process;
+  kill the app and it goes. Reboot survival is rung 3.
+- Nothing about attestation. `DEBUG_LEVEL_FULL` was used, so as in rung 1
+  the guest runs with sample DICE values and attests nothing.
+- Nothing about shipping. `pm grant` still needs a cable. 2b makes the
+  case for rung 4; it is not a product.
+- Protected VMs remain unavailable on this device (measured in the 2a
+  addendum). `setProtectedVm(false)` was passed explicitly.

@@ -1,10 +1,10 @@
 #!/bin/sh
-# Build the rung 2a probe APK without Gradle.
+# Build the probe APK without Gradle.
 #
 # An APK is a zip containing a compiled manifest, a dex file and a signature.
 # Each stage below produces one of those, using only tools that came with
 # build-tools 37.0.0. Nothing is downloaded and no build system negotiates
-# versions with anything, which matters here: rung 2a exists to read a
+# versions with anything, which matters here: rung 2 exists to read a
 # precise runtime refusal, and a build-tool version mismatch fails in a way
 # that looks like the same thing.
 #
@@ -31,7 +31,7 @@ echo "platform  $PLATFORM"
 echo
 
 rm -rf "$OUT"
-mkdir -p "$OUT/classes"
+mkdir -p "$OUT/classes" "$OUT/stubs"
 
 # 1. Manifest -> a compiled, resource-free APK skeleton.
 "$BT/aapt2" link \
@@ -40,23 +40,37 @@ mkdir -p "$OUT/classes"
     --min-sdk-version 34 \
     --target-sdk-version 37 \
     -o "$OUT/base.apk"
-echo "1/4 manifest linked"
+echo "1/5 manifest linked"
 
-# 2. Java -> JVM class files, compiled against the public android.jar.
-#    The @SystemApi classes are absent from it, which is exactly why the
-#    probe uses reflection and names nothing at compile time.
+# 2. The @SystemApi stubs -> class files that exist ONLY to satisfy javac.
+#    android.system.virtualmachine is absent from the public android.jar, so
+#    without these the app could not name those classes at compile time (2a
+#    used reflection instead). These are compiled to a SEPARATE directory and
+#    are deliberately never dexed — see stage 4. On the device the real
+#    classes load from BootClassLoader, which rung 2a measured directly.
 javac -source 17 -target 17 -nowarn \
     -classpath "$PLATFORM" \
+    -d "$OUT/stubs" \
+    $(find "$HERE/stubs" -name '*.java')
+echo "2/5 stubs compiled (compile-only, not shipped)"
+
+# 3. Our own Java -> JVM class files, against android.jar plus the stubs.
+javac -source 17 -target 17 -nowarn \
+    -classpath "$PLATFORM:$OUT/stubs" \
     -d "$OUT/classes" \
     $(find "$HERE/src" -name '*.java')
-echo "2/4 java compiled"
+echo "3/5 app compiled"
 
-# 3. JVM class files -> Android dex bytecode.
-"$BT/d8" --lib "$PLATFORM" --min-api 34 --output "$OUT" \
+# 4. JVM class files -> Android dex bytecode. Note this dexes $OUT/classes
+#    only. If the stubs were packaged, the APK would carry a second, fake
+#    copy of a platform class, and which one won would be a coin toss worth
+#    losing. The stubs are passed with --lib, exactly as android.jar is:
+#    visible to the compiler, absent from the output.
+"$BT/d8" --lib "$PLATFORM" --lib "$OUT/stubs" --min-api 34 --output "$OUT" \
     $(find "$OUT/classes" -name '*.class')
-echo "3/4 dexed"
+echo "4/5 dexed"
 
-# 4. Put the dex inside the APK and sign it. Android refuses unsigned APKs;
+# 5. Put the dex inside the APK and sign it. Android refuses unsigned APKs;
 #    a throwaway local key is enough for a sideload. This is NOT the
 #    platform key and holds no privilege.
 (cd "$OUT" && zip -q base.apk classes.dex)
@@ -72,7 +86,12 @@ fi
 "$BT/apksigner" sign \
     --ks "$HERE/debug.keystore" --ks-pass pass:android --key-pass pass:android \
     --out "$OUT/probe2a.apk" "$OUT/base.apk"
-echo "4/4 signed"
+echo "5/5 signed"
 
 echo
 echo "built: $OUT/probe2a.apk"
+
+# Proof the stubs did not ship. If this prints anything, stop and fix it.
+LEAK=$("$BT/dexdump" -e "$OUT/classes.dex" 2>/dev/null \
+    | grep -c "Landroid/system/virtualmachine/" || true)
+echo "stub classes leaked into the dex: $LEAK  (must be 0)"
