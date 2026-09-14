@@ -1306,3 +1306,144 @@ stands, and the correction above tightens one of them:
 - The guest is still Google's empty microdroid payload doing nothing.
 - Device-encrypted storage is still the confidentiality trade-off that
   bought this result.
+
+## 2026-09-14 — rung 3b DEFINED, not started. Can the thing that wakes at boot also listen?
+
+Matt asked for the microphone question to be written into the spike as a
+rung before any of it is built. This entry is the definition and the desk
+research behind it. **No code was written and no probe was run.** The only
+things touched on the device were four read-only queries, listed below.
+
+### Why it exists
+
+Rung 3's own logs contained the constraint:
+
+    Foreground service started from background can not have
+    location/camera/microphone access
+
+Penny is a voice assistant meant to be listening from power-on. Rung 3
+proved the app can wake its VM unattended in 15 seconds; it also proved,
+incidentally, that the service doing the waking is denied the microphone
+for its whole life. Those two facts sit badly together and the spike
+should not be closed without testing whether there is a way through.
+
+### Desk research, 14 Sept, before writing any code
+
+Sources read:
+
+  - https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start
+  - https://developer.android.com/about/versions/17/changes/bg-audio
+  - https://source.android.com/docs/automotive/voice/voice_interaction_guide/app_development
+  - https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/service/voice/AlwaysOnHotwordDetector.java
+
+Findings:
+
+1. There is a documented exemption list for while-in-use permissions
+   (microphone, camera, location) when a foreground service is started
+   from the background. Seven entries. Six are unreachable for us
+   (system component, widget interaction, notification interaction,
+   PendingIntent from a visible app, device-owner policy controller,
+   START_ACTIVITIES_FROM_BACKGROUND privileged permission). The seventh
+   is: **"Service started by an app providing VoiceInteractionService."**
+
+2. Android 17 tightened background audio further, and the same exemption
+   survives that tightening. Verbatim: "Foreground services are granted
+   WIU access if they are started by system-server delegation ... or by
+   system bindings representing an elevated foreground state to perform
+   dedicated functionality (such as for a VoiceInteractionService)."
+   This matters because the device is Android 17 (API 37) — the general
+   docs describe an older regime and the Android 17 page is the binding
+   one here.
+
+3. Android 17 also says the failure is SILENT: "the audio playback and
+   volume change APIs fail silently without throwing an exception or
+   providing a failure message." It names our exact case as suppressed:
+   an app that "starts a foreground service in response to BOOT_COMPLETE
+   and attempts to interact with audio ... will be suppressed."
+   **Consequence for the probe design: a NO will look like success unless
+   the probe inspects the audio buffer.** Checking for a thrown exception
+   would have produced a false YES. Recording this before building it, so
+   the trap cannot be walked into later and mistaken for a result.
+
+4. The always-on hotword route is closed and should not be attempted.
+   `AlwaysOnHotwordDetector` became `@SystemApi` in Android 12, and
+   `CAPTURE_AUDIO_HOTWORD` is `signature|privileged` — AOSP's own VIA
+   guide says outright that if a voice app needs privileged permissions,
+   "OEMs must preload their APK in their system images". That is the same
+   wall rung 2c measured from the other side. The probe therefore uses
+   ordinary `RECORD_AUDIO` with `AudioRecord`, which is a runtime
+   permission any app may request.
+
+5. A VoiceInteractionService is not itself privileged. The manifest shape
+   from AOSP's guide:
+
+       service android:permission="android.permission.BIND_VOICE_INTERACTION"
+       intent-filter action "android.service.voice.VoiceInteractionService"
+       meta-data android:name="android.voice_interaction"
+                 android:resource="@xml/interaction_service"
+
+   with `interaction_service.xml` naming a `sessionService` and a
+   `recognitionService`. `BIND_VOICE_INTERACTION` is a signature
+   permission, but it is the permission the SYSTEM must hold to bind to
+   our service — it is not something we have to be granted. Third-party
+   assistants ship this way today. AOSP does not state a preinstall
+   requirement for the non-privileged path.
+
+### Device reads, 14 Sept, read-only
+
+    adb shell settings get secure assistant                  -> (empty)
+    adb shell settings get secure voice_interaction_service   -> (empty)
+    adb shell dumpsys role | grep -A3 assistant
+        -> name=android.app.role.ASSISTANT
+           fallback_enabled=true          (no holder listed)
+    adb shell pm list features | grep -e voice -e microphone
+        -> feature:android.hardware.microphone
+           feature:android.software.voice_recognizers
+
+The assistant role exists on this GrapheneOS build and **nothing holds
+it.** There is no Google Assistant on the device to displace. That is a
+convenience, not a result — it means the probe does not have to fight an
+incumbent, nothing more.
+
+### What rung 3b will build
+
+Inside the existing `probe2a` APK. No new project, no new repo.
+
+  1. Near-empty `VoiceInteractionService`, `VoiceInteractionSessionService`
+     and `RecognitionService`, plus `res/xml/interaction_service.xml`.
+     Note: **this is the first XML resource in the spike.** Every build so
+     far has been deliberately resource-free — that is why the rung 3
+     notification uses `android.R.drawable.stat_notify_sync`. `build.sh`
+     will need a real `res/` passed to `aapt2 link`. Expect that to be the
+     fiddly part, not the voice code.
+  2. `RECORD_AUDIO` declared, granted once by hand.
+  3. `VmService` attempts a one-second `AudioRecord` capture at boot and
+     logs the peak amplitude, not merely whether the call returned.
+
+### What DONE means
+
+Reboot, touch nothing, and the log shows non-zero audio captured while
+`userUnlocked=false`, corroborated by something other than our own log —
+the OS privacy indicator or `dumpsys media.audio_flinger`. Rung 3 set the
+standard that a claim is checked from outside the app that makes it
+(`vm list`, `/proc/<pid>/stat`), and 3b keeps it.
+
+### What it will not prove, whatever the answer
+
+  - Filling the assistant slot needs either `settings put secure ...` over
+    a cable, or a person tapping through Settings. The tap is shippable,
+    the cable is not. Which one this device accepts is untested.
+  - The guest VM does nothing with audio. This measures Android handing
+    the app a microphone, not voice reaching Penny.
+  - `RECORD_AUDIO` is a runtime permission. Whether it can be HELD before
+    first unlock is part of the question, not an assumption.
+
+### Cost and stakes
+
+Hours, one device, no OS build, nothing irreversible and nothing that
+affects returning the 6a. A NO is a hard constraint that rung 4 inherits
+and that Penny's product shape has to absorb. A YES means the wake path
+and the listening path can be the same app. Either answer is worth having
+before weeks go into rung 4.
+
+Not started. Matt's go-ahead required.

@@ -268,6 +268,81 @@ permissions any Play Store app may declare. Unlike
 here survives into rung 4 unchanged; it is the only part of this spike
 that is already shippable.
 
+**Rung 3b — can the thing that wakes at boot also listen? NOT STARTED.
+Defined 14 Sept, awaiting Matt's go-ahead.** Rung 3 proved the app wakes
+its own VM 15 seconds after power-on. In the same logs Android also wrote
+`Foreground service started from background can not have
+location/camera/microphone access`. Penny is a voice assistant that has
+to be listening from boot, so this is the next real question — and it is
+cheap: hours, one device, no OS build, nothing irreversible.
+
+The question in one line: **can a sideloaded app hold the microphone from
+boot, with nobody touching the phone?**
+
+Desk research done before starting, 14 Sept (sources in `notes.md`):
+
+- Android documents exactly one exemption that could fit us. On the
+  while-in-use restriction list, a service "started by an app providing
+  `VoiceInteractionService`" keeps microphone, camera and location even
+  when started from the background.
+- Android 17 hardened background audio further and restates the same
+  exemption: foreground services "are granted WIU access if they are
+  started by ... system bindings representing an elevated foreground
+  state ... (such as for a `VoiceInteractionService`)". **This device is
+  Android 17, so that page is the one that binds**, not the general one.
+- So the hypothesis is: **be the assistant, and the boot-time microphone
+  denial does not apply.**
+- The DSP hotword route is **closed to us — do not spend time on it.**
+  `AlwaysOnHotwordDetector` became `@SystemApi` in Android 12 and
+  `CAPTURE_AUDIO_HOTWORD` is `signature|privileged`. That is the same
+  wall rung 2c hit. The probe uses ordinary `RECORD_AUDIO` and
+  `AudioRecord`.
+
+What the device already says, read 14 Sept before any code:
+
+    android.app.role.ASSISTANT          exists, fallback_enabled=true,
+                                        and has NO HOLDER
+    settings secure assistant           empty
+    settings secure voice_interaction_service   empty
+    pm list features                    android.hardware.microphone
+                                        android.software.voice_recognizers
+
+The assistant slot on this phone is **empty**. Nothing to displace, no
+Google Assistant to fight.
+
+What has to be built — inside the existing `probe2a` APK, no new project:
+
+1. A near-empty `VoiceInteractionService`, `VoiceInteractionSessionService`
+   and `RecognitionService`. The manifest shape is fixed:
+   `android:permission="android.permission.BIND_VOICE_INTERACTION"`, an
+   intent filter for `android.service.voice.VoiceInteractionService`, and
+   `meta-data android:name="android.voice_interaction"` pointing at an XML
+   file naming the other two. **This is the first thing in the spike that
+   needs an XML resource**, so `build.sh` gains a real `res/` directory —
+   a change to a build that has been deliberately resource-free.
+2. `RECORD_AUDIO` in the manifest, granted once by hand.
+3. `VmService` attempts a one-second `AudioRecord` read at boot and logs
+   whether it got real audio or silence.
+
+DONE MEANS, and nothing less: reboot, touch nothing, and the log shows
+**non-zero audio captured before the PIN is typed**, corroborated by the
+OS rather than only by our own log. **Silence with no error is the
+expected failure mode** — Android 17 suppresses background audio
+"silently without throwing an exception", so a probe that only watches
+for a thrown error will report a false YES.
+
+What it cannot prove, whichever way it goes: the assistant slot has to be
+filled either by `adb shell settings put secure ...` or by a user tapping
+through Settings — the tap version is shippable, the cable version is not,
+and which one this device accepts is unknown until tried. The guest VM
+still does nothing with audio, so this measures Android handing the app a
+microphone, not voice reaching Penny. And `RECORD_AUDIO` is a runtime
+permission, so whether it can be *held* before first unlock is itself part
+of the question.
+
+If the answer is NO it is a hard constraint on Penny's shape and rung 4
+inherits it. Either way it is worth knowing before weeks are spent.
+
 **What rung 2 buys, and what it does not. Do not get this wrong.**
 `pm grant` cannot ship. Both permissions are `development` protection
 level, which means they can only be granted over adb, by a person with a
@@ -386,8 +461,11 @@ Do not work ahead of the current rung.
   denied microphone, camera and location** for its whole life. Logged as
   `Foreground service started from background can not have
   location/camera/microphone access`. Irrelevant to VMs, directly
-  relevant to voice — Penny cannot wake itself at boot AND listen in the
-  same service.
+  relevant to voice. **Measured here on an ordinary foreground service.**
+  Android documents one exemption that might not apply to us — a service
+  started by an app providing `VoiceInteractionService`. Testing that is
+  rung 3b. Until 3b runs, treat the denial as absolute and assume the
+  wake service and the listening service have to be two different things.
 - The boot broadcast's temporary exemption is **20 seconds**
   (`duration:20000` in the `Background started FGS: Allowed` log line).
   `startForeground` must be called inside that window or the service is
@@ -465,7 +543,10 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   denied on this device. Deferred, not solved. Rung 3 added a hard
   constraint: a foreground service started at boot can never hold the
   microphone, so the wake service and the listening service have to be
-  two different things. Design around it, don't discover it late.
+  two different things. **This is now rung 3b — defined, not started,
+  waiting on Matt.** Do not design around the constraint until 3b has
+  tested the one documented exemption; do not assume the exemption works
+  either. Either way, don't discover it late.
 - Whether the phone earns its place at all, versus a small Linux box with
   no permission games and no patch pipeline. The attestation story is
   what justifies the phone.
@@ -530,6 +611,8 @@ for hours.
 ## Do not
 
 - Do not start rung 4.
+- Do not start rung 3b without Matt's explicit go-ahead. It is defined
+  and costed; starting it is his call, not Claude's.
 - Do not compact, summarise or reorganise `notes.md` in either repo.
 - Do not write product or architecture thinking into this repo.
 - Do not disable OEM unlocking on this device while it still has to go
