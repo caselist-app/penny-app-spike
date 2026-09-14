@@ -52,8 +52,18 @@ Android Studio, deliberately (see `notes.md`):
     platform       platforms;android-37.0    (Android 17 is API 37)
     build-tools    build-tools;37.0.0
     platform-tools 37.0.1
-    Gradle         9.7.1
+    Gradle         9.7.1  — INSTALLED BUT NOT USED, see below
     adb/fastboot   /opt/homebrew/bin, Homebrew android-platform-tools
+
+**The APK is hand-built, not Gradle-built.** `probe2a/build.sh` runs the
+four stages directly — `aapt2 link`, `javac`, `d8`, `apksigner` — all from
+`build-tools;37.0.0`, with `JAVA_HOME` pinned to Temurin 21 inside the
+script. Nothing is downloaded and no build system negotiates versions with
+anything. That is deliberate: rung 2 exists to read a precise runtime
+refusal, and an AGP/Gradle/JDK version mismatch fails in a way that reads
+as a permission or code error — the exact signal we are trying to measure.
+It also sidesteps the JDK 26 trap below entirely. Rung 4 compiles inside
+AOSP anyway, so a Gradle project was never going to survive.
 
 `verifiedbootstate=yellow` is CORRECT here: locked, verifying against a
 custom key. `green` would mean Google's key, i.e. stock.
@@ -183,9 +193,9 @@ Do not work ahead of the current rung.
   Android Gradle Plugin does not support it, and the failure reads as a
   code or permission problem rather than a Java-version one.
   `/usr/libexec/java_home` does **not** list Homebrew formula JDKs, so it
-  will not warn you. Pin `org.gradle.java.home` to the Temurin path in
-  the project's `gradle.properties` — never rely on `JAVA_HOME` in one
-  shell.
+  will not warn you. Sidestepped for now by not using Gradle at all; if
+  Gradle ever comes back, pin `org.gradle.java.home` to the Temurin path
+  in `gradle.properties` — never rely on `JAVA_HOME` in one shell.
 - The Terminal app is **hidden** until enabled at Settings > System >
   Developer options > "Linux development environment". Not in the app
   drawer. Absence of an icon proves nothing.

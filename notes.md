@@ -334,3 +334,87 @@ terminal session. Pinned in the repo, it survives new shells, reboots and
 a different machine.
 
 Nothing has been built and no device action has been taken.
+
+## 2026-09-14 — rung 2a: build route DECIDED against Gradle. The probe APK builds clean on the first attempt.
+
+**The choice.** Two ways to turn one Java class into an installable APK:
+a Gradle project (the standard Android build) or the four SDK tools that
+make up what Gradle orchestrates. Gradle won on familiarity and on
+carrying forward to rung 3. It lost on everything else.
+
+An Android Gradle Plugin build requires Gradle, AGP and the JDK to agree
+on versions before a single line of our code is read. We already know
+that handshake is broken on this machine — Gradle 9.7.1 is running on
+Homebrew's JDK 26, which AGP does not support. A version mismatch there
+surfaces as a compile or plugin failure. Rung 2a's entire output is a
+failure message: we are trying to distinguish "the runtime refused a
+third-party app" from "the class is not visible" from "the permission did
+not take". Introducing a fourth failure shape that looks like the first
+three, in the one experiment whose whole product is an error string,
+would have been a bad trade. Rung 4 compiles inside AOSP with Soong, not
+Gradle, so no Gradle work was ever going to survive anyway.
+
+**What replaced it.** `probe2a/build.sh`, four stages, no downloads:
+
+    aapt2 link    AndroidManifest.xml -> a compiled, resource-free APK
+    javac         one .java -> JVM class files, against the public android.jar
+    d8            JVM class files -> Android dex bytecode
+    apksigner     dex into the APK, signed with a throwaway local RSA key
+
+The script pins `JAVA_HOME` to Temurin 21 itself rather than trusting the
+shell, and resolves the build-tools and platform directories with a glob
+(`build-tools/37*`, `platforms/android-37*`) because Android 17 ships
+minor platform revisions and the directory names follow them. It echoes
+what it resolved before doing anything, so a bad path shows up as a
+printed path rather than as a confusing tool error.
+
+**First run, clean:**
+
+    java      openjdk version "21.0.12.1" 2026-08-18 LTS
+    build     /opt/homebrew/share/android-commandlinetools/build-tools/37.0.0
+    platform  /opt/homebrew/share/android-commandlinetools/platforms/android-37.0/android.jar
+    1/4 manifest linked
+    2/4 java compiled
+    3/4 dexed
+    4/4 signed
+    built: .../penny-app-spike/probe2a/build/probe2a.apk
+
+Note the confirmations buried in that: the build ran on **Temurin 21**,
+not on Homebrew's JDK 26, so the trap is genuinely sidestepped rather
+than merely avoided by luck. The platform directory really is
+`android-37.0`, matching the device's Android 17. And `javac` compiled
+against the stock public `android.jar` without complaint, which it could
+only do because the probe names no AVF class at compile time.
+
+**What the probe is.** `probe2a/src/com/pennyspike/probe2a/MainActivity.java`,
+one class, no UI, no VM, no guest. It logs everything under the tag
+`PENNY2A` and reports, in order: its own uid and the device fingerprint;
+whether each of the two permissions is actually GRANTED (so that a
+refusal later cannot be silently blamed on a `pm grant` that did not
+take); then four steps —
+
+    STEP1  Class.forName("android.system.virtualmachine.VirtualMachineManager")
+    STEP2  enumerate its real declared methods rather than trust documentation
+    STEP3  obtain an instance, via getInstance(Context), else getSystemService(Class)
+    STEP4  call getCapabilities() — read-only, creates nothing
+
+Failing at STEP1 means the class is not visible to a third-party
+classloader and the app route dies immediately. Failing at STEP3 or STEP4
+means it is visible but the runtime's non-SDK interface restrictions or a
+permission check refused the call — a different and more recoverable
+answer. Reaching STEP4 means we hold a live `VirtualMachineManager`.
+`describe()` unwraps `InvocationTargetException` so the log carries the
+real exception type, which is the thing that separates those cases.
+
+The manifest declares both permissions because `pm grant` will only grant
+a permission an app has asked for. Declaring them proves nothing — a
+sideloaded APK cannot hold a signature-level permission by naming it.
+
+The APK is signed with a locally generated 2,048-bit RSA key created by
+the script on first run. That key is **not** the platform key and confers
+no privilege whatsoever; it exists because Android refuses to install an
+unsigned APK. `build/` and `debug.keystore` are gitignored — the built
+artifact and a private key do not belong in the repo.
+
+Still no device action. The APK exists on the Mac and has not been
+installed.

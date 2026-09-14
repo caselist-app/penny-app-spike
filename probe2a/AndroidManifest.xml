@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Rung 2a probe. The smallest thing that can ask the question.
+  No VM config, no guest, no UI, no resources.
+
+  Both permissions are declared here because `pm grant` will only grant a
+  permission an app has actually asked for in its manifest. Declaring them
+  is free and proves nothing on its own — a sideloaded APK cannot hold a
+  signature-level permission just by naming it.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.pennyspike.probe2a"
+    android:versionCode="1"
+    android:versionName="2a">
+
+    <uses-permission android:name="android.permission.MANAGE_VIRTUAL_MACHINE" />
+    <uses-permission android:name="android.permission.USE_CUSTOM_VIRTUAL_MACHINE" />
+
+    <application android:label="Penny probe 2a">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
