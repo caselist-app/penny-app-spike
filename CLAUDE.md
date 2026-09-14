@@ -142,6 +142,20 @@ DONE MEANS: reboot the device, touch nothing, and the VM is up and
 reachable. This is the load-bearing rung — Penny ships as a headless
 appliance, so nobody will be there to open an app. Needs no OS build.
 
+**What rung 2 buys, and what it does not. Do not get this wrong.**
+`pm grant` cannot ship. Both permissions are `development` protection
+level, which means they can only be granted over adb, by a person with a
+cable. There is no mechanism to grant them on a customer's device. So a
+sideloaded app that owns a VM is **not a shippable product** — it is
+proof that the VM machinery answers to an app rather than only to the OS,
+and that proof is the thing that justifies spending weeks on rung 4.
+Rung 4 is the commercial route: the app inside the OS image,
+platform-signed, holding the permissions because it is part of the
+system. At that point the app compiles inside AOSP against the real
+system API, and both reflection and stubs disappear. Prove it cheaply
+outside the OS; build it properly inside the OS. **Never mistake a
+working `pm grant` prototype for a product.**
+
 **Rung 4 — the OS image. DO NOT START IT.** Build GrapheneOS from source,
 preinstall the app, sign with our platform key, flash, lock, verify
 attestation covers the app. Weeks. Not now.

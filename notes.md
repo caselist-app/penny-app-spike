@@ -226,3 +226,48 @@ every Android version. Recorded as considered and declined rather than
 overlooked.
 
 Still undecided: full Android Studio versus command-line tooling only.
+
+---
+
+## 2026-09-14 — scope correction: `pm grant` cannot ship. What rung 2 actually buys.
+
+Raised by Matt while the route decision was being committed — that this
+is a commercial product and the way we develop has to reflect that.
+Correct, and it sharpens what these rungs are for. Recorded here and in
+CLAUDE.md in the same step.
+
+**`pm grant` is not a distribution mechanism.** Both permissions rung 2
+depends on are `development` protection level:
+
+    MANAGE_VIRTUAL_MACHINE      signature|development|preinstalled
+    USE_CUSTOM_VIRTUAL_MACHINE  signature|development
+
+`development` means grantable over adb, by a person holding a cable, on a
+device in front of them. There is no path to granting them on a
+customer's device — no runtime prompt, no Play Store flow, nothing. A
+sideloaded app that owns a VM is therefore **not a product**, and rung 2
+succeeding does not produce one.
+
+**What it does produce** is the only thing that matters at this stage: a
+demonstration that VirtualizationService will take orders from an
+ordinary app process rather than only from platform-signed system
+components. That is a question about Android's architecture, not about
+our packaging, and it is answerable cheaply. If the answer is no — if the
+runtime refuses a non-platform-signed APK even with the permission
+granted — then rung 4 is pointless and the whole phone-based approach
+needs re-examining before weeks are spent on an OS build. **Rung 2 is a
+go/no-go gate on rung 4, not a shipping milestone.**
+
+**The commercial route is rung 4 and only rung 4:** the app built into
+the GrapheneOS image, signed with our platform key, holding the
+permissions because it is part of the system, with attestation covering
+it. At that point the app is compiled inside AOSP against the genuine
+system API surface — and reflection and stubs both become unnecessary and
+get deleted. Neither technique is intended to survive contact with a
+shipping build.
+
+So the development pattern, stated once so it does not have to be
+rediscovered: **prove it cheaply outside the OS, then build it properly
+inside the OS.** The failure mode to guard against is a working `pm
+grant` prototype being mistaken for a product, and rung 4 being deferred
+on the strength of it.
