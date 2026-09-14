@@ -109,6 +109,21 @@ Protection levels:
 `development` means both can be granted over adb for prototyping without
 an OS build.
 
+**The real surface, read off the device on 14 Sept (rung 2a), not off a
+document.** Six public methods on `VirtualMachineManager`, and these are
+the signatures the 2b/2c stub classes must match exactly:
+
+    VirtualMachine create(String, VirtualMachineConfig)
+    void           delete(String)
+    VirtualMachine get(String)
+    int            getCapabilities()
+    VirtualMachine getOrCreate(String, VirtualMachineConfig)
+    VirtualMachine importFromDescriptor(String, VirtualMachineDescriptor)
+
+All but `getCapabilities()` throw `VirtualMachineException`. You get the
+manager with `context.getSystemService(VirtualMachineManager.class)` —
+there is **no** `getInstance(Context)`.
+
 For reference, the Terminal app (the uid 10179 VM owner) is built
 `platform_apis: true`, `privileged: true`, inside the `com.android.virt`
 APEX — a privileged, platform-signed system app. We are not that.
@@ -135,15 +150,15 @@ is not a fallback if the app route fails. The app route is the only route.**
 **Rung 2 — can a sideloaded app own a VM?** Three separate results. Each
 gets its own `notes.md` entry. Do not collapse them.
 
-- **2a. Can a sideloaded app touch the API at all?** The smallest
-  possible app: obtain a `VirtualMachineManager` and report what came
-  back — an object, a `SecurityException`, or a `NoClassDefFoundError`.
-  No VM config, no guest, no UI. Build, sideload, `pm grant` both
-  permissions, run. Compiling is one gate, calling is another: whether
-  Android's runtime non-SDK restrictions let a sideloaded,
-  non-platform-signed APK touch `@SystemApi` members after `pm grant` is
-  **UNKNOWN**. Treat it as unknown until the app has run.
-  DONE MEANS: we know which of the three outcomes happens, and why.
+- **2a. Can a sideloaded app touch the API at all? ANSWERED YES.**
+  `com.pennyspike.probe2a`, hand-built and sideloaded, **uid 10192**, not
+  platform-signed and not privileged, obtained a live
+  `VirtualMachineManager` and called it. Both `pm grant`s were accepted
+  silently on GrapheneOS with the bootloader locked, and the app read
+  both back as GRANTED from inside itself.
+  The non-SDK restriction worry is **dead**: the class loads from
+  `BootClassLoader` and `@SystemApi` members are gated by permission, not
+  by the hidden-API blocklist. `pm grant` is the only gate.
 - **2b. Does it own a VM with Google's stock payload?** Same app, booting
   a stock microdroid payload.
   DONE MEANS: `vm list` shows a VM whose `requesterUid` is the sideloaded
@@ -188,6 +203,21 @@ Do not work ahead of the current rung.
 
 ## Traps that have already cost time
 
+- `VirtualMachineManager.getInstance(Context)` **does not exist**. Use
+  `getSystemService(VirtualMachineManager.class)`. This matters beyond
+  the typo: a wrong method name comes back as `NoSuchMethodException`,
+  which is also exactly how a hidden-API block presents. Enumerate with
+  `getDeclaredMethods()` before calling anything, or you will misread a
+  guessing mistake as a platform refusal.
+- `adb install -r` does **not** stop a running activity. `am start` then
+  reports "intent has been delivered to currently running top-most
+  instance" and `onCreate` never re-runs, so the log shows nothing new
+  and the probe looks broken. Always
+  `adb shell am force-stop com.pennyspike.probe2a` before `am start`.
+- Pasting a long command into the Mac terminal can insert a real newline
+  at the wrap point, splitting it in two. It cost a bogus `pm grant`
+  failure on 14 Sept. Keep commands to one short line; do not chain two
+  `adb shell` calls with `;` in a single quoted string.
 - `brew install gradle` drags in Homebrew's own `openjdk` and Gradle runs
   on **that**, not on Temurin 21. `gradle --version` reported JDK 26. The
   Android Gradle Plugin does not support it, and the failure reads as a
@@ -248,6 +278,15 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   no workload. 54 minutes clean is a signal, not an answer. It may also
   not matter: if rung 3 succeeds, a VM that dies and self-restarts in ~1
   second beats one that survives all night and needs a human.
+- **This device does NOT support protected VMs. MEASURED.**
+  `CAPABILITY_PROTECTED_VM = 1`, `CAPABILITY_NON_PROTECTED_VM = 2`, and
+  `getCapabilities()` returns 2. A protected VM is one the host Android
+  cannot read; we do not get one. Trust therefore rests on verified boot
+  and attestation of the whole OS, not on the guest being opaque to its
+  host — which was already the plan, but the alternative is now closed
+  off. Unknown whether the cause is the 6a's silicon, GrapheneOS, or
+  Android 17; one run of the same probe on the 7a settles it. Does not
+  block 2b or 2c.
 - Host-side memory was NEVER measured. The sampler read the guest, not
   Android. "Two VMs caused no pressure" is a statement about the guest
   only.

@@ -8,8 +8,10 @@ import android.os.Bundle;
 import android.os.Process;
 import android.util.Log;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
 /**
  * Rung 2a: can a sideloaded, non-platform-signed app touch
@@ -88,6 +90,19 @@ public class MainActivity extends Activity {
             }
         } catch (Throwable t) {
             Log.e(TAG, "STEP2 could not enumerate methods -> " + describe(t), t);
+        }
+
+        // STEP 2F — read the class's own constants. getCapabilities() returns
+        // a bitmask, and the only honest way to decode it is to ask the
+        // platform what the bits are called rather than recall it.
+        for (Field f : vmm.getDeclaredFields()) {
+            try {
+                if (!Modifier.isStatic(f.getModifiers())) continue;
+                f.setAccessible(true);
+                Log.i(TAG, "STEP2F field: " + f.getName() + " = " + f.get(null));
+            } catch (Throwable t) {
+                Log.e(TAG, "STEP2F field " + f.getName() + " unreadable -> " + describe(t));
+            }
         }
 
         // STEP 3 — get hold of an instance. Two plausible factory routes;

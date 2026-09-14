@@ -418,3 +418,163 @@ artifact and a private key do not belong in the repo.
 
 Still no device action. The APK exists on the Mac and has not been
 installed.
+
+## 2026-09-14 — rung 2a ANSWERED YES. A sideloaded app holds a live VirtualMachineManager and calls it.
+
+Device: Pixel 6a bluejay, GrapheneOS 2026091001, Android 17,
+fingerprint `google/bluejay/bluejay:17/CP2A.260705.006/2026091001:user/release-keys`.
+App: `com.pennyspike.probe2a`, hand-built APK, signed with a throwaway
+local RSA key, sideloaded by `adb install`. **uid 10192.** Not
+platform-signed, not preinstalled, not privileged, no `platform_apis`.
+
+The sequence, all on the Mac:
+
+    adb install -r probe2a/build/probe2a.apk
+    adb shell pm grant com.pennyspike.probe2a android.permission.MANAGE_VIRTUAL_MACHINE
+    adb shell pm grant com.pennyspike.probe2a android.permission.USE_CUSTOM_VIRTUAL_MACHINE
+    adb shell am start -n com.pennyspike.probe2a/.MainActivity
+    adb logcat -d -s PENNY2A
+
+**Both `pm grant`s were accepted silently, on GrapheneOS, with the
+bootloader locked.** The probe then confirmed from inside the app that
+both read back GRANTED, which closes the "did the grant actually take"
+question rather than inferring it from the absence of an error.
+
+**STEP1 — the class is visible.**
+
+    STEP1 class found: android.system.virtualmachine.VirtualMachineManager
+                       loader=java.lang.BootClassLoader@278cbd3
+
+`BootClassLoader`, not the app's own. `framework-virtualization` is a
+boot-classpath jar in the `com.android.virt` APEX and is therefore
+visible to every process on the device, third-party apps included. No
+`<uses-library>` was needed.
+
+**The non-SDK restriction question is ANSWERED, and the answer is that it
+does not apply here.** CLAUDE.md listed it as the genuine unknown in 2a:
+whether Android's runtime restrictions on non-SDK interfaces would refuse
+a sideloaded APK access to `@SystemApi` members even after `pm grant`.
+They did not. This matters and the reasoning needs stating, because the
+naive reading of the log could go the other way.
+
+Under hidden-API enforcement a *blocked* member is made to look absent:
+`getDeclaredMethods()` filters it out and `getMethod()` throws
+`NoSuchMethodException`. We saw exactly that shape at STEP3A. But it is
+not evidence of blocking here, because the members that *were* listed —
+`create`, `delete`, `get`, `getCapabilities`, `getOrCreate`,
+`importFromDescriptor` — are themselves `@SystemApi`, and one of them was
+not merely listed but successfully **invoked**. If `@SystemApi` members
+were on the blocklist for this app, none of them would have appeared at
+all. So: `@SystemApi` is gated by permission, not by the non-SDK
+blocklist. The gate we are fighting is `pm grant`, and only `pm grant`.
+
+**STEP2 — the real API surface, read off the device rather than off a
+document.** Six public methods on `VirtualMachineManager`:
+
+    VirtualMachine create(String, VirtualMachineConfig)         throws VirtualMachineException
+    void           delete(String)                               throws VirtualMachineException
+    VirtualMachine get(String)                                  throws VirtualMachineException
+    int            getCapabilities()
+    VirtualMachine getOrCreate(String, VirtualMachineConfig)    throws VirtualMachineException
+    VirtualMachine importFromDescriptor(String, VirtualMachineDescriptor)
+                                                                throws VirtualMachineException
+
+That is the whole surface. It is also the exact signature list the stub
+classes for 2b/2c must match, so it is recorded here verbatim rather than
+re-derived later.
+
+**STEP3 — how you actually get one.** `getInstance(Context)` **does not
+exist**; the probe tried it first and got `NoSuchMethodException`. The
+factory is the ordinary system-service route:
+
+    VirtualMachineManager m = context.getSystemService(VirtualMachineManager.class);
+    // returned android.system.virtualmachine.VirtualMachineManager@73eec3a
+
+This is why the probe enumerated the methods before calling anything.
+Guessing the factory would have produced a `NoSuchMethodException` that
+is indistinguishable, to anyone reading quickly, from the runtime
+refusing a third-party app — the precise confusion rung 2a exists to
+avoid.
+
+**STEP4 — a live call succeeded.**
+
+    getCapabilities() = 2
+
+An object that answers is worth more than an object that merely exists;
+`getCapabilities()` was chosen because it is read-only and creates
+nothing, so a pass proves the binder call reached VirtualizationService
+and came back without proving anything about VM creation.
+
+**UNVERIFIED, and deliberately not guessed at:** what the value 2 means.
+The API defines capability bits (protected VM / non-protected VM) and 2
+is almost certainly "non-protected VMs supported, protected VMs not".
+If that is right it is a significant hardware fact about this Pixel 6a
+and belongs in the open threads, not buried in a sentence. The constants
+are static fields on the same class and can be read by reflection in the
+same way the methods were, so this will be settled by measurement in the
+next entry rather than by recollection.
+
+**What this does and does not establish.** It establishes that the app
+route is alive: the machinery answers to an ordinary app holding granted
+permissions, not only to the OS. It establishes nothing about owning a
+VM — no `create` call has been made, no config object has been built, and
+`USE_CUSTOM_VIRTUAL_MACHINE` has been granted but never exercised. And it
+remains a prototype, not a product: `pm grant` needs a cable, so this is
+the evidence that justifies rung 4, not a shippable thing.
+
+Rungs 2b and 2c are unaffected by the reflection route used here. The
+gate is a runtime permission check, identical however the compiler was
+satisfied.
+
+## 2026-09-14 — addendum to 2a: the capability bitmask decoded. This device does NOT support protected VMs.
+
+The previous entry left `getCapabilities() = 2` deliberately
+un-interpreted. Rather than recall what the constants are, the probe was
+extended by eight lines to read the class's own static fields by
+reflection — the same mechanism that read the methods — rebuilt,
+reinstalled over the top, and re-run. `pm grant` survived the
+`adb install -r` because the signing key was unchanged, so the two
+permissions did not need re-granting.
+
+    STEP2F field: CAPABILITY_NON_PROTECTED_VM = 2
+    STEP2F field: CAPABILITY_PROTECTED_VM     = 1
+    STEP4  getCapabilities() = 2
+
+Those are the only two static fields on the class, so the bitmask is
+fully accounted for. **2 means bit 1 set and bit 0 clear: non-protected
+VMs supported, protected VMs NOT supported** on this Pixel 6a running
+GrapheneOS 2026091001. The guess in the previous entry was right, but it
+is now a measurement.
+
+**What the distinction actually is.** A protected VM is one the
+hypervisor walls off from the host: Android cannot read the guest's
+memory, and the guest can make a remote-attestation claim about itself
+distinct from the OS. A non-protected VM is isolated from other apps and
+from other VMs by the normal mechanisms, but the host OS and anything
+with sufficient privilege on it can see inside. Both run under the same
+`VirtualizationService` and the same API; the difference is set on the
+config object, which means it lands squarely in 2c territory.
+
+**Consequence for the spike, stated plainly.** Anything that assumed the
+VM boundary protects the workload from the operating system underneath it
+is unavailable on this hardware. What remains is the penny-box position:
+trust rests on verified boot and on attestation of the whole OS image,
+not on the guest being opaque to its host. That was already the
+architecture; this closes off the alternative rather than changing the
+plan. Note also that rung 1's microdroid run logged `Using sample DICE
+values` — no attestation claim has ever been demonstrated on this device
+by any route.
+
+**Open, and worth an answer before the 7a arrives.** Whether the missing
+protected-VM bit is the 6a's silicon, the GrapheneOS build, or the
+Android 17 build. It is cheap to distinguish: the same probe run on a
+different device or a stock build answers it in one reading. Not chased
+now — it does not block 2b or 2c, both of which use non-protected
+configs.
+
+Also recorded, because it cost a minute: `adb install -r` does not stop a
+running activity. `am start` returned "intent has been delivered to
+currently running top-most instance" and `onCreate` never re-ran, so the
+log showed nothing new. `adb shell am force-stop com.pennyspike.probe2a`
+before `am start` is required on every re-run of a probe that does its
+work in `onCreate`.
