@@ -93,9 +93,17 @@ For reference, the Terminal app (the uid 10179 VM owner) is built
 APEX — a privileged, platform-signed system app. We are not that.
 
 CONSEQUENCE: this cannot be compiled in Android Studio against the stock
-`android.jar`. Two routes, neither needing an AOSP checkout — (a) swap in
-an AOSP-built `android.jar` carrying the system surface, (b) reflection
-against the stock SDK. **Matt's choice. Ask before writing code.**
+`android.jar` — the classes are simply absent from it.
+
+**DECIDED 14 Sept: reflection for 2a, self-written stub classes for
+2b/2c.** The gate is enforced at runtime, not at compile time, and is
+identical however the compiler was satisfied — so a 2a verdict reached by
+reflection binds on every route. Reflection is therefore a cheap
+throwaway probe; stubs (tiny signature-matching fakes, compile-only,
+never packaged) are what we build on once the API is known reachable.
+A third-party AOSP-built `android.jar` was considered and **rejected**:
+Google does not distribute one, so it means an unofficial jar off GitHub
+inside a project whose entire premise is a verified, attested device.
 
 AOSP's `docs/custom_vm.md` describes its `vm run` custom-VM route as
 needing root over adb. There is no root on a locked build, so **the CLI

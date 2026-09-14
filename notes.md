@@ -167,3 +167,62 @@ Not yet decided, and deliberately not decided here: whether to install
 full Android Studio or command-line tooling only, and whether the app
 compiles against an AOSP-built `android.jar` or reaches the `@SystemApi`
 surface by reflection against the stock SDK. Both are Matt's calls.
+
+---
+
+## 2026-09-14 — rung 2 route DECIDED: reflection to probe, stubs to build on. The third-party jar rejected.
+
+Matt's call, taken after the trade-off was put to him in plain English.
+**Reflection for 2a. Self-written stub classes for 2b and 2c.**
+
+**The reasoning that decided it, and it is worth not losing.** All three
+candidate routes — reflection, stub classes, third-party AOSP
+`android.jar` — differ only in how the *compiler* is satisfied. The
+compiler refuses to name a class that is absent from the public
+`android.jar`, and each route is a different way around that refusal.
+None of them changes what happens on the phone. Android enforces the real
+gate at call time: does this app hold `MANAGE_VIRTUAL_MACHINE`, and is it
+permitted to touch this member? That enforcement is identical in all
+three cases.
+
+The consequence is the useful part: **a 2a verdict reached by reflection
+binds on every route.** A yes is a real yes for stubs and for the AOSP
+jar. A no is a real no for both. Only the shape of the error text
+differs — a reflection failure surfaces as `ClassNotFoundException` /
+`NoSuchMethodException`, a direct-linkage failure as
+`NoClassDefFoundError` / `NoSuchMethodError`. Same gate, different
+messenger. This is why we can afford to answer the unknown cheaply
+without committing to tooling first.
+
+So: 2a is ~20 lines of reflection — ask Android for the class by its name
+as a string, try to obtain a `VirtualMachineManager`, report which of the
+three outcomes came back. No extra downloads beyond the standard Google
+SDK. Then, once the API is known to be reachable, switch to stubs for 2b
+and 2c, where VM config objects get built through long builder chains and
+reflection stops being merely ugly and starts being a source of its own
+bugs.
+
+**Stub classes, for the record, since they are what we will actually
+build on.** We write our own minimal versions of the seven classes —
+correct package, correct names, correct method signatures, empty bodies —
+and mark them compile-only so they are never packaged into the APK. The
+compiler is satisfied; at runtime the phone supplies the real
+implementations. This is the established technique for reaching a hidden
+Android API from a normal app (Shizuku is built this way). Its one real
+hazard is recorded now so it is not mistaken for a result later: **if our
+stub signatures do not exactly match the real ones, the app crashes on
+the phone in a way that can read as the permission being refused when it
+is not.** That is precisely the signal 2a exists to read, which is a
+second reason to get 2a's verdict by reflection first, while no stub
+exists to muddy it.
+
+**Third-party AOSP-built `android.jar`: REJECTED.** It would be the least
+work — the full internal API surface, compiled, published on GitHub by
+third parties. Rejected on trust and on maintenance. Google does not
+distribute these, so adopting one means an unofficial binary of unknown
+provenance sitting in the build of a project whose entire premise is a
+locked, verified, attested device; and it would have to be re-sourced for
+every Android version. Recorded as considered and declined rather than
+overlooked.
+
+Still undecided: full Android Studio versus command-line tooling only.
