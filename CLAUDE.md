@@ -44,6 +44,17 @@ deliberately left **ENABLED** so the device can be returned to stock.
     Claude Code    2.1.270 in the guest, native install, ~317MiB resident
     VM resources   3.9GB slider max -> 3.6Gi in guest, 8 cores, 104G disk
 
+Build toolchain on the Mac, installed 14 Sept, command-line only — no
+Android Studio, deliberately (see `notes.md`):
+
+    Temurin JDK    21.0.12.1 arm64, /Library/Java/JavaVirtualMachines/temurin-21.jdk
+    SDK root       /opt/homebrew/share/android-commandlinetools
+    platform       platforms;android-37.0    (Android 17 is API 37)
+    build-tools    build-tools;37.0.0
+    platform-tools 37.0.1
+    Gradle         9.7.1
+    adb/fastboot   /opt/homebrew/bin, Homebrew android-platform-tools
+
 `verifiedbootstate=yellow` is CORRECT here: locked, verifying against a
 custom key. `green` would mean Google's key, i.e. stock.
 
@@ -167,6 +178,14 @@ Do not work ahead of the current rung.
 
 ## Traps that have already cost time
 
+- `brew install gradle` drags in Homebrew's own `openjdk` and Gradle runs
+  on **that**, not on Temurin 21. `gradle --version` reported JDK 26. The
+  Android Gradle Plugin does not support it, and the failure reads as a
+  code or permission problem rather than a Java-version one.
+  `/usr/libexec/java_home` does **not** list Homebrew formula JDKs, so it
+  will not warn you. Pin `org.gradle.java.home` to the Temurin path in
+  the project's `gradle.properties` — never rely on `JAVA_HOME` in one
+  shell.
 - The Terminal app is **hidden** until enabled at Settings > System >
   Developer options > "Linux development environment". Not in the app
   drawer. Absence of an icon proves nothing.

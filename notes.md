@@ -271,3 +271,66 @@ rediscovered: **prove it cheaply outside the OS, then build it properly
 inside the OS.** The failure mode to guard against is a working `pm
 grant` prototype being mistaken for a product, and rung 4 being deferred
 on the strength of it.
+
+---
+
+## 2026-09-14 — toolchain installed on the Mac. Command-line only, no IDE. One trap found on the way out.
+
+Matt's call: **command-line tooling only, no Android Studio.** Reasoning
+recorded because it will be questioned later. Every build becomes a
+command that can be pasted, which is how this project already works and
+means the exact invocation lands in `notes.md` and is reproducible.
+Studio is a code editor, and Matt does not write code — Claude writes the
+files, Matt runs the commands — so most of its ~2GB is weight we never
+touch. `adb logcat` already covers reading errors off the phone. And rung
+4 ultimately happens on a headless Linux build machine with no IDE at
+all, so the command-line habit is the one worth building.
+
+**Installed, in dependency order, all via Homebrew (already present — it
+is where penny-box's `adb` came from):**
+
+    Temurin JDK        21.0.12.1 (arm64, Eclipse Adoptium)
+                       /Library/Java/JavaVirtualMachines/temurin-21.jdk
+    cmdline-tools      brew cask android-commandlinetools, 156.1MB
+                       SDK root /opt/homebrew/share/android-commandlinetools
+    platforms;android-37.0      rev 2
+    build-tools;37.0.0          37.0.0
+    platform-tools              37.0.1
+    Gradle             9.7.1 (build time 2026-08-19)
+
+`/usr/libexec/java_home -V` went from "Unable to locate a Java Runtime"
+to reporting Temurin 21, which is the check that the JDK registered
+properly rather than merely unpacking somewhere.
+
+**Which Android platform, and why it was looked up rather than guessed.**
+The device runs Android 17. `sdkmanager --list` shows Android 17 as API
+**37**, with stable `platforms;android-37.0` plus quarterly minor
+releases `37.1` and `37.2`, beta builds, and a `CANARY` channel. We
+compile against `android-37.0` — the stable release matching the device —
+with `build-tools;37.0.0` to match. Nothing about the reflection probe
+needs a specific platform, but matching the device removes a variable
+from a test whose entire output is an error message.
+
+**TRAP, found immediately and not yet worked around:** `brew install
+gradle` pulls Homebrew's own `openjdk` as a dependency, and Gradle runs
+on it in preference to Temurin. `gradle --version` reports:
+
+    Launcher JVM:  26.0.2.1 (Homebrew 26.0.2.1)
+    Daemon JVM:    /opt/homebrew/Cellar/openjdk/26.0.2.1/... (no Daemon JVM specified)
+
+That is **JDK 26**, not the Temurin 21 we installed. The Android Gradle
+Plugin does not support a JDK that new, and the resulting failure would
+arrive as a compile or plugin error — i.e. it would read as our code or
+our permissions being wrong when the real cause is the Java version. Note
+also that `/usr/libexec/java_home` does **not** list this JDK 26, because
+Homebrew formula JDKs are not registered with macOS's JVM registry; so
+the earlier "only Temurin 21 is installed" check was true and still
+misleading about what Gradle would actually pick up.
+
+Fix, to be applied when the project is created: pin the build explicitly
+with `org.gradle.java.home` in the project's `gradle.properties`, rather
+than relying on a `JAVA_HOME` environment variable that lives only in one
+terminal session. Pinned in the repo, it survives new shells, reboots and
+a different machine.
+
+Nothing has been built and no device action has been taken.
