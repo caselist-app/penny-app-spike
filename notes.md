@@ -117,3 +117,53 @@ between 2b and 2c is the entire product question.
 
 Nothing has been installed, built or run for this repo yet. No device
 action has been taken.
+
+---
+
+## 2026-09-14 — rung 2 pre-flight: the Mac's build toolchain. Nothing is installed. Three things are missing.
+
+Checked before writing any app code, on the Mac
+(`mattstevenson@Matts-MacBook-Pro-2`). Three commands, no installs.
+
+**JDK: ABSENT.**
+
+    /usr/libexec/java_home -V
+    The operation couldn't be completed. Unable to locate a Java Runtime.
+
+`java_home` is macOS's own JDK registry. It reports no JVM of any version,
+which means no Oracle JDK, no Temurin, no Homebrew `openjdk`, and no
+Android Studio bundled JBR — Studio registers its own runtime here when
+present.
+
+**Android Studio: ABSENT. Android SDK: ABSENT.**
+
+    ls -d /Applications/Android*.app ~/Library/Android/sdk
+
+returned nothing. `~/Library/Android/sdk` is the default SDK root on
+macOS and does not exist, so there are no build-tools, no platform jars
+and no `sdkmanager`.
+
+**What does exist: Homebrew's platform-tools, and only that.**
+
+    which adb
+    /opt/homebrew/bin/adb
+
+That is the `android-platform-tools` Homebrew cask — `adb` and `fastboot`
+as standalone binaries. It is the whole reason every penny-box device
+command worked. It contains no compiler, no SDK platform, no
+`aapt2`/`d8`, and no `android.jar` of any kind. It can install and talk to
+an APK; it cannot build one.
+
+**Therefore, to build any APK at all, three things are missing, in this
+dependency order:** a JDK; an Android SDK (a platform jar to compile
+against, build-tools to package and sign with); and a build driver
+(Gradle, or Android Studio which bundles both Gradle and a JDK).
+
+This is a genuinely clean machine as far as Android development goes —
+which is the right starting point for this spike, because whatever we
+install is a deliberate choice rather than something inherited.
+
+Not yet decided, and deliberately not decided here: whether to install
+full Android Studio or command-line tooling only, and whether the app
+compiles against an AOSP-built `android.jar` or reaches the `@SystemApi`
+surface by reflection against the stock SDK. Both are Matt's calls.
