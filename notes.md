@@ -850,3 +850,128 @@ path open to a sideloaded app". It does not answer "can we boot an image
 we built". If the gate is open, replacing Google's kernel and rootfs with
 our own is a separate and much larger piece of work, and the attestation
 story is untouched by either.
+
+## 2026-09-14 — rung 2c ANSWERED NO. A sideloaded app cannot reach the custom-VM API at all. The blocker is the hidden-API blocklist, not the permission.
+
+Separate result from 2b and from the 2c pre-flight entry above. The
+pre-flight's recommendation was carried out exactly as written — mirror
+`microdroid.json` into a `VirtualMachineCustomImageConfig`, hand it to
+`setCustomImageConfig()`, create as uid 10192 — and it never got as far
+as creating anything.
+
+**Setup.** `com.pennyspike.probe2a`, uid 10192, the same sideloaded,
+locally-signed, unprivileged app that answered 2a and 2b. GrapheneOS
+2026091001, Android 17 (API 37), build CP2A.260705.006, Pixel 6a
+bluejay, bootloader LOCKED. New activity `Probe2cActivity` in the same
+package, so the uid is identical to 2b's. Built by `probe2a/build.sh`,
+five stages, no Gradle; `stub classes leaked into the dex: 0`.
+
+**The controls, which are what make this readable.** Both were checked
+in the same run, before the probe proper:
+
+    android.permission.USE_CUSTOM_VIRTUAL_MACHINE: granted=true
+    android.permission.MANAGE_VIRTUAL_MACHINE: granted=true
+
+    STEP3 control OK — setApkPath (SDK member) is callable
+
+So the permission was held at the moment of the refusal, and the build
+was not broken. Neither can be blamed for what follows.
+
+**The result. Four members tried, four refused.** Verbatim:
+
+    STEP4 setCustomImageConfig BLOCKED -> java.lang.NoSuchMethodError: No
+    virtual method setCustomImageConfig(Landroid/system/virtualmachine/Virtual
+    MachineCustomImageConfig;)Landroid/system/virtualmachine/VirtualMachine
+    Config$Builder; in class Landroid/system/virtualmachine/VirtualMachine
+    Config$Builder; or its super classes (declaration of 'android.system.
+    virtualmachine.VirtualMachineConfig$Builder' appears in
+    /apex/com.android.virt/javalib/framework-virtualization.jar)
+
+    STEP5 CustomImageConfig.Builder BLOCKED -> java.lang.NoSuchMethodError:
+    No direct method <init>()V in class Landroid/system/virtualmachine/
+    VirtualMachineCustomImageConfig$Builder;
+
+    STEP6a Partition BLOCKED -> java.lang.NoSuchMethodError: No direct
+    method <init>(Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;)V
+    in class Landroid/system/virtualmachine/VirtualMachineCustomImageConfig
+    $Partition;
+
+    STEP6b Disk.RODisk BLOCKED -> java.lang.NoSuchMethodError: No static
+    method RODisk(Ljava/lang/String;)Landroid/system/virtualmachine/Virtual
+    MachineCustomImageConfig$Disk; in class Landroid/system/virtualmachine/
+    VirtualMachineCustomImageConfig$Disk;
+
+Every signature was read verbatim off the device's own
+`framework-virtualization.jar` with `dexdump`, and each error names that
+same jar as the place the class was found. The methods exist. They are
+refused.
+
+**The runtime says why, in its own words.** `adb logcat -d | grep
+hiddenapi`, one line per refusal:
+
+    E nyspike.probe2a: hiddenapi: Accessing hidden method Landroid/system/
+    virtualmachine/VirtualMachineConfig$Builder;->setCustomImageConfig(...)
+    (runtime_flags=0, domain=platform, api=blocked) from /data/app/
+    ~~MqmyZ345TWn9q-dM9oAsbg==/com.pennyspike.probe2a-.../base.apk
+    (domain=app, TargetSdkVersion=37) using linking: denied
+
+`api=blocked`, `domain=platform` refusing `domain=app`, `denied`. This
+is ART's non-SDK interface restriction, enforced inside our own process
+at link time. It is not a permission check and it is not a typo.
+
+**Nothing was created.** `vm list` immediately after showed only the
+Terminal app's `debian` at requesterUid 10179. No crash:
+`logcat -s AndroidRuntime:E DEBUG:E` was empty. (`penny2b` from the 2b
+run is absent because the app was force-stopped before launching 2c, as
+the traps list requires; it dies with its owning process, which is
+itself the 2b ownership finding.)
+
+**What this means. There are two gates and they are in series.**
+
+    1. hidden-API blocklist   — in OUR process, at link time      SHUT
+    2. USE_CUSTOM_VIRTUAL_MACHINE — in VirtualizationService, over binder   NEVER REACHED
+
+The pre-flight entry above established that gate 2 is not in the jar and
+so could only be answered by making the call. That was right, and it is
+now moot: gate 1 stops the call from ever being made. `pm grant` speaks
+only to gate 2. This is why holding the permission changed nothing.
+
+**What this does NOT establish.** It says nothing about whether
+`USE_CUSTOM_VIRTUAL_MACHINE` would have been granted or refused, because
+nothing ever asked. That question is unreachable from a sideloaded app
+and only rung 4 can put it. It also does not contradict 2a or 2b: the
+members those rungs used are marked `SDK` in the same metadata and still
+work. It refines 2a, which over-generalised from a true observation.
+
+**A method worth keeping, and the reason this took one build instead of
+several.** The dex carries a per-member `hiddenapi` flag, printed by
+`dexdump -d`. `SDK` members are callable by this app; `BLOCKED` members
+throw `NoSuchMethodError`. Checked against all nine members rung 2b
+touched — `create`, `run`, `setCallback`, `getStatus`, `getName`,
+`delete`, `getCapabilities`, `setApkPath`, `setPayloadBinaryName` all
+`SDK` and all worked; `getCid()` and `getOs()` both `BLOCKED` and both
+threw — it was right 9/9 with no counterexample. It then predicted all
+four 2c refusals correctly before the APK was built. **Read the flag
+before writing the code.** This also closes the open question left in
+the 2b entry about why `getCid()` and `getOs()` failed: they are
+blocklisted, and that is now measured rather than guessed.
+
+**Device-wide `hidden_api_policy` is `null`** (default enforcement, with
+`hidden_api_blacklist_exemptions` also `null`), so nothing about this
+device is unusual and nothing from the previous spike relaxed it.
+
+**Not done, deliberately.** `settings put global hidden_api_policy 1`
+disables the blocklist device-wide and would separate "blocked for
+everyone" from "blocked for us". It was not run: it is a device-wide
+state change on a phone that has to go back to Back Market, and it
+proves nothing shippable, because no customer device will have it set.
+Recorded as an option, not a plan.
+
+**Consequence for the project, stated plainly.** Rung 4 — the app inside
+the OS image, platform-signed — is now the *only* route to a custom
+guest, not merely the commercial one. Exemption from the blocklist comes
+from being in the `platform` domain, which means the system image or an
+APEX, which is exactly what rung 4 builds. There is no sideloaded
+shortcut left to find. The gap between 2b and 2c, which the pre-flight
+called "the entire product question", is now measured: it is not a
+permission that could be granted, it is a domain boundary.

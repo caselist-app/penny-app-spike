@@ -170,9 +170,14 @@ gets its own `notes.md` entry. Do not collapse them.
   `VirtualMachineManager` and called it. Both `pm grant`s were accepted
   silently on GrapheneOS with the bootloader locked, and the app read
   both back as GRANTED from inside itself.
-  The non-SDK restriction worry is **dead**: the class loads from
-  `BootClassLoader` and `@SystemApi` members are gated by permission, not
-  by the hidden-API blocklist. `pm grant` is the only gate.
+  **PARTLY CORRECTED BY 2c — read this.** 2a concluded "the non-SDK
+  restriction worry is dead; `pm grant` is the only gate." That is true
+  of the members 2a and 2b touched and **false in general.** The class
+  does load from `BootClassLoader`, and the members on the 2b path are
+  gated by permission alone — but the hidden-API blocklist is very much
+  alive on this app and blocks other members of the same classes
+  outright. See 2c. `pm grant` is the only gate *on the members that are
+  not blocklisted*.
 - **2b. Does it own a VM with Google's stock payload? ANSWERED YES.**
   `com.pennyspike.probe2a` created and booted a microdroid VM named
   `penny2b`. `vm list` reported `requesterUid: 10192`, `requesterPid`
@@ -186,36 +191,43 @@ gets its own `notes.md` entry. Do not collapse them.
   (`/data/user/0/com.pennyspike.probe2a/vm/penny2b`), not the Terminal
   app's — VM ownership is per-app, and the Terminal app has no handle on
   it. Built with compile-only stubs, no reflection.
-- **2c. Does it own a VM running OUR guest?** Same again, with
-  `USE_CUSTOM_VIRTUAL_MACHINE` granted and a custom config.
-  `USE_CUSTOM_VIRTUAL_MACHINE` carries no `@RequiresPermission` anywhere
-  in the API surface; VirtualizationService checks it at VM-creation time
-  when the config is a custom one. So 2b and 2c differ by which config
-  object gets built, not by which method gets called.
-  **The gap between 2b and 2c is the entire product question.**
-  **Pre-flight done 14 Sept, see `notes.md`.** Enforcement is NOT in
-  `framework-virtualization.jar` — the only references to either
-  permission string in the whole jar are the two field declarations on
-  `VirtualMachine`, and no method calls `checkPermission` with them.
-  That is the correct design (the jar runs inside our process and cannot
-  be trusted to police itself) and it has a consequence: **the answer to
-  2c cannot be read off the dex. It can only be obtained by making the
-  call and reading the refusal.**
-  A complete, Google-shipped, world-readable (`-rw-r--r--`) kernel and
-  rootfs set exists on the device and can be borrowed the same way 2b
-  borrowed `EmptyPayloadApp.apk` — `/apex/com.android.virt/etc/fs/`
-  holds `microdroid_kernel` (11MB), `microdroid.img` (32MB, system_a)
-  and `microdroid_vbmeta.img` (vbmeta_a), and
-  `/apex/com.android.virt/etc/microdroid.json` is the exact recipe that
-  assembles them. Its fields map one-to-one onto
-  `VirtualMachineCustomImageConfig.Builder`. So **the gate can be tested
-  with zero build and zero new dependencies** — mirror that JSON into a
-  custom image config and see whether uid 10192 is allowed to do it.
-  Do that BEFORE building any image of our own. If the platform refuses
-  a sideloaded app a custom VM, building a guest was wasted work.
-  Note what that test does and does not show: it answers "is the custom
-  path open to us", NOT "can we run our own guest". Swapping Google's
-  kernel and rootfs for ours is a separate and much larger step.
+- **2c. Does it own a VM running OUR guest? ANSWERED NO — and not for
+  the reason we expected.** A sideloaded app cannot reach the custom-VM
+  API **at all**. Every member of it is on the hidden-API **blocklist**,
+  so the call is refused inside our own process, by the Android runtime,
+  before any binder call is made. `USE_CUSTOM_VIRTUAL_MACHINE` is never
+  consulted. Measured 14 Sept with both permissions reading
+  `granted=true`, so the permission is ruled out as the cause.
+  Four members tried, four refused with `NoSuchMethodError`, while a
+  known-good control (`setApkPath`) on the same builder in the same run
+  succeeded: `VirtualMachineConfig.Builder.setCustomImageConfig`,
+  `VirtualMachineCustomImageConfig.Builder.<init>`,
+  `...$Partition.<init>`, `...$Disk.RODisk`. ART logged each one:
+  `api=blocked ... domain=platform ... from ...base.apk (domain=app,
+  TargetSdkVersion=37) using linking: denied`. No VM appeared in
+  `vm list`, and there was no crash.
+  **There are TWO gates and they are in series: the hidden-API gate in
+  our process, then the permission gate in VirtualizationService. The
+  first one is shut.** No amount of `pm grant` moves it — `pm grant`
+  speaks to the second gate only.
+  What this does NOT say: it says nothing about whether
+  `USE_CUSTOM_VIRTUAL_MACHINE` would be granted, because nothing ever
+  asked. That question is now unreachable from a sideloaded app and only
+  rung 4 can ask it.
+  The one experiment that could still separate "blocked for everyone"
+  from "blocked for us" is flipping `settings put global
+  hidden_api_policy 1`, which disables the blocklist device-wide. **Not
+  done, deliberately** — it is a device-wide state change on a phone
+  that has to go back, and it would prove nothing shippable, since no
+  customer device will have it set. Raise it with Matt before ever
+  doing it.
+  Retained because it stays true and rung 4 will want it: a complete,
+  Google-shipped, world-readable kernel and rootfs sit in
+  `/apex/com.android.virt/etc/fs/` — `microdroid_kernel` (11MB),
+  `microdroid.img` (32MB, system_a), `microdroid_vbmeta.img` (vbmeta_a)
+  — and `/apex/com.android.virt/etc/microdroid.json` is the recipe that
+  assembles them, mapping one-to-one onto
+  `VirtualMachineCustomImageConfig.Builder`.
 
 **Rung 3 — does that app solve the wake problem?** Only after rung 2.
 Foreground service, start on `BOOT_COMPLETED`, restart after a kill.
@@ -230,6 +242,14 @@ cable. There is no mechanism to grant them on a customer's device. So a
 sideloaded app that owns a VM is **not a shippable product** — it is
 proof that the VM machinery answers to an app rather than only to the OS,
 and that proof is the thing that justifies spending weeks on rung 4.
+**2c raised the stakes on this.** It is no longer only that the
+permissions cannot be granted in the field: the custom-VM API is not
+reachable from an app in the `app` domain at any permission level. Only
+code the runtime treats as `domain=platform` — the system image and the
+APEXes — is exempt from the blocklist. That is precisely what rung 4
+builds, so rung 4 is now the **only** route to a custom guest, not
+merely the commercial one. There is no sideloaded shortcut left to find,
+and time spent looking for one is wasted.
 Rung 4 is the commercial route: the app inside the OS image,
 platform-signed, holding the permissions because it is part of the
 system. At that point the app compiles inside AOSP against the real
@@ -254,10 +274,21 @@ Do not work ahead of the current rung.
   taken verbatim off the device's own dex, so the methods demonstrably
   exist in `framework-virtualization.jar`. Meanwhile `create`, `run`,
   `setCallback`, `getStatus`, `getName`, `delete` and `getCapabilities`
-  all worked. Leading explanation, NOT yet proven: those two are `@hide`
-  rather than `@SystemApi`, so the non-SDK blocklist does apply to them —
-  which refines rung 2a's finding rather than contradicting it (2a said
-  `@SystemApi` members are gated by permission, and that still holds).
+  all worked. **PROVEN in 2c, and it is now predictable in advance.**
+  The dex carries a per-member `hiddenapi` flag and `dexdump -d` prints
+  it. Members marked `SDK` are callable by this app; members marked
+  `BLOCKED` throw `NoSuchMethodError`. Checked against every member 2b
+  touched, it was right 9 times out of 9 with no counterexample, then
+  predicted all four 2c refusals correctly before the build was run.
+  **Read the flag before writing the code**, from the jar already pulled
+  in the scratchpad:
+
+      dexdump -d classes.dex | grep -A3 "name          : 'setApkPath'"
+
+  Look for the `hiddenapi     : 0x....` line. `0x0002` is BLOCKED.
+  ART also logs each refusal — `adb logcat -d | grep hiddenapi` prints
+  `api=blocked ... using linking: denied`, which is the unambiguous
+  signature of this gate rather than a typo or a permission problem.
   Practical rule: a `NoSuchMethodError` on a signature you read off the
   dex is a runtime block, not a typo. Get the value another way — the CID
   came from `vm list` instead, and nothing was lost.

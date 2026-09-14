@@ -77,6 +77,15 @@ public class VirtualMachineConfig {
             throw new UnsupportedOperationException("stub");
         }
 
+        /** Rung 2c. The fork in the road: a config carrying one of these is a
+         *  custom VM, which is what USE_CUSTOM_VIRTUAL_MACHINE guards. The
+         *  real build() throws IllegalStateException if this is combined with
+         *  setPayloadBinaryName or setPayloadConfigPath — they are the two
+         *  mutually exclusive ways to say what the VM should run. */
+        public Builder setCustomImageConfig(VirtualMachineCustomImageConfig config) {
+            throw new UnsupportedOperationException("stub");
+        }
+
         public VirtualMachineConfig build() {
             throw new UnsupportedOperationException("stub");
         }

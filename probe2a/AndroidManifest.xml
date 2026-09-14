@@ -32,5 +32,11 @@
         <activity
             android:name=".Probe2bActivity"
             android:exported="true" />
+
+        <!-- Rung 2c. Same package and uid again, so the only thing that
+             changes between 2b and 2c is which config object gets built. -->
+        <activity
+            android:name=".Probe2cActivity"
+            android:exported="true" />
     </application>
 </manifest>
