@@ -229,11 +229,41 @@ gets its own `notes.md` entry. Do not collapse them.
   assembles them, mapping one-to-one onto
   `VirtualMachineCustomImageConfig.Builder`.
 
-**Rung 3 — does that app solve the wake problem?** Only after rung 2.
-Foreground service, start on `BOOT_COMPLETED`, restart after a kill.
-DONE MEANS: reboot the device, touch nothing, and the VM is up and
-reachable. This is the load-bearing rung — Penny ships as a headless
-appliance, so nobody will be there to open an app. Needs no OS build.
+**Rung 3 — does that app solve the wake problem? ANSWERED YES.** 14 Sept.
+Rebooted, touched nothing, and the sideloaded app's VM was booted and
+ready **15.9 seconds after power-on with the phone still at the lock
+screen** — `userUnlocked=false`, disk still encrypted, nobody in the
+room. `vm list` confirmed `requesterUid: 10192`. Corroborated without
+our own log: `/proc/<pid>/stat` field 22 = 1381 jiffies (CLK_TCK 100),
+i.e. the process started 13.8s after boot. The VM then ran unattended
+for 95 minutes. **Restart after a kill also YES**: `am crash` killed the
+process, the system recreated the service with a null intent, and the VM
+was back up 1.44s later.
+
+The shape that works, and the two things that had to be right:
+
+    BootReceiver   directBootAware, listens for LOCKED_BOOT_COMPLETED
+    VmService      directBootAware, foregroundServiceType="specialUse",
+                   returns START_STICKY, holds the VirtualMachine handle,
+                   uses createDeviceProtectedStorageContext()
+
+1. **`BOOT_COMPLETED` is the wrong broadcast.** On a phone with a PIN it
+   does not fire at boot — it fires at FIRST UNLOCK. Measured: it arrived
+   95 minutes after power-on, the moment a human typed the PIN.
+   `LOCKED_BOOT_COMPLETED` is the one that tracks power-on, and only
+   `directBootAware` components receive it.
+2. **The VM's directory must live in device-encrypted storage.** The
+   first attempt failed with `FileSystemException: /data/user/0/<pkg>/vm:
+   Required key not available` — the normal app data dir does not exist
+   until first unlock. See the Traps entry.
+
+**Why this one matters commercially.** The four permissions the wake path
+needs — `RECEIVE_BOOT_COMPLETED`, `FOREGROUND_SERVICE`,
+`FOREGROUND_SERVICE_SPECIAL_USE`, `POST_NOTIFICATIONS` — are all ordinary
+permissions any Play Store app may declare. Unlike
+`MANAGE_VIRTUAL_MACHINE`, none needs a cable. So the wake design proven
+here survives into rung 4 unchanged; it is the only part of this spike
+that is already shippable.
 
 **What rung 2 buys, and what it does not. Do not get this wrong.**
 `pm grant` cannot ship. Both permissions are `development` protection
@@ -324,15 +354,48 @@ Do not work ahead of the current rung.
   nothing on the bus at all, and no adb question can help. A phone
   charging normally can still have a dead data path. This cost an
   afternoon.
-- GrapheneOS sets the USB-C port to "charging-only when locked". It fits
-  a lost-adb story perfectly and was **not** the cause last time. Check
-  it, don't assume it.
+- GrapheneOS sets the USB-C port to "charging-only when locked". It was
+  not the cause in penny-box, but it **WAS** the cause on 14 Sept during
+  rung 3: after `adb reboot` the device never came back on adb, and
+  `system_profiler SPUSBDataType` showed nothing on the bus at all, until
+  the phone was unlocked by hand. Note `aapm_usb_data_protection=0` did
+  NOT predict this — that is a different GrapheneOS setting. Plan for it:
+  anything measured across a reboot must be readable from `logcat` AFTER
+  an unlock, because logcat survives an unlock and only dies on reboot.
+  Timestamps (`sinceBoot=`) are what let you prove what happened before
+  the human touched it.
 - Port forwarding does **not** survive a VM restart. Symptom is
   `Connection closed by 127.0.0.1 port 2222` with every indicator looking
   healthy. Fix is `adb shell am force-stop com.android.virtualization.terminal`,
   reopen the app by hand, then rebuild `adb forward`.
+- **An app cannot create a VM before first unlock unless it uses
+  device-encrypted storage.** `VirtualMachine.createVmDir` builds the VM
+  directory relative to the Context it is handed, and the default Context
+  points at `/data/user/0/<pkg>`, which is credential-encrypted and does
+  not exist until somebody types the PIN. The failure reads
+  `VirtualMachineException: failed to create directory for VM` caused by
+  `java.nio.file.FileSystemException: ... Required key not available`,
+  which looks like a permissions problem and is not. Fix is one line —
+  hand the API `createDeviceProtectedStorageContext()`, which moves the
+  VM to `/data/user_de/0/<pkg>`. Cost: that directory is readable without
+  the user's PIN, so it is a confidentiality trade-off, not a free win.
+- A foreground service started from a boot broadcast is **permanently
+  denied microphone, camera and location** for its whole life. Logged as
+  `Foreground service started from background can not have
+  location/camera/microphone access`. Irrelevant to VMs, directly
+  relevant to voice — Penny cannot wake itself at boot AND listen in the
+  same service.
+- The boot broadcast's temporary exemption is **20 seconds**
+  (`duration:20000` in the `Background started FGS: Allowed` log line).
+  `startForeground` must be called inside that window or the service is
+  killed. Rung 3 used ~5ms, so there is headroom, but a cold dex2oat on
+  the first boot after an update eats into it.
 - The VM does **not** start itself after a device reboot. The Terminal
   app has to be opened by hand. It reaches a prompt in 4-5 seconds.
+  **That is a fact about the Terminal app, not about VMs** — rung 3
+  measured our own app bringing its VM up in 16 seconds unattended on the
+  same boot where the Terminal app's `debian` VM did not appear until a
+  human opened it 95 minutes later.
 - The VM's whole subnet is rebuilt on every device reboot. Never pin an
   address, the gateway's included.
 - VM CIDs are allocated in creation order and swap between runs. Never
@@ -364,9 +427,19 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
 ## Open threads worth not losing
 
 - Question 9 (endurance) has only ever been tested idle, mains powered,
-  no workload. 54 minutes clean is a signal, not an answer. It may also
-  not matter: if rung 3 succeeds, a VM that dies and self-restarts in ~1
-  second beats one that survives all night and needs a human.
+  no workload. 54 minutes clean is a signal, not an answer. It matters
+  less now: rung 3 succeeded, and a measured 1.44-second self-restart
+  beats a VM that survives all night and needs a human. Rung 3 also
+  logged 95 minutes of an unattended VM with no intervention. Still not a
+  soak, and `am crash` is not memory pressure — the low-memory killer has
+  never been tested.
+- **Device-encrypted storage is now load-bearing and is a confidentiality
+  trade-off.** Rung 3 had to move the VM's state to
+  `/data/user_de/0/<pkg>` to start before first unlock. That directory is
+  readable once the phone is powered on, without the user's PIN. Decide
+  deliberately what is allowed to live there before rung 4 designs
+  storage. The pitch is confidentiality; this is the first place it was
+  traded away for function.
 - **This device does NOT support protected VMs. MEASURED.**
   `CAPABILITY_PROTECTED_VM = 1`, `CAPABILITY_NON_PROTECTED_VM = 2`, and
   `getCapabilities()` returns 2. A protected VM is one the host Android
@@ -383,7 +456,10 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   arithmetic prompt at 317MiB says nothing about an agent holding a long
   context and running tools.
 - Voice has never been through the VM boundary and the microphone was
-  denied on this device. Deferred, not solved.
+  denied on this device. Deferred, not solved. Rung 3 added a hard
+  constraint: a foreground service started at boot can never hold the
+  microphone, so the wake service and the listening service have to be
+  two different things. Design around it, don't discover it late.
 - Whether the phone earns its place at all, versus a small Linux box with
   no permission games and no patch pipeline. The attestation story is
   what justifies the phone.

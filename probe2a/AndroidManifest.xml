@@ -16,6 +16,19 @@
     <uses-permission android:name="android.permission.MANAGE_VIRTUAL_MACHINE" />
     <uses-permission android:name="android.permission.USE_CUSTOM_VIRTUAL_MACHINE" />
 
+    <!--
+      Rung 3. Unlike the two above, NONE of these four are privileged. They are
+      ordinary permissions any app on the Play Store may declare: the first is
+      granted automatically at install, the middle two likewise, and only
+      POST_NOTIFICATIONS asks the user. That matters — it means the wake
+      mechanism rung 3 tests is one a shipping app can actually have, which is
+      not true of MANAGE_VIRTUAL_MACHINE.
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application android:label="Penny probe 2a">
         <activity
             android:name=".MainActivity"
@@ -38,5 +51,34 @@
         <activity
             android:name=".Probe2cActivity"
             android:exported="true" />
+
+        <!-- Rung 3. directBootAware is what lets these two exist before the
+             PIN is entered; without it the OS would not even deliver
+             LOCKED_BOOT_COMPLETED, and we could not tell "needs a human to
+             unlock" apart from "does not wake at all".
+             exported=true only so the service can also be started by hand over
+             adb as a control run. -->
+        <receiver
+            android:name=".BootReceiver"
+            android:directBootAware="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- specialUse is the only foreground-service type that honestly
+             describes "holds a virtual machine", and it is not on Android 15's
+             list of types forbidden from starting at boot. -->
+        <service
+            android:name=".VmService"
+            android:directBootAware="true"
+            android:exported="true"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Holds a virtual machine alive for the life of the device" />
+        </service>
     </application>
 </manifest>

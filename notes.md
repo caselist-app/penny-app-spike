@@ -975,3 +975,249 @@ APEX, which is exactly what rung 4 builds. There is no sideloaded
 shortcut left to find. The gap between 2b and 2c, which the pre-flight
 called "the entire product question", is now measured: it is not a
 permission that could be granted, it is a domain boundary.
+
+## 2026-09-14 — rung 3 ANSWERED YES. The app wakes its own VM 16 seconds after power-on, with the phone still locked and nobody in the room.
+
+Both halves of rung 3 are answered, and one of them only after a
+correction. The wake path worked first try; the VM still failed, for a
+reason that had nothing to do with waking. Recorded in the order it
+happened, because the wrong answer is the useful part.
+
+### Setup
+
+Same app as 2a/2b/2c — `com.pennyspike.probe2a`, uid 10192, hand-built
+by `probe2a/build.sh`, sideloaded, not platform-signed, not privileged.
+Same guest as 2b: Google's stock microdroid `EmptyPayloadApp`. 2c closed
+off running our own guest from a sideloaded app, so there was nothing to
+gain by varying the payload. Rung 3 varies exactly one thing: WHO starts
+the VM.
+
+Two new components, both `android:directBootAware="true"`:
+
+    BootReceiver   listens for LOCKED_BOOT_COMPLETED and BOOT_COMPLETED
+    VmService      foreground service, foregroundServiceType="specialUse",
+                   returns START_STICKY, holds the VirtualMachine handle
+
+Four new permissions. **None of them is privileged** — this matters more
+than it looks. `MANAGE_VIRTUAL_MACHINE` needs a cable and cannot ship.
+These four are ordinary permissions any Play Store app may declare:
+
+    RECEIVE_BOOT_COMPLETED         granted at install
+    FOREGROUND_SERVICE             granted at install
+    FOREGROUND_SERVICE_SPECIAL_USE granted at install
+    POST_NOTIFICATIONS             runtime prompt
+
+So the wake mechanism proven here is one a shipping product can actually
+have. That is not true of anything rung 2 proved.
+
+### Attempt 1 — FAILED. Not the wake path. Disk encryption.
+
+Rebooted with `adb reboot` at 15:08. Nobody touched the phone.
+
+    sinceBoot=14025ms  BootReceiver: LOCKED_BOOT_COMPLETED
+    sinceBoot=14030ms  service onCreate, uid=10192
+                       STEP1 startForeground OK
+                       STEP2 MANAGE_VIRTUAL_MACHINE = GRANTED
+                       STEP3 userUnlocked=false
+
+Every part of the wake path worked, 14 seconds after power-on, with the
+phone sitting at the lock screen. `pm grant` survived the reboot. Then:
+
+    VirtualMachineException: failed to create directory for VM
+      at android.system.virtualmachine.VirtualMachine.createVmDir(VirtualMachine.java:796)
+      at android.system.virtualmachine.VirtualMachine.create(VirtualMachine.java:613)
+    Caused by: java.nio.file.FileSystemException:
+      /data/user/0/com.pennyspike.probe2a/vm: Required key not available
+
+"Required key not available" is file-based encryption. Android gives
+every app two data directories:
+
+    /data/user/0/<pkg>      credential-encrypted (CE). The decryption key
+                            is derived from the user's PIN. Does not exist,
+                            at all, until somebody unlocks the phone once
+                            after a boot.
+    /data/user_de/0/<pkg>   device-encrypted (DE). Available as soon as the
+                            OS is up. Only directBootAware components may
+                            touch it.
+
+`VirtualMachine.createVmDir` builds the VM's state directory relative to
+the Context it was handed, and the default Context is the CE one. So the
+VM could not exist yet.
+
+Then, 5 minutes 57 seconds later, a human typed the PIN:
+
+    sinceBoot=357535ms  BootReceiver: BOOT_COMPLETED
+                        STEP3 userUnlocked=true
+    sinceBoot=357825ms  run() returned, status=RUNNING
+    sinceBoot=359230ms  CB onPayloadReady
+
+That is the second finding of attempt 1, and it is about the product, not
+the code: **`BOOT_COMPLETED` does not fire at boot on a phone with a PIN.
+It fires at first unlock.** An appliance that waits for `BOOT_COMPLETED`
+waits for a person. `LOCKED_BOOT_COMPLETED` is the one that actually
+tracks power-on, and only directBootAware components receive it.
+
+### Attempt 2 — SUCCEEDED. One-line change.
+
+    Context ctx = createDeviceProtectedStorageContext();
+    VirtualMachineManager vmm = ctx.getSystemService(VirtualMachineManager.class);
+    ... new VirtualMachineConfig.Builder(ctx)
+
+Control run first, while unlocked, to prove the change had not simply
+broken the working path: VM dir moved to
+`/data/user_de/0/com.pennyspike.probe2a/vm/penny3`, created, VM booted,
+`requesterUid: 10192`. Good — so any later failure would be about the
+lock, not about the edit.
+
+Rebooted at 15:17:21 (kernel `trusty` line is the boot marker). The phone
+was deliberately left alone at the lock screen.
+
+    sinceBoot=14353ms  BootReceiver: LOCKED_BOOT_COMPLETED
+    sinceBoot=14359ms  service onCreate, uid=10192
+                       STEP1 startForeground OK
+                       STEP2 MANAGE_VIRTUAL_MACHINE = GRANTED
+                       STEP3 userUnlocked=false        <-- still locked
+                       STEP3b dataDir=/data/user_de/0/com.pennyspike.probe2a
+                       STEP7 deleted a pre-existing VM named penny3
+                       STEP8 create() returned VirtualMachine(name:penny3...)
+    sinceBoot=14569ms  STEP9 run() returned, status=RUNNING
+    sinceBoot=15908ms  CB onPayloadStarted
+    sinceBoot=15936ms  CB onPayloadReady
+
+**A VM belonging to a sideloaded app was booted and ready 15.9 seconds
+after power-on, with the disk still encrypted, the lock screen up, and
+nobody touching the device.**
+
+`BOOT_COMPLETED` did not arrive until `sinceBoot=5723874ms` — 95 minutes
+24 seconds later, when a human finally unlocked the phone. By then the VM
+had been running unattended for 95 minutes. The service correctly did
+nothing on that second start ("VM already booted by an earlier start").
+
+### Corroboration that does not depend on our own log
+
+Our log is the app talking about itself. Two independent checks:
+
+    /proc/3210/stat field 22 = 1381 jiffies, CLK_TCK=100
+      -> the process holding the VM started 13.81s after boot
+
+    vm list at 16:53 (uptime 1:35):
+      name: "penny3", cid: 2048, requesterUid: 10192, requesterPid: 3210
+
+And the contrast that makes the point:
+
+    /proc/4431/stat field 22 = 573038 jiffies = 5730s
+      -> the Terminal app's debian VM started 95.5 minutes after boot,
+         i.e. only once a human opened the app
+
+Same device, same boot. Ours came up in 16 seconds unattended; Google's
+Terminal app needed hands. The CLAUDE.md trap "the VM does not start
+itself after a device reboot" is a fact about the Terminal app, not about
+VMs.
+
+### Restart after a kill — also YES
+
+    adb shell am crash com.pennyspike.probe2a
+
+    pid before: 3210
+    sinceBoot=5807404ms  service onCreate (new pid 4953)
+    sinceBoot=5807405ms  onStartCommand why=RESTARTED-BY-SYSTEM (intent is null)
+                         RESTART CONFIRMED
+    sinceBoot=5807604ms  run() returned, status=RUNNING
+    sinceBoot=5808846ms  CB onPayloadReady
+    pid after: 4953
+    vm list: penny3, cid 2050, requesterUid 10192, requesterPid 4953
+
+The process died, the VM died with it, and the system recreated the
+service on its own with a null intent — no app, no user, no broadcast.
+VM back up **1.44 seconds** after the service restarted. That is
+START_STICKY doing exactly what a headless appliance needs.
+
+Caveat worth keeping: `am crash` is a simulated crash, not memory
+pressure. It does not prove the low-memory killer behaves the same way.
+
+### Android's own account of the decision
+
+    ActivityManager: Background started FGS: Allowed
+      [callingPackage: com.pennyspike.probe2a; callingUid: 10192;
+       uidState: RCVR; BFGS denied: false;
+       intent: ... cmp=com.pennyspike.probe2a/.VmService;
+       code:LOCKED_BOOT_COMPLETED;
+       tempAllowListReason:<... reasonCode:LOCKED_BOOT_COMPLETED,
+       duration:20000, callingUid:1000>;
+       targetSdkVersion:37; startForegroundCount:0]
+
+Two things in there are worth not losing.
+
+**The allowance is 20 seconds.** `duration:20000` is the temporary
+exemption granted to the boot broadcast. The service has 20 seconds from
+the broadcast to call `startForeground` or it is killed. We used about
+5 milliseconds, so there is enormous headroom — but a heavier app, or a
+cold dex2oat on first boot after an update, could eat into it.
+
+**And a restriction that will bite Penny later:**
+
+    ActivityManager: Foreground service started from background can not have
+      location/camera/microphone access: service com.pennyspike.probe2a/.VmService
+
+A foreground service started at boot is permanently denied microphone,
+camera and location for the life of that service. Irrelevant to a VM.
+Very relevant to a voice assistant. Penny cannot both wake itself at boot
+and listen, in the same service, on this mechanism. Not a blocker found
+today; a constraint found today.
+
+### Incidental corroboration of 2c from a different direction
+
+At boot, `dex2oat64` ahead-of-time compiled the app and logged the same
+hidden-API refusals 2c measured at runtime:
+
+    dex2oat64: hiddenapi: Accessing hidden method
+      Landroid/system/virtualmachine/VirtualMachineCustomImageConfig$Builder;-><init>()V
+      (runtime_flags=0, domain=platform, api=blocked) from ...base.apk
+      (domain=app, TargetSdkVersion=37) using linking: denied
+
+Same for `setKernelPath`, `addDisk`, `build`, `Disk.RODisk`,
+`Partition.<init>`, `Disk.addPartition`, and `VirtualMachine.getCid()`.
+2c's result was measured by the runtime linker; this is the compiler
+reaching the same verdict independently. The blocklist is not a runtime
+accident.
+
+Also observed during attempt 1, not during the successful boots:
+
+    virtmgr: avc: denied { use } for path="/dev/null"
+      scontext=u:r:untrusted_app_all_virtualizationmanager:s0:c192,...
+      tcontext=u:r:zygote:s0 tclass=fd permissive=0 app=com.pennyspike.probe2a
+
+Recorded, not explained. It appeared only alongside the failed CE attempt
+and the VM worked fine afterwards, so it is noted rather than chased.
+
+### What rung 3 does NOT establish
+
+- **It does not make anything shippable.** The VM still needs
+  `MANAGE_VIRTUAL_MACHINE`, still granted over a cable by a person.
+  Unchanged from 2b. What changed is that the WAKE half now uses only
+  ordinary permissions, so the wake design survives into rung 4 intact.
+- The guest is Google's empty microdroid payload. It boots, signals
+  ready, and does nothing. Nothing here says a real workload survives a
+  boot, a kill, or memory pressure.
+- **Device-encrypted storage is weaker than credential-encrypted
+  storage, and this is a real trade-off, not a free win.** Anything in
+  `/data/user_de/0/<pkg>` is readable once the device is powered on,
+  without the user's PIN. We moved the VM's state there to get it to
+  start unattended. For a product whose pitch is confidentiality, what
+  ends up in that directory needs deciding deliberately. Raise it before
+  rung 4 designs storage.
+- No attestation claim. DEBUG_LEVEL_FULL, sample DICE values, same as
+  every run so far.
+- One reboot, one crash. Not a soak. Not tested across an OS update,
+  a low-memory kill, or a battery-dead power cycle.
+
+### Consequence
+
+The load-bearing rung holds. Penny can be a headless appliance: power on,
+16 seconds, VM up, no screen, no PIN, no human. It survives having its
+process killed and comes back in under two seconds. That was the thing
+most likely to quietly kill the whole idea, and it did not.
+
+Rung 2 said the VM machinery answers to an app. Rung 3 says the app does
+not need a person. What is left is rung 4 — being part of the OS — which
+2c already established is the only route to running our own guest.
