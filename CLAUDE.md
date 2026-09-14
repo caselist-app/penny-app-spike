@@ -193,6 +193,29 @@ gets its own `notes.md` entry. Do not collapse them.
   when the config is a custom one. So 2b and 2c differ by which config
   object gets built, not by which method gets called.
   **The gap between 2b and 2c is the entire product question.**
+  **Pre-flight done 14 Sept, see `notes.md`.** Enforcement is NOT in
+  `framework-virtualization.jar` — the only references to either
+  permission string in the whole jar are the two field declarations on
+  `VirtualMachine`, and no method calls `checkPermission` with them.
+  That is the correct design (the jar runs inside our process and cannot
+  be trusted to police itself) and it has a consequence: **the answer to
+  2c cannot be read off the dex. It can only be obtained by making the
+  call and reading the refusal.**
+  A complete, Google-shipped, world-readable (`-rw-r--r--`) kernel and
+  rootfs set exists on the device and can be borrowed the same way 2b
+  borrowed `EmptyPayloadApp.apk` — `/apex/com.android.virt/etc/fs/`
+  holds `microdroid_kernel` (11MB), `microdroid.img` (32MB, system_a)
+  and `microdroid_vbmeta.img` (vbmeta_a), and
+  `/apex/com.android.virt/etc/microdroid.json` is the exact recipe that
+  assembles them. Its fields map one-to-one onto
+  `VirtualMachineCustomImageConfig.Builder`. So **the gate can be tested
+  with zero build and zero new dependencies** — mirror that JSON into a
+  custom image config and see whether uid 10192 is allowed to do it.
+  Do that BEFORE building any image of our own. If the platform refuses
+  a sideloaded app a custom VM, building a guest was wasted work.
+  Note what that test does and does not show: it answers "is the custom
+  path open to us", NOT "can we run our own guest". Swapping Google's
+  kernel and rootfs for ours is a separate and much larger step.
 
 **Rung 3 — does that app solve the wake problem?** Only after rung 2.
 Foreground service, start on `BOOT_COMPLETED`, restart after a kill.

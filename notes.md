@@ -761,3 +761,92 @@ mistake. Get the value another way rather than re-deriving the signature.
   case for rung 4; it is not a product.
 - Protected VMs remain unavailable on this device (measured in the 2a
   addendum). `setProtectedVm(false)` was passed explicitly.
+
+## 2026-09-14 — rung 2c PRE-FLIGHT ONLY. Where the permission is enforced, and what can be borrowed. NOT a 2c answer.
+
+**This entry answers nothing about 2c.** It is reconnaissance done before
+committing to a route, recorded because it changes which route is worth
+taking and because it cost nothing. 2c gets its own entry when it is
+actually run.
+
+**1. The permission check is not in the framework jar, so 2c cannot be
+settled offline.** The full dex of
+`/apex/com.android.virt/javalib/framework-virtualization.jar` was
+disassembled on the Mac (`dexdump -d`) and searched for every reference
+to either permission string. There are exactly two, and both are the
+field declarations themselves:
+
+    Landroid/system/virtualmachine/VirtualMachine;  ->  MANAGE_VIRTUAL_MACHINE_PERMISSION
+    Landroid/system/virtualmachine/VirtualMachine;  ->  USE_CUSTOM_VIRTUAL_MACHINE_PERMISSION
+
+No method in the jar calls `checkPermission` with either. That is the
+right design rather than an oversight: this jar is loaded into *our*
+process, so a check inside it would be a check we could remove. The real
+gate is in `virtualizationservice` (running as the `system` user, pid
+4103, observed in 2b), on the far side of a binder call.
+
+**Consequence, and it is the load-bearing sentence here:** the 2c answer
+cannot be read off a disassembly the way the 2b method signatures were.
+It can only be obtained by building a custom config, calling `create()`,
+and reading what comes back. That is fine — this spike is built for
+exactly that — but it means no amount of further reading answers it, and
+time spent looking is time wasted.
+
+**2. A complete Google-shipped guest can be borrowed, exactly as the 2b
+payload was.** `/apex/com.android.virt/etc/fs/`:
+
+    -rw-r--r-- system system 32411648  microdroid.img          <- rootfs, "system_a"
+    -rw-r--r-- system system 11321344  microdroid_kernel       <- kernel
+    -rw-r--r-- system system    65536  microdroid_vbmeta.img   <- "vbmeta_a"
+
+All world-readable, the same `-rw-r--r--` that made `EmptyPayloadApp.apk`
+usable by an ordinary app in 2b.
+
+**3. `/apex/com.android.virt/etc/microdroid.json` is the recipe, and it
+maps one-to-one onto the custom-image API.** Read verbatim off the
+device:
+
+    {
+      "kernel": "/apex/com.android.virt/etc/fs/microdroid_kernel",
+      "disks": [
+        {
+          "partitions": [
+            { "label": "vbmeta_a", "path": ".../microdroid_vbmeta.img" },
+            { "label": "system_a", "path": ".../microdroid.img" }
+          ],
+          "writable": false
+        }
+      ],
+      "memory_mib": 256,
+      "console_input_device": "hvc0",
+      "platform_version": "~1.0"
+    }
+
+Note what this is NOT: it is not a microdroid *payload* config (the
+`task`/`apexes` shape that `setPayloadConfigPath()` takes). It is a
+custom *VM* descriptor — kernel plus raw partitions — which is what the
+`vm` CLI consumes. Its fields line up with
+`VirtualMachineCustomImageConfig.Builder` from the 2b dex extraction:
+`setKernelPath`, `addDisk`, `Disk.RODisk`, `Partition(label, path, ...)`.
+
+**What this means for the route, and the recommendation.** The gate can
+be tested with **no new dependency, no NDK, and nothing built**: mirror
+that JSON into a `VirtualMachineCustomImageConfig`, hand it to
+`setCustomImageConfig()`, and try to create a VM as uid 10192. Every file
+involved is Google's and already on the device. Either
+VirtualizationService allows a sideloaded app to run a custom VM or it
+refuses — and that is the whole question rung 2c exists to ask.
+
+**Explicitly rejected route, and why, so it is not re-proposed:**
+compiling our own small payload binary into our own APK and booting it
+under Google's microdroid. It sounds like "our guest" and it is not. It
+uses `setPayloadBinaryName` with our own APK path, which is the *same*
+code path 2b already proved — it would never reach
+`USE_CUSTOM_VIRTUAL_MACHINE` at all. It would cost the Android NDK as a
+new dependency and answer a question already answered.
+
+**And what the borrow test will NOT prove.** It answers "is the custom-VM
+path open to a sideloaded app". It does not answer "can we boot an image
+we built". If the gate is open, replacing Google's kernel and rootfs with
+our own is a separate and much larger piece of work, and the attestation
+story is untouched by either.
