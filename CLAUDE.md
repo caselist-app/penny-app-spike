@@ -231,14 +231,15 @@ gets its own `notes.md` entry. Do not collapse them.
 
 **Rung 3 — does that app solve the wake problem? ANSWERED YES.** 14 Sept.
 Rebooted, touched nothing, and the sideloaded app's VM was booted and
-ready **15.9 seconds after power-on with the phone still at the lock
-screen** — `userUnlocked=false`, disk still encrypted, nobody in the
-room. `vm list` confirmed `requesterUid: 10192`. Corroborated without
-our own log: `/proc/<pid>/stat` field 22 = 1381 jiffies (CLK_TCK 100),
-i.e. the process started 13.8s after boot. The VM then ran unattended
-for 95 minutes. **Restart after a kill also YES**: `am crash` killed the
-process, the system recreated the service with a null intent, and the VM
-was back up 1.44s later.
+ready **15.1 and 15.9 seconds after power-on with the phone still at the
+lock screen** — `userUnlocked=false` both times, disk still encrypted,
+nobody in the room. **Measured twice, on two reboots, same APK.**
+`vm list` confirmed `requesterUid: 10192` on both. Corroborated without
+our own log: `/proc/<pid>/stat` field 22 = 1329 and 1381 jiffies
+(CLK_TCK 100), i.e. the process started 13.3s and 13.8s after boot.
+**Restart after a kill also YES, also twice**: `am crash` killed the
+process, the system recreated the service with a null intent — no app,
+no user, no broadcast — and the VM was back up in 1.44s and 1.51s.
 
 The shape that works, and the two things that had to be right:
 
@@ -248,8 +249,10 @@ The shape that works, and the two things that had to be right:
                    uses createDeviceProtectedStorageContext()
 
 1. **`BOOT_COMPLETED` is the wrong broadcast.** On a phone with a PIN it
-   does not fire at boot — it fires at FIRST UNLOCK. Measured: it arrived
-   95 minutes after power-on, the moment a human typed the PIN.
+   does not fire at boot — it fires at FIRST UNLOCK. Measured twice, with
+   two deliberately different waits: it arrived 95 minutes and 3 minutes
+   after power-on, each time at the exact moment a human typed the PIN.
+   It does not mean "booted", it means "somebody unlocked me".
    `LOCKED_BOOT_COMPLETED` is the one that tracks power-on, and only
    `directBootAware` components receive it.
 2. **The VM's directory must live in device-encrypted storage.** The
@@ -428,11 +431,14 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
 
 - Question 9 (endurance) has only ever been tested idle, mains powered,
   no workload. 54 minutes clean is a signal, not an answer. It matters
-  less now: rung 3 succeeded, and a measured 1.44-second self-restart
-  beats a VM that survives all night and needs a human. Rung 3 also
-  logged 95 minutes of an unattended VM with no intervention. Still not a
-  soak, and `am crash` is not memory pressure — the low-memory killer has
-  never been tested.
+  less now: rung 3 succeeded, and a measured ~1.5-second self-restart
+  beats a VM that survives all night and needs a human. **There is still
+  no endurance test.** Rung 3 logged 95 minutes of an unattended VM, but
+  that was a lost connection, not a designed soak, and must not be cited
+  as one — Matt caught that, Claude had written it up as a result. Two
+  boots and two simulated crashes is reproducibility, not endurance, and
+  `am crash` is not memory pressure: the low-memory killer has never been
+  exercised.
 - **Device-encrypted storage is now load-bearing and is a confidentiality
   trade-off.** Rung 3 had to move the VM's state to
   `/data/user_de/0/<pkg>` to start before first unlock. That directory is

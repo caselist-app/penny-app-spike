@@ -1221,3 +1221,88 @@ most likely to quietly kill the whole idea, and it did not.
 Rung 2 said the VM machinery answers to an app. Rung 3 says the app does
 not need a person. What is left is rung 4 — being part of the OS — which
 2c already established is the only route to running our own guest.
+
+## 2026-09-14 — rung 3 REPEATED. Both halves reproduce. Plus a correction to the previous entry's "95 minutes".
+
+The previous entry recorded rung 3 as answered on a single boot. n=1 is
+not a result, it is an anecdote. Repeated both halves on the same APK
+with no rebuild and no code change. Both reproduce.
+
+### Correction first
+
+The previous entry says the VM "ran unattended for 95 minutes". That is
+literally true and was NOT a designed test. The 95 minutes happened
+because the session lost connection and the phone sat at the lock screen
+until somebody came back to it. It is an observation, not an endurance
+measurement, and it must not be cited as one. Nothing else in that entry
+depends on it: the VM was up at 15.9 seconds, and how long it took a
+human to type the PIN afterwards is independent of that number.
+
+Flagged by Matt, not caught by Claude. Worth remembering — an accidental
+number that flatters the result is exactly the kind that gets repeated to
+investors and then falls over.
+
+### Repeat of the boot test — reproduces
+
+Second reboot at 17:00, phone deliberately left at the lock screen for
+about two minutes before being unlocked.
+
+                              run 1 (15:17)   run 2 (17:00)
+    LOCKED_BOOT_COMPLETED       14353ms         13748ms
+    userUnlocked at that moment   false           false
+    run() returned RUNNING      14569ms         13956ms
+    CB onPayloadReady           15936ms         15100ms
+    /proc/<pid>/stat field 22   1381 jiffies    1329 jiffies
+      (CLK_TCK=100)             = 13.81s        = 13.29s
+    BOOT_COMPLETED            5723874ms        182030ms
+      i.e. at first unlock      95m 24s         3m 02s
+      and it was               accidental      deliberate
+
+So: **VM booted and ready 15.1 and 15.9 seconds after power-on, twice,
+both times with `userUnlocked=false`.** `vm list` confirmed
+`requesterUid: 10192` on both.
+
+The `BOOT_COMPLETED` row is the second finding, now measured twice with
+two very different waits. 95 minutes and 3 minutes, both exactly tracking
+when a human typed the PIN, neither tracking power-on. That broadcast
+does not mean "booted". It means "somebody unlocked me".
+
+Run 2 is the cleaner of the two for one more reason: `vm list` afterwards
+showed ONLY `penny3`. The Terminal app's `debian` VM was absent, because
+nobody opened the Terminal app on that boot. Run 1's contrast relied on
+the Terminal app having been opened later; run 2 shows the plain fact —
+on a boot where no human opens anything, the only VM on the device is the
+one our sideloaded app started by itself.
+
+### Repeat of the kill test — reproduces
+
+    adb shell am crash com.pennyspike.probe2a
+
+                              run 1           run 2
+    pid before                3210            2795
+    pid after                 4953            3759
+    service onCreate          5807404ms       206819ms
+    CB onPayloadReady         5808846ms       208331ms
+    VM back up in             1.442s          1.512s
+    onStartCommand intent     null            null
+    requesterUid after        10192           10192
+
+Both times the system recreated the service on its own with a null
+intent — no app, no user, no broadcast — and the VM was back inside two
+seconds.
+
+### What is still NOT established, unchanged from the previous entry
+
+Everything in the previous entry's "does NOT establish" section still
+stands, and the correction above tightens one of them:
+
+- **There is still no endurance test.** Two boots and two simulated
+  crashes is reproducibility, not a soak. `am crash` is not memory
+  pressure; the low-memory killer has never been exercised. The 95
+  minutes was an accident and proves only that nothing fell over
+  unattended in that window on that one occasion.
+- Still needs `pm grant MANAGE_VIRTUAL_MACHINE` over a cable. Not
+  shippable. Only the WAKE half uses ordinary permissions.
+- The guest is still Google's empty microdroid payload doing nothing.
+- Device-encrypted storage is still the confidentiality trade-off that
+  bought this result.
