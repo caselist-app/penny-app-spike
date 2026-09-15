@@ -4973,7 +4973,7 @@ to the other three.
     MemFree            75,380 kB  1,220,200 kB  1,057,296 kB    938,232 kB
     Cached          1,094,964 kB  1,124,860 kB  1,179,608 kB  1,214,492 kB
     AnonPages       3,313,572 kB  1,726,304 kB  1,855,920 kB  1,942,980 kB
-    SwapFree        2,574,588 kB  2,574,588 kB  1,187,836 kB  1,261,820 kB
+    SwapFree        2,574,588 kB  1,074,428 kB  1,187,836 kB  1,261,820 kB
     Zram physical     197,464 kB    496,856 kB    483,388 kB    477,172 kB
     dumpsys Free RAM 3,068,208 kB 3,748,470 kB  3,657,804 kB  3,527,022 kB
 
@@ -5010,3 +5010,12 @@ this describes an untouched phone drifting and says nothing about what happens
 once a model is resident. It does not establish a floor — no reading was taken
 past 120.6 min, and whether the decline continues, flattens or reverses is
 unknown. The cause of the steady decompression was not investigated.
+
+**Transcription fix to the table immediately above, made minutes after it was
+committed (d6229ea).** Its `SwapFree` row carried `2,574,588 kB` in the 25.3-min
+column, which is the 5.8-min value repeated. The correct figure is
+**1,074,428 kB**, as recorded in the first evening entry's two-reading delta
+table and unchanged since. Corrected in place rather than left to mislead; the
+cell is the only thing altered, and no figure derived from it changes — the
+25.3 -> 120.6 min `SwapFree` movement quoted in the prose (+187,392 kB) was
+computed from the right number.
