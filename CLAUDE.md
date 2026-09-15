@@ -629,12 +629,12 @@ the first 2GB run the host surrendered only ~660MB of the 2048MB granted.~~
 **ANSWERED AND PARTLY CORRECTED BY 3e-ii — see below.** The memory is real
 (1792MB written and read back inside a 2048MB VM, twice), and the ~660MB
 reading was an artefact of the low-memory killer freeing memory in the same
-moment: the host in fact pays ~1.92GB up front, at VM creation. Nor is it
+moment: the host in fact pays ~1.92GB up front, at VM creation. ~~Nor is it
 known where a
 model FILE would live — 3d logged `init: Unknown /data fs type: tmpfs` and
 every guest here built a zram swap sized to its whole RAM, so a 1.5GB model
-file may cost 1.5GB of RAM on top of running it. That is **rung 3e-iii, NOT
-RUN.** Nothing ran inside the VM: the payload is 3c's, unchanged, and uses
+file may cost 1.5GB of RAM on top of running it.~~ **ANSWERED NO BY 3e-iii —
+a model file costs no permanent RAM; see below.** Nothing ran inside the VM: the payload is 3c's, unchanged, and uses
 no second CPU. And this was unlocked, in the foreground, over adb — a 2GB
 VM takes ~4s longer to reach ready, which eats into the 20-second
 foreground-service exemption, so the boot case is untested.
@@ -691,60 +691,89 @@ THIRD payload in the same APK (`PENNY_PAYLOAD_3EII_SO`). `VmService`,
 not compute, and the payload is single-threaded, so it used one of the 8
 vCPUs. The ceiling is with an EMPTY guest — 1792MB left 88MB free with only
 init and our payload in it, and a runtime eats into that. Residency was two
-seconds, not two hours. Unlocked, foreground, over adb. And where a model
+seconds, not two hours. Unlocked, foreground, over adb. ~~And where a model
 FILE would live is **rung 3e-iii, NOT RUN**, now more urgent rather than
 less: the guest's `/data` is `tmpfs` and zram already claims a swap device
 the size of the whole guest, so a 1.5GB model file may cost 1.5GB of RAM
-before anything loads it, against a measured ceiling of 1792MB.
+before anything loads it, against a measured ceiling of 1792MB.~~
+**ANSWERED BY 3e-iii AND THE FEAR WAS UNFOUNDED.** The `/data` reading was
+right and irrelevant: `setEncryptedStorageBytes` gives the guest a real ext4
+disk instead, a 1.5GB file on it costs no permanent RAM, and this same 1792MB
+ceiling still holds with that file mapped and resident. See below.
 
-**Rung 3e-iii — where does a model FILE live? DEFINED, NOT RUN.** The last
-rung in this group and the one that can still close the plan down. 3e-ii
-proved 1792MB of a 2048MB VM is genuinely writable. If a 1.5GB model FILE
-must also sit in RAM before anything loads it, then the file and the running
-model both come out of that same 1792MB and it does not fit.
+**Rung 3e-iii — where does a model FILE live? ANSWERED YES, and the answer is
+better than the question.** 15 Sept. A sideloaded app's guest wrote a **1536MB
+file to a real, persistent, encrypted ext4 disk**, and then touched and
+verified **1792MB of anonymous memory on top of it** — 3e-ii's exact ceiling,
+unchanged. **A model file does not come out of the guest's RAM budget.**
 
-**Why it is suspected.** Rung 3d's shutdown log reads `init: Unknown /data fs
-type: tmpfs`. tmpfs is a RAM disk. And every guest measured in 3e-i and 3e-ii
-built a zram swap device sized to its whole RAM, which is more RAM spoken
-for. Nothing here has ever written a file inside a guest, so this is
-inference, not measurement.
+**The first finding was that the question was wrong.** There is no writable
+filesystem in a default microdroid guest at all. `/data` IS tmpfs — confirming
+3d's inference — and is capped at `size=131072k`, 128MB. But the payload cannot
+write there anyway. Six locations probed in one run, every one refused:
+`/data`, `/mnt`, `/mnt/androidwritable`, `/dev` all `EACCES`; `/tmp` `ENOENT`;
+a relative path `EROFS`, because the working directory is the read-only erofs
+root. No SELinux denial was logged for any of them — the payload simply is not
+root. `/` and `/mnt/apk` would not even list.
 
-**What to measure, in this order.**
+**The thing that was missing was found by reading the dex, as ever.**
+`VirtualMachineConfig.Builder.setEncryptedStorageBytes(J)` is
+`hiddenapi 0x0020 (SDK,TEST-API)`, the same flag `setApkPath` and
+`setMemoryBytes` carry, so an app in the `app` domain may call it. **That
+method has now been right 11 times out of 11.** Takes a **long**. One extra
+line in the config and the guest gains:
 
-1. **What is actually mounted.** The payload reads `/proc/mounts` and
-   `/proc/meminfo` and prints them. This alone may answer it: if every
-   writable mount is `tmpfs` there is no disk in there at all. Cheap, and
-   nothing else is worth doing before it is known.
-2. **What a file costs.** Write an N-MB file into each writable location and
-   watch the guest's own `MemFree` across the write. If MemFree falls by N,
-   the file is RAM. If it does not, there is real storage. Use the 3e-ii
-   accounting method — it caught zram doing nothing and it will catch this.
-3. **The combined ceiling, which is the number that matters.** With an N-MB
-   file written, re-run 3e-ii's touch loop and find how much is still
-   reachable. `file + touchable` versus 1792MB is the whole question.
-4. **THE LIKELY ESCAPE HATCH, and test it even if 1-3 look bad.** The APK is
-   already mounted read-only INSIDE the guest — that is how the payload `.so`
-   is loaded at all, via `setApkPath()` plus `zip -0` plus `zipalign -p 4`.
-   So a model file packaged into the APK the same way could be `mmap`ed by
-   the guest out of a read-only mount rather than copied into a RAM disk.
-   That costs reclaimable page cache instead of anonymous memory, and the
-   packaging machinery is proven since 2d. Test: put a large Stored,
-   page-aligned file in the APK, `mmap` it in the guest, read every page, and
-   watch MemFree. **If this works the rung is answered even if `/data` is
-   tmpfs, and it is the route rung 4 should design around.**
+    /dev/block/mapper/crypt  /mnt/encryptedstore  ext4  rw,discard
 
-**Control first, as five rungs running have done.** A 256MB guest writing a
-64MB file, with the accounting checked against a known figure, before any
-number that matters is measured.
+**It is a real disk, and the proof does not rest on a figure.** A **256MB**
+guest wrote a **384MB** file — 1.5x its own total RAM — at ~149 MB/s, with
+MemFree oscillating rather than falling as the kernel wrote back and reclaimed.
+3e-ii measured this guest's RAM at 1.78-2.15 GB/s.
 
-**DONE MEANS:** a yes/no on whether the guest's writable storage is RAM, a
-number for what a 1.5GB file costs, and a yes/no on whether the APK route
-avoids that cost. Then stop and report.
+    VM      storage   step                          result   guest ms
+    2048MB  2048MB    write 1536MB to the store      1536MB      7321
+    2048MB  2048MB    mmap it, fault every page      1536MB       163
+    2048MB  2048MB    touch+verify anonymous         1792MB      1797
 
-Needs the guest payload rebuilt, so it costs a manual round trip to open the
-Terminal app on the phone for the Debian guest's gcc. Give it its OWN
-component and its own VM name; do not touch `VmService`, `Penny3dService`,
-`Probe3eActivity` or `Probe3eiiActivity`.
+All `status=0`. Across the anonymous touch, guest MemFree went 280748 -> 84740
+kB: the kernel dropped 1.6GB of page cache to supply it, which is exactly what
+clean file-backed pages are for and exactly what anonymous pages cannot do.
+
+**It PERSISTS across VM instances and a cold read runs at 835 MB/s.** Run A
+wrote the file and exited; run B was a NEW VM on the SAME store, found the file
+at 1610612736 bytes, faulted all 1536MB in from disk in 1841ms with `Cached`
+climbing 105460 -> 1547180 kB, then touched and verified 1792MB anonymous.
+Second reproduction of the combined ceiling, from cold. `--ei keep 1` skips
+`vmm.delete()` and uses `getOrCreate`; without it the store dies with the VM.
+
+**The APK escape hatch is moot and was deliberately NOT run.** It was worth
+testing only if writable storage cost RAM. Encrypted storage beats it on every
+axis — writable, persistent, encrypted, and it does not add its size to every
+install. `build.sh` keeps the unused `PENNY_BLOB_MB` machinery in case rung 4
+wants a read-only shipped file.
+
+**One build answered nine experiments.** `penny3eiii_payload.c` is a COMMAND
+SERVER, not a single-shot — the host sends a sequence of commands down one
+vsock connection and the guest keeps its state between them, so "what is left
+AFTER a file exists" is askable at all. The plan is an intent extra
+(`--es plan "3,1536,/path;?4,1792,"`, steps `cmd,mb,path` separated by `;`, a
+leading `?` marking a probe whose failure does not stop the plan). Only the
+Java was rebuilt between experiments, and Java needs no phone. **Do this again
+for anything that needs a guest payload.**
+
+Its own component throughout: `Probe3eiiiActivity`, VM `penny3eiii`, a FOURTH
+payload in the same APK. `VmService`, `Penny3dService`, `Probe3eActivity` and
+`Probe3eiiActivity` untouched — rung 3d logged exit code 43 mid-run and not one
+`has died` line appeared all session.
+
+**What it does NOT say.** Nothing RAN — 1.5GB written, read back and mapped is
+a file, not a model. **How the model gets INTO the store is untested and is a
+real gap**: the store is encrypted and keyed to the VM, so the host cannot
+write it and the guest must. 3c proved bytes cross inwards over vsock; pushing
+1.5GB that way has never been tried. Persistence was across two VM instances
+minutes apart, **not across a reboot**. 835 MB/s is one cold read on an idle
+phone. Unlocked, foreground, over adb. Still `DEBUG_LEVEL_FULL`, still
+non-protected, still sample DICE values.
 
 **Rung 4 — the OS image. DO NOT START IT.** Build GrapheneOS from source,
 preinstall the app, sign with our platform key, flash, lock, verify
@@ -815,6 +844,41 @@ Do not work ahead of the current rung.
   low-memory killer was freeing memory in the same instant; sample
   `/proc/meminfo` repeatedly through a run rather than twice, or the two
   movements cancel and the conclusion inverts.
+- **A microdroid guest has NO writable filesystem unless you ask for one.**
+  This is not "the storage is a RAM disk", it is that there is nothing to write
+  to. `/data` is tmpfs capped at 128MB and the payload gets `EACCES` on it
+  anyway; `/mnt`, `/mnt/androidwritable` and `/dev` are `EACCES`; `/tmp` does
+  not exist; a relative path is `EROFS` because the working directory is the
+  read-only erofs root. No SELinux denial is logged for any of it — the payload
+  is simply not root, so it reads as a code bug rather than as a platform
+  shape. The fix is one line: `setEncryptedStorageBytes(long)`, which mounts a
+  real ext4 on dm-crypt at `/mnt/encryptedstore`. It is
+  `hiddenapi 0x0020 (SDK,TEST-API)`, so a sideloaded app may call it.
+- **`getOrCreate` reuses the VM's STORED config, and the APK path changes on
+  every reinstall.** The failure is
+  `VirtualMachineException ... FileNotFoundException: ENOENT` thrown out of
+  `VirtualMachineConfig.toVsConfig`, which reads as a missing VM and is not: it
+  is the old config pointing at a `/data/app/~~<hash>/base.apk` that the
+  reinstall replaced. Never reinstall between two runs that must share an
+  encrypted store. Cost one run on 15 Sept.
+- **A guest payload must define its own `memcpy` and `memset`.** gcc may turn a
+  bounded copy or clear loop into a call to either EVEN under `-ffreestanding`
+  — the C standard requires those functions to exist in a freestanding
+  implementation, so the compiler assumes them — and under `-nostdlib` that is
+  an undefined symbol which surfaces at `dlopen` inside the guest where nothing
+  useful is logged. Eight lines each, and they MUST carry
+  `__attribute__((optimize("no-tree-loop-distribute-patterns")))` or gcc
+  rewrites the loop inside `memcpy` as a call to itself.
+- **`-nostdlib` is not optional and is missing from the build command recorded
+  in `build.sh`'s comments.** Without it the compile fails with
+  `/usr/bin/ld: cannot find crti.o`, because the Debian guest has gcc but no
+  libc development files — which is the very reason these payloads use no C
+  library. The full working command is:
+
+      gcc -shared -fPIC -O1 -nostdlib -ffreestanding -fno-builtin \
+          -fno-stack-protector -Wl,-z,max-page-size=4096 \
+          -Wl,--hash-style=sysv -o Out.so in.c -L. -lvm_payload
+
 - **`adb logcat -G 64M` before measuring anything with a DEBUG_LEVEL_FULL
   guest.** One guest console is several hundred lines a second and three at
   once evicted a whole run's own log lines from the default ring buffer
@@ -1059,14 +1123,22 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   into a VM that lived 3 seconds. No streaming, no backpressure, no long-held
   channel, no endurance. Do not let 3c be stretched into "audio streams to the
   guest".
-- **The memory gate is OPEN and now measured on both sides. 3e-i: 2GB and 8
-  vCPUs are given. 3e-ii: 1792MB of it is genuinely writable, readable back
-  and held, twice.** What is left is **`3e-iii`, DEFINED AND NOT RUN** — is
-  microdroid's writable storage a RAM disk, so that a 1.5GB model FILE costs
-  1.5GB of RAM before anything loads it? 3e-ii made that more urgent, not
-  less: the ceiling is 1792MB and the guest's `/data` is `tmpfs`. It needs
-  the guest payload rebuilt, i.e. a round trip into the phone's Debian guest
-  for gcc.
+- **The memory gate is CLOSED and the storage gate with it. 3e-i: 2GB and 8
+  vCPUs are given. 3e-ii: 1792MB of it is genuinely writable and held, twice.
+  3e-iii: a 1.5GB model FILE costs no permanent RAM at all** — microdroid will
+  give a sideloaded app a real, persistent, encrypted ext4 disk via
+  `setEncryptedStorageBytes`, and 1792MB of anonymous memory is still reachable
+  with that file mapped and resident. **What replaced this question is the
+  bullet below: how does a 1.5GB file GET into that store?** It is encrypted and
+  keyed to the VM, so the host cannot write it and the guest must. 3c proved
+  bytes cross inwards over vsock, in one 32,000-byte shot. 1.5GB has never been
+  tried, and nothing in this repo measures sustained transfer in either
+  direction.
+- **NEW AND UNTESTED: does the encrypted store survive a REBOOT?** Persistence
+  was measured across two VM instances minutes apart, not across a power cycle.
+  If it does not survive, a model has to be re-delivered at every boot and the
+  bullet above becomes the critical path rather than a convenience. Cheap to
+  test — it is one reboot and one `--ei keep 1` run.
 - **THE LARGEST UNANSWERED THING IN THIS REPO: the guest still does nothing
   WITH the audio.** The payload hashes it and echoes it back — in 3c unlocked,
   in 3d at boot. No recognition, no model, no processing of any kind. "Audio

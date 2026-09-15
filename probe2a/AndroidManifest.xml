@@ -118,6 +118,18 @@
             android:name=".Probe3eiiActivity"
             android:exported="true" />
 
+        <!-- Rung 3e-iii. 3e-ii proved 1792MB of a 2048MB VM is genuinely
+             writable; this asks whether a model FILE comes out of that same
+             budget, because rung 3d logged the guest's /data as tmpfs and
+             tmpfs is a RAM disk. Its own activity and its own VM name again:
+             3e-i and 3e-ii are committed results and are not put back in the
+             frame to answer the next question. The plan it runs is an intent
+             extra rather than compiled in, because the guest payload can only
+             be rebuilt by hand-opening the Terminal app on the phone. -->
+        <activity
+            android:name=".Probe3eiiiActivity"
+            android:exported="true" />
+
         <!-- Rung 3b control. Runs the identical mic probe in the foreground
              with the phone unlocked, where access is unambiguously allowed.
              Without it, silence at boot cannot be told apart from a broken

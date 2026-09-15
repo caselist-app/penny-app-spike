@@ -141,6 +141,10 @@ fi
 #    PENNY_PAYLOAD_3EII_SO is rung 3e-ii's, added the same way and for the same
 #    reason: it is the first payload here that ALLOCATES, so it could not reuse
 #    3c's, but 3c's and 2d's both stay in the APK and stay runnable.
+#    PENNY_PAYLOAD_3EIII_SO is rung 3e-iii's, a command server rather than a
+#    single-shot: there is no compiler on this Mac, so a rebuild costs a manual
+#    trip into the phone's Debian guest, and one build therefore has to answer
+#    the whole rung.
 if [ -n "$PENNY_PAYLOAD_SO" ]; then
     cp "$PENNY_PAYLOAD_SO" "$OUT/apkroot/lib/arm64-v8a/PennyPayload.so"
     echo "6/8 guest payload COPIED FROM $PENNY_PAYLOAD_SO"
@@ -151,6 +155,10 @@ if [ -n "$PENNY_PAYLOAD_SO" ]; then
     if [ -n "$PENNY_PAYLOAD_3EII_SO" ]; then
         cp "$PENNY_PAYLOAD_3EII_SO" "$OUT/apkroot/lib/arm64-v8a/Penny3eiiPayload.so"
         echo "    rung 3e-ii payload COPIED FROM $PENNY_PAYLOAD_3EII_SO"
+    fi
+    if [ -n "$PENNY_PAYLOAD_3EIII_SO" ]; then
+        cp "$PENNY_PAYLOAD_3EIII_SO" "$OUT/apkroot/lib/arm64-v8a/Penny3eiiiPayload.so"
+        echo "    rung 3e-iii payload COPIED FROM $PENNY_PAYLOAD_3EIII_SO"
     fi
 else
     "$CLANG" -shared -fPIC -O2 -o "$OUT/apkroot/lib/arm64-v8a/PennyPayload.so" \
@@ -169,6 +177,31 @@ fi
 #    appears as the guest dying rather than as anything wrong at build or
 #    install time. classes.dex is added normally, compressed, because Android
 #    reads that the ordinary way.
+# 5b. Rung 3e-iii's blob: a large file packaged into the APK the SAME WAY the
+#     payload is, so it can be mmaped read-only out of the guest's own APK
+#     mount instead of being copied into a RAM disk. That is the escape hatch
+#     the rung exists to test, and it is only a fair test if the packaging is
+#     identical — Stored and page-aligned. It is named .so for exactly that
+#     reason: `zipalign -p` page-aligns uncompressed .so entries and nothing
+#     else. Nothing ever dlopens it; the guest opens it by path.
+#
+#     OPTIONAL, and off by default, because it makes the APK as large as the
+#     blob and every install pays for it. Steps 1-3 of the rung do not need it.
+#     Set PENNY_BLOB_MB=512 to include one. It is cached in build-payloads/
+#     (gitignored) so a rebuild does not regenerate it — /dev/urandom is slow
+#     and the bytes must be INCOMPRESSIBLE for the same zram reason the guest
+#     payload fills its pages from a PRNG.
+if [ -n "$PENNY_BLOB_MB" ]; then
+    BLOB="$HERE/build-payloads/PennyBlob-${PENNY_BLOB_MB}.so"
+    if [ ! -f "$BLOB" ]; then
+        echo "    generating a ${PENNY_BLOB_MB}MB incompressible blob (once, cached)"
+        mkdir -p "$HERE/build-payloads"
+        dd if=/dev/urandom of="$BLOB" bs=1048576 count="$PENNY_BLOB_MB" 2>/dev/null
+    fi
+    cp "$BLOB" "$OUT/apkroot/lib/arm64-v8a/PennyBlob.so"
+    echo "    rung 3e-iii blob ${PENNY_BLOB_MB}MB INCLUDED"
+fi
+
 (cd "$OUT" && zip -q base.apk classes.dex)
 (cd "$OUT/apkroot" && zip -q -0 -X "$OUT/base.apk" lib/arm64-v8a/PennyPayload.so)
 if [ -n "$PENNY_PAYLOAD_3C_SO" ]; then
@@ -176,6 +209,12 @@ if [ -n "$PENNY_PAYLOAD_3C_SO" ]; then
 fi
 if [ -n "$PENNY_PAYLOAD_3EII_SO" ]; then
     (cd "$OUT/apkroot" && zip -q -0 -X "$OUT/base.apk" lib/arm64-v8a/Penny3eiiPayload.so)
+fi
+if [ -n "$PENNY_PAYLOAD_3EIII_SO" ]; then
+    (cd "$OUT/apkroot" && zip -q -0 -X "$OUT/base.apk" lib/arm64-v8a/Penny3eiiiPayload.so)
+fi
+if [ -n "$PENNY_BLOB_MB" ]; then
+    (cd "$OUT/apkroot" && zip -q -0 -X "$OUT/base.apk" lib/arm64-v8a/PennyBlob.so)
 fi
 "$BT/zipalign" -p -f 4 "$OUT/base.apk" "$OUT/aligned.apk"
 echo "7/8 packaged and page-aligned"

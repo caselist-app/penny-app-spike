@@ -69,6 +69,16 @@ public class VirtualMachineConfig {
             throw new UnsupportedOperationException("stub");
         }
 
+        /** Rung 3e-iii. The one thing in this API that is not RAM: microdroid
+         *  can be given a real, host-backed, encrypted disk. Read off the
+         *  device's own dex as hiddenapi 0x0020 (SDK,TEST-API) BEFORE this
+         *  stub was written — the same flag setApkPath and setMemoryBytes
+         *  carry — so it is callable from an app in the `app` domain. Takes a
+         *  long, like setMemoryBytes. */
+        public Builder setEncryptedStorageBytes(long bytes) {
+            throw new UnsupportedOperationException("stub");
+        }
+
         public Builder setCpuTopology(int topology) {
             throw new UnsupportedOperationException("stub");
         }
