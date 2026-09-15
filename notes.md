@@ -1447,3 +1447,178 @@ and the listening path can be the same app. Either answer is worth having
 before weeks go into rung 4.
 
 Not started. Matt's go-ahead required.
+
+## 2026-09-14 — rung 3b research: can Penny take the assistant slot? Read from AOSP source, not from docs.
+
+Matt asked whether we can take over the assistant slot. Answer from the
+source: **yes, with three conditions, and one of them is a device value we
+have not read yet.** Still no code written and no probe run.
+
+### Method note, because it nearly went wrong
+
+The first two passes over `VoiceInteractionManagerService.java` gave
+OPPOSITE answers to the one question that matters — whether the system
+binds the assistant before first unlock. One said binding waits for
+`onUserUnlocking`; the other said it happens at boot. Neither was quoted
+from source I had read. So the file was pulled raw
+(`?format=TEXT` off googlesource, base64-decoded, 2819 lines) and read
+directly. **Everything below is quoted from that file, and the earlier
+"it waits for unlock" reading is wrong.** Recording the near-miss because
+it would have killed rung 3b on a false negative.
+
+### The binding chain, before any unlock. Quoted.
+
+`onBootPhase`, line 225:
+
+    } else if (phase == PHASE_THIRD_PARTY_APPS_CAN_START) {
+        mServiceStub.systemRunning(isSafeMode());
+
+`systemRunning`, line 728, runs at that boot phase and does not wait for
+a user:
+
+    synchronized (this) {
+        setCurrentUserLocked(ActivityManager.getCurrentUser());
+        switchImplementationIfNeededLocked(false);
+    }
+
+`switchImplementationIfNeededNoTracingLocked`, line 788. **The unlock
+check at line 808 wraps ONLY the shortcut-host and app-switch setup** —
+lines 809 to 818. The bind block that follows is OUTSIDE it:
+
+    if (mUserManagerInternal.isUserUnlockingOrUnlocked(mCurUser)) {
+        ... setShortcutHostPackage / setAllowAppSwitches only ...
+    }
+
+    if (force || mImpl == null || mImpl.mUser != mCurUser
+            || !mImpl.mComponent.equals(serviceComponent)) {
+        ...
+        if (hasComponent) {
+            setImplLocked(new VoiceInteractionManagerServiceImpl(...));
+            mImpl.startLocked();
+
+`startLocked()` in `VoiceInteractionManagerServiceImpl.java`, line 1057,
+is the actual bind, and has no unlock gate of its own:
+
+    mBound = mContext.bindServiceAsUser(intent, mConnection,
+            Context.BIND_AUTO_CREATE | Context.BIND_FOREGROUND_SERVICE
+            | Context.BIND_INCLUDE_CAPABILITIES
+            | Context.BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS,
+            new UserHandle(mUser));
+
+Note `BIND_FOREGROUND_SERVICE` and `BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS`
+— this is exactly the "system binding representing an elevated foreground
+state" that the Android 17 background-audio page names as the exemption.
+
+The chain also needs the secure setting to be readable while the disk is
+still locked. It is: `packages/SettingsProvider/AndroidManifest.xml` has
+`android:directBootAware="true"` on its `<application>`, so
+`Settings.Secure.VOICE_INTERACTION_SERVICE` survives the pre-unlock read
+at line 790.
+
+### The trap nobody documents: flags 0
+
+Line 797:
+
+    serviceInfo = AppGlobals.getPackageManager()
+            .getServiceInfo(serviceComponent, 0, mCurUser);
+
+**Flags are literally `0`** — no `MATCH_DIRECT_BOOT_AWARE`. Before first
+unlock PackageManager only matches direct-boot-aware components, so a
+VoiceInteractionService that is not `directBootAware` does not resolve,
+`hasComponent` is false, and nothing binds. It would then bind later at
+`onUserUnlocking` and look like it worked — while having missed the only
+window we care about.
+
+**So our VoiceInteractionService must carry `android:directBootAware="true"`,
+for the same reason rung 3's BootReceiver and VmService do.** This is the
+single most useful thing this research produced and it was not in any
+document — only in the flags argument.
+
+### Can we hold the role? Qualification rules, quoted
+
+From `AssistantRoleBehavior.java` (PermissionController,
+`role-controller/.../behavior/`), `isAssistantVoiceInteractionService`:
+
+    if (!android.Manifest.permission.BIND_VOICE_INTERACTION.equals(si.permission)) {
+        return false;
+    }
+    ...
+    if (sessionService == null || recognitionService == null || !supportsAssist) {
+        return false;
+    }
+
+So the qualifying bar is: the service is protected by
+`BIND_VOICE_INTERACTION`, and its `android.voice_interaction` metadata XML
+declares `sessionService`, `recognitionService` AND
+`android:supportsAssist="true"`. **`supportsAssist` is easy to omit and
+silently disqualifies the app.** There is NO system-app or preinstall
+check in the qualification path — `isSystemPackageAsUser` appears only
+where extra permissions are granted, not where qualification is decided.
+
+Two conditions we cannot control from the app:
+
+  - `getQualifyingPackagesInternal` skips the whole VoiceInteractionService
+    branch `if (!userActivityManager.isLowRamDevice())`. On a low-RAM
+    device only an `ACTION_ASSIST` activity qualifies — which would NOT
+    give us the microphone exemption. Must read `ro.config.low_ram` on the
+    6a. Not yet read.
+  - `isVisibleAsUser` returns
+    `VisibilityMixin.isVisible("config_showDefaultAssistant", false, ...)`.
+    **The default is `false`.** If GrapheneOS leaves that resource off,
+    the Settings picker is not shown and the only route is a cable. Must
+    read on device. Not yet read.
+
+### How the slot actually gets filled
+
+From `roles.xml`, the ASSISTANT role element carries:
+
+    exclusive="true"  exclusivity="user"  fallBackToDefaultHolder="true"
+    showNone="true"   requestable="false" overrideUserWhenGranting="true"
+    defaultHolders="config_defaultAssistant"
+
+**`requestable="false"`.** Per AOSP's `Role.md`: "If a role isn't
+requestable but is still visible, apps cannot show the request role dialog
+to user, but user can still manage the role in Settings page." So Penny
+can never pop its own "make me your assistant" dialog. The user goes to
+Settings and picks it. That is a worse onboarding story than a one-tap
+prompt, and it should be said out loud rather than discovered in a demo.
+
+Also, from `findAvailInteractor` line 857, on automatic selection:
+
+    // Find first system package.  We never want to allow third party services to
+    // be automatically selected, because those require approval of the user.
+
+A third-party assistant is therefore never auto-selected — it is only ever
+held because a human chose it. Worth knowing for the "device wiped and
+restored" story, and there is a known Android behaviour where the
+assistant secure settings are cleared on APK reinstall, which would
+silently unset Penny on every update. Untested here, flagged.
+
+### Cable route for the probe itself
+
+`adb shell cmd role` on this device exposes:
+
+    add-role-holder [--user USER_ID] ROLE PACKAGE [FLAGS]
+    remove-role-holder / clear-role-holders / get-role-holders
+    set-bypassing-role-qualification true|false
+
+so rung 3b can set the holder without touching the UI, and
+`set-bypassing-role-qualification` exists if the qualification check needs
+to be taken out of the picture to isolate a failure. Using it would prove
+less, so use it only to diagnose.
+
+### Where this leaves rung 3b
+
+Better than when it was written. The exemption is real in source, the
+binding genuinely happens before unlock, and the bind flags are the ones
+the Android 17 doc names. The rung is now worth running rather than a coin
+toss — provided the two device values come back the right way.
+
+Still not started. Still Matt's call.
+
+### Device state at time of writing
+
+adb dropped mid-research: `system_profiler SPUSBDataType` showed nothing
+on the bus and `adb devices` was empty. Same GrapheneOS charging-only-
+when-locked behaviour recorded in the traps list — the phone had locked
+itself. Not a fault.

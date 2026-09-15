@@ -310,16 +310,66 @@ What the device already says, read 14 Sept before any code:
 The assistant slot on this phone is **empty**. Nothing to displace, no
 Google Assistant to fight.
 
+**Can Penny take the slot? Yes — read out of AOSP source, not docs.** The
+chain was verified by pulling `VoiceInteractionManagerService.java` raw
+and reading it, because two summaries of it disagreed. Quoted evidence in
+`notes.md`. What it establishes:
+
+- The chosen assistant is bound at `PHASE_THIRD_PARTY_APPS_CAN_START`,
+  **before any unlock**. The `isUserUnlockingOrUnlocked` check in that
+  method gates only shortcut and app-switch setup; the bind block sits
+  outside it.
+- The bind uses `BIND_FOREGROUND_SERVICE` and
+  `BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS` — which is precisely the
+  "system binding representing an elevated foreground state" the Android
+  17 audio page names as the exemption. The two halves line up.
+- `SettingsProvider` is `directBootAware`, so the setting naming our
+  service is readable while the disk is still locked.
+- **The trap: `getServiceInfo(serviceComponent, 0, mCurUser)` passes
+  flags `0`.** Before first unlock PackageManager matches only
+  direct-boot-aware components, so a VoiceInteractionService without
+  `android:directBootAware="true"` silently fails to resolve, nothing
+  binds, and it then binds at unlock and looks like it worked. This is in
+  no document — only in that flags argument.
+- Nothing in the qualification path requires a system or preinstalled
+  app.
+
+Two conditions are **not ours to control and are still unread on this
+device.** Both must be checked before building anything:
+
+    ro.config.low_ram            on a low-RAM device the whole
+                                 VoiceInteractionService branch is
+                                 skipped and only an ACTION_ASSIST
+                                 activity qualifies — which does NOT
+                                 carry the microphone exemption
+    config_showDefaultAssistant  gates whether Settings shows the
+                                 assistant picker at all, and its
+                                 framework default is FALSE
+
+And one commercial fact worth knowing now: `roles.xml` marks ASSISTANT
+`requestable="false"`. **Penny can never pop its own "make me your
+assistant" prompt.** The user must go into Settings and choose it, and a
+third-party assistant is never auto-selected — AOSP comment: "We never
+want to allow third party services to be automatically selected, because
+those require approval of the user." Plan the onboarding around a Settings
+trip, not a one-tap dialog.
+
 What has to be built — inside the existing `probe2a` APK, no new project:
 
 1. A near-empty `VoiceInteractionService`, `VoiceInteractionSessionService`
-   and `RecognitionService`. The manifest shape is fixed:
-   `android:permission="android.permission.BIND_VOICE_INTERACTION"`, an
-   intent filter for `android.service.voice.VoiceInteractionService`, and
+   and `RecognitionService`. The manifest shape is fixed and every part of
+   it is load-bearing: `android:permission=
+   "android.permission.BIND_VOICE_INTERACTION"` on the service, an intent
+   filter for `android.service.voice.VoiceInteractionService`,
    `meta-data android:name="android.voice_interaction"` pointing at an XML
-   file naming the other two. **This is the first thing in the spike that
-   needs an XML resource**, so `build.sh` gains a real `res/` directory —
-   a change to a build that has been deliberately resource-free.
+   file that declares `sessionService`, `recognitionService` **and
+   `android:supportsAssist="true"`** — PermissionController rejects the
+   app silently if any of the three is missing — and
+   **`android:directBootAware="true"` on the VoiceInteractionService**, or
+   it will not resolve before first unlock and will bind late while
+   appearing to work. **This is the first thing in the spike that needs an
+   XML resource**, so `build.sh` gains a real `res/` directory — a change
+   to a build that has been deliberately resource-free.
 2. `RECORD_AUDIO` in the manifest, granted once by hand.
 3. `VmService` attempts a one-second `AudioRecord` read at boot and logs
    whether it got real audio or silence.
