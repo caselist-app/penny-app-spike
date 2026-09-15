@@ -45,75 +45,86 @@ deliberately left **ENABLED** so the device can be returned to stock.
     Claude Code    2.1.270 in the guest, native install, ~317MiB resident
     VM resources   3.9GB slider max -> 3.6Gi in guest, 8 cores, 104G disk
 
-**LIVE DEVICE STATE — as left at 15 Sept, 16:32, after rung 3g-ii.
-Check it, do not trust it.** This block exists because state that only survives
-in a handover message is state that gets lost. Verify each line before relying
-on it; correct this block in the same commit as whatever changes it.
+**LIVE DEVICE STATE — as left at 15 Sept, ~20:12, after the soak was stopped
+and the native memory baseline taken. Check it, do not trust it.** This block
+exists because state that only survives in a handover message is state that
+gets lost. Verify each line before relying on it; correct this block in the
+same commit as whatever changes it.
 
-    Phone                      Last rebooted 15:55, unlocked by hand 15:58:45.
-                               NOT rebooted since. AC power, screen on.
+    Phone                      Rebooted ~19:59 on 15 Sept, unlocked by hand
+                               ~20:04, and NOT touched since — home screen only,
+                               no app opened. AC power, screen on.
+    OUR APP IS DISABLED        `adb shell pm disable-user --user 0
+                               com.pennyspike.probe2a` at ~19:57. Nothing of
+                               ours starts at boot, nothing restarts, and the
+                               reboot above confirmed it. **No data was
+                               cleared**, so every store survives. Reverse with
+                               `adb shell pm enable com.pennyspike.probe2a`.
+                               Do this BEFORE expecting any boot service to run.
+    All VMs                    DOWN. `vm list` returns `Running VMs: []`, no
+                               crosvm process, no app process. penny3, penny3d,
+                               penny3ev, penny3gi and pennysoak are all
+                               stopped — they are boot services and the app is
+                               disabled.
     Terminal app / Debian VM   DOWN since 15:37 and it does not restart itself.
                                It holds ~3.6GB while it runs, so close it again
                                before any memory-sensitive measurement.
-    app force-stopped FOUR     `am force-stop com.pennyspike.probe2a` at 16:08,
-    times on 15 Sept           16:21, 16:31 (and once at 15:58). EVERY ONE
-                               restarts all five boot services, each of which
-                               re-runs and re-creates its VM. Budget for that
-                               storm before comparing any two runs.
-    penny3 (rung 3's VM)       UP, requesterUid 10192. Rung 3's EIGHTH boot
-                               reproduction was the 15:55 boot; it has since
-                               come back from three force-stops unaided, which
-                               is rung 3's restart-after-kill half, not its
-                               boot half. Leave it alone.
-    penny3d (rung 3d's VM)     Ran at boot and exited 43, as designed. FOURTH.
-                               Re-ran on each force-stop.
-    penny3ev (rung 3e-v's VM)  STOPPED, store INTACT and worth protecting —
-                               RE-VERIFIED 16:31:39 after all four force-stops:
-                               /mnt/encryptedstore/penny3ev.bin, 67,108,864
-                               bytes, ck64 0x757b795dd5138044, SIZE MATCH and
-                               CONTENT MATCH, and `STORE WAS RESET` never
-                               appeared. That value is DERIVABLE — Penny3evService
+    penny3ev (rung 3e-v's VM)  STOPPED, store believed INTACT — last VERIFIED
+                               16:31:39, /mnt/encryptedstore/penny3ev.bin,
+                               67,108,864 bytes, ck64 0x757b795dd5138044, SIZE
+                               MATCH and CONTENT MATCH, `STORE WAS RESET` never
+                               seen. NOT re-verified since, because verifying it
+                               means enabling the app and running the service.
+                               That value is DERIVABLE — Penny3evService
                                recomputes it from the fixed-seed generator, so it
                                needs no log to verify. **A reinstall strands it**,
                                and the service's recovery path will then silently
                                delete and recreate the store, logging
                                STORE WAS RESET when it does.
-    penny3gic / penny3gi       Rung 3g-i's 256MB control and 2048MB test. Ran
-                               three more times on 15 Sept (16:09, 16:21, 16:31)
-                               for 3g-ii, exit 46 each. No store, deleted and
-                               recreated on every run, nothing to protect.
-                               **Runs ONCE PER PROCESS** — a second
-                               am start-foreground-service logs `already started
-                               by an earlier delivery — nothing to do` and does
-                               nothing. Re-arming it needs a force-stop.
+    pennysoak store            **CONTAMINATED, and the run that used it is
+                               VOID.** A force-stop restarted PennySoakService
+                               through START_STICKY with a NULL intent on an
+                               unlocked phone, so it fell back to the default VM
+                               name and created and wrote the store there and
+                               then. The boot that followed found it already
+                               full and never exercised the create path. Claim
+                               nothing from it. If the soak is re-run, give it a
+                               fresh VM name.
+    penny3gic / penny3gi       Rung 3g-i's 256MB control and 2048MB test. No
+                               store, deleted and recreated on every run,
+                               nothing to protect. **Runs ONCE PER PROCESS** — a
+                               second am start-foreground-service logs `already
+                               started by an earlier delivery — nothing to do`.
+                               Re-arming it needs a force-stop.
     penny3f store              **GONE.** 3g-ii's runs passed --ei storage 0 with
-                               keep=0, and the log shows `STEP3 deleted the
-                               previous penny3f` each time, so the VM was
-                               recreated with no encrypted store at all. The
-                               32MB file ck64 0x5f2e2310fc323145 is unreachable.
-                               Nothing depends on it.
+                               keep=0. The 32MB file ck64 0x5f2e2310fc323145 is
+                               unreachable. Nothing depends on it.
     penny3eiii encrypted store **GONE — STRANDED, DELIBERATELY** on 15 Sept.
                                model.bin is unreachable. Do not plan anything
                                that needs it.
-    installed APK              /data/app/~~F-GoV1zaM_NBcthOOhbUPQ==/
+    installed APK              Still installed, disabled, NOT rebuilt since the
+                               fifth install on 15 Sept.
+                               /data/app/~~F-GoV1zaM_NBcthOOhbUPQ==/
                                com.pennyspike.probe2a-5mEXn4-0AsY5FdvzYVuz6Q==
                                sha256 2e89918fdd783dac94946ebd81806fd5f9a8a791
                                f47686faa6f4b609070642df, 156,613 bytes.
-                               Rebuilt and reinstalled FIVE times on 15 Sept and
-                               NOT rebuilt since — 3g-ii needed no build.
                                All five pm grants and all four assistant
-                               preconditions survived every one.
-    apps opened by hand        For 3g-ii: camera, Vanadium, Gallery, Clock,
-                               Calculator, Files. The low-memory killer took the
-                               browser, gallery, clock and calculator during the
-                               16:31 run and they were NOT reopened. The camera
-                               is still on screen.
+                               preconditions survived every install. **Whether
+                               they survive `pm disable-user` + `pm enable` is
+                               UNTESTED — check before trusting them.**
+    apps opened by hand        NONE. The reboot cleared 3g-ii's camera, browser,
+                               gallery, clock, calculator and files.
+    native memory baseline     MemTotal 5,718,280 kB, MemAvailable 940,640 kB,
+                               read 5.8 min after this boot with no VM and the
+                               app disabled. See the host-memory bullet in open
+                               threads for the two-numbers caveat.
+    adb                        ALIVE (phone unlocked). GrapheneOS keeps the port
+                               charging-only while locked.
     adb forward tcp:2222       DEAD (the Debian VM is down). Pointless until it
                                is reopened by hand.
-    logcat buffer              set to 64M at 16:09; does not survive a reboot,
+    logcat buffer              DEFAULT — the reboot cleared 3g-ii's 64M setting,
                                and `setprop persist.logd.size` is REFUSED by
-                               SELinux on this build, so the boot window is
-                               always measured at the default size.
+                               SELinux on this build.
 
 Verify with: `adb shell /apex/com.android.virt/bin/vm list`,
 `adb shell pm path com.pennyspike.probe2a`.
@@ -1185,31 +1196,36 @@ apps is not more headroom but fewer cheap victims — the idle phone had 37
 disposable cached processes and never went below 905, the loaded phone had fewer
 and went to 201. Which way that nets out is untested and must not be asserted.
 
-**Sequencing — REVISED 15 Sept, after 3g-ii. It is ANSWERED, and it was the
-last thing this handset could answer without a build.** What is left is **two**
-things and they share ONE build.
+**Sequencing — REVISED 15 Sept (evening). Both remaining handset questions are
+PARKED, and the work has moved to measuring a model natively on Android.**
 
-- **Can a NEW encrypted store be created before first unlock?** 3e-v answered
-  the re-open case twice; the create case is untested, because boot 1 died on
-  the stale-config trap and the file it eventually read had been written
-  unlocked. This is the first-boot-after-factory-reset case. One constant
-  (a new VM name in `Penny3evService` — `penny3ev2`, a name that has never
-  existed, so `getOrCreate` has no prior directory) and two reboots: boot A
-  creates and writes pre-unlock, boot B re-opens pre-unlock and banks a third
-  reproduction of 3e-v free.
-- **Endurance. DESIGN UNDECIDED — it is Matt's call, ask before building.**
-  Still nothing anywhere in this repo; nothing has run longer than about twenty
-  seconds and nothing has been tested on battery. 3g-ii sharpened this rather
-  than answering it: every VM in it lived ~7 seconds. The shape that needs no
-  new guest C — a new `directBootAware` service (a COPY of `Penny3evService`),
-  its own VM and its own store, which brings the VM up, connects ONCE and then
-  sends `CMD_VERIFY` down the SAME socket every N minutes, logging elapsed
-  time, checksum, host `/proc/meminfo`, guest MemFree and battery each time.
-  `Penny3fPayload.so` calls `accept4()` exactly once and loops to a zero-length
-  frame, so one held connection is the only shape available and a periodic
-  command is free. **Ask Matt: how long, battery or AC, 256MB or 2048MB, screen
-  off.** Do this build TOGETHER with the store-create constant — one build, not
-  two.
+- **Can a NEW encrypted store be created before first unlock? PARKED —
+  pending, not settled.** 3e-v answered the re-open case twice; the create case
+  is untested, because boot 1 died on the stale-config trap and the file it
+  eventually read had been written unlocked. This is the
+  first-boot-after-factory-reset case. **Parked because it only matters for a
+  store inside a VM**, and whether there is a VM at all now depends on how a
+  model performs natively. If that comes back badly and the VM returns, this
+  returns with it, unchanged and still cheap: one constant (a new VM name in
+  `Penny3evService` — `penny3ev2`, a name that has never existed, so
+  `getOrCreate` has no prior directory), one build, and two reboots.
+- **Endurance. BUILT, RUN ONCE, AND THAT RUN IS VOID.** `PennySoakService`
+  exists and is committed (543f9f0) — a `directBootAware` copy of
+  `Penny3evService` with its own VM and store, which brings the VM up, connects
+  ONCE and sends `CMD_VERIFY` down the SAME socket every 5 minutes, logging
+  elapsed time, checksum, host `/proc/meminfo`, guest MemFree and battery. It
+  needs no new guest C. **Its only run was on a store contaminated by a
+  null-intent sticky restart and nothing is claimed from it.** Matt's answers
+  to the design questions stand: AC power, 2048MB, duration still open. A clean
+  re-run needs a fresh VM name and a guard that tests the PHONE rather than the
+  intent — see the trap. **Still true that nothing in this repo has run longer
+  than about twenty seconds, and nothing has been tested on battery.**
+- **What is being measured instead: can this phone run a small model natively
+  on Android, outside any VM?** Nothing in this repo has ever run a model. The
+  memory baseline above is the first half of that question; `llama-bench` built
+  with the NDK and run from `/data/local/tmp` is the second. This is a
+  FEASIBILITY measurement of the handset, not a design decision, and it belongs
+  in this repo only as far as the numbers go.
 
 **A rebuild now COSTS something again.** `penny3ev`'s store holds a verified
 64MB file and a reinstall strands it — and worse, `Penny3evService`'s recovery
@@ -1287,6 +1303,32 @@ Do not work ahead of the current rung.
   once per process, logging `already started by an earlier delivery — nothing to
   do` on a second `am start-foreground-service`, so re-arming it needs a
   force-stop.
+- **TWO 2048MB VMs on one boot DOES cross into the foreground band, and it
+  took our own app twice.** 3g-ii's comfortable reading — the killer clears the
+  cached band, takes the keyboard at adj 201 and stops — holds for ONE 2GB VM.
+  On 15 Sept evening a botched boot started `PennySoak`'s 2048MB VM at
+  19:36:48 and `Penny3gi`'s at 19:36:55, and 7 seconds later the killer took
+  `com.android.launcher3` and `com.pennyspike.probe2a` at **adj 100**, then our
+  app again 14 seconds after that — 50 kills, settling on the third attempt.
+  Accidental, not a designed run, so it is a warning rather than a result: do
+  not start two 2GB VMs on the same boot, and when adding a boot service that
+  holds a large VM, check what the other four are already holding.
+- **A guard that lives in the intent is not a guard.** A service returning
+  `START_STICKY` is recreated by Android with a **null intent**, so every
+  `getStringExtra`/`getIntExtra` override falls back to its default. On 15 Sept
+  this silently re-created and wrote an encrypted store on an unlocked phone
+  under the default VM name, which burned the "can a store be created before
+  first unlock" question for that store. Anything that must not happen on an
+  unlocked phone has to test the PHONE — `UserManager.isUserUnlocked()` — not
+  the intent. And a run that must be reproducible needs a VM name that cannot
+  be reached by a default.
+- **`am force-stop` does NOT stop a sticky boot service — it restarts it.**
+  The documented restart storm is not only "all five services re-run"; the one
+  you were trying to stop comes back too, with a null intent. To actually stop
+  the app and keep it stopped: `adb shell pm disable-user --user 0
+  com.pennyspike.probe2a`, which clears no data, survives a reboot, and is
+  reversed with `pm enable`. Whether the two `pm grant`s and the assistant
+  preconditions survive a disable/enable cycle is **UNTESTED**.
 - **A microdroid guest that runs out of memory LIVE-LOCKS; it does not OOM
   kill and it does not return an error.** microdroid builds a zram swap
   device sized to the guest's entire RAM, and zram is compressed swap held in
@@ -1676,9 +1718,26 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   off. Unknown whether the cause is the 6a's silicon, GrapheneOS, or
   Android 17; one run of the same probe on the 7a settles it. Does not
   block 2b or 2c.
-- Host-side memory was NEVER measured. The sampler read the guest, not
-  Android. "Two VMs caused no pressure" is a statement about the guest
-  only.
+- **Host-side memory HAS been measured — this bullet used to say it never
+  had, and that was wrong from 3e-ii onwards.** 3e-ii sampled host
+  `/proc/meminfo` three times through one run (MemFree 2,257,952 ->
+  288,756 -> 137,088 kB), which is the measurement that proved crosvm
+  takes its memory at VM creation; 3g-i read host memory around a 2048MB
+  VM at boot; 3g-ii recorded host kill lists and adj bands across three
+  runs. **Measured for the first time with NO VM at all, 15 Sept
+  evening**, on a clean boot with the app disabled: `MemAvailable`
+  940,640 kB of 5,718,280 kB total, at 5.8 minutes after boot and so
+  possibly still settling. Two numbers must be quoted together —
+  `MemAvailable` 940,640 kB is what the kernel hands over without killing
+  anything, while `dumpsys meminfo` reports 3,068,208 kB free of which
+  2,311,420 kB is cached app processes Android will kill on demand. So
+  ~919 MB free of charge, up to ~2.9 GB if the cached band is evicted.
+  **The 6a figure is a FLOOR, not the product budget** — the 7a that
+  replaces it has more memory, so anything that fits here fits on the
+  product, and anything that does not fit here must be re-measured there
+  before it is called a no. The half of the old bullet that stays true:
+  the q9 sampler read the guest, not Android, so "two VMs caused no
+  pressure" remains a statement about the guest only.
 - Claude Code has never done real work in the guest. `git` is absent. One
   arithmetic prompt at 317MiB says nothing about an agent holding a long
   context and running tools.

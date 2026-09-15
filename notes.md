@@ -4452,3 +4452,136 @@ either way.
 
 **Three runs on one afternoon, one phone, AC power, screen on, Debian VM down.**
 Nothing here is on battery, and the screen never went off.
+
+
+## 2026-09-15 (evening) — the endurance soak is VOID, store-create is PARKED, and Android's own memory budget is measured for the first time
+
+Four things, none of them a rung. One void result withdrawn, one question
+parked with its reason, one baseline measured, one correction to CLAUDE.md.
+
+**THE SOAK IS VOID AND NOTHING IS CLAIMED FROM IT.** `PennySoakService` was
+built and committed (543f9f0) and it ran, but it ran on a store this session
+contaminated by hand and the run is withdrawn rather than reported.
+
+The contamination, written down because the lesson generalises. After the
+smoke test the app was force-stopped. `PennySoakService` returns
+`START_STICKY`, so Android recreated it **with a null intent** — on an
+unlocked phone, with no `vm` extra, so `mVmName` fell back to the default
+`pennysoak` and the service created and wrote the store there and then. The
+boot that followed therefore found the store already present and full
+(`status=0`, 67,108,864 B on the first verify at 18,923ms) and never
+exercised the create path at all.
+
+**A guard that lives in the intent is not a guard.** Anything that must not
+happen on an unlocked phone has to test the phone, not the intent, because
+the intent is the first thing the system throws away when it restarts a
+sticky service.
+
+That boot also produced the first time in this repo our own app has been
+killed at 2048MB, and it is worth recording against 3g-ii:
+
+    19:36:48.285  PennySoak  2048MB VM created
+    19:36:55.922  Penny3gi   2048MB VM created
+    19:36:57.474  KILL  com.android.launcher3      adj 100
+    19:36:57.525  KILL  com.pennyspike.probe2a     adj 100
+    19:37:11.969  KILL  com.pennyspike.probe2a     adj 100   (again)
+
+50 kills, 2 kills of our own app, settling only on the third attempt.
+**3g-ii's comfortable reading — that the killer stops at adj 201 — holds for
+ONE 2048MB VM and not for two.** Two crossed into the foreground band (100)
+and took us with it. That is an accidental finding from a botched boot, not a
+designed run, so it is recorded as a warning rather than as a result: do not
+start two 2GB VMs on the same boot.
+
+The soak was stopped deliberately rather than by force-stop, which would have
+restarted it through the same sticky path:
+
+    adb shell pm disable-user --user 0 com.pennyspike.probe2a
+
+`vm list` then returned `Running VMs: []` with no `crosvm` and no app process.
+No data was cleared, so `penny3ev`'s store is untouched and `pm enable`
+reverses it.
+
+**STORE-CREATE BEFORE FIRST UNLOCK IS PARKED, and the reason is provisional.**
+It is parked pending the native-model benchmark, NOT settled. If the model
+runs natively on Android the question only matters for a store inside a VM,
+and there may be no VM. If the benchmark comes back badly and the VM returns,
+this question returns with it, unchanged and still cheap: one constant, one
+build, two reboots.
+
+**ANDROID'S OWN MEMORY BUDGET — measured, and it had never been measured on an
+idle phone with nothing of ours in it.** Every host reading in this repo so
+far was taken around a VM. This one is the floor underneath all of them.
+
+Conditions: app disabled, full reboot, unlocked by hand and then untouched —
+home screen only, Terminal app not opened, no VM of any kind. Read **5.8
+minutes after boot, so possibly still settling**; a second reading at ~20
+minutes idle follows below.
+
+    adb shell cat /proc/meminfo
+
+    MemTotal        5,718,280 kB     5.45 GB
+    MemFree            75,380 kB
+    MemAvailable      940,640 kB     919 MB
+    Cached          1,094,964 kB
+    AnonPages       3,313,572 kB
+    SwapTotal       3,145,724 kB     zram
+    SwapFree        2,574,588 kB     571,136 kB in swap
+    ZRAM (dumpsys)    197,464 kB physical holding 829,696 kB swapped
+
+zram is configured and in use at idle. That is ordinary Android behaviour on
+this build and is recorded as context, not as a symptom.
+
+**THERE ARE TWO HONEST NUMBERS AND THEY MUST BOTH BE QUOTED.** They differ by
+a factor of three and each answers a different question.
+
+    /proc/meminfo  MemAvailable      940,640 kB    what the kernel hands over
+                                                   without killing anything
+    dumpsys meminfo  Free RAM      3,068,208 kB    of which 2,311,420 kB is
+                                                   cached app processes that
+                                                   Android will kill on demand
+
+So the budget is **~919 MB free of charge, and up to ~2.9 GB if the cached
+band is evicted** — which is the same mechanism 3g-ii measured from the VM
+side, seen from the other end. A workload above 919 MB is not refused; it is
+paid for in cached processes.
+
+`ps -A -o RSS --sort=-RSS` shows ~40 system processes clustered near 200 MB
+RSS each, which is Zygote sharing rather than 8 GB of real usage — RSS
+double-counts shared pages. `dumpsys` puts real used PSS at 2,293,216 kB.
+
+**THE MMAP FACT, both halves, recorded because it changes what peak RSS means
+and not for any other purpose.** llama.cpp memory-maps the GGUF, so the
+weights are file-backed and clean. While the model is idle those pages are
+reclaimable — the kernel can drop them and re-read from flash. **During
+generation that reclaimability is theoretical: every token touches
+essentially all the weights, so the whole file is resident and hot, and peak
+RSS is approximately the GGUF size plus the KV cache.** Budget against the
+second half, not the first.
+
+**THE 6a NUMBER IS A FLOOR, NOT THE PRODUCT BUDGET.** This handset has 6 GB
+and is the cheapest device in the plan; the 7a that replaces it has more.
+Anything that fits here fits on the product. Anything that does not fit here
+is not thereby ruled out — it has to be re-measured on the 7a before it is
+called a no.
+
+**CORRECTION TO CLAUDE.md — "Host-side memory was NEVER measured" is wrong and
+has been wrong since 15 Sept.** That open thread predates rung 3e-ii and was
+never retired when the work that answered it landed. It has been measured at
+least three times:
+
+    3e-ii    host MemFree sampled three times through one run —
+             2,257,952 -> 288,756 -> 137,088 kB — which is the measurement
+             that proved crosvm takes its memory at VM CREATION
+    3g-i     host memory read around a 2048MB VM at boot
+    3g-ii    host kill lists and adj bands across three runs
+
+The line is replaced in CLAUDE.md in the same commit as this entry. The half
+of it that IS still true is kept: the q9 sampler read the guest, so
+"two VMs caused no pressure" remains a statement about the guest only.
+
+**What none of this says.** No model has been downloaded and nothing has been
+run. 919 MB is one reading on one boot at 5.8 minutes, and a second at ~20
+minutes is taken next specifically because settling is the obvious
+alternative explanation. The soak question — does any of this survive hours
+rather than seconds — is exactly as unanswered as it was this morning.
