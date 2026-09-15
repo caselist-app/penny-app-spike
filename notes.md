@@ -4585,3 +4585,107 @@ run. 919 MB is one reading on one boot at 5.8 minutes, and a second at ~20
 minutes is taken next specifically because settling is the obvious
 alternative explanation. The soak question — does any of this survive hours
 rather than seconds — is exactly as unanswered as it was this morning.
+
+## 2026-09-15 (evening, later) — the 919 MB figure was a phone still settling: the idle budget is ~2.02 GB, and native-vs-VM is CLOSED rather than pending
+
+Two things in this entry. A second memory reading that corrects — not
+contradicts — the one taken 20 minutes earlier in the entry above. And a
+correction to how the previous entry and CLAUDE.md framed the store-create
+park, which named the wrong condition for reopening it.
+
+### The second reading, and it moves by 1.18 GB
+
+Same boot, same conditions as the 5.8-minute reading: app disabled via
+`pm disable-user`, `vm list` returning `Running VMs: []`, Debian VM down, no
+app opened by hand, AC power, screen on, nobody touching the phone. The only
+variable is time since boot. Taken by a background loop on the Mac that
+polled `/proc/uptime` every 30s and fired once it passed 1500s.
+
+    uptime 1520.07 s (25.3 min), Running VMs: []
+
+                        5.8 min        25.3 min        delta
+    MemTotal          5,718,280 kB   5,718,280 kB            --
+    MemFree              75,380 kB   1,220,200 kB    +1,144,820
+    MemAvailable        940,640 kB   2,119,020 kB    +1,178,380
+    Cached            1,094,964 kB   1,124,860 kB       +29,896
+    AnonPages         3,313,572 kB   1,726,304 kB    -1,587,268
+    SwapTotal         3,145,724 kB   3,145,724 kB            --
+    SwapFree          2,574,588 kB   1,074,428 kB    -1,500,160
+    Zram physical       197,464 kB     496,856 kB      +299,392
+    dumpsys Free RAM  3,068,208 kB   3,748,470 kB      +680,262
+
+**919 MB was correct as measured and wrong as a budget.** It is what the
+kernel would have handed over at 5.8 minutes after boot, and that is a true
+statement about a phone five minutes past boot. It is not the idle figure.
+**~2.02 GB is the idle figure for now** — "for now" because 25 minutes may
+not be the plateau either; see below.
+
+**The mechanism, stated plainly, because the number is easy to misread as
+memory that appeared.** Nothing was freed. Android compressed roughly 1.5 GB
+of idle anonymous pages into roughly 300 MB of zram: `AnonPages` fell
+1,587,268 kB, `SwapFree` fell 1,500,160 kB (so that much more is now held in
+swap), and the physical cost of holding it rose only 299,392 kB. That is a
+~5:1 compression ratio on pages nothing had touched for twenty minutes.
+`dumpsys` agrees from the other side: `486,672K physical used for 1,968,128K
+in swap`.
+
+**The consequence is the part that matters for tomorrow.** Swap is now about
+two-thirds spent — 1,074,428 kB free of 3,145,724 kB — and that is headroom a
+model run will eat into, because the pages a running model touches are
+anonymous and hot and cannot be compressed away while they are in use. The
+~2.02 GB is therefore not a number to plan against on its own.
+**Peak RSS plus KV cache during generation is still the number that decides
+anything**, and nothing in this repo has measured it, because nothing in this
+repo has ever run a model.
+
+**25 minutes may not be the plateau.** A third reading is being taken at
+~60 minutes uptime by the same loop with the threshold raised to 3600, on the
+same untouched boot, specifically to find out whether the curve is still
+climbing. **Every per-run `MemAvailable before` reading taken tomorrow must
+record the phone's uptime alongside it**, or it cannot be placed against this
+curve and is not comparable to any other run.
+
+### The correction: native-vs-VM is CLOSED, not pending
+
+The entry above, and CLAUDE.md's Sequencing section as committed in 245b14d,
+both said the store-create question is parked "pending the native benchmark"
+and implied the VM returns if that benchmark comes back badly. **That is the
+wrong condition and it is corrected here.** The previous entry is left
+standing as written, per this repo's rule that earlier entries are never
+rewritten; this is the later entry and it wins.
+
+**Running the model inside a VM is closed on today's evidence.** Three
+grounds, every one of them measured in this repo rather than reasoned about:
+
+    3e-ii    crosvm takes ~1.92GB from the host AT VM CREATION, against a
+             total MemAvailable of 2,119,020 kB idle (940,640 kB at 5.8 min)
+    3f       the guest cannot pin cores -- each vCPU is an unpinned host
+             thread, and the guest MIDR mix d44 d05 d0b d0b d0b d0b d05 d05
+             does not match the host's d05 d05 d05 d05 d0b d0b d44 d44
+    2c/open  getCapabilities() returns 2, CAPABILITY_NON_PROTECTED_VM only,
+             so this device cannot make a protected VM and the host can read
+             the guest anyway
+
+**A poor native benchmark does NOT reopen it.** The VM pays all three of those
+costs on top of whatever native costs, so it cannot be the better answer to a
+speed problem. If the model is too slow natively on this handset, the reply is
+a different model, a different quantisation, or the 7a — not a VM.
+
+**The only thing that reopens it is model isolation becoming a requirement.**
+If it does, the store-create question comes back unchanged and still cheap:
+one constant (a VM name that has never existed, so `getOrCreate` has no prior
+directory), one build, two reboots.
+
+**What the native benchmark therefore is.** An ABSOLUTE feasibility
+measurement of this handset — does a small model run usefully here at all —
+and not a comparison against anything. It is not an open to-do that native-vs-
+VM is waiting on.
+
+CLAUDE.md's Sequencing bullet is corrected in the same commit as this entry.
+
+**What none of this says.** Still no model has been run. The second reading is
+one reading on one boot, and the third is not in yet. The compression ratio
+observed here is on pages Android chose to swap because they were cold; it
+says nothing about what zram will manage against a model's working set, and
+it must not be read as 1.5 GB of spare capacity. And all of it is an idle
+phone on AC power with nothing open, which is not the product shape.

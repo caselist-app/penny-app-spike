@@ -114,10 +114,14 @@ same commit as whatever changes it.
                                UNTESTED — check before trusting them.**
     apps opened by hand        NONE. The reboot cleared 3g-ii's camera, browser,
                                gallery, clock, calculator and files.
-    native memory baseline     MemTotal 5,718,280 kB, MemAvailable 940,640 kB,
-                               read 5.8 min after this boot with no VM and the
-                               app disabled. See the host-memory bullet in open
-                               threads for the two-numbers caveat.
+    native memory baseline     MemTotal 5,718,280 kB. MemAvailable 940,640 kB
+                               at 5.8 min after this boot, 2,119,020 kB at
+                               25.3 min, no VM and the app disabled either
+                               time. **IT SETTLES — use the later figure.**
+                               A third reading at ~60 min is pending. Swap is
+                               two-thirds spent at 25 min (SwapFree 1,074,428
+                               of 3,145,724 kB). See the host-memory bullet in
+                               open threads.
     adb                        ALIVE (phone unlocked). GrapheneOS keeps the port
                                charging-only while locked.
     adb forward tcp:2222       DEAD (the Debian VM is down). Pointless until it
@@ -1199,14 +1203,23 @@ and went to 201. Which way that nets out is untested and must not be asserted.
 **Sequencing — REVISED 15 Sept (evening). Both remaining handset questions are
 PARKED, and the work has moved to measuring a model natively on Android.**
 
-- **Can a NEW encrypted store be created before first unlock? PARKED —
-  pending, not settled.** 3e-v answered the re-open case twice; the create case
-  is untested, because boot 1 died on the stale-config trap and the file it
-  eventually read had been written unlocked. This is the
+- **Can a NEW encrypted store be created before first unlock? PARKED, and the
+  condition that reopens it is NARROW.** 3e-v answered the re-open case twice;
+  the create case is untested, because boot 1 died on the stale-config trap and
+  the file it eventually read had been written unlocked. This is the
   first-boot-after-factory-reset case. **Parked because it only matters for a
-  store inside a VM**, and whether there is a VM at all now depends on how a
-  model performs natively. If that comes back badly and the VM returns, this
-  returns with it, unchanged and still cheap: one constant (a new VM name in
+  store inside a VM, and running the model inside a VM is CLOSED on today's
+  evidence.** Three grounds, all measured in this repo: crosvm takes ~1.92GB
+  from the host at VM creation (3e-ii) against a total `MemAvailable` of
+  2,119,020 kB idle (940,640 kB at 5.8 min); the guest cannot pin cores,
+  because each vCPU is an unpinned host
+  thread and the guest's MIDR mix does not match the host's (3f); and
+  `getCapabilities()` returns 2, so this device cannot make a PROTECTED VM and
+  the host can read the guest anyway. **A poor native benchmark does NOT reopen
+  it** — the VM pays all three of those costs on top of whatever native costs,
+  so it cannot be the better answer to a speed problem. **The only thing that
+  reopens it is model isolation becoming a requirement.** If it does, this
+  question comes back unchanged and still cheap: one constant (a new VM name in
   `Penny3evService` — `penny3ev2`, a name that has never existed, so
   `getOrCreate` has no prior directory), one build, and two reboots.
 - **Endurance. BUILT, RUN ONCE, AND THAT RUN IS VOID.** `PennySoakService`
@@ -1223,9 +1236,11 @@ PARKED, and the work has moved to measuring a model natively on Android.**
 - **What is being measured instead: can this phone run a small model natively
   on Android, outside any VM?** Nothing in this repo has ever run a model. The
   memory baseline above is the first half of that question; `llama-bench` built
-  with the NDK and run from `/data/local/tmp` is the second. This is a
-  FEASIBILITY measurement of the handset, not a design decision, and it belongs
-  in this repo only as far as the numbers go.
+  with the NDK and run from `/data/local/tmp` is the second. This is an
+  ABSOLUTE feasibility measurement of the handset — "does a small model run
+  usefully here at all" — and **not** a native-versus-VM comparison, which is
+  closed per the bullet above and is not an open to-do. It belongs in this repo
+  only as far as the numbers go.
 
 **A rebuild now COSTS something again.** `penny3ev`'s store holds a verified
 64MB file and a reinstall strands it — and worse, `Penny3evService`'s recovery
@@ -1726,12 +1741,23 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   VM at boot; 3g-ii recorded host kill lists and adj bands across three
   runs. **Measured for the first time with NO VM at all, 15 Sept
   evening**, on a clean boot with the app disabled: `MemAvailable`
-  940,640 kB of 5,718,280 kB total, at 5.8 minutes after boot and so
-  possibly still settling. Two numbers must be quoted together —
-  `MemAvailable` 940,640 kB is what the kernel hands over without killing
-  anything, while `dumpsys meminfo` reports 3,068,208 kB free of which
-  2,311,420 kB is cached app processes Android will kill on demand. So
-  ~919 MB free of charge, up to ~2.9 GB if the cached band is evicted.
+  940,640 kB of 5,718,280 kB total, at 5.8 minutes after boot. **THAT
+  FIGURE WAS A PHONE STILL SETTLING AND MUST NOT BE USED AS A BUDGET.** A
+  second reading on the same untouched boot at 25.3 minutes returned
+  `MemAvailable` **2,119,020 kB** — 1.18 GB more. Nothing was freed: Android
+  compressed ~1.5 GB of idle anonymous pages into ~300 MB of zram
+  (`AnonPages` -1,587,268 kB, `SwapFree` -1,500,160 kB, Zram physical
+  +299,392 kB, ~5:1). **~2.02 GB is the idle figure, and 25 min may not be
+  the plateau** — a third reading at ~60 min is pending. Two numbers must
+  still be quoted together — `MemAvailable` is what the kernel hands over
+  without killing anything, while `dumpsys meminfo` reports 3,748,470 kB free
+  at 25 min of which 2,177,002 kB is cached app processes Android will kill
+  on demand. **Swap is two-thirds spent at idle** (SwapFree 1,074,428 of
+  3,145,724 kB) and a model's working set is hot anonymous memory that cannot
+  be compressed away while in use, so `MemAvailable` alone is not a plan.
+  **Peak RSS plus KV cache during generation is the number that decides
+  anything, and it is unmeasured.** Any per-run reading MUST record the
+  phone's uptime or it cannot be placed against this curve.
   **The 6a figure is a FLOOR, not the product budget** — the 7a that
   replaces it has more memory, so anything that fits here fits on the
   product, and anything that does not fit here must be re-measured there
