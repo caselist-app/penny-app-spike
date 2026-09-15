@@ -124,6 +124,11 @@ same commit as whatever changes it.
                                open threads.
     adb                        ALIVE (phone unlocked). GrapheneOS keeps the port
                                charging-only while locked.
+    models on the Mac          ~/Documents/penny-models, 10 GGUF files,
+                               19,771,681,856 bytes, EVERY ONE verified against
+                               Hugging Face's published LFS sha256. See
+                               MANIFEST.txt there, and the 15 Sept evening
+                               notes.md entry. NOTHING is on the phone yet.
     adb forward tcp:2222       DEAD (the Debian VM is down). Pointless until it
                                is reopened by hand.
     logcat buffer              DEFAULT — the reboot cleared 3g-ii's 64M setting,
@@ -143,14 +148,33 @@ Android Studio, deliberately (see `notes.md`):
     platform-tools 37.0.1
     Gradle         9.7.1  — INSTALLED BUT NOT USED, see below
     adb/fastboot   /opt/homebrew/bin, Homebrew android-platform-tools
+    NDK            30.0.16248370   INSTALLED 15 Sept evening
+    cmake          3.22.1-g37088a8 INSTALLED 15 Sept evening, sdkmanager
+    ninja          1.10.2          INSTALLED 15 Sept evening, sdkmanager,
+                                   inside the cmake package's own bin/
+    ninja (brew)   1.13.2          also present, and it SHADOWS the above
 
-There is **NO NDK and no C compiler on the Mac**, deliberately. Rung 2d needed
-one and the NDK is a 974,984,488-byte download over a phone tether; Homebrew's
-`lld` pulls in `llvm` and is larger still. The guest payload is compiled
-instead **inside the Debian guest on the phone**, which is already arm64 and
-needs no cross-compiler: `gcc 14.2.0 (Debian 14.2.0-19)`, installed 15 Sept
-with `--no-install-recommends` for 43MB. See the glibc/bionic trap below —
-that is why `payload/penny_payload.c` uses no C library at all.
+**THE NDK IS NOW INSTALLED — this paragraph used to say it never would be.**
+`ndk/30.0.16248370`, with a real
+`toolchains/llvm/prebuilt/darwin-x86_64/bin/clang`, fetched 15 Sept evening on
+a home LAN for the native `llama-bench` work. The earlier reasoning was sound
+and is kept for why the payloads look as they do: rung 2d needed a
+cross-compiler, the NDK is a ~975MB download, the Mac was on a phone tether,
+and the guest payload was compiled **inside the Debian guest on the phone**
+instead — already arm64, no cross-compiler needed, `gcc 14.2.0 (Debian
+14.2.0-19)` for 43MB. See the glibc/bionic trap below — that is why
+`payload/penny_payload.c` uses no C library at all, and none of that changes.
+**The NDK does not replace the guest-side route**, because a Debian-built
+binary is glibc and will not load in microdroid or run on Android; it exists
+for the separate question of running a model natively on Android.
+
+**Neither `cmake` nor the SDK's `ninja` is on `PATH`, and a second ninja is.**
+`/opt/homebrew/bin/ninja` (1.13.2, Homebrew) is found first; the sdkmanager one
+(1.10.2) sits beside cmake at
+`/opt/homebrew/share/android-commandlinetools/cmake/3.22.1/bin/` and is not on
+`PATH` at all. Name both by full path or the build silently uses Homebrew's.
+The brew install was a mistake — the sdkmanager cmake package already ships
+ninja — and it is recorded rather than undone.
 
 **The APK is hand-built, not Gradle-built.** `probe2a/build.sh` runs the
 five stages directly — `aapt2 link`, `javac` for the stubs, `javac` for
@@ -1555,6 +1579,10 @@ Do not work ahead of the current rung.
   package lists are cached from 12-14 Sept and re-fetching them is ~150MB of
   indices — more than three times the 43MB the compiler itself cost. The Mac's
   network is a phone tether; index downloads are the expensive part.
+  **The tether was OFF on 15 Sept evening only** — the default route was
+  verified as the wired home LAN (`en8`, 192.168.68.110) before ~20GB of
+  models and the NDK were fetched. It is back on a tether from 16 Sept.
+  Verify the route before assuming either way: `route -n get default`.
 - **Copy first, kill second.** `sdkmanager` wipes its own
   `.temp/PackageOperation01/` on exit, so killing it and then trying to rescue
   the partial download loses the race. Cost a ~100MB partial NDK on 15 Sept.

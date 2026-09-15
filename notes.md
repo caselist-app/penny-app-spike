@@ -4689,3 +4689,112 @@ observed here is on pages Android chose to swap because they were cold; it
 says nothing about what zram will manage against a model's working set, and
 it must not be read as 1.5 GB of spare capacity. And all of it is an idle
 phone on AC power with nothing open, which is not the product shape.
+
+## 2026-09-15 (evening, later still) — the models and the toolchain are on the Mac, all ten files verified against Hugging Face's own hashes
+
+Nothing measured here. This is a record of what was downloaded, from where,
+and at what version, made because the Mac goes back on a phone tether
+tomorrow and anything not fetched tonight is not being fetched.
+
+### The models
+
+Ten GGUF files, **19,771,681,856 bytes** total, in `~/Documents/penny-models`.
+Wire time about twelve minutes on a home LAN at ~28-33 MB/s.
+
+**Every file is VERIFIED against the LFS oid Hugging Face publishes for it**,
+which is the file's sha256. The check is a local `shasum -a 256` compared
+against that published value, and the byte count compared against the
+published size. Both must match. A locally-computed hash on its own proves
+only that the download was internally consistent, not that it is the right
+file, and the manifest is explicit about which was done. The published
+hashes are kept alongside in `HF-PUBLISHED.txt` (87 of them, every GGUF in
+the six repos consulted) so the check can be re-run offline.
+
+    repo                                 file                              bytes
+    unsloth/Qwen3-1.7B-GGUF         Qwen3-1.7B-Q4_K_M.gguf           1,107,409,472
+    unsloth/Qwen3.5-2B-GGUF         Qwen3.5-2B-Q4_K_M.gguf           1,280,835,840
+    unsloth/gemma-4-E2B-it-GGUF     gemma-4-E2B-it-Q4_K_M.gguf       3,106,738,272
+    unsloth/Qwen3-1.7B-GGUF         Qwen3-1.7B-Q4_0.gguf             1,056,782,912
+    unsloth/Qwen3.5-2B-GGUF         Qwen3.5-2B-Q4_0.gguf             1,214,873,856
+    unsloth/gemma-4-E2B-it-GGUF     gemma-4-E2B-it-Q4_0.gguf         3,041,378,400
+    unsloth/Qwen3-1.7B-GGUF         Qwen3-1.7B-Q8_0.gguf             1,834,426,944
+    ggml-org/Qwen3-4B-GGUF          Qwen3-4B-Q4_K_M.gguf             2,497,280,640
+    ggml-org/Qwen3-1.7B-GGUF        ggml-org/Qwen3-1.7B-Q4_K_M.gguf  1,282,439,264
+    google/gemma-4-E2B-it-qat-q4_0-gguf
+                                    google/gemma-4-E2B_q4_0-it.gguf  3,349,516,256
+
+Full hashes are in `~/Documents/penny-models/MANIFEST.txt`, one row per file
+with repo, byte count, sha256 and the check result. Not reproduced here
+because the manifest is the record and copying it invites the two to drift.
+
+**Why unsloth and not ggml-org for the Qwen3-1.7B files, against the stated
+preference.** ggml-org's `Qwen3-1.7B-GGUF` carries only Q4_K_M, Q8_0 and f16
+— **it has no Q4_0 at all**, and Q4_0 is the whole point of half this set,
+because the 6a has `asimddp` but not `i8mm` and llama.cpp repacks Q4_0 for
+the dot-product path. A Q4_K_M from one quantiser against a Q4_0 from another
+is not a comparison. So all three Qwen3-1.7B files come from unsloth, which
+has all three. ggml-org supplies Qwen3-4B, which it does carry.
+
+**The ggml-org control file, and it is not redundant.** ggml-org's
+Qwen3-1.7B Q4_K_M is 1,282,439,264 bytes against unsloth's 1,107,409,472 —
+**a 175 MB gap on nominally the same model at the same quantisation**, from
+different choices about which tensors stay at higher precision. It is kept in
+its own `ggml-org/` subdirectory precisely because the filename collides.
+Downloaded so that "Q4_K_M" can be tested as a quantiser's decision rather
+than as a fixed thing, if the two ever disagree on speed or footprint.
+
+**Gemma 4 E2B is the outlier and its file size says why.** 3.1 GB at Q4_K_M,
+nearly three times Qwen3-1.7B. "E2B" is *effective* 2B; the file and the
+memory footprint reflect the full parameter count, not the effective one.
+It is not a like-for-like against a 1.7B and must not be written up as one.
+
+**Google's QAT Gemma was added as a tenth file.** `gemma-4-E2B_q4_0-it.gguf`,
+3,349,516,256 bytes, from Google's own repo. It is quantisation-aware
+trained rather than quantised after the fact, so it is the one Q4_0 in the
+set expected to hold quality; it is also 308 MB larger than unsloth's plain
+Q4_0. Downloading it needed no licence acceptance. Included so that "Q4_0 is
+worse" can be tested against the best available Q4_0 rather than assumed.
+
+**Qwen3-4B is a 7a ceiling probe and is NOT for the 6a runs.** 2.5 GB at
+Q4_K_M against an idle `MemAvailable` of ~2.02 GB on this handset.
+
+Skipped deliberately: anything sub-1B (they collapse at 4-bit on structured
+output) and anything Llama (the licence rules it out).
+
+### The toolchain
+
+    NDK              30.0.16248370   via sdkmanager
+                     /opt/homebrew/share/android-commandlinetools/ndk/30.0.16248370
+                     toolchains/llvm/prebuilt/darwin-x86_64/bin/clang present
+    cmake            3.22.1-g37088a8 via sdkmanager
+                     /opt/homebrew/share/android-commandlinetools/cmake/3.22.1
+    ninja            1.10.2          via sdkmanager, SAME directory as cmake
+                     /opt/homebrew/share/android-commandlinetools/cmake/3.22.1/bin/ninja
+    ninja (brew)     1.13.2          /opt/homebrew/bin/ninja -- see the trap
+    llama.cpp        38a5b42d9a3e82e0a586bcd1caed121f36c87a73
+                     "HIP: Enable AllReduce for ROCm (#27825)"
+                     ~/Documents/llama.cpp, FULL clone, 453MB of history
+
+**The NDK directory is real this time.** The `ndk/30.0.16248370` that existed
+before tonight was the empty shell left by the killed download earlier today
+— `build.sh` tolerated it and resolved `CLANG` to empty. It was removed and
+re-installed, and `clang` is now present at the path above. Checking the
+directory exists is not the check; checking for `clang` is.
+
+**A brew ninja was installed and it should not have been.** The agreed route
+was sdkmanager, to keep the toolchain in one place. The download script ran
+`brew install ninja` as well, before it was established that the sdkmanager
+cmake package already ships ninja in its own `bin/`. **Both are now present
+and the wrong one wins on PATH**: brew's 1.13.2 at `/opt/homebrew/bin` is
+found first, the SDK's 1.10.2 is not on PATH at all. The build must name
+the SDK binary by full path, or it silently picks up Homebrew's. Neither
+`cmake` nor the SDK `ninja` is on PATH; both need their full path.
+
+### What none of this says
+
+Nothing has been built and nothing has been run. Ten verified files on a Mac
+is not a model on a phone: the binary is not compiled, nothing has been
+pushed to `/data/local/tmp`, and no tok/s figure exists for this handset at
+any quantisation. The sizes above are file sizes on disk, not peak RSS —
+peak RSS during generation is roughly the GGUF size plus the KV cache, and
+it is the number that decides feasibility. It remains unmeasured.
