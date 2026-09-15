@@ -697,6 +697,55 @@ less: the guest's `/data` is `tmpfs` and zram already claims a swap device
 the size of the whole guest, so a 1.5GB model file may cost 1.5GB of RAM
 before anything loads it, against a measured ceiling of 1792MB.
 
+**Rung 3e-iii — where does a model FILE live? DEFINED, NOT RUN.** The last
+rung in this group and the one that can still close the plan down. 3e-ii
+proved 1792MB of a 2048MB VM is genuinely writable. If a 1.5GB model FILE
+must also sit in RAM before anything loads it, then the file and the running
+model both come out of that same 1792MB and it does not fit.
+
+**Why it is suspected.** Rung 3d's shutdown log reads `init: Unknown /data fs
+type: tmpfs`. tmpfs is a RAM disk. And every guest measured in 3e-i and 3e-ii
+built a zram swap device sized to its whole RAM, which is more RAM spoken
+for. Nothing here has ever written a file inside a guest, so this is
+inference, not measurement.
+
+**What to measure, in this order.**
+
+1. **What is actually mounted.** The payload reads `/proc/mounts` and
+   `/proc/meminfo` and prints them. This alone may answer it: if every
+   writable mount is `tmpfs` there is no disk in there at all. Cheap, and
+   nothing else is worth doing before it is known.
+2. **What a file costs.** Write an N-MB file into each writable location and
+   watch the guest's own `MemFree` across the write. If MemFree falls by N,
+   the file is RAM. If it does not, there is real storage. Use the 3e-ii
+   accounting method — it caught zram doing nothing and it will catch this.
+3. **The combined ceiling, which is the number that matters.** With an N-MB
+   file written, re-run 3e-ii's touch loop and find how much is still
+   reachable. `file + touchable` versus 1792MB is the whole question.
+4. **THE LIKELY ESCAPE HATCH, and test it even if 1-3 look bad.** The APK is
+   already mounted read-only INSIDE the guest — that is how the payload `.so`
+   is loaded at all, via `setApkPath()` plus `zip -0` plus `zipalign -p 4`.
+   So a model file packaged into the APK the same way could be `mmap`ed by
+   the guest out of a read-only mount rather than copied into a RAM disk.
+   That costs reclaimable page cache instead of anonymous memory, and the
+   packaging machinery is proven since 2d. Test: put a large Stored,
+   page-aligned file in the APK, `mmap` it in the guest, read every page, and
+   watch MemFree. **If this works the rung is answered even if `/data` is
+   tmpfs, and it is the route rung 4 should design around.**
+
+**Control first, as five rungs running have done.** A 256MB guest writing a
+64MB file, with the accounting checked against a known figure, before any
+number that matters is measured.
+
+**DONE MEANS:** a yes/no on whether the guest's writable storage is RAM, a
+number for what a 1.5GB file costs, and a yes/no on whether the APK route
+avoids that cost. Then stop and report.
+
+Needs the guest payload rebuilt, so it costs a manual round trip to open the
+Terminal app on the phone for the Debian guest's gcc. Give it its OWN
+component and its own VM name; do not touch `VmService`, `Penny3dService`,
+`Probe3eActivity` or `Probe3eiiActivity`.
+
 **Rung 4 — the OS image. DO NOT START IT.** Build GrapheneOS from source,
 preinstall the app, sign with our platform key, flash, lock, verify
 attestation covers the app. Weeks. Not now.
