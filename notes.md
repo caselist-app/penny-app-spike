@@ -4963,3 +4963,50 @@ alongside the soak — **cannot be answered**: logcat dies on reboot and the
 buffer's oldest line is now 09-15 19:59:34, checked ~21:05. LIVE DEVICE STATE
 corrected. Parked, not investigated; the ck64 is derivable from the fixed-seed
 generator, so the file is re-creatable rather than lost.
+
+**Fourth reading, same untouched boot, 120.6 min uptime.** `Running VMs: []`,
+app still disabled, nothing opened, AC power, screen on — conditions identical
+to the other three.
+
+                        5.8 min      25.3 min      60.5 min     120.6 min
+    MemAvailable      940,640 kB  2,119,020 kB  2,012,348 kB  1,929,032 kB
+    MemFree            75,380 kB  1,220,200 kB  1,057,296 kB    938,232 kB
+    Cached          1,094,964 kB  1,124,860 kB  1,179,608 kB  1,214,492 kB
+    AnonPages       3,313,572 kB  1,726,304 kB  1,855,920 kB  1,942,980 kB
+    SwapFree        2,574,588 kB  2,574,588 kB  1,187,836 kB  1,261,820 kB
+    Zram physical     197,464 kB    496,856 kB    483,388 kB    477,172 kB
+    dumpsys Free RAM 3,068,208 kB 3,748,470 kB  3,657,804 kB  3,527,022 kB
+
+**THE ENTRY ABOVE CALLED THIS OSCILLATION. WITH A FOURTH POINT IT IS NOT — it
+is a slow monotonic decline.** `MemAvailable` falls at every step after the
+25-minute peak: 2,119,020 -> 2,012,348 -> 1,929,032 kB, i.e. -106,672 then
+-83,316. So does `MemFree`, and so does `dumpsys` Free RAM (3,748,470 ->
+3,657,804 -> 3,527,022 kB). Three falls in a row with the same signature is a
+trend, not noise in one direction three times; "oscillating around 2.0 GB" was
+wrong and is corrected here.
+
+**The signature is the same on both legs and it is the first leg running
+backwards.** 25.3 -> 120.6 min: `AnonPages` +216,676 kB, `SwapFree` +187,392 kB,
+zram physical -19,684 kB. Cold anonymous pages are being faulted back OUT of
+zram and decompressed into ordinary memory, steadily, on a phone nobody is
+touching. `Cached` climbs +89,632 kB over the same span. What is doing it was
+observed, not identified.
+
+Rate over the 95.3 minutes from the peak: **~2.0 MB/min of `MemAvailable`
+lost.** Extrapolating that is not supported by four points and is not done here.
+
+**The practical consequence for tomorrow is unchanged in shape and firmer in
+detail: there is no single idle number for this phone.** ~2.12 GB at 25 min,
+~2.01 GB at 60 min, ~1.93 GB at 121 min, all on one untouched boot with nothing
+running. Every `MemAvailable` reading taken around a benchmark run MUST carry
+its uptime, and a before/after pair around one run is only comparable to itself.
+Note also that `dumpsys` cached-pss stayed flat near 2.2 GB across all three
+later readings while genuinely-free RAM fell 1,136,820 -> 987,048 -> 828,752 kB:
+the reclaimable pool is not what is shrinking.
+
+**What this does NOT say.** Four readings on one boot, all idle, all on AC power
+with the screen on. Nothing was running and nothing was measured under load, so
+this describes an untouched phone drifting and says nothing about what happens
+once a model is resident. It does not establish a floor — no reading was taken
+past 120.6 min, and whether the decline continues, flattens or reverses is
+unknown. The cause of the steady decompression was not investigated.

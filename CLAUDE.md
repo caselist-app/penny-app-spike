@@ -167,12 +167,13 @@ same commit as whatever changes it.
                                times on ONE untouched boot, no VM, app
                                disabled, nothing opened: **940,640 kB at 5.8
                                min, 2,119,020 kB at 25.3 min, 2,012,348 kB at
-                               60.5 min.** It settles by ~25 min and then
-                               oscillates — the third reading is 106,672 kB
-                               BELOW the second, not above. **Quote ~2.0 GB,
-                               and quote the uptime with it.** Swap two-thirds
-                               spent at idle (SwapFree 1,187,836 of 3,145,724
-                               kB at 60.5 min). See the host-memory bullet in
+                               60.5 min, 1,929,032 kB at 120.6 min.** It peaks
+                               at ~25 min and then DECLINES at every later
+                               reading — three falls in a row, ~2.0 MB/min.
+                               **THERE IS NO SINGLE IDLE NUMBER. Never quote
+                               one without its uptime.** Swap two-thirds spent
+                               at idle (SwapFree 1,261,820 of 3,145,724 kB at
+                               120.6 min). See the host-memory bullet in
                                open threads.
     adb                        ALIVE (phone unlocked). GrapheneOS keeps the port
                                charging-only while locked.
@@ -1878,13 +1879,20 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   `SwapFree` +113,408 and `AnonPages` +129,616, i.e. pages faulted back OUT of
   zram. So the curve flattens by ~25 min and then oscillates; **~2.0 GB is the
   idle figure for the 6a** and 2.12 GB was 0.1 GB optimistic. What decompressed
-  those pages was observed, not identified. Two numbers must
+  those pages was observed, not identified. **A FOURTH reading at 120.6 min
+  returned 1,929,032 kB**, falling again by 83,316 kB with the same signature
+  (`AnonPages` +87,060, `SwapFree` +73,984, zram physical -6,216). Three falls
+  in a row is a trend, so "settles then oscillates" is wrong: it peaks at ~25
+  min and then declines slowly, ~2.0 MB/min over the 95 minutes measured.
+  Whether that continues past 120.6 min is unknown. Two numbers must
   still be quoted together — `MemAvailable` is what the kernel hands over
   without killing anything, while `dumpsys meminfo` reports 3,748,470 kB free
   at 25 min of which 2,177,002 kB is cached app processes Android will kill
   on demand (3,657,804 kB / 2,199,920 kB cached / 987,048 kB truly free at
-  60.5 min). **Swap is two-thirds spent at idle** (SwapFree 1,187,836 of
-  3,145,724 kB at 60.5 min) and a model's working set is hot anonymous memory that cannot
+  60.5 min; 3,527,022 / 2,200,822 / 828,752 kB at 120.6 min — the cached pool
+  stays flat near 2.2 GB and it is the genuinely-free part that shrinks).
+  **Swap is two-thirds spent at idle** (SwapFree 1,261,820 of
+  3,145,724 kB at 120.6 min) and a model's working set is hot anonymous memory that cannot
   be compressed away while in use, so `MemAvailable` alone is not a plan.
   **Peak RSS plus KV cache during generation is the number that decides
   anything, and it is unmeasured.** Any per-run reading MUST record the
