@@ -25,13 +25,23 @@ BT=$(ls -d "$SDK"/build-tools/37* | sort -V | tail -1)
 PLATFORM_DIR=$(ls -d "$SDK"/platforms/android-37* | sort -V | tail -1)
 PLATFORM="$PLATFORM_DIR/android.jar"
 
+# Rung 2d added a C compiler to this build. Nothing else in the spike needs
+# one: the payload that runs inside the guest is a native .so, and microdroid
+# dlopens it directly, so there is no Java route to it.
+# There is NO NDK on this Mac and there does not need to be — see the
+# PENNY_PAYLOAD_SO block below. These two lines resolve one if it is ever
+# installed, and quietly come back empty if not.
+NDK=$(ls -d "$SDK"/ndk/* 2>/dev/null | sort -V | tail -1 || true)
+CLANG=$(ls "$NDK"/toolchains/llvm/prebuilt/*/bin/aarch64-linux-android34-clang 2>/dev/null | head -1 || true)
+
 echo "java      $(java -version 2>&1 | head -1)"
 echo "build     $BT"
 echo "platform  $PLATFORM"
+echo "ndk       ${NDK:-(none — payload must be supplied via PENNY_PAYLOAD_SO)}"
 echo
 
 rm -rf "$OUT"
-mkdir -p "$OUT/classes" "$OUT/stubs"
+mkdir -p "$OUT/classes" "$OUT/stubs" "$OUT/payloadstub" "$OUT/apkroot/lib/arm64-v8a"
 
 # 1. Resources -> compiled, then manifest -> an APK skeleton.
 #
@@ -46,7 +56,7 @@ mkdir -p "$OUT/classes" "$OUT/stubs"
 #    binary .flat file; link assembles those plus the manifest into the APK and
 #    builds the resource table the runtime looks names up in.
 "$BT/aapt2" compile --dir "$HERE/res" -o "$OUT/res.zip"
-echo "1/6 resources compiled"
+echo "1/8 resources compiled"
 
 "$BT/aapt2" link \
     -I "$PLATFORM" \
@@ -56,7 +66,7 @@ echo "1/6 resources compiled"
     --min-sdk-version 34 \
     --target-sdk-version 37 \
     -o "$OUT/base.apk"
-echo "2/6 manifest linked"
+echo "2/8 manifest linked"
 
 # 2. The @SystemApi stubs -> class files that exist ONLY to satisfy javac.
 #    android.system.virtualmachine is absent from the public android.jar, so
@@ -68,14 +78,14 @@ javac -source 17 -target 17 -nowarn \
     -classpath "$PLATFORM" \
     -d "$OUT/stubs" \
     $(find "$HERE/stubs" -name '*.java')
-echo "3/6 stubs compiled (compile-only, not shipped)"
+echo "3/8 stubs compiled (compile-only, not shipped)"
 
 # 3. Our own Java -> JVM class files, against android.jar plus the stubs.
 javac -source 17 -target 17 -nowarn \
     -classpath "$PLATFORM:$OUT/stubs" \
     -d "$OUT/classes" \
     $(find "$HERE/src" -name '*.java')
-echo "4/6 app compiled"
+echo "4/8 app compiled"
 
 # 4. JVM class files -> Android dex bytecode. Note this dexes $OUT/classes
 #    only. If the stubs were packaged, the APK would carry a second, fake
@@ -84,12 +94,74 @@ echo "4/6 app compiled"
 #    visible to the compiler, absent from the output.
 "$BT/d8" --lib "$PLATFORM" --lib "$OUT/stubs" --min-api 34 --output "$OUT" \
     $(find "$OUT/classes" -name '*.class')
-echo "5/6 dexed"
+echo "5/8 dexed"
 
-# 5. Put the dex inside the APK and sign it. Android refuses unsigned APKs;
-#    a throwaway local key is enough for a sideload. This is NOT the
-#    platform key and holds no privilege.
+# 5. The guest payload -> a native arm64 .so.
+#
+#    Two objects, and the first one never ships. The real
+#    AVmPayload_notifyPayloadReady lives in microdroid's own libvm_payload.so
+#    inside the guest; the linker on this Mac has never heard of it. So a stub
+#    of the same soname is built purely to be linked against, which makes the
+#    linker emit DT_NEEDED for libvm_payload.so. In the guest that entry
+#    resolves to the real library. It is the same compile-only trick as the
+#    Java stubs in stage 2, for the same reason, and it fails the same way if
+#    the stub were ever packaged: the guest would load a do-nothing version of
+#    the call and onPayloadReady would simply never fire.
+if [ -z "$PENNY_PAYLOAD_SO" ]; then
+    "$CLANG" -shared -fPIC -o "$OUT/payloadstub/libvm_payload.so" \
+        "$HERE/payload/vm_payload_stub.c"
+fi
+
+#    PENNY_PAYLOAD_SO takes a .so built somewhere else and packages it
+#    unchanged. It exists for two jobs, and the build cannot tell them apart —
+#    the caller has to know which one this run is:
+#
+#      CONTROL. Point it at Google's stock MicrodroidEmptyPayloadJniLib.so and
+#      the APK is built identically but carries a payload already known to
+#      work, so a failure can only be the packaging, the APK path or the
+#      signature, never our C. That run passed on 15 Sept.
+#
+#      THE REAL BUILD, because there is no NDK here. 15 Sept: the NDK is a
+#      975MB download over a phone tether, so penny_payload.c is compiled
+#      instead by the Debian guest ON the Pixel, which is already arm64 and so
+#      needs no cross-compiler. That is why the source uses raw syscalls and no
+#      libc — Debian has glibc, microdroid has bionic, and a payload linked to
+#      either would not load in the other. See payload/penny_payload.c.
+#
+#    The build command used in the guest, for the record:
+#
+#      gcc -shared -fPIC -O1 -ffreestanding -fno-stack-protector \
+#          -Wl,-z,max-page-size=4096 -Wl,--hash-style=sysv \
+#          -o PennyPayload.so penny_payload.c -L. -lvm_payload
+if [ -n "$PENNY_PAYLOAD_SO" ]; then
+    cp "$PENNY_PAYLOAD_SO" "$OUT/apkroot/lib/arm64-v8a/PennyPayload.so"
+    echo "6/8 guest payload COPIED FROM $PENNY_PAYLOAD_SO"
+else
+    "$CLANG" -shared -fPIC -O2 -o "$OUT/apkroot/lib/arm64-v8a/PennyPayload.so" \
+        "$HERE/payload/penny_payload.c" \
+        -L"$OUT/payloadstub" -lvm_payload
+    echo "6/8 guest payload compiled"
+fi
+
+# 6. Put the dex and the payload inside the APK, then align.
+#
+#    The payload is added with `zip -0` — STORED, not deflated — and the APK is
+#    then page-aligned with `zipalign -p`. Neither is optional and neither is an
+#    optimisation. Microdroid does not install or unpack this APK: it mounts it
+#    read-only in the guest and mmaps lib/arm64-v8a/PennyPayload.so out of it in
+#    place. A compressed or unaligned entry cannot be mapped, and the failure
+#    appears as the guest dying rather than as anything wrong at build or
+#    install time. classes.dex is added normally, compressed, because Android
+#    reads that the ordinary way.
 (cd "$OUT" && zip -q base.apk classes.dex)
+(cd "$OUT/apkroot" && zip -q -0 -X "$OUT/base.apk" lib/arm64-v8a/PennyPayload.so)
+"$BT/zipalign" -p -f 4 "$OUT/base.apk" "$OUT/aligned.apk"
+echo "7/8 packaged and page-aligned"
+
+# 7. Sign. Android refuses unsigned APKs; a throwaway local key is enough for
+#    a sideload. This is NOT the platform key and holds no privilege. Signing
+#    is last: zipalign rewrites offsets, so aligning after signing would
+#    invalidate the signature.
 
 if [ ! -f "$HERE/debug.keystore" ]; then
     keytool -genkeypair -keystore "$HERE/debug.keystore" \
@@ -101,13 +173,23 @@ fi
 
 "$BT/apksigner" sign \
     --ks "$HERE/debug.keystore" --ks-pass pass:android --key-pass pass:android \
-    --out "$OUT/probe2a.apk" "$OUT/base.apk"
-echo "6/6 signed"
+    --out "$OUT/probe2a.apk" "$OUT/aligned.apk"
+echo "8/8 signed"
 
 echo
 echo "built: $OUT/probe2a.apk"
 
-# Proof the stubs did not ship. If this prints anything, stop and fix it.
+# Proof the stubs did not ship. If either of these is wrong, stop and fix it;
+# both failures are silent at install time and only surface as a confusing
+# result much later.
 LEAK=$("$BT/dexdump" -e "$OUT/classes.dex" 2>/dev/null \
     | grep -c "Landroid/system/virtualmachine/" || true)
 echo "stub classes leaked into the dex: $LEAK  (must be 0)"
+
+SOLEAK=$(unzip -l "$OUT/probe2a.apk" | grep -c "libvm_payload.so" || true)
+echo "stub libvm_payload.so leaked into the apk: $SOLEAK  (must be 0)"
+
+# The payload must be Stored, not Defl:N. zipfuse in the guest cannot read a
+# deflated entry, and the symptom is the VM failing rather than this build.
+echo "payload entry in the apk:"
+unzip -lv "$OUT/probe2a.apk" | grep "PennyPayload.so"

@@ -2030,3 +2030,212 @@ consequence rather than an Android one. Untested — we have no stock device.**
 
 Either way rung 4 dissolves it: the OS image sets its own default
 recogniser and can preinstall Penny as the assistant.
+
+## 2026-09-15 — rung 2d ANSWERED YES. Our own code ran inside the guest VM. Compiled on the phone, because the NDK was not affordable.
+
+Versions unchanged from the rung 3b entries: GrapheneOS 2026091001, Android 17
+build CP2A.260705.006, Pixel 6a bluejay, bootloader LOCKED, Temurin 21.0.12.1,
+build-tools 37.0.0, platform android-37.0. Debian guest 13.7 trixie, kernel
+6.12.92-android16-6-g4e585dd7f3b7-ab16266940-4k. **New toolchain: gcc 14.2.0
+(Debian 14.2.0-19), installed INSIDE the Debian guest on the phone. There is
+still no NDK and no clang on the Mac.**
+
+### The question
+
+Rung 2b booted a VM and rung 3 booted one unattended, but every VM this spike
+has ever run carried Google's own `MicrodroidEmptyPayloadJniLib.so`, read out
+of the `com.android.virt` APEX. That proves the app OWNS a VM. It proves
+nothing about the VM being ours to use, because nothing of ours was ever
+inside it. 2c closed off supplying our own kernel and rootfs. This asks the
+much smaller question that is left, and it is the one that matters
+commercially: **inside Google's unmodified microdroid, can a sideloaded app
+run its own payload?**
+
+Not to be confused with 2c. 2c wanted a custom GUEST IMAGE and was refused by
+the hidden-API blocklist. 2d changes nothing about the machinery: same
+microdroid, same two SDK-visible methods 2b already used
+(`setApkPath`, `setPayloadBinaryName`), pointed at our own APK and our own
+`.so` instead of at the APEX's.
+
+### Part one: the control run, and why it came first
+
+The NDK download (975MB) was going to take hours over a phone tether, so
+rather than idle, the genuinely uncertain half was tested with NO compiler at
+all. Google's `MicrodroidEmptyPayloadJniLib.so` was pulled off the device and
+packed into OUR APK under the name `PennyPayload.so`, changing one variable
+only: which APK microdroid reads the payload out of.
+
+    STEP1 MANAGE_VIRTUAL_MACHINE = GRANTED
+    STEP3 our apk = /data/app/~~Ufn763DKehSe1MWk2V9ETg==/
+          com.pennyspike.probe2a-TKP0vkfSHHKyWuWOhnxHow==/base.apk
+          readable=true bytes=53900
+    STEP6 create() returned VirtualMachine(name:penny2d,
+          payload:PennyPayload.so, package: com.pennyspike.probe2a)
+    STEP7 run() returned, status=RUNNING
+    CB onPayloadStarted sinceBoot=1452304ms      (0.87s after run())
+    CB onPayloadReady  sinceBoot=1452327ms
+
+and from the OS rather than from our own log:
+
+    name: "penny2d", cid: 2049, requesterUid: 10192, requesterPid: 4258
+
+**That answered every packaging and signature worry in one run**, and it is
+worth keeping separate from part two precisely because it did: our APK path is
+accepted; our throwaway signing key is accepted; the `idsig` is generated
+without complaint; the Stored, page-aligned `.so` is mmapped out of our APK in
+the guest and dlopened. After this the ONLY remaining unknown in 2d was
+whether our own C was correct — which is a much smaller thing to be wrong
+about, and a much cheaper one to fix.
+
+The packaging contract was read empirically rather than assumed. The stock
+payload's own entry in `EmptyPayloadApp.apk` is `Stored`, 0% — microdroid does
+not unpack the APK, it mounts it read-only in the guest and maps the `.so` in
+place. Hence `zip -0`, `zipalign -p`, and `android:extractNativeLibs="false"`.
+All three are load-bearing and all three fail silently at build and install
+time, surfacing only as the VM dying.
+
+### Part two: the compiler problem, and the route actually taken
+
+There was no C compiler on this Mac and no cheap way to get one:
+
+    NDK                      974,984,488 bytes, confirmed by curl -sI
+    Homebrew lld             pulls in llvm — LARGER, not smaller. Dead end.
+
+The Mac's only network was a phone tether, so this was a money decision rather
+than a technical one, and Matt made it. **A ~100MB partial NDK download was
+also lost to Claude's error**: the installer was killed and its temp directory
+is wiped on exit, so the copy raced the cleanup. Copy first, kill second.
+
+The route taken instead: **the Debian guest already on the Pixel is arm64, so
+it needs no cross-compiler.** `gcc` with `--no-install-recommends` cost
+**43MB, 28 packages** — helped enormously by apt's package lists already being
+cached from 12-14 Sept, which saved roughly 150MB of index downloads on their
+own. Do not run `apt-get update` in that guest without a reason.
+
+**The trap this creates, and the fix, because it is the whole reason the
+source looks the way it does.** Debian is glibc. Microdroid is Android, so it
+is bionic, and it has no glibc at all. A payload built the obvious way carries
+`DT_NEEDED` for `libc.so.6` and `libgcc_s.so.1`, neither of which exists in the
+guest, and it would fail to load. So `penny_payload.c` uses **no C library at
+all** — it makes the two syscalls it needs (`write`, `nanosleep`) directly with
+twelve lines of aarch64 inline assembly. The syscall ABI is a property of the
+kernel and is identical whether the userspace above it is glibc, bionic or
+nothing, which is why the same source now compiles correctly under either
+toolchain with no `#ifdef` anywhere. A C library was never what was being
+tested.
+
+The build, in the guest:
+
+    gcc -shared -fPIC -nostdlib -ffreestanding -fno-stack-protector \
+        -o libvm_payload.so vm_payload_stub.c
+    gcc -shared -fPIC -O1 -nostdlib -ffreestanding -fno-stack-protector \
+        -Wl,-z,max-page-size=4096 -Wl,--hash-style=sysv \
+        -Wl,-soname,PennyPayload.so \
+        -o PennyPayload.so penny_payload.c -L. -lvm_payload
+
+Every flag there is defensive and each one was chosen against a specific way
+bionic refuses a file:
+
+    -nostdlib              or gcc links libgcc_s.so.1 and glibc start files
+    -ffreestanding         or gcc turns our hand-written loop back into a
+                           call to strlen, which does not exist here
+    -fno-stack-protector   Debian defaults it ON; it needs __stack_chk_fail
+                           from glibc
+    -z max-page-size=4096  aarch64 ld defaults to 64k segment alignment; the
+                           APK is aligned to 4k, so a 64k-aligned .so could
+                           not be mapped in place
+    --hash-style=sysv      the form bionic has always supported
+
+The built file was then verified before it was ever packaged, which is cheap
+and would have caught any of the above:
+
+    OS/ABI:   UNIX - System V        (bionic rejects other values)
+    Type:     DYN, Machine: AArch64
+    NEEDED:   libvm_payload.so       — and nothing else. No libc.
+    UND syms: AVmPayload_notifyPayloadReady — and nothing else.
+    exported: AVmPayload_main  GLOBAL DEFAULT
+    LOAD:     align 0x1000 on both segments
+
+`libvm_payload.so` is a twelve-line stub with an empty function body, built
+only so the linker emits the `DT_NEEDED` entry; it is never packaged, and
+`build.sh` greps the finished APK to prove it (`SOLEAK` must be 0). If it ever
+shipped, the guest would load a do-nothing version of the call and
+`onPayloadReady` would simply never fire. Same trick, same reason, as the Java
+stubs in stage 2.
+
+### The result
+
+    STEP3 our apk = /data/app/~~I7cTfFJAdOQ4M1Uj_ZtwDA==/
+          com.pennyspike.probe2a-tOuGPlyQbwXT7hXHwMTYqQ==/base.apk
+          readable=true bytes=49804
+    STEP5 deleted a pre-existing VM named penny2d
+    STEP6 create() returned VirtualMachine(name:penny2d,
+          payload:PennyPayload.so, package: com.pennyspike.probe2a)
+    STEP7 run() returned, status=RUNNING
+    CB onPayloadStarted sinceBoot=4048963ms
+    virtmgr: Console(2052): [ 0.661636][T62] PENNY2D: our own payload is
+             running inside the guest
+    CB onPayloadReady sinceBoot=4048982ms
+    SIGNAL 1 of 3: our payload called notifyPayloadReady
+    virtmgr: Console(2052): [ 0.667055][T62] PENNY2D: notified ready,
+             holding for 5s
+    virtmgr: Console(2052): [ 5.667591][T62] PENNY2D: exiting 42
+    CB onPayloadFinished exitCode=42
+    SIGNAL 2 of 3: exit code 42 — ours, not the stock payload's
+    CB onStopped reason=3
+
+**All three signals, and they were designed to be independent so that one dead
+log channel could not sink the result:**
+
+1. **The guest console carries our strings.** `Console(2052)` is the guest's
+   own console relayed to host logcat by `virtmgr`. Those three lines exist
+   nowhere in the stock payload.
+2. **`onPayloadReady` fired.** That callback exists only because our C called
+   `AVmPayload_notifyPayloadReady()`. Had the symbol not resolved against
+   microdroid's real `libvm_payload.so`, the VM would have died at dlopen.
+3. **Exit code 42.** `AVmPayload_main` returned it and the host read it back
+   through `onPayloadFinished`. The stock payload cannot produce it.
+
+And a fourth, unplanned, which is the most convincing of the lot because
+nothing in it comes from a string we wrote: **the guest's own clock shows
+0.667s to 5.667s between the second and third console lines — 5.000s
+exactly.** That is our `nanosleep` syscall being served by the guest kernel.
+The VM was not merely loading our file; it was executing our instructions and
+sleeping on our behalf.
+
+Total VM lifetime 6.6s, from `run()` at 11:03:32.894 to `onStopped` at
+11:03:39.385, of which 0.87s was boot.
+
+### What this answers, and what it does not
+
+**Answers: rung 2 is now fully closed, and 2c was not the end of it.** A
+sideloaded, non-platform-signed, unprivileged app (uid 10192) can run its own
+compiled code inside a hardware-isolated VM on a locked, verified-boot Pixel.
+That is the thing worth showing anyone. 2c said we cannot bring our own
+kernel and rootfs; 2d says we do not need to, because Google's microdroid will
+carry our payload.
+
+**Does not answer, and must not be claimed:**
+
+- `pm grant` still cannot ship. `MANAGE_VIRTUAL_MACHINE` is `development`
+  protection level and needs a cable. Unchanged by this result, and it is
+  still the single reason rung 4 exists.
+- Nothing has crossed the host/guest boundary in either direction except a
+  console string and an exit code. **Voice has still never been through the VM
+  boundary**, and that remains the next real unknown on the voice path.
+- The payload is ten lines with no C library. Running Claude Code or anything
+  resembling it inside microdroid is a completely different proposition and
+  nothing here speaks to it. Microdroid is a minimal Android, not Debian.
+- `Using sample DICE values` still applies — these are debuggable VMs
+  (`DEBUG_LEVEL_FULL`). No attestation claim rests on any of this.
+- This says nothing about the payload surviving a reboot unattended. Rung 3's
+  `VmService` was deliberately NOT touched, so that the proven wake result
+  could not be put at risk by 2d. Combining the two is untested.
+
+### Method note worth keeping
+
+Doing the control run first, with zero new tooling, while the expensive
+download was still pending, turned out to be the highest-value hour of the
+day: it moved the entire packaging/signature/APK-path question out of the
+unknown column before a single line of C was compiled. When the real run then
+worked first time, that was not luck — it was that only one variable was left.

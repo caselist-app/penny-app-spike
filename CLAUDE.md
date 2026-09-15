@@ -40,7 +40,8 @@ deliberately left **ENABLED** so the device can be returned to stock.
     GrapheneOS     2026091001
     Android        17, build ID CP2A.260705.006, patch 2026-09-01
     Bootloader     bluejay-17.0-15199431, locked, verifiedbootstate=yellow
-    Debian guest   13.6 trixie, kernel 6.12.92-android16-6-...-4k
+    Debian guest   13.7 trixie, kernel 6.12.92-android16-6-...-4k
+                   (13.6 in earlier entries; it updates itself)
     Claude Code    2.1.270 in the guest, native install, ~317MiB resident
     VM resources   3.9GB slider max -> 3.6Gi in guest, 8 cores, 104G disk
 
@@ -55,6 +56,14 @@ Android Studio, deliberately (see `notes.md`):
     Gradle         9.7.1  — INSTALLED BUT NOT USED, see below
     adb/fastboot   /opt/homebrew/bin, Homebrew android-platform-tools
 
+There is **NO NDK and no C compiler on the Mac**, deliberately. Rung 2d needed
+one and the NDK is a 974,984,488-byte download over a phone tether; Homebrew's
+`lld` pulls in `llvm` and is larger still. The guest payload is compiled
+instead **inside the Debian guest on the phone**, which is already arm64 and
+needs no cross-compiler: `gcc 14.2.0 (Debian 14.2.0-19)`, installed 15 Sept
+with `--no-install-recommends` for 43MB. See the glibc/bionic trap below —
+that is why `payload/penny_payload.c` uses no C library at all.
+
 **The APK is hand-built, not Gradle-built.** `probe2a/build.sh` runs the
 five stages directly — `aapt2 link`, `javac` for the stubs, `javac` for
 the app, `d8`, `apksigner` — all from `build-tools;37.0.0`, with
@@ -63,7 +72,13 @@ a separate directory and are passed to `d8` with `--lib`, exactly as
 `android.jar` is: visible to the compiler, absent from the APK. **Since
 rung 3b it is six stages, not five** — `aapt2 compile --dir res` runs ahead
 of `aapt2 link -R`, because an app cannot be offered as the device assistant
-by code alone and `res/xml/` is the one resource directory this spike has. The
+by code alone and `res/xml/` is the one resource directory this spike has.
+**Since rung 2d it is eight**, adding the guest payload and a separate
+package-and-align stage: the payload `.so` must be Stored (`zip -0`) and
+page-aligned (`zipalign -p`), because microdroid mmaps it out of the APK in
+place rather than unpacking it. `PENNY_PAYLOAD_SO=<path>` packages a `.so`
+built elsewhere — which is both the control seam AND, since there is no NDK
+here, the normal route. The
 script ends by grepping the built dex for `Landroid/system/virtualmachine/`
 and printing the count, which must be 0 — if a stub ever shipped, the app
 would carry a fake copy of a platform class and which one won would be a
@@ -231,6 +246,33 @@ gets its own `notes.md` entry. Do not collapse them.
   — and `/apex/com.android.virt/etc/microdroid.json` is the recipe that
   assembles them, mapping one-to-one onto
   `VirtualMachineCustomImageConfig.Builder`.
+
+- **2d. Does it run OUR OWN CODE inside Google's microdroid? ANSWERED YES.**
+  15 Sept. `com.pennyspike.probe2a`, uid 10192, sideloaded and throwaway-signed,
+  ran a payload we wrote inside a VM it owns. Three independent signals, all
+  present: the guest console carried our strings
+  (`virtmgr: Console(2052): PENNY2D: our own payload is running inside the
+  guest`), `onPayloadReady` fired — which happens only because our C calls
+  `AVmPayload_notifyPayloadReady()` — and `onPayloadFinished` returned
+  **exitCode=42**, which the stock payload cannot produce. A fourth, unplanned
+  and the most convincing because no string of ours is involved: the guest's
+  own clock reads 0.667s to 5.667s across our deliberate pause, 5.000s exactly,
+  so the guest kernel was serving our `nanosleep`.
+  **This does NOT contradict 2c and the two must not be conflated.** 2c wanted
+  a custom guest IMAGE (our own kernel and rootfs) and is still NO — every
+  member of that API is blocklisted. 2d changes nothing about the machinery:
+  same unmodified microdroid, same two SDK-visible methods 2b already used
+  (`setApkPath`, `setPayloadBinaryName`), merely pointed at our APK and our
+  `.so`. **We cannot bring our own kernel; we do not need to.**
+  Answered in two halves on purpose, and the ordering is the reusable lesson:
+  a CONTROL run first, packing Google's own
+  `MicrodroidEmptyPayloadJniLib.so` into our APK under our payload's name,
+  which needed no compiler at all and settled the APK path, the throwaway
+  signature, the `idsig` and the Stored/page-aligned packaging while the
+  toolchain question was still open. Only then was our own C the single
+  remaining variable, and it worked first time.
+  Rung 3's `VmService` was deliberately NOT modified, so the proven wake
+  result was never put at risk. **Payload-at-boot is therefore untested.**
 
 **Rung 3 — does that app solve the wake problem? ANSWERED YES.** 14 Sept.
 Rebooted, touched nothing, and the sideloaded app's VM was booted and
@@ -409,6 +451,14 @@ APEXes — is exempt from the blocklist. That is precisely what rung 4
 builds, so rung 4 is now the **only** route to a custom guest, not
 merely the commercial one. There is no sideloaded shortcut left to find,
 and time spent looking for one is wasted.
+**2d moved the ceiling back up, and it is the line worth saying out loud.**
+A sideloaded, unprivileged, non-platform-signed app CAN run its own compiled
+code inside a hardware-isolated VM on a locked, verified-boot Pixel. What it
+cannot do is supply the guest image, or hold the permission without a cable.
+So the remaining gap to a product is entirely about DELIVERY — who signs the
+app and how the permission is granted — and no longer about whether the
+machinery will carry our code. That is a much better position to raise on, and
+it is still rung 4 that closes it.
 Rung 4 is the commercial route: the app inside the OS image,
 platform-signed, holding the permissions because it is part of the
 system. At that point the app compiles inside AOSP against the real
@@ -451,6 +501,32 @@ Do not work ahead of the current rung.
   Practical rule: a `NoSuchMethodError` on a signature you read off the
   dex is a runtime block, not a typo. Get the value another way — the CID
   came from `vm list` instead, and nothing was lost.
+- **A payload built on Debian will not load in microdroid, and the failure is
+  at dlopen where nothing useful is logged.** Debian is glibc; microdroid is
+  Android, so bionic, and there is no glibc in the guest at all. Built the
+  obvious way the `.so` carries `DT_NEEDED` for `libc.so.6` and
+  `libgcc_s.so.1` and dies. The fix is to use **no C library at all** — the
+  payload makes the two syscalls it needs directly in aarch64 inline assembly,
+  because the syscall ABI belongs to the kernel and is the same whichever libc
+  sits above it. Four flags, each against a specific refusal:
+  `-nostdlib` (or gcc links `libgcc_s.so.1`), `-ffreestanding` (or gcc turns a
+  hand-written loop back into a call to `strlen`), `-fno-stack-protector`
+  (Debian defaults it ON and it needs `__stack_chk_fail` from glibc), and
+  `-Wl,-z,max-page-size=4096` (aarch64 `ld` defaults to 64k segment alignment
+  and the APK is aligned to 4k, so a 64k-aligned `.so` cannot be mapped in
+  place). **Verify before packaging** — `readelf -d` must show `NEEDED
+  libvm_payload.so` and nothing else, `readelf --dyn-syms` exactly one
+  undefined symbol, OS/ABI `UNIX - System V`, and `LOAD` align `0x1000`. That
+  check is seconds and catches every one of the above.
+- **Do not run `apt-get update` in the Debian guest without a reason.** Its
+  package lists are cached from 12-14 Sept and re-fetching them is ~150MB of
+  indices — more than three times the 43MB the compiler itself cost. The Mac's
+  network is a phone tether; index downloads are the expensive part.
+- **Copy first, kill second.** `sdkmanager` wipes its own
+  `.temp/PackageOperation01/` on exit, so killing it and then trying to rescue
+  the partial download loses the race. Cost a ~100MB partial NDK on 15 Sept.
+  The empty `ndk/30.0.16248370` directory it left behind is a shell, not an
+  install — `build.sh` tolerates it and resolves `CLANG` to empty.
 - `VirtualMachineManager.getInstance(Context)` **does not exist**. Use
   `getSystemService(VirtualMachineManager.class)`. This matters beyond
   the typo: a wrong method name comes back as `NoSuchMethodException`,
@@ -618,6 +694,15 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   phone locked — but the guest VM does nothing with audio, and nothing has
   ever carried a sample across the host/guest boundary. That is the next
   real unknown on the voice path, and it is not a permissions question.
+  **2d narrowed it without closing it.** Our own code now runs in the guest,
+  so there is finally something in there to send audio TO — but all that has
+  ever crossed the boundary is a console string outbound and an exit code.
+  Nothing has gone IN. `AVmPayload_*` has a vsock API for exactly this and it
+  is untouched.
+- **A ten-line payload is not a workload.** 2d's payload has no C library, let
+  alone a runtime. Microdroid is a minimal Android, not Debian: nothing here
+  says anything about running Claude Code, or a model, or any real process
+  inside it. Do not let the 2d result be stretched into that claim.
 - **Can a user take the assistant slot by tapping, rather than by cable?**
   The one thing rung 3b could not answer. The slot was taken with
   `cmd role add-role-holder` plus two `settings put secure` calls, and the

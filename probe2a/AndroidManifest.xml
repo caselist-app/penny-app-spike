@@ -45,7 +45,19 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
-    <application android:label="Penny probe 2a">
+    <!--
+      extractNativeLibs=false is not cosmetic here and it is not about install
+      size. Microdroid does not unpack the APK; it mounts it in the guest and
+      reads lib/arm64-v8a/<name> in place, so the payload has to be STORED
+      uncompressed and page-aligned inside the zip. build.sh does the storing
+      and the aligning; this attribute is the half of the contract the OS
+      reads. With it absent the installer is free to hand back a layout the
+      guest cannot mmap, and the failure surfaces in the VM rather than at
+      install time.
+    -->
+    <application
+        android:label="Penny probe 2a"
+        android:extractNativeLibs="false">
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -66,6 +78,14 @@
              changes between 2b and 2c is which config object gets built. -->
         <activity
             android:name=".Probe2cActivity"
+            android:exported="true" />
+
+        <!-- Rung 2d. Same package, same uid, same microdroid as 2b — the
+             only change is that setApkPath points at this APK and
+             setPayloadBinaryName at a .so we compiled, instead of both
+             pointing into the com.android.virt APEX. -->
+        <activity
+            android:name=".Probe2dActivity"
             android:exported="true" />
 
         <!-- Rung 3b control. Runs the identical mic probe in the foreground
