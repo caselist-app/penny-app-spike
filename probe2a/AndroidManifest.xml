@@ -88,6 +88,15 @@
             android:name=".Probe2dActivity"
             android:exported="true" />
 
+        <!-- Rung 3c. Same package, same uid, same microdroid again. The only
+             new thing is a vsock connection from this process into the guest,
+             which is why it gets its own activity and its own payload .so:
+             2d's PennyPayload.so stays in the APK untouched, so the 2d result
+             remains reproducible from this same build. -->
+        <activity
+            android:name=".Probe3cActivity"
+            android:exported="true" />
+
         <!-- Rung 3b control. Runs the identical mic probe in the foreground
              with the phone unlocked, where access is unambiguously allowed.
              Without it, silence at boot cannot be told apart from a broken

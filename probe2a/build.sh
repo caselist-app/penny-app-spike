@@ -133,9 +133,18 @@ fi
 #      gcc -shared -fPIC -O1 -ffreestanding -fno-stack-protector \
 #          -Wl,-z,max-page-size=4096 -Wl,--hash-style=sysv \
 #          -o PennyPayload.so penny_payload.c -L. -lvm_payload
+#    PENNY_PAYLOAD_3C_SO is rung 3c's payload and is packaged ALONGSIDE 2d's,
+#    not instead of it. Two .so files in one APK costs nothing — microdroid
+#    loads only the one setPayloadBinaryName() asks for — and it means a single
+#    build still reproduces 2d exactly while answering 3c. Keeping a proven
+#    result runnable is the same reason rung 3's VmService is never edited.
 if [ -n "$PENNY_PAYLOAD_SO" ]; then
     cp "$PENNY_PAYLOAD_SO" "$OUT/apkroot/lib/arm64-v8a/PennyPayload.so"
     echo "6/8 guest payload COPIED FROM $PENNY_PAYLOAD_SO"
+    if [ -n "$PENNY_PAYLOAD_3C_SO" ]; then
+        cp "$PENNY_PAYLOAD_3C_SO" "$OUT/apkroot/lib/arm64-v8a/Penny3cPayload.so"
+        echo "    rung 3c payload COPIED FROM $PENNY_PAYLOAD_3C_SO"
+    fi
 else
     "$CLANG" -shared -fPIC -O2 -o "$OUT/apkroot/lib/arm64-v8a/PennyPayload.so" \
         "$HERE/payload/penny_payload.c" \
@@ -155,6 +164,9 @@ fi
 #    reads that the ordinary way.
 (cd "$OUT" && zip -q base.apk classes.dex)
 (cd "$OUT/apkroot" && zip -q -0 -X "$OUT/base.apk" lib/arm64-v8a/PennyPayload.so)
+if [ -n "$PENNY_PAYLOAD_3C_SO" ]; then
+    (cd "$OUT/apkroot" && zip -q -0 -X "$OUT/base.apk" lib/arm64-v8a/Penny3cPayload.so)
+fi
 "$BT/zipalign" -p -f 4 "$OUT/base.apk" "$OUT/aligned.apk"
 echo "7/8 packaged and page-aligned"
 
@@ -191,5 +203,5 @@ echo "stub libvm_payload.so leaked into the apk: $SOLEAK  (must be 0)"
 
 # The payload must be Stored, not Defl:N. zipfuse in the guest cannot read a
 # deflated entry, and the symptom is the VM failing rather than this build.
-echo "payload entry in the apk:"
-unzip -lv "$OUT/probe2a.apk" | grep "PennyPayload.so"
+echo "payload entries in the apk (both must say Stored):"
+unzip -lv "$OUT/probe2a.apk" | grep "Payload.so"

@@ -2239,3 +2239,237 @@ download was still pending, turned out to be the highest-value hour of the
 day: it moved the entire packaging/signature/APK-path question out of the
 unknown column before a single line of C was compiled. When the real run then
 worked first time, that was not luck — it was that only one variable was left.
+
+## 2026-09-15 — rung 3c ANSWERED YES, both halves. Audio crossed the VM boundary for the first time.
+
+Versions unchanged from the 2d entry: GrapheneOS 2026091001, Android 17 build
+CP2A.260705.006, Pixel 6a bluejay, bootloader LOCKED, verifiedbootstate=yellow.
+Temurin 21.0.12.1, build-tools 37.0.0, platform android-37.0. Debian guest 13.7
+trixie, kernel 6.12.92-android16-6-g4e585dd7f3b7-ab16266940-4k, gcc 14.2.0
+(Debian 14.2.0-19) — still the only C compiler in the project, still on the
+phone rather than on the Mac. No new tooling was installed and nothing was
+downloaded.
+
+### The question
+
+Three things were proven separately and had never been joined:
+
+    3b   the app holds a live microphone 9.5s after power-on, phone locked
+    3    the app owns a VM and wakes it unattended
+    2d   the app runs its own compiled code inside that VM
+
+Everything that had ever crossed the host/guest boundary went OUTWARDS and was
+one-way: three console strings and an exit code. **Nothing had ever gone IN.**
+So rung 3b's samples died in the host process — there was no way to hand them
+to the guest. Defined as two questions, deliberately in this order:
+
+    3c-i   can the host send ANY bytes to the payload and get them back?
+    3c-ii  can real captured audio make the same trip, and does the payload
+           see the same bytes the host recorded?
+
+### Reading the host API off the device, which decided the whole design
+
+The 2b/2c method again — pull `framework-virtualization.jar` from
+`/apex/com.android.virt/javalib/`, `dexdump -d`, read the per-member
+`hiddenapi` flag before writing a line of code. The relevant rows:
+
+    connectVsock         (J)Landroid/os/ParcelFileDescriptor;   SDK,TEST-API
+    connectToVsockServer (J)Landroid/os/IBinder;                SDK,TEST-API
+    getConsoleOutput     ()Ljava/io/InputStream;                SDK,TEST-API
+    getConsoleInput      ()Ljava/io/OutputStream;               BLOCKED,TEST-API
+    MIN_VSOCK_PORT / MAX_VSOCK_PORT = 1024 / 4294967295         SDK,TEST-API
+    getCid               ()I                                    BLOCKED
+
+**`getConsoleInput` being BLOCKED is the load-bearing fact.** The console is
+the obvious way to push bytes at a guest and it is outbound-only from an app.
+vsock is therefore not the better route, it is the only route left. And
+`connectVsock` takes a **long, not an int** — getting that wrong would present
+as `NoSuchMethodError`, which on this device is also exactly how a hidden-API
+block presents, and the afternoon would have been spent on the wrong question.
+
+Nineteen further members of `VirtualMachine` are BLOCKED — `addDisplay`,
+`getDisplays`, `sendKeyEvent`, `sendMouseEvent`, `suspend`, `resume`,
+`setMemoryBalloon`, `getGuestAgent`, `getRootDir` among them. The SDK-flagged
+set an app actually gets is small: create/run/stop/delete, the callback pair,
+`getStatus`, `getName`, `getConfig`, `toDescriptor`, the two console readers
+and the two vsock connectors. That list is worth keeping — it is the real
+surface of a VM from outside the platform.
+
+### What could NOT be read, and why it did not matter
+
+The instruction was to check what microdroid's own `libvm_payload.so` offers
+before writing raw syscalls. It was checked, on the device, and **it cannot be
+read from the host.** `libvm_payload.so` lives only inside
+`/apex/com.android.virt/etc/fs/microdroid.img`, which is EROFS (magic
+`e2e1f5e0` at offset 1024), and the blocks holding that file are compressed:
+
+    grep -ac 'AVmPayload'         microdroid.img  ->  0
+    grep -ac 'microdroid_manager' microdroid.img  ->  22
+    grep -ac 'AF_VSOCK'           microdroid.img  ->  3
+    grep -ac 'libvm_payload'      microdroid.img  ->  2
+
+So the image is only PARTLY plaintext — plenty is readable, that file's symbol
+table is not. The two `libvm_payload` hits are both name lists (a directory
+entry, and the guest's public-library list), not symbols. Extracting it would
+have meant erofs tooling on a tethered Mac, i.e. a download.
+
+**It was not bought, because it would not have changed the file.** The only
+host/guest byte channel that library is understood to offer is a binder RPC
+server, and binder RPC means libbinder_ndk, libc++ and generated AIDL — a C++
+toolchain, which is precisely what this spike does not have and deliberately
+did not buy in 2d. `AF_VSOCK` is a kernel interface: four syscalls, no library.
+Recorded as a genuine gap rather than an answer — if rung 4 ever wants the RPC
+route, the symbol list is still unread.
+
+### The payload
+
+`payload/penny3c_payload.c`, built in the Debian guest on the phone with the
+identical flag set 2d established (`-nostdlib -ffreestanding
+-fno-stack-protector -Wl,-z,max-page-size=4096 -Wl,--hash-style=sysv`), and
+verified before packaging exactly as the trap entry says to:
+
+    OS/ABI     UNIX - System V
+    NEEDED     libvm_payload.so   — and nothing else. No libc.
+    UND syms   AVmPayload_notifyPayloadReady — and nothing else.
+    exported   AVmPayload_main
+    LOAD       align 0x1000 on both segments
+               filesz 0x000138, memsz 0x010138 — the 64k buffer, in .bss
+
+No malloc, because there is no libc: the receive buffer is a static 64KB array
+in `.bss`, which the loader zeroes. One second of 16kHz 16-bit mono is 32,000
+bytes, so that is twice what 3c-ii sends.
+
+The guest listens and the host connects, and that direction is forced by
+`getConsoleInput` being blocked. Wire format kept trivial on purpose, so a
+protocol bug and a channel failure cannot look alike:
+
+    host -> guest   4 bytes big-endian length L, then L bytes (L==0 = goodbye)
+    guest -> host   4 bytes L, 4 bytes FNV-1a of those L bytes, L bytes echoed
+
+The echo answers 3c-i; the hash answers 3c-ii without shipping a waveform back
+for a human to squint at. **The guest logs its hash to the console as well**,
+so the comparison survives even if the return leg is the broken thing.
+
+**One ordering decision that is not cosmetic.** `AVmPayload_notifyPayloadReady()`
+is called AFTER `listen()`, never before. The host only connects when
+`onPayloadReady` arrives, so notifying after listen makes it impossible for the
+host to connect before there is anything to connect to. That race would have
+surfaced as an intermittent refusal and been read as the channel being shut.
+
+### 3c-i — the control, no audio anywhere near it
+
+    STEP7 run() returned, status=RUNNING
+    CB onPayloadStarted  0.65s after run()
+    CB onPayloadReady
+    3c-i sending: PENNY3C-HOST-TO-GUEST 1789467949859 the quick brown fox
+    [3c-i echo] connectVsock(5555) -> ParcelFileDescriptor  after 1ms
+    [3c-i echo] sent 55 bytes, our fnv1a=cb22961e
+    [3c-i echo] guest replied len=55 fnv1a=cb22961e
+    [3c-i echo] hashMatch=true echoMatch=true roundTrip=2ms
+    CB onPayloadFinished exitCode=43
+
+and from the guest's own console, relayed by virtmgr — cid 2054, a channel the
+host process does not write to:
+
+    PENNY3C: socket ok
+    PENNY3C: listening on vsock port 5555
+    PENNY3C: notified ready, waiting for the host to connect
+    PENNY3C: host connected
+    PENNY3C: received 55 bytes, fnv1a=cb22961e
+    PENNY3C: echoed it back
+
+**55 bytes in, 55 bytes back, identical, 2ms.** Done first and on its own
+exactly as 2d's control run was: if the channel had been shut, audio in the
+picture would only have supplied a second candidate explanation for the same
+silence.
+
+### 3c-ii — real audio
+
+    AUDIO: samples=16000 peak=1999 rms=655.00 nonZero=15991 (99.9%)
+    [3c-ii control] sent 15 bytes, our fnv1a=73f747f3
+    [3c-ii control] guest replied len=15 fnv1a=73f747f3   hashMatch=true
+    [3c-ii audio]   sent 32000 bytes, our fnv1a=225c918f
+    [3c-ii audio]   guest replied len=32000 fnv1a=225c918f
+    [3c-ii audio]   hashMatch=true echoMatch=true roundTrip=12ms
+    CB onPayloadFinished exitCode=43
+
+guest console, cid 2056:
+
+    PENNY3C: received 15 bytes, fnv1a=73f747f3
+    PENNY3C: echoed it back
+    PENNY3C: received 32000 bytes, fnv1a=225c918f
+    PENNY3C: echoed it back
+    PENNY3C: 2 exchange(s) completed, exiting 43
+
+**One second of real microphone audio, 32,000 bytes, into a VM the app owns,
+hashed identically at both ends and echoed back byte for byte in 12ms.**
+
+Two controls, not one, and both were necessary. A 15-byte ASCII leg ran in the
+SAME VM immediately before the audio, so a failure on the audio leg could not
+be blamed on the channel having gone away between runs. And the capture is
+judged before it is sent — peak, RMS and non-zero proportion — because **a hash
+over 32,000 zeros matches trivially.** Android 17 suppresses background audio
+by returning zeros without throwing, so a silent capture would have produced a
+perfect checksum match and meant nothing at all. The code refuses to send
+anything that looks like silence, precisely so 3c-ii cannot be misread as a
+pass. 99.9% non-zero, peak 1999, rms 655 — that is a room, not a suppression.
+
+### No regression
+
+`Probe2dActivity` was re-run from this same APK afterwards: `onPayloadReady`,
+`onPayloadFinished exitCode=42`. 2d still reproduces. The build now packages
+BOTH payloads — `PennyPayload.so` (2d) and `Penny3cPayload.so` (3c) — side by
+side, because microdroid loads only the one `setPayloadBinaryName()` asks for
+and two files cost nothing. Keeping a proven result runnable is the same
+instinct that keeps `VmService` unedited.
+
+**`VmService` was NOT touched.** Rung 3's wake result was never put at risk,
+same as 2d.
+
+### What this answers
+
+**The voice path is now joined end to end in the host process and one step into
+the guest.** A sideloaded, unprivileged, non-platform-signed app on a locked
+verified-boot Pixel can capture real audio and deliver it, intact and verified,
+into a hardware-isolated VM it owns, running code it wrote. Every link in that
+chain is now measured rather than assumed.
+
+### What this does NOT answer, and must not be claimed
+
+- **This ran unlocked, in the foreground, launched by hand over adb.** Rung 3
+  and 3b measured the locked, unattended, pre-first-unlock case; 3c did not.
+  Joining them — audio crossing the boundary at boot with nobody in the room —
+  is untested and is the obvious next thing.
+- **One second, once.** 32,000 bytes in a single shot. There is no streaming,
+  no sustained capture, no backpressure, and nothing ran for longer than 3
+  seconds. This says nothing about holding a channel open for hours.
+- **The guest does nothing WITH the audio.** It hashes it and echoes it. There
+  is no recognition, no model, no processing of any kind. "Audio reached the
+  guest" is not "Penny heard you", and the gap between those two is most of the
+  product.
+- The payload still has no C library, let alone a runtime. 2d's warning stands
+  unchanged: microdroid is a minimal Android, not Debian, and nothing here
+  speaks to running Claude Code or a model inside it.
+- `pm grant` still cannot ship. `MANAGE_VIRTUAL_MACHINE` is `development`
+  protection level and needs a cable. Unchanged, and still the only reason
+  rung 4 exists.
+- Still `DEBUG_LEVEL_FULL`, still `Using sample DICE values`. No attestation
+  claim rests on any of this.
+- The vsock channel is plaintext between two processes on the same phone. No
+  encryption question was asked and none is answered.
+
+### Method notes worth keeping
+
+- **Read the dex flag first, again, and it paid for itself again.** Four
+  minutes with `dexdump` produced the whole design: vsock because the console
+  is blocked inbound, `long` because the descriptor says `(J)`, port 5555
+  because the bounds are 1024 and 4294967295. Not one runtime refusal was hit.
+- **Each `write()` to fd 1 in the guest becomes its own console line.** The
+  guest kernel frames the console per write, so `say("received "); sayu(n);
+  say(" bytes")` arrives as three separate timestamped lines and a naive
+  `grep PENNY3C` drops the number entirely — it looks like the payload printed
+  nothing. Build the whole line in a buffer and write it once, or grep on the
+  thread id (`T61`) rather than on the prefix.
+- The control-first discipline from 2d transferred intact and is now three for
+  three: control run in 2d, echo before audio in 3c-i, ASCII leg before the
+  PCM leg inside 3c-ii.

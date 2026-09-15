@@ -78,7 +78,12 @@ package-and-align stage: the payload `.so` must be Stored (`zip -0`) and
 page-aligned (`zipalign -p`), because microdroid mmaps it out of the APK in
 place rather than unpacking it. `PENNY_PAYLOAD_SO=<path>` packages a `.so`
 built elsewhere — which is both the control seam AND, since there is no NDK
-here, the normal route. The
+here, the normal route. **Since rung 3c there are TWO payloads in the APK**,
+`PennyPayload.so` (2d) and `Penny3cPayload.so` (3c, via
+`PENNY_PAYLOAD_3C_SO=<path>`), packaged side by side rather than one replacing
+the other: microdroid loads only the file `setPayloadBinaryName()` names, two
+entries cost nothing, and it keeps the 2d result reproducible from the same
+build. Both must read `Stored` in the final `unzip -lv`. The
 script ends by grepping the built dex for `Landroid/system/virtualmachine/`
 and printing the count, which must be 0 — if a stub ever shipped, the app
 would carry a fake copy of a platform class and which one won would be a
@@ -273,6 +278,7 @@ gets its own `notes.md` entry. Do not collapse them.
   remaining variable, and it worked first time.
   Rung 3's `VmService` was deliberately NOT modified, so the proven wake
   result was never put at risk. **Payload-at-boot is therefore untested.**
+  2d left the boundary one-way; **rung 3c opened it inwards — see below.**
 
 **Rung 3 — does that app solve the wake problem? ANSWERED YES.** 14 Sept.
 Rebooted, touched nothing, and the sideloaded app's VM was booted and
@@ -466,6 +472,60 @@ system API, and both reflection and stubs disappear. Prove it cheaply
 outside the OS; build it properly inside the OS. **Never mistake a
 working `pm grant` prototype for a product.**
 
+**Rung 3c — can anything get INTO the guest, and can audio make the trip?
+ANSWERED YES, both halves.** 15 Sept. A sideloaded, unprivileged app captured
+one real second of microphone audio and delivered it, intact and verified, into
+a VM it owns running code it wrote.
+
+    3c-i   55 bytes of ASCII, host -> guest -> host, identical, 2ms round trip
+    3c-ii  32,000 bytes of real PCM, fnv1a 225c918f at BOTH ends,
+           echo byte-for-byte, 12ms round trip
+
+Corroborated from the guest's own console (cid 2054 and 2056), a channel the
+host process does not write to: `PENNY3C: received 32000 bytes,
+fnv1a=225c918f`. Guest exit code 43 both runs.
+
+**The route, and it was forced, not chosen.** Read off the device's own
+`framework-virtualization.jar` with `dexdump` before any code was written:
+
+    connectVsock      (J)Landroid/os/ParcelFileDescriptor;   SDK
+    getConsoleOutput  ()Ljava/io/InputStream;                SDK
+    getConsoleInput   ()Ljava/io/OutputStream;               BLOCKED
+    MIN/MAX_VSOCK_PORT = 1024 / 4294967295                   SDK
+
+The console is the obvious way to push bytes at a guest and it is
+**outbound-only from an app**. So vsock is not the better route, it is the
+only one left. Note `connectVsock` takes a **long, not an int**.
+
+The guest listens, the host connects, with a trivial wire format (4-byte
+big-endian length, then bytes; reply is length + FNV-1a + the bytes echoed).
+The payload is `payload/penny3c_payload.c` — still **no C library**, four raw
+`AF_VSOCK` syscalls, 64KB static buffer in `.bss` because there is no malloc.
+`AVmPayload_notifyPayloadReady()` is called **after** `listen()`, never before,
+so the host cannot connect before there is a listener.
+
+**`libvm_payload.so`'s own symbols could NOT be read and this is a real gap.**
+It lives only inside `microdroid.img`, which is EROFS with that file's blocks
+compressed: `grep -ac AVmPayload` over the 32MB image returns 0 while
+`microdroid_manager` returns 22, so the image is only partly plaintext. Reading
+it needs erofs tooling, i.e. a download. Not bought, because the only byte
+channel it is understood to offer is a **binder RPC server** — which needs
+libbinder_ndk, libc++ and generated AIDL, i.e. the C++ toolchain this spike
+deliberately does not have. If rung 4 wants that route, the symbol list is
+still unread.
+
+**What 3c does NOT say.** It ran **unlocked, in the foreground, by hand over
+adb**. Rungs 3 and 3b measured the locked, unattended, pre-unlock case; 3c did
+not. Audio crossing the boundary AT BOOT with nobody in the room is untested
+and is the obvious next thing. It was one second, once — no streaming, no
+sustained capture, nothing ran longer than 3 seconds. And **the guest does
+nothing with the audio**: it hashes it and echoes it. No recognition, no model,
+no processing. "Audio reached the guest" is not "Penny heard you", and the gap
+between those is most of the product.
+
+`VmService` was NOT touched. 2d re-ran from the same APK afterwards and still
+returns exit code 42, so nothing regressed.
+
 **Rung 4 — the OS image. DO NOT START IT.** Build GrapheneOS from source,
 preinstall the app, sign with our platform key, flash, lock, verify
 attestation covers the app. Weeks. Not now.
@@ -518,6 +578,26 @@ Do not work ahead of the current rung.
   libvm_payload.so` and nothing else, `readelf --dyn-syms` exactly one
   undefined symbol, OS/ABI `UNIX - System V`, and `LOAD` align `0x1000`. That
   check is seconds and catches every one of the above.
+- **`getConsoleInput()` is BLOCKED; the guest console is outbound-only.**
+  The obvious way to push bytes at a guest is the console, and an app cannot.
+  `connectVsock(long)` is the only inbound channel that is not blocklisted —
+  and the argument is a **long, not an int**. A wrong width presents as
+  `NoSuchMethodError`, which on this device is also exactly how a hidden-API
+  block presents, so the mistake reads as a platform refusal. Read the
+  descriptor, not your memory: `(J)Landroid/os/ParcelFileDescriptor;`.
+- **Each `write()` to fd 1 in the guest becomes its OWN console line.** The
+  guest kernel frames the console per write, so `say("received "); sayu(n);
+  say(" bytes")` arrives as three separately timestamped lines — and a naive
+  `grep PENNY3C` drops the number entirely, making it look like the payload
+  printed nothing. Build the whole line in a buffer and write it once, or grep
+  on the payload's thread id (`T61`) rather than on the message prefix.
+- **`libvm_payload.so` cannot be read from the host.** It exists only inside
+  `/apex/com.android.virt/etc/fs/microdroid.img`, which is EROFS (magic
+  `e2e1f5e0` at offset 1024) with that file's blocks compressed. Much of the
+  image IS plaintext — `microdroid_manager` greps 22 hits, `AF_VSOCK` 3 — so an
+  empty grep for `AVmPayload` is NOT proof the symbol is absent, only that this
+  file is in the compressed part. Do not conclude anything about that library
+  from grepping the image.
 - **Do not run `apt-get update` in the Debian guest without a reason.** Its
   package lists are cached from 12-14 Sept and re-fetching them is ~150MB of
   indices — more than three times the 43MB the compiler itself cost. The Mac's
@@ -689,16 +769,28 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
 - Claude Code has never done real work in the guest. `git` is absent. One
   arithmetic prompt at 317MiB says nothing about an agent holding a long
   context and running tools.
-- **Voice has still never been through the VM boundary.** Rung 3b proved
-  Android hands the app a live microphone 9.5s after power-on with the
-  phone locked — but the guest VM does nothing with audio, and nothing has
-  ever carried a sample across the host/guest boundary. That is the next
-  real unknown on the voice path, and it is not a permissions question.
-  **2d narrowed it without closing it.** Our own code now runs in the guest,
-  so there is finally something in there to send audio TO — but all that has
-  ever crossed the boundary is a console string outbound and an exit code.
-  Nothing has gone IN. `AVmPayload_*` has a vsock API for exactly this and it
-  is untouched.
+- **Voice HAS now crossed the VM boundary — rung 3c, 15 Sept — but only with
+  the phone unlocked and a human at the keyboard.** 32,000 bytes of real
+  captured PCM went host -> guest and back, hash-identical. What has never been
+  tested is that trip happening at BOOT, locked, unattended, which is where
+  rungs 3 and 3b live. **That join is now the next real unknown on the voice
+  path**, and unlike everything before it, every piece of it is already proven
+  separately — it is an integration test, not a new capability question.
+  Two things it will have to face that 3c did not: rung 3b's audio came from an
+  assistant-role-exempted service, not an activity; and `VmService` would have
+  to hold the vsock channel, which means editing the one file this spike has
+  never edited.
+- **One second, once, is not a stream.** 3c sent 32,000 bytes in a single shot
+  into a VM that lived 3 seconds. No streaming, no backpressure, no long-held
+  channel, no endurance. Do not let 3c be stretched into "audio streams to the
+  guest".
+- **The guest still does nothing WITH the audio.** 3c's payload hashes it and
+  echoes it back. No recognition, no model, no processing of any kind. "Audio
+  reached the guest" is not "Penny heard you" and the gap between those two is
+  most of the product.
+- **`libvm_payload.so`'s API surface is still unread**, and with it the binder
+  RPC route. See the trap entry. It needs erofs tooling or an NDK; raw vsock
+  made it unnecessary for 3c but rung 4 may want it.
 - **A ten-line payload is not a workload.** 2d's payload has no C library, let
   alone a runtime. Microdroid is a minimal Android, not Debian: nothing here
   says anything about running Claude Code, or a model, or any real process
