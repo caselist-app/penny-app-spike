@@ -1896,3 +1896,137 @@ And rung 2c was re-confirmed for free, from dex2oat at install time:
     VirtualMachineCustomImageConfig$Builder;-><init>()V (runtime_flags=0,
     domain=platform, api=blocked) from ...base.apk (domain=app,
     TargetSdkVersion=37) using linking: denied
+
+## 2026-09-15 — rung 3b addendum: the microphone result REPRODUCES, and the user-tap route FAILS. The recogniser setting is the deciding variable.
+
+Two further reboots, same APK as the YES above. Together with the earlier
+pair this is four reboots on the same build, and the variable is isolated.
+
+### Reboot 3 — assistant set by Matt in the Settings UI, by hand. EVICTED.
+
+All state cleared first: role holder removed, and
+`voice_interaction_service`, `voice_recognition_service`, `assistant` all
+deleted. Confirmed empty and `(No active implementation)`.
+
+Matt then set it on the phone at Settings > Apps > Default apps > Digital
+assistant app, choosing "Penny probe 2a". What the UI wrote:
+
+    role holder  com.pennyspike.probe2a          SET
+    assistant    com.pennyspike.probe2a/.PennyVoiceService   SET
+    interactor   com.pennyspike.probe2a/.PennyVoiceService   SET
+    recognizer   null                            *** NOT SET ***
+
+Prediction recorded before the reboot: Penny will be evicted and the
+microphone will be silent. Rebooted, touched nothing, unlocked.
+
+    role holder  com.pennyspike.probe2a          survived
+    assistant    com.pennyspike.probe2a/...      survived
+    interactor   EMPTY                           *** EVICTED ***
+    recognizer   null
+    dumpsys voiceinteraction -> (No active implementation)
+
+`PennyVoiceService` never logged — the OS never bound it. `MicFgsService`
+was refused with the same `SecurityException` as before. **The OS's own
+Recording Activity table was completely empty: no recording happened at
+all.** Prediction confirmed exactly.
+
+### Reboot 4 — same Settings-set assistant, plus the recogniser set. YES.
+
+The ONLY change from reboot 3: `settings put secure
+voice_recognition_service com.pennyspike.probe2a/.PennyRecognitionService`.
+The interactor was left exactly as the Settings UI had written it.
+
+    sinceBoot= 9144ms  PennyVoiceService onCreate — the OS bound the assistant
+    sinceBoot= 9158ms  MIC [A-assistant] userUnlocked=false
+                       VERDICT YES — REAL AUDIO peak=1329 rms=471.76
+    sinceBoot=12387ms  MIC [B-fgs] userUnlocked=false, startForeground(MICROPHONE)
+                       ACCEPTED, VERDICT YES — REAL AUDIO peak=1201 rms=449.20
+    sinceBoot=14033ms  VM onPayloadReady, userUnlocked=false
+    sinceBoot=143114ms unlock
+
+OS corroboration, again in its own words:
+
+    09:56:15:293 rec update riid:47 uid:10192 src:MIC not silenced pack:com.pennyspike.probe2a
+    09:56:16:403 rec stop   riid:47 uid:10192 src:MIC not silenced pack:com.pennyspike.probe2a
+    09:56:18:554 rec update riid:63 uid:10192 src:MIC not silenced pack:com.pennyspike.probe2a
+
+**Rung 3b's YES is now reproduced on two separate reboots**, and rung 3's
+VM wake reproduced a fourth time.
+
+### The controlled result
+
+Four reboots, one APK. The assistant survives a reboot if and only if
+`voice_recognition_service` is set:
+
+    reboot 1   interactor set, recognizer NULL      -> evicted, no audio
+    reboot 2   interactor set, recognizer SET       -> bound, REAL AUDIO
+    reboot 3   interactor set by SETTINGS UI,
+               recognizer NULL                      -> evicted, no audio
+    reboot 4   interactor set by SETTINGS UI,
+               recognizer SET                       -> bound, REAL AUDIO
+
+### Why the OS will not fill the recogniser in for us
+
+`initForUserNoTracing` calls `initRecognizer(userHandle)` at the end of
+every run, which calls `findAvailRecognizer(null, userHandle)`. On
+AOSP main that method cannot return null when any recognition service
+exists — it falls back:
+
+    List<RecognitionServiceInfo> nonSelectableAsDefault =
+            removeNonSelectableAsDefault(available);
+    if (available.size() == 0) {
+        Slog.w(TAG, "No selectableAsDefault recognition services found for user "
+                + userHandle + ". Falling back to non selectableAsDefault ones.");
+        available = nonSelectableAsDefault;
+    }
+
+and `RecognitionServiceInfo.getAvailableServices` applies NO system or
+privileged filter — a plain `queryIntentServicesAsUser`, with
+`selectableAsDefault` defaulting to **true**.
+
+**But this device does not behave like main.** Android 17 logs
+`no auto selectable voice recognition services found for user 0` and
+returns null, with no fallback, even with
+`android:selectableAsDefault="true"` declared and the service resolvable
+(`pm query-services -a android.speech.RecognitionService` finds it). So
+Android 17 has tightened this beyond the source above, and the exact
+filter was NOT determined. **Do not assert why. It is unread.**
+
+Also ruled out on the way: `BIND_RECOGNITION_SERVICE` does not exist as a
+platform permission on this device and `RecognitionService` does not
+require one. That hypothesis was wrong.
+
+### Eviction is permanent once it happens
+
+    void setCurInteractor(ComponentName comp, int userHandle) {
+        Settings.Secure.putStringForUser(..., VOICE_INTERACTION_SERVICE,
+                comp != null ? comp.flattenToShortString() : "", userHandle);
+
+It writes an **empty string**, not null. The one restore path is guarded by
+`curInteractorStr == null`, and the re-selection path by
+`!"".equals(curInteractorStr)`. Both are dead once the value is `""`. So a
+Penny that is evicted once never comes back on its own, at any later boot.
+(Matches the device: `interactor` prints empty while `recognizer` prints
+`null`.)
+
+### What this means commercially
+
+There is no user-reachable way to set the recogniser on this device.
+`android.settings.VOICE_INPUT_SETTINGS` resolves to
+`com.android.permissioncontroller...AssistantSettingsActivity` — the same
+assistant picker — so there is no separate speech-recogniser screen. The
+setting is `Settings.Secure`, writable only with `WRITE_SECURE_SETTINGS`
+(signature|privileged) or over adb.
+
+**So on this device, as it stands, a user with no cable cannot put Penny in
+the assistant slot in a way that survives a power cycle.** Rung 3b's
+microphone result stands; the user-tap delivery route does not.
+
+Worth testing before treating as universal: GrapheneOS ships NO speech
+recogniser at all, which is why the setting is empty in the first place. On
+a stock phone Google's recogniser occupies it, and the early-return path
+would then preserve a user-chosen assistant. **This may be a GrapheneOS
+consequence rather than an Android one. Untested — we have no stock device.**
+
+Either way rung 4 dissolves it: the OS image sets its own default
+recogniser and can preinstall Penny as the assistant.

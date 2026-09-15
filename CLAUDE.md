@@ -340,15 +340,51 @@ measured before any code:
                                  FALSE, so this device deliberately shows the
                                  picker.
 
-**What rung 3b does NOT prove, and it is the last question on the shippable
-route.** The assistant slot was taken over adb —
-`cmd role add-role-holder android.app.role.ASSISTANT` plus
-`settings put secure voice_interaction_service` and
-`voice_recognition_service`. **Whether a user tapping through Settings sets
-all three — in particular the recogniser, which is what makes it survive a
-reboot — is UNTESTED.** ASSISTANT is `requestable="false"`, so Penny can
-never prompt for the slot; onboarding is a Settings trip. That test is a
-phone-tapping test, not a code test, and it is the next cheap thing.
+**REPRODUCED, and the user-tap route TESTED and FAILED. 15 Sept.** Four
+reboots on one APK isolate the variable exactly:
+
+    reboot 1  interactor set, recognizer NULL             evicted, no audio
+    reboot 2  interactor set, recognizer SET              bound, REAL AUDIO
+    reboot 3  interactor set by the SETTINGS UI by hand,
+              recognizer NULL                             evicted, no audio
+    reboot 4  interactor set by the SETTINGS UI by hand,
+              recognizer SET                              bound, REAL AUDIO
+
+Reboot 4: assistant bound at 9.1s, real audio at both sites with
+`userUnlocked=false` (peak 1329 and 1201), OS Recording Activity again
+`not silenced`, VM up at 14.0s. **The microphone YES is now measured on two
+separate reboots; rung 3's VM wake on four.**
+
+**The Settings UI sets the role, `assistant` and the interactor — but NOT
+`voice_recognition_service`.** That one setting is the whole difference, it
+is `Settings.Secure` (needs `WRITE_SECURE_SETTINGS`, signature|privileged,
+or adb), and there is no user-reachable screen for it:
+`android.settings.VOICE_INPUT_SETTINGS` just resolves back to the same
+assistant picker. **So a user with no cable cannot put Penny in the
+assistant slot in a way that survives a power cycle.** The microphone
+result stands; the delivery route does not.
+
+And eviction is permanent — `setCurInteractor(null)` writes an **empty
+string**, not null, and both restore paths are guarded against `""`. Once
+Penny is evicted it never returns on its own at any later boot.
+
+Why the OS will not fill the recogniser in for us is **UNREAD — do not
+assert it.** On AOSP main `findAvailRecognizer` cannot return null when any
+recognition service exists (it falls back to non-selectable ones) and
+`getAvailableServices` applies no privileged filter. This device does not
+behave like main: Android 17 logs `no auto selectable voice recognition
+services found for user 0` and returns null even with
+`android:selectableAsDefault="true"` and the service resolvable. Ruled out
+on the way: `BIND_RECOGNITION_SERVICE` does not exist as a platform
+permission here and `RecognitionService` does not require one.
+
+Worth testing before treating as universal: **GrapheneOS ships no speech
+recogniser at all**, which is why the setting is empty. On a stock phone
+Google's occupies it and the early return would preserve a user-chosen
+assistant. This may be a GrapheneOS consequence rather than an Android one.
+Untested — no stock device here. Rung 4 dissolves it either way: the OS
+image sets its own default recogniser and can preinstall Penny as the
+assistant.
 
 Also unchanged: the guest VM still does nothing with audio. This measures
 Android handing the app a microphone, not voice reaching Penny.
