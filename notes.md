@@ -3429,3 +3429,199 @@ today. **Add a fifth payload; never edit the four already in the APK.**
   GrapheneOS or Android 17.
 - **Anything requiring a real model.** Not available, and three of the four
   above were chosen precisely because they do not need one.
+
+## 2026-09-15 — rung 3e-iv, first half ANSWERED YES: the encrypted store survives a power cycle intact. Second half UNANSWERABLE over adb, and that is a method finding worth more than the result.
+
+Two questions were defined for 3e-iv and only one of them could be asked with
+the equipment in the APK. The half that was asked came back clean. The half
+that could not be asked turns out to be blocked by something with nothing to
+do with encryption, virtualisation or storage — the phone's USB port.
+
+**Answer 1: does the encrypted store survive a REBOOT? YES, exactly.**
+**Answer 2: can it be read BEFORE first unlock? STILL UNANSWERED.** It was
+read 34 seconds AFTER first unlock, and that is not the same question. See
+"Why the pre-unlock half could not be asked" below — it is not a failure of
+nerve, it is a closed door, and the route around it is now known.
+
+### What was already on disk before this run
+
+`model.bin`, 1610612736 bytes, written by rung 3e-iii into penny3eiii's
+encrypted store earlier the same day. 3e-iii had proved the file survived the
+VM being destroyed and rebuilt minutes apart on a running phone. It had never
+seen a power cycle, because none was tried.
+
+The APK was deliberately NOT rebuilt or reinstalled between the write and this
+read — `getOrCreate` reuses the VM's stored config and the APK path changes on
+every install, which is the trap that cost a run on 15 Sept. `pm path`
+confirmed the same path either side of the reboot:
+
+    /data/app/~~uO7OYJk2jGyYQMs7z9Vvgg==/com.pennyspike.probe2a-WVgHUDfQnA89rlKzidwLFw==/base.apk
+
+### The run
+
+`adb reboot` at 14:08:49. Boot completed; the phone was left at the lock
+screen. USB came back only after the PIN was typed at 14:17:23 — see below.
+Then, with no rebuild and no reinstall:
+
+    adb shell am start -n com.pennyspike.probe2a/.Probe3eiiiActivity \
+        --ei mem 2048 --ei storage 2048 --ei keep 1 \
+        --es plan "?5,0,/mnt/encryptedstore/model.bin"
+
+`--ei keep 1` is what makes this askable at all: it skips `vmm.delete()` and
+uses `getOrCreate`, so the run attaches to the store the previous boot's VM
+left behind rather than making a fresh one.
+
+### Result: the file is there, whole, and reads from cold at ~598 MB/s
+
+    guest console (cid 2050), which the host process does not write to:
+      PENNY3EIII: /mnt/encryptedstore/model.bin is 1610612736 bytes,
+                  mmaping it read-only
+      PENNY3EIII: DONE cmd 5 status 0 result 1536 MB,
+                  guest MemFree 1916244 -> 334308 kB, 2570 ms
+
+    host:
+      REPLY step 1 cmd=5 status=0 (ok) result=1536MB
+        guestMemFree 1916244 -> 334308 kB (delta 1581936 kB = 1544 MB)
+        guestMs=2570 extra=0 hostWallMs=2571
+      CB onPayloadFinished exitCode=45
+
+1610612736 bytes is the figure 3e-iii wrote, to the byte. Every one of the
+1536MB faulted in — the guest walked the mapping on a 4096-byte stride and
+the kernel supplied every page, reporting progress every 64MB with guest
+`Cached` climbing 105392 -> 1547132 kB in lockstep. Status 0, and exit code
+45, which is this payload's own completion signal.
+
+**It was a genuinely cold read on BOTH sides and that is the part worth
+keeping.** The phone had rebooted eight minutes earlier, so the host's page
+cache held nothing of this file; host `Cached` went 1120240 -> 3348232 kB
+across the read, ~2.2GB entering cache for a 1.5GB file. The VM was newly
+created, so the guest's cache was empty too — its `Cached` started at
+105392 kB. The bytes came off UFS.
+
+2570ms for 1536MB is ~598 MB/s, against 3e-iii's 835 MB/s for the same file
+from the same store. Both are single cold reads; this one was taken on a
+phone eight minutes into a boot and still settling, with ~20 processes being
+killed around it. Treat the pair as "several hundred MB/s", not as a
+regression.
+
+### What this does NOT say, and one limit is sharper than it looks
+
+**Content was not verified.** The payload checks the file's SIZE and that
+every page faults in. It does not checksum the bytes. A store that returned
+1610612736 bytes of zeroes would have produced this exact log. Size plus a
+complete fault-in is strong — a truncated or absent file is definitively
+ruled out, and 1.5GB of pages did come off the disk — but it is not the same
+as proving the contents. **3e-iii's original method note asked for both size
+and checksum and only size was delivered.** Verifying content needs a new
+guest command, so fold a verify-file command into the shared 3f/3h payload
+rather than making a trip for it alone.
+
+Also: persistence is now measured across one power cycle, not many, and not
+across an OS update, and the store was never unmounted uncleanly — the VM
+shut down normally each time.
+
+### Why the pre-unlock half could not be asked, and it is not about storage
+
+The plan was to run that same `am start` at the lock screen with
+`userUnlocked=false`. It cannot be done, for a reason that outranks the one
+that was anticipated.
+
+The anticipated obstacle was real but secondary: **`Probe3eiiiActivity` is not
+`directBootAware`**, and neither is the `<application>` tag. Before first
+unlock the OS hides every non-direct-boot-aware component, so `am start` on it
+would have been refused. (The VM half would have been fine — 3e-iii does use
+`createDeviceProtectedStorageContext()`.)
+
+The real obstacle is that the command could never have reached the phone at
+all. **GrapheneOS sets the USB-C port to charging-only while locked.** After
+`adb reboot`, `adb get-state` was polled every 5 seconds for two minutes and
+returned "no devices/emulators found" every time, and
+`system_profiler SPUSBDataType` on the Mac counted **zero** USB devices — not
+an adb problem, macOS could not see the phone on the bus at all. The port came
+alive the instant the PIN was typed. This trap is already in CLAUDE.md from
+rung 3 on 14 Sept; what is new is the consequence for method.
+
+**CONSEQUENCE, and it generalises well beyond 3e-iv: nothing on this device
+can be measured pre-unlock by sending it a command. Any pre-unlock question
+must be asked by a component that starts ITSELF at boot and writes its answer
+to logcat, to be read back after an unlock.** That is exactly the shape rungs
+3, 3b and 3d used, and it is now clear that shape was forced rather than
+merely convenient.
+
+So the pre-unlock read needs a `directBootAware` service started from
+`LOCKED_BOOT_COMPLETED`, which needs a rebuild — and a rebuild changes the APK
+path, which permanently strands penny3eiii's stored config and the store with
+it. The new service must therefore own its own VM name, write its own file,
+and take its own reboot. **That is a two-reboot job with a build in the middle,
+and it is worth doing: if the store's key is tied to the user's credential, no
+model can be read at boot and every unattended result in this repo applies only
+to a phone somebody has already unlocked.** Written up as rung 3e-v.
+
+### Two free reproductions on the same boot, neither asked for
+
+Neither was part of the plan; both were read out of the same logcat.
+
+**Rung 3 reproduced for the SEVENTH time.** `penny3` came up unattended, and
+`vm list` showed `requesterUid: 10192`, cid 2049, pid 1925 — new cid, new pid,
+same result.
+
+**Rung 3d reproduced for the THIRD time, on a boot nobody set up for it**:
+
+    14:09:21.783  BootReceiver: LOCKED_BOOT_COMPLETED  sinceBoot=12726ms
+    14:09:21.812  STEP2 MANAGE_VIRTUAL_MACHINE=GRANTED RECORD_AUDIO=GRANTED
+                        userUnlocked=false
+    14:09:23.685  CB onPayloadReady sinceBoot=14628ms
+    14:09:24.807  AUDIO: startedAt=14632ms samples=16000 peak=2951
+                        rms=1109.19 nonZero=14514 (90.7%)
+    14:09:24.876  [audio] guest replied len=32000 fnv1a=4362a8d0
+    14:09:24.884  [audio] hashMatch=true echoMatch=true roundTrip=21ms
+    14:09:25.907  CB onPayloadFinished exitCode=43
+
+Real audio, captured at the lock screen with `userUnlocked=false`, delivered
+into the guest and echoed back with a matching FNV-1a, guest exit 43. First
+unlock was at **14:17:23**, which is **494 seconds** after power-on — so the
+whole chain finished with more than eight minutes of margin before a human
+touched the phone. That is by far the largest margin yet recorded; 3d's own
+runs had 134s and 101s.
+
+### The low-memory killer, third sighting, and it is getting predictable
+
+Creating the 2048MB VM again drove the killer, as it has every time. ~20
+processes went in the seconds after `run()`:
+
+    .ShannonImsService, com.shannon.rcsservice, app.grapheneos.gmscompat,
+    com.android.permissioncontroller, com.android.keychain,
+    app.seamlessupdate.client, android.process.acore, com.android.traceur,
+    app.grapheneos.carrierconfig2, com.google.euiccpixel,
+    com.android.localtransport, .adservices, android.process.media,
+    com.android.imsserviceentitlement, com.android.angle,
+    com.stevesoltys.seedvault, app.grapheneos.backup.contacts,
+    com.android.DeviceAsWebcam, com.android.devicediagnostics,
+    com.android.printspooler
+
+**Every single one is `cch` — cached, empty.** The kill reasons run
+`cch +95 CEM` down to `cch +45 CEM`, i.e. the killer worked from the cheapest
+tier down and never had to touch anything a user would notice. Our own app
+survived, and so did `penny3` throughout. This is the cheap end of the same
+behaviour 3e-ii saw when it killed thirteen. **It is still not evidence about
+rung 3g-ii**, which asks what happens when the processes in the way are a
+camera and a browser somebody is actually using, not empty cached ones.
+
+### Versions
+
+GrapheneOS 2026091001, Android 17 (CP2A.260705.006, patch 2026-09-01),
+bootloader bluejay-17.0-15199431 locked, verifiedbootstate=yellow.
+Pixel 6a (bluejay), 6GB. No rebuild — same APK throughout, build-tools
+37.0.0, Temurin 21.0.12.1, platform-tools 37.0.1.
+
+### Verdict
+
+**3e-iv first half: YES.** A 1.5GB file written by a sideloaded app's guest
+into microdroid's encrypted store is still there, at exactly the right size
+and fully readable, after a full power cycle — and reads back from cold at
+several hundred MB/s. A model shipped into that store would not have to be
+re-fetched at every boot.
+
+**3e-iv second half: NOT ANSWERED, and now known to be unaskable the way it
+was written.** Carried forward as rung 3e-v, which needs its own
+`directBootAware` service, its own VM, its own store and two reboots.
