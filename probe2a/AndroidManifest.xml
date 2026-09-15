@@ -268,5 +268,56 @@
             android:directBootAware="true"
             android:exported="true"
             android:foregroundServiceType="microphone" />
+
+        <!--
+          Rung 3e-v. Is the encrypted store readable BEFORE first unlock? The
+          one result left on this handset that can still close the plan down:
+          if the store's key is tied to the user's credential then no model can
+          be read at boot, and every unattended result in this repo applies
+          only to a phone somebody has already unlocked.
+
+          A COPY of Penny3dService, not an edit. Its own VM name, its own
+          encrypted store, its own written file, so it cannot strand or be
+          stranded by anything that already carries a committed result.
+
+          directBootAware is the whole point of it and not boilerplate. Without
+          the attribute the OS does not deliver LOCKED_BOOT_COMPLETED, the
+          service would start at first unlock instead, and the log would look
+          like a success while measuring precisely the wrong moment.
+
+          specialUse alone: this one holds a VM and never asks for a
+          microphone, so the combined type rung 3d proved is not needed here
+          and would add a variable for nothing.
+        -->
+        <service
+            android:name=".Penny3evService"
+            android:directBootAware="true"
+            android:exported="true"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Holds a virtual machine alive for the life of the device" />
+        </service>
+
+        <!--
+          Rung 3g-i. Will a 2048MB VM start at boot, locked, with nobody in the
+          room? Every 2GB figure in this repo was taken unlocked, in the
+          foreground, over adb, on an idle phone; rung 3d's unattended VMs were
+          256MB. Those two results have never been in the same room.
+
+          Also a COPY, for the same reason as the others. It brings up a 256MB
+          control and then the 2048MB test from this one service on one boot,
+          so that "2048MB is too much at boot" and "the service is shaped
+          wrong" stay separable.
+        -->
+        <service
+            android:name=".Penny3giService"
+            android:directBootAware="true"
+            android:exported="true"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Holds a virtual machine alive for the life of the device" />
+        </service>
     </application>
 </manifest>

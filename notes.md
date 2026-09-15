@@ -3997,3 +3997,287 @@ rather than merely working once at a comfortable size.
 in, it lands on a real disk, it costs no permanent RAM, and it survives a
 reboot.** What has never been measured is a model doing anything once it is
 there.
+
+## 2026-09-15 — rungs 3e-v and 3g-i BOTH ANSWERED YES, off one build and two reboots. The encrypted store opens before first unlock, and a 2GB VM wakes unattended. The last two questions this handset could answer are closed.
+
+Two rungs, no guest C, one Java-only build, two power cycles. Both answered on
+the same boots, each with its own control, and four earlier rungs reproduced
+free alongside them.
+
+    3e-v   is the encrypted store readable BEFORE first unlock?   YES
+    3g-i   will a 2048MB VM start at boot, locked, unattended?    YES
+
+3e-v was the one that could still have closed the plan down. If the store's
+dm-crypt key had been tied to the user's credential, no model could be read at
+boot and every unattended result in this repo — rung 3's wake, 3b's microphone,
+3d's whole voice path — would have applied only to a phone somebody had already
+unlocked once. It is not tied to the credential.
+
+### Rung 3e-v — the encrypted store opens before first unlock, with the right BYTES
+
+A `directBootAware` service started itself from `LOCKED_BOOT_COMPLETED`, created
+a VM with an encrypted store attached, opened a file an earlier run had written
+to that store, read all 67,108,864 bytes of it and checksummed them — **14.4
+seconds after power-on, with `userUnlocked=false` and the PIN not typed for
+another 197.6 seconds.**
+
+    sinceBoot  12,026 ms   onStartCommand, userUnlocked=false
+    sinceBoot  12,059 ms   startForeground(SPECIAL_USE) accepted
+    sinceBoot  14,279 ms   onPayloadReady, userUnlocked=false
+    sinceBoot  14,431 ms   67,108,864 bytes, ck64 0x757b795dd5138044
+                           expected 67,108,864 / 0x757b795dd5138044
+                           SIZE MATCH, CONTENT MATCH
+    sinceBoot 211,992 ms   LockSettingsService: unlockUser started
+
+**Margin 197.6 seconds.** The largest in this repo after 3e-iv's 494s.
+
+**The checksum is checked by the machine, not by reading two logs.**
+`Probe3fActivity`'s byte generator is a fixed-seed xorshift64*, and the
+generator advances per 8-byte word without resetting at a chunk boundary, so a
+file of a given length has exactly ONE correct ck64. `Penny3evService` runs the
+identical generator with a null output stream, producing nothing and computing
+only, and compares. The expected value was therefore never copied out of an
+earlier run's log. **This also closes 3e-iv's loose end** — does a stored file
+survive a power cycle with its CONTENT intact rather than merely its SIZE — and
+closes it in a better place than the loose end asked for, because the check ran
+before first unlock rather than after it.
+
+**Corroborated from the guest's own console**, cid 2049, a channel the host
+process does not write to:
+
+    [1.248723] ext4 filesystem being mounted at /mnt/encryptedstore
+    [1.426141] PENNY3F: verify /mnt/encryptedstore/penny3ev.bin read 67108864
+               bytes (stat said 67108864), ck64 0x757b795dd5138044, 147 ms
+
+The guest mounted its encrypted disk 1.25 seconds into its own boot, with the
+host still at the lock screen.
+
+**THE CONTROL, AND IT RODE THE SAME SOCKET BECAUSE IT HAD TO.** The same
+service read the same store again after the unlock, on the same boot, and got
+`ck64 0x757b795dd5138044` and 67,108,864 bytes — identical. Between the two
+reads literally nothing changed but the PIN.
+
+    PRE-UNLOCK             67,108,864 B  0x757b795dd5138044  147 ms
+    AFTER-UNLOCK CONTROL   67,108,864 B  0x757b795dd5138044  112 ms
+
+It could not have been a second connection. `penny3f_payload.c` calls
+`accept4()` exactly ONCE and then loops on commands until a zero-length frame,
+so a second `connectVsock` would never have been accepted. The socket was held
+open across the 197-second unlock wait and the control command went down the
+same one. Forced by the payload, and it happens to be the strongest form the
+control could take.
+
+### Rung 3g-i — a 2048MB VM wakes unattended, and the rung was misframed
+
+The rung was defined as "can a 2GB VM make the 20-second foreground-service
+exemption, given it takes ~4s longer to reach ready than a 256MB one". **That
+is the wrong reading of the window, and taking it at face value would have
+produced a reassuring non-answer.**
+
+`Background started FGS: Allowed ... duration:20000` governs `startForeground()`
+and nothing after it. Every service in this app calls `startForeground` as the
+first statement of `onStartCommand` and only then hands VM work to another
+thread. Measured this session, on the boot that answered both rungs:
+
+    .VmService        reasonCode:LOCKED_BOOT_COMPLETED  duration:20000
+    .MicFgsService    reasonCode:LOCKED_BOOT_COMPLETED  duration:20000
+    .Penny3dService   reasonCode:LOCKED_BOOT_COMPLETED  duration:20000
+    .Penny3evService  reasonCode:LOCKED_BOOT_COMPLETED  duration:20000
+    .Penny3giService  reasonCode:LOCKED_BOOT_COMPLETED  duration:20000
+
+`Penny3evService` reached `startForeground` 33ms into `onStartCommand`;
+`Penny3giService` 2ms. **A VM that takes four seconds longer to reach
+`onPayloadReady` cannot miss a window it was never racing.** Five foreground
+services in one app all took the exemption on the same boot, which was itself
+untested.
+
+What was actually worth measuring, and was:
+
+    boot   VM      ready sinceBoot   into the attempt   userUnlocked   guest MemTotal
+    1      256MB       59,133 ms           1,381 ms        false          239,796 kB
+    1      2048MB      65,688 ms           4,746 ms        false        2,038,164 kB
+    2      256MB       17,012 ms           1,901 ms        false          239,796 kB
+    2      2048MB      23,519 ms           4,639 ms        false        2,038,164 kB
+
+Both boots, both sizes, `CMD_INFO` answered `status=0` and the guest exited 46.
+Margins before first unlock: 171.9s on boot 1, 188.5s on boot 2.
+
+**The guest's own `/proc/meminfo` reading `MemTotal: 2038164 kB` is the part
+that matters** — it is not our process saying 2048MB was accepted, it is the
+guest kernel saying 2048MB was delivered.
+
+**THE CONTROL IS ON THE SAME BOOT, FROM THE SAME SERVICE, AND ONLY THE MEMORY
+FIGURE DIFFERS.** Same broadcast, same payload, same `CPU_TOPOLOGY_MATCH_HOST`,
+same code path — 256MB first so it is banked before the risky one runs, and
+waited out to `onStopped` so its memory is genuinely back. "2048MB is too much
+at boot" and "the service is shaped wrong" therefore stay separable, and the
+control came up both times.
+
+**The low-memory killer result is better than expected, and the shape is a
+finding.** Our own app was never killed on either boot.
+
+    boot 1   2GB VM started at 57.7s    ZERO kills
+    boot 2   2GB VM started at 15.1s    4 kills, all oom_score_adj 905, all cch CEM
+             com.android.permissioncontroller, com.android.cellbroadcastreceiver.module,
+             com.google.euiccpixel, app.seamlessupdate.client
+
+Against 3e-ii's thirteen kills on an idle unlocked phone. **The difference
+between the two boots is WHEN the 2GB VM started**, and it was accidental:
+`Penny3giService` waits for `Penny3evService` to bank its verdict or for a
+45-second timeout, and on boot 1 3e-v failed so the timeout ran, while on boot 2
+3e-v succeeded and released it at 15.1s. Starting a 2GB VM while the boot is
+still settling costs four cached processes; starting it a minute later costs
+none. Every casualty was `cch` — cached and empty, nothing a user would notice.
+
+### Four earlier rungs reproduced free, on the same boot, all pre-unlock
+
+    rung 3    VM up, onPayloadReady sinceBoot=14,154ms, userUnlocked=false
+              EIGHTH reproduction
+    rung 3b   MIC [A-assistant] 10,577ms peak 1329 rms 340.68 90.8% non-zero
+              MIC [B-fgs]       13,214ms peak 1265 rms 403.94 90.9% non-zero
+              FIFTH and SIXTH
+    rung 3d   control leg 5ms, AUDIO peak 1632 rms 570.38 90.9% non-zero,
+              32,000 bytes crossed at 15,258ms, userUnlocked=false, exit 43
+              FOURTH
+
+Boot 1 reproduced rung 3 (14,430ms) and rung 3d (15,590ms, exit 43) too.
+
+### The build, and what it deliberately did not touch
+
+One Java-only build. **No guest payload was compiled, no trip into the Debian
+guest, no compiler.** `Penny3fPayload.so` from rungs 3f/3h was reused unchanged:
+its `CMD_STREAM` (6) writes a file and returns a checksum and its `CMD_VERIFY`
+(7) reads one back and returns a checksum, which is exactly write-then-verify.
+The payload budget for this handset stayed spent, as CLAUDE.md said it should.
+
+Two new services, both COPIES and not edits:
+
+    Penny3evService   directBootAware, specialUse, START_STICKY
+                      VM penny3ev, 256MB, ONE_CPU, 256MB encrypted store
+    Penny3giService   directBootAware, specialUse, START_STICKY
+                      VMs penny3gic (256MB) and penny3gi (2048MB), MATCH_HOST
+
+`VmService`, `Penny3dService`, `MicFgsService`, `Probe3eActivity`,
+`Probe3eiiActivity`, `Probe3eiiiActivity` and `Probe3fActivity` were not
+touched; each carries a committed result and each reproduced during this
+session. `BootReceiver` gained two more starts and now starts five services
+from one broadcast, each independent and none able to take another down.
+
+### What cost time, and the three mistakes worth writing down
+
+**1. The single-thread executor trap, caught by a smoke test rather than by a
+reboot.** `Penny3giService` handed `setCallback()` and its own blocking wait
+loop the same `Executors.newSingleThreadExecutor()`, so `runBoth()` sat on the
+very thread `onPayloadReady` had to arrive on. A perfectly healthy 256MB VM
+reported as never ready for three minutes. This is the trap already in
+CLAUDE.md from 3e-i and it was walked straight into anyway. **The smoke test is
+what caught it** — `Penny3giService` was run by hand over adb before any reboot
+was spent, precisely because it owns no store and deletes its VMs, so it could
+not contaminate 3e-v. Running that smoke test cost four minutes and saved a
+reboot. Do it every time.
+
+**2. Boot 1 of 3e-v died on the `getOrCreate` trap, and the first diagnosis was
+WRONG.** The failure:
+
+    VirtualMachineException: Failed to open APK
+      at VirtualMachineConfig.toVsConfig(VirtualMachineConfig.java:944)
+      at VirtualMachine.run(VirtualMachine.java:1790)
+    Caused by: java.io.FileNotFoundException: open failed: ENOENT
+
+This is verbatim CLAUDE.md's `getOrCreate` trap. But the reasoning that
+followed was wrong: the stored config looked as though it had been written
+minutes earlier by the current install, so "stale path" was ruled out, and
+`setEncryptedStorageBytes` was suspected instead.
+
+Two zero-code tests settled it without a rebuild, and both used
+`Probe3fActivity`, which is proven from 3h:
+
+    delete+create WITH encrypted storage     works  32MB in and back, ck matched
+    getOrCreate on a VM this APK created     works  same ck, read across instances
+
+So both the storage call and `getOrCreate` were exonerated, and the fault was
+specific to `penny3ev`. Rather than guess a third time, a diagnostic was added
+that reads the VM's own directory off disk from inside the app — which `adb
+shell` cannot do on a user build — and dumps anything small and textual. It
+named the cause in one line:
+
+    VMDIR config.xml >> ... <string name="apkPath">/data/app/
+    ~~F0K0m_D81CSMn57ecg2Afw==/com.pennyspike.probe2a-lLAwbUuEeI_QizpSaf2qAQ==
+    /base.apk</string> ...
+
+**That is the FIRST of the day's three installs.** `penny3ev` had been created
+under it and its stored config still pointed at an APK two later installs had
+replaced. The trap was exactly what it looked like at first glance; the second
+guess was the wrong one. **The lesson is not "remember the trap" — it was
+remembered. It is that a stale stored config cannot be ruled out by reasoning
+about when the VM was created, because that reasoning is unfalsifiable from
+outside. Read `config.xml`.** The diagnostic is now permanent in
+`Penny3evService.dumpVmDir()` and costs nothing until something fails.
+
+**3. The recovery that had to be added, and its one dangerous property.**
+`Penny3evService` now catches a `run()` failure, dumps the VM directory,
+`delete()`s and `create()`s fresh, and logs `STORE WAS RESET` loudly. Deleting
+is safe there and only there: a VM that cannot run has no readable store to
+lose. **But it means a reinstall between two boots silently converts "the store
+was re-opened" into "a new store was created", which would read as a file that
+was never there rather than as a stranded one.** The loud log line is the only
+thing standing between that and a false NO. Never reinstall between the two
+boots of a persistence experiment.
+
+### Versions
+
+GrapheneOS 2026091001, Android 17, build CP2A.260705.006, patch 2026-09-01,
+Pixel 6a bluejay, bootloader locked, verifiedbootstate yellow.
+SDK platform android-37.0, build-tools 37.0.0, Temurin 21.0.12.1,
+platform-tools 37.0.1. APK sha256
+2e89918fdd783dac94946ebd81806fd5f9a8a791f47686faa6f4b609070642df, 156,613 bytes.
+`Penny3fPayload.so` unchanged from rungs 3f/3h, 15,392 bytes.
+
+### Verdict
+
+**3e-v: YES.** The encrypted store is not tied to the user's credential. A
+sideloaded, unprivileged app opened its own encrypted ext4 disk 14.4 seconds
+after power-on with the phone still at the lock screen, read back 67,108,864
+bytes and proved they were the right bytes by a checksum computed independently
+of the write — 197.6 seconds before anybody typed a PIN, with the same read
+after the unlock returning the identical checksum as a control. **A model
+shipped into that store can be read at boot with nobody in the room.** Every
+unattended result in this repo keeps its meaning.
+
+**3g-i: YES.** A 2048MB VM reached its payload at boot, locked and unattended,
+on two reboots — 65.7s and 23.5s after power-on — with a 256MB control on the
+same boot from the same service each time, and the guest's own kernel reporting
+`MemTotal: 2038164 kB`. Our app was never killed. The 20-second exemption was
+never the constraint, because `startForeground` is called before any VM work
+and was accepted 2-33ms into `onStartCommand` for all five services.
+
+**Together they join the two halves that had never been in the same room: the
+unattended wake and the memory a model needs.** A VM large enough to hold a
+model now wakes on its own at boot, on a locked phone, and can read a model out
+of persistent encrypted storage before anyone touches the screen.
+
+### What this does NOT say
+
+**Nothing was RUN.** 64MB read back and checksummed is a file, not a model, and
+`CMD_INFO` is not a workload. The largest unanswered thing in this repo is
+unchanged: the guest still does nothing with the audio, and nothing here loads,
+parses or executes a model of any kind.
+
+**A store was never CREATED before first unlock.** Boot 1 tried and died on the
+stale-config trap, and the file 3e-v read was written on an unlocked phone
+during the diagnostic run at 15:52. So "re-open an existing store pre-unlock" is
+answered YES twice over; "create a new store pre-unlock" is untested and is the
+first-boot-after-factory-reset case. It costs one constant and two reboots.
+
+**3g-ii is still not run.** Both boots were an idle phone with nothing open and
+the Terminal app's Debian VM shut down. What the low-memory killer does when
+the processes in the way are a camera and a browser somebody is actually using
+has never been measured, and the four `cch CEM` casualties here are not
+evidence about it.
+
+**Two boots is reproducibility, not reliability.** Nothing ran longer than
+about twenty seconds, nothing was tested on battery, and there is still no
+endurance test anywhere in this repo. Still `DEBUG_LEVEL_FULL`, still
+non-protected, still sample DICE values, so no attestation claim rests on any
+of it. And delivery is unchanged: `pm grant` and `voice_recognition_service`
+both still need a cable.

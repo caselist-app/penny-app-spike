@@ -93,5 +93,44 @@ public class BootReceiver extends BroadcastReceiver {
                     + " suspect; rung 3 used specialUse alone and rung 3b used"
                     + " microphone alone, and both were accepted.");
         }
+
+        // Rung 3e-v. Fourth independent start, and independent for the same
+        // reason as the other three. This is the one that can close the plan
+        // down — whether the encrypted store opens before first unlock — and
+        // it must be able to ask that question even if everything else here
+        // has already failed.
+        Intent store = new Intent(context, Penny3evService.class);
+        store.putExtra("why", action);
+        try {
+            context.startForegroundService(store);
+            Log.i("PENNY3EV", "startForegroundService(Penny3evService) accepted"
+                    + " for " + action + " sinceBoot="
+                    + SystemClock.elapsedRealtime() + "ms");
+        } catch (Throwable t) {
+            Log.e("PENNY3EV", "startForegroundService(Penny3evService) REFUSED"
+                    + " -> " + t.getClass().getName() + ": " + t.getMessage(), t);
+            Log.e("PENNY3EV", "VERDICT 3e-v: NOT TESTED — refused at start, so"
+                    + " the store was never asked anything.");
+            // Nothing else here waits on 3e-v except rung 3g-i, and that has
+            // its own timeout, so a refusal here cannot hold that up.
+        }
+
+        // Rung 3g-i. Fifth, and the only one that deliberately provokes the
+        // low-memory killer. It holds off until 3e-v has logged its pre-unlock
+        // verdict — see Penny3giService — so starting it here costs nothing
+        // and risks nothing in the ~15s before that happens.
+        Intent big = new Intent(context, Penny3giService.class);
+        big.putExtra("why", action);
+        try {
+            context.startForegroundService(big);
+            Log.i("PENNY3GI", "startForegroundService(Penny3giService) accepted"
+                    + " for " + action + " sinceBoot="
+                    + SystemClock.elapsedRealtime() + "ms");
+        } catch (Throwable t) {
+            Log.e("PENNY3GI", "startForegroundService(Penny3giService) REFUSED"
+                    + " -> " + t.getClass().getName() + ": " + t.getMessage(), t);
+            Log.e("PENNY3GI", "VERDICT 3g-i: NOT TESTED — refused before any VM"
+                    + " was asked for, so this says nothing about 2048MB.");
+        }
     }
 }

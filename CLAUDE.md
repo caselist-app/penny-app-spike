@@ -45,41 +45,53 @@ deliberately left **ENABLED** so the device can be returned to stock.
     Claude Code    2.1.270 in the guest, native install, ~317MiB resident
     VM resources   3.9GB slider max -> 3.6Gi in guest, 8 cores, 104G disk
 
-**LIVE DEVICE STATE — as left at 15 Sept, 14:58, after rungs 3f and 3h.
+**LIVE DEVICE STATE — as left at 15 Sept, 15:59, after rungs 3e-v and 3g-i.
 Check it, do not trust it.** This block exists because state that only survives
 in a handover message is state that gets lost. Verify each line before relying
 on it; correct this block in the same commit as whatever changes it.
 
-    Phone                      Last rebooted 14:08, unlocked by hand 14:17.
-                               NOT rebooted since; uptime ~49 min at 14:58.
-    Terminal app / Debian VM   UP — Matt opened it by hand at 14:42 so 3f/3h's
-                               payload could be compiled. cid 2051,
-                               requesterUid 10179. It holds ~3.6GB while it
-                               runs. Close it before any memory-sensitive
-                               measurement; it never restarts itself.
-    penny3 (rung 3's VM)       UP, cid 2078, requesterUid 10192. NOTE the cid
-                               and pid moved: each reinstall killed the app
-                               process and START_STICKY brought VmService and
-                               its VM straight back, which is rung 3's
-                               restart-after-kill result happening incidentally.
-    penny3d (rung 3d's VM)     Ran at boot and exited 43, as designed.
-    penny3eiii encrypted store **GONE — STRANDED, DELIBERATELY.** The 3f/3h
-                               build required a reinstall, which changes the
-                               APK path and permanently invalidates that VM's
-                               stored config (see the getOrCreate trap).
-                               CLAUDE.md authorised this because 3e-iv's read
-                               was done. model.bin is unreachable. Do not plan
-                               anything that needs it.
-    penny3f store              Deleted at the end of every run — the activity
-                               defaults to keep=false. Nothing persists unless
-                               a run passes --ei keep 1.
-    installed APK              /data/app/~~42mm0jE2-RYnkqj1-HkwmA==/
-                               com.pennyspike.probe2a-m36X8QIowzO_17pWNniEFA==
-                               Rebuilt and reinstalled three times on 15 Sept
-                               (once for the payload, twice for Java-only
-                               changes). Both pm grants survived every one.
-    adb forward tcp:2222       LIVE, pointing at the Debian guest.
-    logcat buffer              set to 64M at 14:41; does not survive a reboot.
+    Phone                      Last rebooted 15:55, unlocked by hand 15:58:45.
+                               NOT rebooted since.
+    Terminal app / Debian VM   DOWN. Force-stopped at 15:37 before rung 3g-i,
+                               and it does not restart itself after a reboot.
+                               It holds ~3.6GB while it runs, so close it again
+                               before any memory-sensitive measurement.
+    penny3 (rung 3's VM)       UP, requesterUid 10192, brought up at
+                               sinceBoot 14,154ms on the 15:55 boot. Rung 3's
+                               EIGHTH reproduction. Leave it alone.
+    penny3d (rung 3d's VM)     Ran at boot and exited 43, as designed. FOURTH.
+    penny3ev (rung 3e-v's VM)  STOPPED, store INTACT and worth protecting.
+                               /mnt/encryptedstore/penny3ev.bin is 67,108,864
+                               bytes, ck64 0x757b795dd5138044, and that value
+                               is DERIVABLE — Penny3evService recomputes it
+                               from the fixed-seed generator, so it needs no
+                               log to verify. **A reinstall strands it**, and
+                               the service's recovery path will then silently
+                               delete and recreate the store; it logs
+                               STORE WAS RESET when it does.
+    penny3gic / penny3gi       Rung 3g-i's 256MB control and 2048MB test. Both
+                               ran at boot and exited 46. No store, deleted and
+                               recreated on every run, nothing to protect.
+    penny3eiii encrypted store **GONE — STRANDED, DELIBERATELY** on 15 Sept.
+                               model.bin is unreachable. Do not plan anything
+                               that needs it.
+    penny3f store              Holds a 32MB test file from this session's
+                               diagnostics, ck64 0x5f2e2310fc323145. Deleted at
+                               the start of any run that does not pass
+                               --ei keep 1. Nothing depends on it.
+    installed APK              /data/app/~~F-GoV1zaM_NBcthOOhbUPQ==/
+                               com.pennyspike.probe2a-5mEXn4-0AsY5FdvzYVuz6Q==
+                               sha256 2e89918fdd783dac94946ebd81806fd5f9a8a791
+                               f47686faa6f4b609070642df, 156,613 bytes.
+                               Rebuilt and reinstalled FIVE times on 15 Sept.
+                               All five pm grants and all four assistant
+                               preconditions survived every one.
+    adb forward tcp:2222       DEAD (the Debian VM is down). Pointless until it
+                               is reopened by hand.
+    logcat buffer              set to 64M at 15:46; does not survive a reboot,
+                               and `setprop persist.logd.size` is REFUSED by
+                               SELinux on this build, so the boot window is
+                               always measured at the default size.
 
 Verify with: `adb shell /apex/com.android.virt/bin/vm list`,
 `adb shell pm path com.pennyspike.probe2a`.
@@ -596,7 +608,9 @@ thing in this repo. See the open threads.
 still byte-for-byte what rung 3 proved and it ran on both these reboots.
 Three services now start from the same boot broadcast — `VmService`,
 `MicFgsService`, `Penny3dService` — independent, none able to take the others
-down. The guest payload was **not rebuilt**: `Penny3cPayload.so` from 3c was
+down. **FIVE as of 15 Sept**, with `Penny3evService` (rung 3e-v) and
+`Penny3giService` (rung 3g-i) added the same way, and all five were granted the
+`duration:20000` exemption on one boot. The guest payload was **not rebuilt**: `Penny3cPayload.so` from 3c was
 reused unchanged, same wire protocol, no new variable.
 
 **Five things measured here that were not known before.**
@@ -620,6 +634,14 @@ picked up free on the 3e-iv reboot — audio at the lock screen with
 `userUnlocked=false`, fnv1a `4362a8d0` matched, guest exit 43, and **494
 seconds of margin before first unlock**, far the largest yet (3d's own runs had
 134s and 101s).
+
+**Updated again 15 Sept by rungs 3e-v and 3g-i, which reproduced four rungs free
+across their two boots: rung 3 is now EIGHT, rung 3b's microphone SIX (two sites
+on the answering boot) and rung 3d FOUR.** On the boot that answered 3e-v: rung
+3's VM ready at 14,154ms; `MIC [A-assistant]` at 10,577ms peak 1329 and
+`MIC [B-fgs]` at 13,214ms peak 1265, both ~90.9% non-zero; rung 3d's 32,000
+bytes across at 15,258ms with exit 43. All with `userUnlocked=false` and 197.6
+seconds before the PIN.
 
 **The ordering decision, and it was written down before the run.** The
 microphone is available at ~9.5s, the VM not until ~14s, so the audio exists
@@ -873,26 +895,55 @@ Any pre-unlock question must be asked by a component that starts ITSELF at
 boot and writes its answer to logcat, read back after an unlock. That is the
 shape rungs 3, 3b and 3d used; it was forced, not convenient.
 
-**Rung 3e-v — is the encrypted store readable BEFORE first unlock? DEFINED,
-NOT RUN.** The half 3e-iv could not reach, and the one that matters more: if
-the store's key is tied to the user's credential, no model can be read at boot
-and every unattended result in this repo applies only to an already-unlocked
-phone.
+**Rung 3e-v — is the encrypted store readable BEFORE first unlock? ANSWERED
+YES.** 15 Sept. **The store is NOT tied to the user's credential.** A
+`directBootAware` service woke itself from `LOCKED_BOOT_COMPLETED`, created a VM
+with an encrypted store attached, opened a file an earlier run had put there and
+read back all **67,108,864 bytes, ck64 `0x757b795dd5138044`, 14.4 seconds after
+power-on with `userUnlocked=false` and the PIN not typed for another 197.6
+seconds.**
 
-Needs a `directBootAware` service started from `LOCKED_BOOT_COMPLETED`, in the
-shape of `Penny3dService` — **copied, never edited**. A rebuild changes the APK
-path, which permanently strands penny3eiii's stored config and its store with
-it, so the new service must own its **own VM name, its own store and its own
-written file**. Two reboots with a build in the middle: boot 1 writes a file of
-known size AND known checksum, boot 2 re-opens it with `getOrCreate` and
-verifies both. Log `userUnlocked` at the moment of the read the way
-`Penny3dService` does, and prove the timestamp precedes first unlock. Control:
-the same service reading the same store AFTER an unlock on the same boot, so
-"the store is credential-locked" and "the service shape is wrong" stay
-separable.
+    sinceBoot  12,059 ms   startForeground(SPECIAL_USE) accepted
+    sinceBoot  14,279 ms   onPayloadReady, userUnlocked=false
+    sinceBoot  14,431 ms   67,108,864 B  ck64 0x757b795dd5138044
+                           expected 67,108,864 / 0x757b795dd5138044
+                           SIZE MATCH, CONTENT MATCH
+    sinceBoot 211,992 ms   LockSettingsService: unlockUser started
 
-**DONE MEANS:** yes/no the store opens with `userUnlocked=false`, plus the size
-and checksum, plus the after-unlock control.
+**This was the one that could still have closed the plan down.** Had the key
+been credential-tied, no model could be read at boot and rungs 3, 3b, 3c, 3d and
+every other unattended result would have applied only to a phone somebody had
+already unlocked once. They all keep their meaning.
+
+**The checksum is checked by the machine, not by reading two logs.**
+`Probe3fActivity`'s generator is a fixed-seed xorshift64* that advances per
+8-byte word and never resets at a chunk boundary, so a file of a given length
+has exactly ONE correct ck64. `Penny3evService` runs the identical generator
+with a null output stream — producing nothing, computing only — and compares.
+The expected value is DERIVED, never copied out of a log. **That also closes
+3e-iv's loose end** (content across a reboot, not merely size) and closes it
+before first unlock, which is more than the loose end asked for.
+
+**Corroborated from the guest's own console, cid 2049**, which the host process
+does not write to: `ext4 filesystem being mounted at /mnt/encryptedstore` at
+guest time 1.248s, then `PENNY3F: verify ... read 67108864 bytes (stat said
+67108864), ck64 0x757b795dd5138044, 147 ms` at 1.426s.
+
+**THE CONTROL RODE THE SAME SOCKET, AND THAT WAS FORCED.**
+`penny3f_payload.c` calls `accept4()` exactly ONCE and then loops until a
+zero-length frame, so a second `connectVsock` would never be accepted. The
+socket was held open across the 197-second wait and the after-unlock read went
+down the same one: `67,108,864 B  0x757b795dd5138044`, identical. Between the
+two reads literally nothing changed but the PIN — the strongest form this
+control could take, and the payload chose it, not us.
+
+**What it does NOT say. A store was never CREATED before first unlock.** Boot 1
+tried and died on the stale-config trap below; the file read here was written on
+an unlocked phone during the diagnostic run. So "re-open an existing store
+pre-unlock" is YES twice over, and "create a NEW store pre-unlock" — the
+first-boot-after-factory-reset case — is untested. It costs one constant and two
+reboots. And nothing RAN: 64MB read back and checksummed is a file, not a
+model.
 
 **Rung 3f — is the guest CPU real? ANSWERED YES.** 15 Sept. Eight vCPUs
 carrying genuine physical core identities; single-core at parity with a
@@ -1012,66 +1063,99 @@ the bytes come FROM is still unanswered** — this pushed bytes the host
 manufactured; a real model arrives over a network, and nothing here measures
 that, or where it is staged on the host, or what it costs.
 
-**Rung 3g — does the 2GB VM survive a REAL phone? DEFINED, NOT RUN.** Every
-figure in 3e-i, 3e-ii and 3e-iii was taken unlocked, in the foreground, over
-adb, on an idle phone with the Terminal app's Debian VM deliberately shut down.
-Two separate things have never been tested and both are commercial risks rather
-than laboratory ones.
+**Rung 3g-i — will a 2GB VM start at boot, locked, with nobody in the room?
+ANSWERED YES.** 15 Sept, on two reboots, with a 256MB control on each.
 
-- **3g-i. Will a 2GB VM start at boot, locked, with nobody in the room?** Rung
-  3d proved 256MB VMs do, twice. A 2048MB VM takes ~4s longer to reach
-  `onPayloadReady` (3e-i: +4.3s against +0.7s), and the boot broadcast's
-  foreground-service exemption is **20 seconds** — so the margin is real but
-  unmeasured, and a cold `dex2oat` on the first boot after an update eats into
-  it. **If a 2GB VM cannot make that window, the unattended wake story only
-  works for VMs too small to hold a model, and those two results have never
-  been in the same room.** Needs its OWN service, copied not edited, exactly as
-  `Penny3dService` was copied from `VmService`. Control: the same service at
-  256MB on the same boot, so "the service shape is wrong" and "2GB is too slow"
-  stay separable. Measure `userUnlocked` at the moment of ready, the time, and
-  `logcat | grep "has died"`.
-- **3g-ii. What happens on a phone somebody is using?** Booting a 2048MB VM
-  drove the low-memory killer EVERY time and the first 3e-ii run killed
-  thirteen processes. Our own app was never killed at 2048MB — on an idle
-  phone. Open the camera, a browser and several apps by hand first, then start
-  the VM. Control: today's idle figures, already recorded. **If the system
-  kills us, that is a product problem and it is better found now.**
+    boot   VM      ready sinceBoot   into the attempt   userUnlocked   guest MemTotal
+    1      256MB       59,133 ms           1,381 ms        false          239,796 kB
+    1      2048MB      65,688 ms           4,746 ms        false        2,038,164 kB
+    2      256MB       17,012 ms           1,901 ms        false          239,796 kB
+    2      2048MB      23,519 ms           4,639 ms        false        2,038,164 kB
 
-**DONE MEANS:** for 3g-i, yes/no plus the time to ready and what died; for
-3g-ii, yes/no our app survives plus the list of casualties.
+`CMD_INFO` answered `status=0` and the guest exited 46 every time. Margins
+before first unlock: 171.9s and 188.5s. **The guest's own
+`MemTotal: 2038164 kB` is the reading that matters** — not our process saying
+2048MB was accepted, but the guest kernel saying it was delivered.
 
-**Sequencing — REVISED 15 Sept, after 3f and 3h.** Both are answered and the
-payload trip they shared is paid for. **What is left on this handset is three
-things, and none of them needs a compiler.**
+**THE RUNG WAS MISFRAMED AND THE CORRECTION IS THE REUSABLE PART.** It was
+defined as "can a 2GB VM make the 20-second exemption, given it reaches ready
+~4s slower". **That is the wrong reading of the window.**
+`Background started FGS: Allowed ... duration:20000` governs `startForeground()`
+and nothing after it; every service here calls it as the FIRST statement of
+`onStartCommand` and only then hands VM work to another thread. Measured:
+`Penny3evService` reached it 33ms in, `Penny3giService` 2ms in, and **all five
+foreground services took the exemption on the same boot** — itself untested
+before. A VM that reaches ready four seconds later cannot miss a window it was
+never racing. Had the rung been run on its own terms it would have produced a
+reassuring non-answer.
 
-- **3e-v** — is the encrypted store readable BEFORE first unlock? Needs a
-  Java-only rebuild (a `directBootAware` service copied from `Penny3dService`,
-  its own VM, its own store) and two reboots. **Still the one that can close
-  the plan down**: if the store's key is tied to the user's credential, no
-  model can be read at boot and every unattended result in this repo applies
-  only to an already-unlocked phone.
-- **3g-i** — will a 2GB VM start at boot, locked, inside the 20-second
-  exemption? Java-only rebuild, answered by reboots. **Do it in the same build
-  and the same reboots as 3e-v** — 3g-i's 256MB control and 3e-v's
-  after-unlock control share the boots.
+**The control is on the same boot, from the same service, and ONLY the memory
+figure differs** — same broadcast, same payload, same `MATCH_HOST`. 256MB first
+so it is banked before the risky one, and waited out to `onStopped` so its
+memory is genuinely back.
+
+**The low-memory killer was gentler than expected, and the shape is a finding.**
+Our app was never killed on either boot.
+
+    boot 1   2GB VM started at 57.7s   ZERO kills
+    boot 2   2GB VM started at 15.1s   4 kills, all adj 905, all cch CEM
+
+Against 3e-ii's thirteen on an idle unlocked phone. **The variable is WHEN the
+2GB VM starts**, and it was accidental: `Penny3giService` waits for 3e-v's
+verdict or a 45s timeout, and 3e-v failed on boot 1 so the timeout ran. Starting
+a 2GB VM while the boot is still settling costs four cached processes; a minute
+later costs none. Every casualty was `cch` — cached and empty.
+
+**This joins the two halves that had never been in the same room:** the
+unattended wake and the memory a model needs. A VM big enough to hold a model
+wakes on its own at boot, on a locked phone, and 3e-v says it can read a model
+out of encrypted storage while it is there.
+
+**What it does NOT say.** Nothing RAN — `CMD_INFO` is not a workload. Both boots
+were an idle phone with nothing open and the Debian VM down. Two boots is
+reproducibility, not reliability.
+
+**Rung 3g-ii — what happens on a phone somebody is using? DEFINED, NOT RUN,
+and it is now the only thing left on this handset.** Booting a 2048MB VM drove
+the low-memory killer every time in 3e-ii and the first run killed thirteen
+processes. Our own app has never been killed at 2048MB — but only ever on an
+idle phone, and 3g-i's four `cch CEM` casualties are NOT evidence about this.
+Open the camera, a browser and several apps by hand first, then start the VM.
+**Device state only — no build at all**, run an existing probe. Control:
+3g-i's idle figures above, already recorded.
+
+**DONE MEANS:** yes/no our app survives, plus the list of casualties and their
+oom_score_adj.
+
+**Sequencing — REVISED 15 Sept, after 3e-v and 3g-i. Both are ANSWERED, and
+the loose end with them.** What is left on this handset is **one** thing, and
+it needs no build at all.
+
 - **3g-ii** — what happens on a phone somebody is using? Device state only:
   open a camera, a browser and several apps by hand, then run an existing
-  probe. No build at all.
+  probe. No build, no reboot required.
 
-**And one cheap loose end, now that `CMD_VERIFY` exists**: does a stored file
-survive a reboot with its CONTENT intact, not merely its size? 3e-iv could only
-check the size and its own file is now stranded. One `Probe3fActivity` run with
-`--ei keep 1` to write and checksum, a reboot, one more to read and compare. No
-build. Fold it into 3e-v's reboots rather than spending a power cycle on it.
+Two optional extras, both cheap, neither blocking:
 
-**A rebuild is always allowed now** — there is no stored config left worth
-protecting. `penny3eiii`'s store is gone and `penny3f` deletes its own unless
-`--ei keep 1` is passed. The moment a run DOES pass `--ei keep 1`, that
-protection is back and a reinstall strands it again.
+- **Can a NEW encrypted store be created before first unlock?** 3e-v answered
+  the re-open case twice; the create case is untested, because boot 1 died on
+  the stale-config trap and the file it eventually read had been written
+  unlocked. This is the first-boot-after-factory-reset case. One constant
+  (a new VM name in `Penny3evService`) and two reboots.
+- **Endurance.** Still nothing anywhere in this repo. Nothing has run longer
+  than about twenty seconds, and nothing has been tested on battery.
 
-**The payload budget is spent for this handset.** Nothing in 3e-v, 3g-i or
-3g-ii needs guest C. If something later does, add a SIXTH payload in the
-command-server shape and make it answer everything outstanding at once — the
+**A rebuild now COSTS something again.** `penny3ev`'s store holds a verified
+64MB file and a reinstall strands it — and worse, `Penny3evService`'s recovery
+path will then silently delete and recreate it, logging `STORE WAS RESET`. That
+line is the only thing standing between a stranded store and a false NO. If a
+rebuild is needed and `penny3ev` still matters, give the new work its OWN VM
+name.
+
+**The payload budget is spent for this handset, and 3e-v and 3g-i spent none of
+it.** Both were answered with `Penny3fPayload.so` unchanged, using `CMD_STREAM`
+and `CMD_VERIFY`. If something later does need guest C, add a SIXTH payload in
+the command-server shape and make it answer everything outstanding at once — the
 Terminal app has to be opened by hand and that is the expensive part, not the
 compile.
 
@@ -1162,11 +1246,26 @@ Do not work ahead of the current rung.
   `hiddenapi 0x0020 (SDK,TEST-API)`, so a sideloaded app may call it.
 - **`getOrCreate` reuses the VM's STORED config, and the APK path changes on
   every reinstall.** The failure is
-  `VirtualMachineException ... FileNotFoundException: ENOENT` thrown out of
-  `VirtualMachineConfig.toVsConfig`, which reads as a missing VM and is not: it
-  is the old config pointing at a `/data/app/~~<hash>/base.apk` that the
-  reinstall replaced. Never reinstall between two runs that must share an
-  encrypted store. Cost one run on 15 Sept.
+  `VirtualMachineException: Failed to open APK ... FileNotFoundException: ENOENT`
+  thrown out of `VirtualMachineConfig.toVsConfig`, which reads as a missing VM
+  and is not: it is the old config pointing at a `/data/app/~~<hash>/base.apk`
+  that the reinstall replaced. Never reinstall between two runs that must share
+  an encrypted store. Cost one run on 15 Sept, and then **a whole reboot of
+  rung 3e-v on the same day, because the trap was remembered and then talked
+  out of.** The reasoning that did the damage: "the stored config was written
+  minutes ago by the current install, so it cannot be stale" — which sounds
+  decisive and is unfalsifiable from outside the app. It was stale; the VM had
+  been created under the FIRST of that day's installs.
+  **READ `config.xml`, do not reason about it.** It sits at
+  `/data/user_de/0/<pkg>/vm/<name>/config.xml`, `adb shell` cannot read it on a
+  user build, and the app itself can — `Penny3evService.dumpVmDir()` lists the
+  VM directory and prints anything small and textual, which named the cause in
+  one line after two wrong guesses. That helper costs nothing until something
+  fails and is worth copying into anything that uses `getOrCreate`.
+  Two zero-code tests exonerate the innocent suspects in about a minute, both
+  via `Probe3fActivity`: `--ei keep 0` is `delete`+`create` WITH encrypted
+  storage, `--ei keep 1` is `getOrCreate` on a VM the current APK made. If both
+  pass, the fault is that one VM's stored config.
 - **A guest payload must define its own `memcpy` and `memset`.** gcc may turn a
   bounded copy or clear loop into a call to either EVEN under `-ffreestanding`
   — the C standard requires those functions to exist in a freestanding
@@ -1237,6 +1336,16 @@ Do not work ahead of the current rung.
   once evicted a whole run's own log lines from the default ring buffer
   before they could be read. The symptom is a probe that appears to have
   printed nothing.
+  **IT CANNOT BE DONE FOR A BOOT-TIME MEASUREMENT, and there is no fix.**
+  `-G` dies on reboot, adb cannot reach a locked GrapheneOS phone to set it
+  beforehand, and the persistent route is refused:
+  `setprop persist.logd.size 64M` returns
+  `Failed to set property ... See dmesg for error reason` (SELinux, measured 15
+  Sept). So the boot window is always recorded at the default buffer size.
+  The mitigation that works: have each boot-time component accumulate its
+  findings and re-emit them as ONE compact `SUMMARY` line at a quiet moment —
+  after the unlock, say. `Penny3evService` and `Penny3giService` both do it. If
+  the flood evicts the detail, the answer still survives.
 - **The guest's CPU count is NOT in the guest console.** microdroid attaches
   the console pipe after the kernel's SMP bringup, so `grep -i cpu` over the
   whole console returns zero lines and an absent count proves nothing. Count
@@ -1248,7 +1357,18 @@ Do not work ahead of the current rung.
   executor.** A watchdog sleeping on it blocks the very callback it is
   waiting for, and a perfectly healthy VM is reported as one that never
   became ready. Cost one run on 15 Sept; the control caught it before any
-  real figure was measured.
+  real figure was measured. **Walked into AGAIN on 15 Sept in
+  `Penny3giService`**, whose blocking `runBoth()` sat on the same executor
+  `setCallback()` was handed, and a healthy 256MB VM read as never ready for
+  three minutes. The rule in practice: **`mExecutor` is for callbacks and for
+  nothing else.** Anything that blocks — a watchdog, a wait loop, a command
+  chain — gets `new Thread(...)`.
+  **A SMOKE TEST IS WHAT CAUGHT IT, and that is the cheap habit worth keeping.**
+  A boot-only service can be started by hand with
+  `adb shell am start-foreground-service -n <pkg>/.<Service>` while the phone is
+  unlocked, which exercises startForeground, the VM bring-up, vsock and the
+  whole command path without spending a reboot. Pick one that owns no store to
+  contaminate. Four minutes, and it saved a power cycle.
 - **A payload built on Debian will not load in microdroid, and the failure is
   at dlopen where nothing useful is logged.** Debian is glibc; microdroid is
   Android, so bionic, and there is no glibc in the guest at all. Built the
@@ -1409,6 +1529,14 @@ Do not work ahead of the current rung.
   `startForeground` must be called inside that window or the service is
   killed. Rung 3 used ~5ms, so there is headroom, but a cold dex2oat on
   the first boot after an update eats into it.
+  **IT GOVERNS `startForeground` AND NOTHING AFTER IT — do not budget VM time
+  against it.** Rung 3g-i was defined on the assumption that a 2GB VM's extra
+  ~4s to `onPayloadReady` ate into this window. It does not: every service here
+  calls `startForeground` as the first statement of `onStartCommand` and hands
+  VM work to another thread afterwards. Measured 15 Sept, `Penny3evService` 33ms
+  in and `Penny3giService` 2ms in, with **all five foreground services taking
+  the exemption on the same boot**. Running that rung on its own terms would
+  have produced a reassuring non-answer.
 - The VM does **not** start itself after a device reboot. The Terminal
   app has to be opened by hand. It reaches a prompt in 4-5 seconds.
   **That is a fact about the Terminal app, not about VMs** — rung 3
@@ -1503,22 +1631,23 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   bytes the host manufactured. A real model arrives over a network, and neither
   the download, nor where it is staged on the host, nor what either costs has
   been looked at once.
-- **The store survives a REBOOT — ANSWERED YES, 3e-iv.** 1610612736 bytes
-  exactly, all 1536MB faulted in from cold at ~598 MB/s after a power cycle.
-  **The pre-unlock half is STILL OPEN and is now rung 3e-v.** It could not be
-  asked at all: GrapheneOS kills the USB port at the lock screen, so no
-  adb-driven probe can ever reach the phone pre-unlock, and the read finally
-  ran 34 seconds after first unlock. If the store's key is tied to the user's
-  credential, no model can be read at boot and every unattended result in this
-  repo applies only to an already-unlocked phone. It needs its own
-  `directBootAware` service, its own VM, its own store and two reboots.
-  **And 3e-iv verified SIZE, not CONTENT** — a store handing back 1.5GB of
-  zeroes would have logged identically. **The verify command now EXISTS**
-  (`CMD_VERIFY` in the 3f/3h payload, exercised on files up to 1.5GB), so the
-  method gap is shut — but **3e-iv's own file is stranded** by the reinstall
-  that build required, and the reboot-with-content question has still never
-  been asked. It is now cheap: `--ei keep 1`, a reboot, `--ei keep 1` again.
-  Fold it into 3e-v's reboots rather than spending a power cycle on it.
+- **THE STORE GATE IS FULLY CLOSED — 3e-iv and now 3e-v.** 3e-iv: the store
+  survives a power cycle, 1610612736 bytes, all 1536MB faulted in from cold at
+  ~598 MB/s. **3e-v, 15 Sept: it opens BEFORE FIRST UNLOCK and hands back the
+  right BYTES** — 67,108,864 of them, ck64 `0x757b795dd5138044`, 14.4s after
+  power-on with `userUnlocked=false` and 197.6 seconds of margin, with an
+  after-unlock read of the same store down the same socket returning the
+  identical checksum as a control. **The key is not tied to the user's
+  credential, so a model can be read at boot with nobody in the room**, and
+  every unattended result in this repo keeps its meaning.
+  3e-iv's SIZE-not-CONTENT gap is closed with it: the checksum is DERIVED from
+  a fixed-seed generator rather than copied from a log, so a store handing back
+  the right number of zeroes would have failed.
+  **What replaced this question: a store has never been CREATED before first
+  unlock.** 3e-v's file was written on an unlocked phone; the pre-unlock attempt
+  on its first boot died on the stale-config trap. That is the
+  first-boot-after-factory-reset case and it is cheap — one constant and two
+  reboots.
 - **Compute is MEASURED — rung 3f, 15 Sept, and the guest CPU is real.** Eight
   vCPUs carrying genuine physical core identities, single-core at parity with
   the same binary running in Debian on the same silicon (bit-identical results
@@ -1530,11 +1659,19 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   NEON/dot-product throughput — the things a quantised model actually leans on
   — are all still unmeasured, and the guest advertises `asimd`, `asimddp` and
   `fphp` that nothing here has touched.
-- **Every 2GB figure was taken on an idle, unlocked, foreground phone.** Whether
-  a 2GB VM can start at boot inside the 20-second exemption, and whether the
-  low-memory killer takes our app on a phone somebody is actually using, are
-  **now rungs 3g-i and 3g-ii** and are commercial risks rather than laboratory
-  ones.
+- **THE WAKE AND THE MEMORY ARE NOW IN THE SAME ROOM — rung 3g-i, 15 Sept.** A
+  2048MB VM reached its payload at boot, locked and unattended, on two reboots
+  (65.7s and 23.5s after power-on), each with a 256MB control on the same boot
+  from the same service, and the guest's own kernel reporting
+  `MemTotal: 2038164 kB`. Our app was never killed; the casualties were four
+  cached processes on one boot and none on the other. **So a VM big enough to
+  hold a model wakes on its own, and 3e-v says it can read a model while it is
+  there.** The 20-second exemption was never the constraint — see the trap.
+  **What replaced this question: 3g-ii, what happens on a phone somebody is
+  USING.** Both 3g-i boots were an idle phone with nothing open and the Debian
+  VM down. Four `cch CEM` casualties say nothing about a camera and a browser
+  someone is actually looking at. It needs no build and no reboot, only device
+  state, and it is the ONLY thing left on this handset.
 - **THE LARGEST UNANSWERED THING IN THIS REPO: the guest still does nothing
   WITH the audio.** The payload hashes it and echoes it back — in 3c unlocked,
   in 3d at boot. No recognition, no model, no processing of any kind. "Audio
