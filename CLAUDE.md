@@ -526,80 +526,64 @@ between those is most of the product.
 `VmService` was NOT touched. 2d re-ran from the same APK afterwards and still
 returns exit code 42, so nothing regressed.
 
-**Rung 3d — does the whole chain run at boot, locked, with nobody in the
-room? OPEN. DEFINED 15 Sept, NOT YET ANSWERED.** This is the join of 3, 3b
-and 3c. Every piece is already proven separately and on this same APK; not
-one of them has ever run in the same boot as the others. It is therefore an
-integration test, not a new capability question — and it is the last rung
-before rung 4.
+**Rung 3d — does the whole chain run at boot, locked, with nobody in the room?
+ANSWERED YES.** 15 Sept. All six conditions defined in advance, met on two
+reboots, on one APK. The sideloaded app woke itself, took the microphone at the
+lock screen, booted a VM it owns running code it wrote, and delivered one real
+second of captured audio into that VM intact — **15.1s and 15.5s after
+power-on, `userUnlocked=false`, the PIN not typed for another 134s and 101s.**
 
-The chain, end to end, all of it before the PIN is typed:
+    1  userUnlocked=false AT THE EXCHANGE   both boots
+    2  audio real on the samples            peak 1506/2723, 90.5%/90.9% non-zero
+    3  the guest's OWN console fnv1a        cid 2049: ac4b8dcf / 312decbb, matched
+    4  guest exit code 43                   both boots
+    5  every timestamp before first unlock  134.5s and 101.3s of margin
+    6  reproduced on a second reboot        yes
 
-    power on -> LOCKED_BOOT_COMPLETED -> assistant binds (3b)
-             -> microphone captures real audio (3b)
-             -> VM boots and the payload listens (3 + 2d)
-             -> audio crosses vsock into the guest (3c)
-             -> guest hashes it and echoes it back
-             -> host verifies the hash matches what it recorded
+**The whole voice path now runs end to end without a human — minus the part
+that understands what was said.** That last part is the largest unanswered
+thing in this repo. See the open threads.
 
-**DONE MEANS, and all six or it is not a yes:**
+`Penny3dService` is a **COPY** of `VmService`, not an edit: `VmService` is
+still byte-for-byte what rung 3 proved and it ran on both these reboots.
+Three services now start from the same boot broadcast — `VmService`,
+`MicFgsService`, `Penny3dService` — independent, none able to take the others
+down. The guest payload was **not rebuilt**: `Penny3cPayload.so` from 3c was
+reused unchanged, same wire protocol, no new variable.
 
-1. `userUnlocked=false` logged at the moment of the exchange, not merely at
-   boot.
-2. The audio is judged REAL on the samples — peak, RMS, proportion non-zero —
-   never on the absence of an exception. A checksum over 32,000 zeros matches
-   perfectly and means nothing. The host must refuse to send silence.
-3. The guest's own console — a channel this app cannot write to — reports the
-   same FNV-1a the host computed.
-4. Guest exit code 43.
-5. `sinceBoot=` timestamps place every one of the above BEFORE the first
-   unlock, which is the only way to prove a human was not involved.
-6. Reproduced on a second reboot. Rung 3b's first reboot would have been
-   written up as a NO and would have been wrong.
+**Five things measured here that were not known before.**
 
-**Preconditions, and the run is void without them.** All three reset
-silently and none of them logs a complaint:
+- **One foreground service may declare `specialUse|microphone` and start at
+  boot.** Rung 3 used specialUse alone, 3b used microphone alone. Combined,
+  accepted every time. The wake service, the listening service and the VM
+  holder can be the same object.
+- **The assistant-role microphone exemption reaches a service that is also
+  holding a VM.** 3b showed it reaches beyond the assistant's own process;
+  this shows it is not narrowed by what else the service does.
+- **Three simultaneous microphone captures in one app at boot all returned
+  real audio** — ~10.7s, ~13.8s, ~14.3s. The contention worry was unfounded.
+- **The microphone is still there at ~14s**, not only at the ~9.5s 3b measured.
+- **Two VMs boot unattended before first unlock**, `penny3` and `penny3d`,
+  both `requesterUid: 10192`, 256MB each on a 6GB phone.
 
-    settings secure voice_recognition_service = com.pennyspike.probe2a/.PennyRecognitionService
-    role holder android.app.role.ASSISTANT    = com.pennyspike.probe2a
-    RECORD_AUDIO                              granted
+Rung 3 has now reproduced on **six** reboots, rung 3b's microphone on **four**.
 
-Check them immediately before `adb reboot`, every time. If the recogniser is
-empty, Penny is evicted at boot and the microphone half produces a false NO —
-see the eviction trap.
+**The ordering decision, and it was written down before the run.** The
+microphone is available at ~9.5s, the VM not until ~14s, so the audio exists
+before there is anywhere to send it. Buffer early, or capture on
+`onPayloadReady`? Took the second: `MicFgsService` is already capturing at
+~12-13s on the same boot and a second `AudioRecord` then risked contention
+that would look exactly like OS suppression; it keeps "no audio" and "audio
+but no crossing" separable in the log; and asking later is the harder case.
+Record this kind of choice BEFORE the run — a log cannot tell you afterwards.
 
-**The four things this has to face that no earlier rung did.**
-
-- **`VmService` must hold the vsock channel.** It is the one file this spike
-  has never edited, because it carries the rung 3 wake result proven over four
-  reboots. **Take a COPY and edit the copy** — same discipline that kept 2d and
-  3c out of it. The proven service stays runnable from the same APK.
-- **The two halves came from different processes.** 3b's audio came from a
-  service exempted by the assistant role; 3c's VM and vsock came from a
-  foreground activity with the phone unlocked. At boot there is no activity and
-  no human, so both have to happen in one directBootAware service — and whether
-  the assistant exemption reaches a service that is ALSO holding a VM is
-  untested.
-- **Ordering, and it is the likeliest way this fails without being a real NO.**
-  The VM takes ~14s from power-on; the microphone is available at ~9.5s. The
-  audio is therefore ready before there is anywhere to send it. Buffer it, or
-  capture on `onPayloadReady` — but decide deliberately, because "the send
-  failed" and "the boundary does not work at boot" look identical in a log.
-- **The 20-second boot FGS exemption.** `startForeground` must be called inside
-  it. Rung 3 used ~5ms, so there is headroom, but a cold dex2oat on the first
-  boot after an install eats into it and the VM boot does not.
-
-**Practicalities, because this one needs the phone touched.** GrapheneOS kills
-the USB data path while locked, so after `adb reboot` the cable is dead until
-somebody unlocks by hand. All evidence is read from `logcat` AFTER the unlock
-and proved by `sinceBoot=` timestamps. And **make real noise near the phone
-while it is locked** — a silent room and a suppressed microphone are
-indistinguishable.
-
-**Explicitly NOT in scope, and do not let a yes here be stretched into any of
-them:** streaming or sustained capture (3d is one second, once, same as 3c),
-the guest doing anything WITH the audio, endurance, attestation, or the
-delivery problem — `pm grant` and the assistant slot both still need a cable.
+**What 3d does NOT say.** The guest hashes the audio and echoes it; there is
+no recognition, no model, no processing. It was one second, once, into a VM
+that lived three seconds — no streaming, no endurance. Delivery is unchanged:
+`pm grant` and `voice_recognition_service` both still need a cable. Still
+`DEBUG_LEVEL_FULL`, still non-protected, still sample DICE values, so no
+attestation claim rests on it. And two reboots is reproducibility, not
+reliability — nothing was tested under memory pressure or on battery.
 
 **Rung 4 — the OS image. DO NOT START IT.** Build GrapheneOS from source,
 preinstall the app, sign with our platform key, flash, lock, verify
@@ -666,6 +650,17 @@ Do not work ahead of the current rung.
   `grep PENNY3C` drops the number entirely, making it look like the payload
   printed nothing. Build the whole line in a buffer and write it once, or grep
   on the payload's thread id (`T61`) rather than on the message prefix.
+- **The guest console's payload thread id CHANGES between boots.** The fix for
+  the fragmentation trap above is to grep the thread id rather than the message
+  prefix — but it was T61 on one boot, T62 on another and T63 on a third, so a
+  remembered id silently returns nothing and looks like a payload that printed
+  nothing. Find it first with `grep "PENNY3C: host connected"`, then grep that
+  thread. Cost a minute on 15 Sept, twice.
+- **A foreground service may declare TWO types at once and still start at
+  boot.** `android:foregroundServiceType="specialUse|microphone"` was accepted
+  on every attempt in rung 3d. This was an open risk before 3d and is now
+  answered: the wake service, the listening service and the VM holder do not
+  have to be three separate objects.
 - **`libvm_payload.so` cannot be read from the host.** It exists only inside
   `/apex/com.android.virt/etc/fs/microdroid.img`, which is EROFS (magic
   `e2e1f5e0` at offset 1024) with that file's blocks compressed. Much of the
@@ -844,20 +839,17 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
 - Claude Code has never done real work in the guest. `git` is absent. One
   arithmetic prompt at 317MiB says nothing about an agent holding a long
   context and running tools.
-- **Voice HAS now crossed the VM boundary — rung 3c, 15 Sept — but only with
-  the phone unlocked and a human at the keyboard.** 32,000 bytes of real
-  captured PCM went host -> guest and back, hash-identical. What has never been
-  tested is that trip happening at BOOT, locked, unattended, which is where
-  rungs 3 and 3b live. **That join is DEFINED ABOVE AS RUNG 3d** — read that
-  section, not this bullet, before starting it. Unlike everything before it,
-  every piece of it is already proven separately: it is an integration test,
-  not a new capability question. OPEN as of 15 Sept.
+- **The join is CLOSED — rung 3d, 15 Sept.** Voice crosses the VM boundary at
+  boot, locked, unattended, on two reboots. This bullet used to name it as the
+  next real unknown; it is not one any more. What replaced it is the bullet
+  below: the guest does nothing with the audio once it arrives.
 - **One second, once, is not a stream.** 3c sent 32,000 bytes in a single shot
   into a VM that lived 3 seconds. No streaming, no backpressure, no long-held
   channel, no endurance. Do not let 3c be stretched into "audio streams to the
   guest".
-- **The guest still does nothing WITH the audio.** 3c's payload hashes it and
-  echoes it back. No recognition, no model, no processing of any kind. "Audio
+- **THE LARGEST UNANSWERED THING IN THIS REPO: the guest still does nothing
+  WITH the audio.** The payload hashes it and echoes it back — in 3c unlocked,
+  in 3d at boot. No recognition, no model, no processing of any kind. "Audio
   reached the guest" is not "Penny heard you" and the gap between those two is
   most of the product.
 - **`libvm_payload.so`'s API surface is still unread**, and with it the binder

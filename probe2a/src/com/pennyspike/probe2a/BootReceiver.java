@@ -69,5 +69,29 @@ public class BootReceiver extends BroadcastReceiver {
             Log.e(MicProbe.TAG, "MIC [B-fgs] VERDICT: NOT TESTED — refused at"
                     + " start, before the microphone was ever requested.");
         }
+
+        // Rung 3d. Third independent start from the same broadcast, and
+        // independent for the same reason as the other two: it must not be
+        // able to take the proven rung 3 wake path or the rung 3b microphone
+        // path down with it. All three race the same 20-second exemption
+        // window, and all three are cheap up to startForeground.
+        Intent chain = new Intent(context, Penny3dService.class);
+        chain.putExtra("why", action);
+        try {
+            context.startForegroundService(chain);
+            Log.i("PENNY3D", "startForegroundService(Penny3dService) accepted for "
+                    + action + " sinceBoot=" + SystemClock.elapsedRealtime() + "ms");
+        } catch (Throwable t) {
+            // A service declaring BOTH specialUse and microphone may be
+            // refused at boot where either alone is allowed. If that is what
+            // happens it is the finding, so it is logged as one rather than
+            // read later as "the chain did not run".
+            Log.e("PENNY3D", "startForegroundService(Penny3dService) REFUSED -> "
+                    + t.getClass().getName() + ": " + t.getMessage(), t);
+            Log.e("PENNY3D", "VERDICT 3d: NOT TESTED — refused at start. The"
+                    + " combined specialUse|microphone type is the first"
+                    + " suspect; rung 3 used specialUse alone and rung 3b used"
+                    + " microphone alone, and both were accepted.");
+        }
     }
 }

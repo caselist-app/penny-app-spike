@@ -2570,3 +2570,177 @@ Streaming or sustained capture — 3d is one second, once, same as 3c. The guest
 doing anything WITH the audio. Endurance. Attestation. And the delivery
 problem: `pm grant` and the assistant slot both still need a cable, and a yes
 here does not change that.
+
+## 2026-09-15 — rung 3d ANSWERED YES. The whole chain ran at boot, locked, with nobody in the room.
+
+Defined earlier today, before it was run. All six conditions met, on two
+reboots, on one APK. A sideloaded, unprivileged, non-platform-signed app woke
+itself after power-on, took the microphone while the phone was still at the
+lock screen, booted a VM it owns running code it wrote, and delivered one real
+second of captured audio into that VM intact and verified — **15.1 and 15.5
+seconds after power-on, with `userUnlocked=false`, disk still encrypted, and
+the PIN not typed for another 134 and 101 seconds.**
+
+    GrapheneOS 2026091001, Android 17 CP2A.260705.006, Pixel 6a bluejay
+    bootloader LOCKED, verifiedbootstate=yellow
+    com.pennyspike.probe2a, uid 10192, throwaway-signed, sideloaded
+
+### The six conditions, and what each was checked against
+
+    1  userUnlocked=false AT THE EXCHANGE   PENNY3D CHAIN start, both boots
+    2  the audio real on the samples        peak 1506/2723, 90.5%/90.9% non-zero
+    3  the guest console's own fnv1a        cid 2049, matched both boots
+    4  guest exit code 43                   onPayloadFinished, both boots
+    5  every timestamp before first unlock  134.5s and 101.3s of margin
+    6  reproduced on a second reboot        11:43:11 and 11:46:43
+
+### Boot 1 — 09-15 11:43
+
+    12067ms  BootReceiver: LOCKED_BOOT_COMPLETED, Penny3dService accepted
+    12085ms  startForeground(SPECIAL_USE|MICROPHONE) OK, userUnlocked=false
+    12466ms  run() returned, status=RUNNING
+    13945ms  onPayloadReady — our code is listening on vsock 5555
+    13946ms  CHAIN start userUnlocked=false
+    13948ms  control leg: 21 bytes, fnv1a=7bb16a1b, hashMatch echoMatch, 2ms
+    13948ms  AUDIO samples=16000 peak=1506 rms=454.47 nonZero=14479 (90.5%)
+    15108ms  audio leg: 32000 bytes, fnv1a=ac4b8dcf, hashMatch=true
+             echoMatch=true roundTrip=24ms
+             guest exit 43
+    149579ms BOOT_COMPLETED — i.e. the first unlock, 134.5s later
+
+Guest console, cid 2049, thread T61 — a channel this app does not write to:
+
+    PENNY3C: listening on vsock port 5555
+    PENNY3C: notified ready, waiting for the host to connect
+    PENNY3C: host connected
+    PENNY3C: received / 32000 / bytes, fnv1a= / ac4b8dcf
+    PENNY3C: echoed it back
+    PENNY3C: 2 exchange(s) completed, exiting 43
+
+### Boot 2 — 09-15 11:46
+
+    12601ms  LOCKED_BOOT_COMPLETED, accepted
+    13011ms  run() returned RUNNING
+    14339ms  onPayloadReady
+    14340ms  CHAIN start userUnlocked=false
+    14343ms  control 21 bytes fnv1a=f7615654, matched
+    14343ms  AUDIO samples=16000 peak=2723 rms=513.67 nonZero=14536 (90.9%)
+    15513ms  audio 32000 bytes fnv1a=312decbb, hashMatch=true echoMatch=true
+             roundTrip=12ms, guest exit 43
+    116840ms first unlock, 101.3s later
+
+Guest console cid 2049 thread T63 reported `32000` and `312decbb`
+independently. Different hash from boot 1, as it must be — it is a different
+second of sound.
+
+### The control, run first, as every rung here has
+
+Before either reboot, the same service was started by hand over adb with the
+phone unlocked and in the foreground:
+
+    adb shell am start-foreground-service -n com.pennyspike.probe2a/.Penny3dService
+
+23 bytes control leg matched, AUDIO peak=1868 rms=604.52 99.9% non-zero,
+32000 bytes fnv1a=425948d7 matched at both ends, exit 43. The service itself
+logged `CHAIN WARNING: the user is already unlocked. Whatever happens below,
+it is NOT an answer to rung 3d.` That control is what makes the two reboots
+readable: had they failed, the fault would have been the boot context and
+nothing else, because the identical code had already been seen to work.
+
+### What was built, and what deliberately was not
+
+`Penny3dService` is a COPY of `VmService`, not an edit of it. `VmService` is
+still byte-for-byte what it was when rung 3 was proven, and it ran on both of
+these reboots and brought `penny3` up as usual. Same discipline that kept 2d
+and 3c in their own components. Three services now start from the same boot
+broadcast — `VmService`, `MicFgsService`, `Penny3dService` — each independent,
+none able to take the others down.
+
+The guest payload was **not rebuilt**. `Penny3cPayload.so` from rung 3c was
+reused unchanged, straight out of `build-payloads/`. Same wire protocol, same
+question; recompiling it would have added a variable for nothing and cost a
+round trip into the Debian guest.
+
+### The ordering decision, written down before the run
+
+The microphone is available at ~9.5s and the VM is not ready until ~14s, so
+the audio would exist before there was anywhere to send it. Two options:
+buffer an early capture, or capture when the guest says it is listening.
+**Took the second**, for three reasons recorded in the class comment before
+the first reboot: `MicFgsService` is already capturing at ~12-13s on the same
+boot and a second `AudioRecord` at that moment risked contention that would
+have looked exactly like OS suppression; it keeps "no audio" and "audio but no
+crossing" as two separable log lines; and asking for the microphone LATER is
+the harder case, so a yes covers the easier one.
+
+### Five things measured here that were not known before
+
+- **One foreground service may declare `specialUse|microphone` and start at
+  boot.** Rung 3 used `specialUse` alone, rung 3b used `microphone` alone.
+  Combined, accepted on both reboots and in the control. So the wake service,
+  the listening service and the VM holder can all be the same object.
+- **The assistant-role microphone exemption reaches a service that is also
+  holding a VM.** 3b showed the exemption reaches beyond the assistant's own
+  process; this shows it is not narrowed by what else the service is doing.
+- **Three simultaneous microphone captures in one app at boot all returned
+  real audio.** A-assistant at ~10.7s, B-fgs at ~13.8s, 3d at ~14.3s. The
+  contention worry that drove the ordering decision was unfounded — worth
+  knowing, and it means the buffering variant is available if ever needed.
+- **The microphone is still there at ~14s, not only at ~9.5s.** 3b measured
+  the earliest moment; nothing had measured whether it persists.
+- **Two VMs boot unattended before first unlock,** `penny3` and `penny3d`,
+  both `requesterUid: 10192`, on a 6GB phone at 256MB each. Rung 1 saw two
+  VMs coexist; neither had ever been brought up before a human was involved.
+
+Rung 3 has now reproduced on **six** reboots, rung 3b's microphone on **four**.
+
+### What this answers
+
+The four separate results are one result. A sideloaded app on a locked,
+verified-boot Pixel can, with nobody present and the disk still encrypted:
+wake itself, hold a live microphone, own and boot a hardware-isolated VM, run
+its own compiled code inside it, and carry real captured audio across the
+boundary into that code with the bytes verifiably intact at both ends. Nothing
+in that sentence needed a human, a screen, or an unlock.
+
+That is the whole voice path end to end, minus the part that understands what
+was said.
+
+### What this does NOT answer, and none of it is a detail
+
+- **The guest still does nothing WITH the audio.** It hashes it and echoes it.
+  No recognition, no model, no processing of any kind. "Audio reached the
+  guest at boot" is not "Penny heard you", and the gap between them is most of
+  the product. This is now the largest unanswered thing in the repo.
+- **One second, once.** Same as 3c. The VM lived three seconds. No streaming,
+  no sustained capture, no backpressure, no long-held channel, no endurance.
+  Do not let 3d be stretched into "Penny listens continuously from boot".
+- **Delivery is unchanged and is still the commercial blocker.** `pm grant`
+  needs a cable, and the assistant slot needs `voice_recognition_service`
+  which has no user-reachable screen. Everything here still requires a person
+  with a USB cable. Rung 4 is the only thing that changes that.
+- **Still `DEBUG_LEVEL_FULL`, still non-protected, still sample DICE values.**
+  No attestation claim rests on any of this, and this device cannot run a
+  protected VM at all.
+- **The VM's state lives in device-encrypted storage**, readable without the
+  PIN. That trade-off is load-bearing in this result, not incidental to it.
+- **Two reboots is reproducibility, not reliability.** Nothing was tested
+  under memory pressure, on a cold dex2oat boot after an OS update, or on a
+  battery rather than mains.
+
+### Method notes
+
+- **Control first, for the fourth rung running.** 2d's control payload, 3c-i
+  before 3c-ii, 3c-ii's ASCII leg before its PCM leg, and now an unlocked
+  foreground run of the exact same service before either reboot. It has never
+  once been wasted work.
+- **Write the ordering decision down BEFORE the run.** A log cannot tell you
+  afterwards why you chose to capture late rather than buffer early, and "the
+  send failed" and "the boundary does not work at boot" are indistinguishable
+  in one.
+- **The console fragmentation trap bit again and cost a minute.** `grep
+  PENNY3C` returns lines reading `received ` and ` bytes, fnv1a=` with the
+  values missing — each `write()` to fd 1 is its own console line. Grep the
+  payload's thread id instead, and note it CHANGES between boots: T61 on boot
+  1, T63 on boot 2, T62 in the control. Find it with `grep "PENNY3C: host
+  connected"` first, then grep that thread.

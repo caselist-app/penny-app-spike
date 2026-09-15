@@ -182,6 +182,35 @@
                 android:resource="@xml/recognition_service" />
         </service>
 
+        <!--
+          Rung 3d. A COPY of VmService, not an edit of it: VmService carries
+          the rung 3 wake result proven over four reboots and stays exactly as
+          it was. Both start from the same boot broadcast and neither can take
+          the other down, so rung 3 keeps reproducing on every reboot 3d uses.
+
+          TWO foreground-service types at once, and each is load-bearing.
+          specialUse is what honestly describes holding a VM and is what rung 3
+          proved may start at boot. microphone is what lets one service hold
+          the microphone at all. Whether a SINGLE service may be both, and
+          whether the assistant-role exemption rung 3b found reaches it, is
+          part of what rung 3d asks — so the combination is the experiment,
+          not a convenience.
+
+          directBootAware for the same reason as everything else here: without
+          it the OS does not deliver LOCKED_BOOT_COMPLETED and we would be
+          measuring the moment after the PIN instead of the moment after
+          power-on.
+        -->
+        <service
+            android:name=".Penny3dService"
+            android:directBootAware="true"
+            android:exported="true"
+            android:foregroundServiceType="specialUse|microphone">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Holds a virtual machine alive for the life of the device" />
+        </service>
+
         <!-- Rung 3b, attempt site B. Kept separate from VmService on purpose:
              the microphone FGS type is one the system may refuse to start from
              the background, and that refusal kills the service. VmService
