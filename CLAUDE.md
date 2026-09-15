@@ -45,50 +45,72 @@ deliberately left **ENABLED** so the device can be returned to stock.
     Claude Code    2.1.270 in the guest, native install, ~317MiB resident
     VM resources   3.9GB slider max -> 3.6Gi in guest, 8 cores, 104G disk
 
-**LIVE DEVICE STATE — as left at 15 Sept, 15:59, after rungs 3e-v and 3g-i.
+**LIVE DEVICE STATE — as left at 15 Sept, 16:32, after rung 3g-ii.
 Check it, do not trust it.** This block exists because state that only survives
 in a handover message is state that gets lost. Verify each line before relying
 on it; correct this block in the same commit as whatever changes it.
 
     Phone                      Last rebooted 15:55, unlocked by hand 15:58:45.
-                               NOT rebooted since.
-    Terminal app / Debian VM   DOWN. Force-stopped at 15:37 before rung 3g-i,
-                               and it does not restart itself after a reboot.
+                               NOT rebooted since. AC power, screen on.
+    Terminal app / Debian VM   DOWN since 15:37 and it does not restart itself.
                                It holds ~3.6GB while it runs, so close it again
                                before any memory-sensitive measurement.
-    penny3 (rung 3's VM)       UP, requesterUid 10192, brought up at
-                               sinceBoot 14,154ms on the 15:55 boot. Rung 3's
-                               EIGHTH reproduction. Leave it alone.
+    app force-stopped FOUR     `am force-stop com.pennyspike.probe2a` at 16:08,
+    times on 15 Sept           16:21, 16:31 (and once at 15:58). EVERY ONE
+                               restarts all five boot services, each of which
+                               re-runs and re-creates its VM. Budget for that
+                               storm before comparing any two runs.
+    penny3 (rung 3's VM)       UP, requesterUid 10192. Rung 3's EIGHTH boot
+                               reproduction was the 15:55 boot; it has since
+                               come back from three force-stops unaided, which
+                               is rung 3's restart-after-kill half, not its
+                               boot half. Leave it alone.
     penny3d (rung 3d's VM)     Ran at boot and exited 43, as designed. FOURTH.
-    penny3ev (rung 3e-v's VM)  STOPPED, store INTACT and worth protecting.
-                               /mnt/encryptedstore/penny3ev.bin is 67,108,864
-                               bytes, ck64 0x757b795dd5138044, and that value
-                               is DERIVABLE — Penny3evService recomputes it
-                               from the fixed-seed generator, so it needs no
-                               log to verify. **A reinstall strands it**, and
-                               the service's recovery path will then silently
-                               delete and recreate the store; it logs
+                               Re-ran on each force-stop.
+    penny3ev (rung 3e-v's VM)  STOPPED, store INTACT and worth protecting —
+                               RE-VERIFIED 16:31:39 after all four force-stops:
+                               /mnt/encryptedstore/penny3ev.bin, 67,108,864
+                               bytes, ck64 0x757b795dd5138044, SIZE MATCH and
+                               CONTENT MATCH, and `STORE WAS RESET` never
+                               appeared. That value is DERIVABLE — Penny3evService
+                               recomputes it from the fixed-seed generator, so it
+                               needs no log to verify. **A reinstall strands it**,
+                               and the service's recovery path will then silently
+                               delete and recreate the store, logging
                                STORE WAS RESET when it does.
-    penny3gic / penny3gi       Rung 3g-i's 256MB control and 2048MB test. Both
-                               ran at boot and exited 46. No store, deleted and
+    penny3gic / penny3gi       Rung 3g-i's 256MB control and 2048MB test. Ran
+                               three more times on 15 Sept (16:09, 16:21, 16:31)
+                               for 3g-ii, exit 46 each. No store, deleted and
                                recreated on every run, nothing to protect.
+                               **Runs ONCE PER PROCESS** — a second
+                               am start-foreground-service logs `already started
+                               by an earlier delivery — nothing to do` and does
+                               nothing. Re-arming it needs a force-stop.
+    penny3f store              **GONE.** 3g-ii's runs passed --ei storage 0 with
+                               keep=0, and the log shows `STEP3 deleted the
+                               previous penny3f` each time, so the VM was
+                               recreated with no encrypted store at all. The
+                               32MB file ck64 0x5f2e2310fc323145 is unreachable.
+                               Nothing depends on it.
     penny3eiii encrypted store **GONE — STRANDED, DELIBERATELY** on 15 Sept.
                                model.bin is unreachable. Do not plan anything
                                that needs it.
-    penny3f store              Holds a 32MB test file from this session's
-                               diagnostics, ck64 0x5f2e2310fc323145. Deleted at
-                               the start of any run that does not pass
-                               --ei keep 1. Nothing depends on it.
     installed APK              /data/app/~~F-GoV1zaM_NBcthOOhbUPQ==/
                                com.pennyspike.probe2a-5mEXn4-0AsY5FdvzYVuz6Q==
                                sha256 2e89918fdd783dac94946ebd81806fd5f9a8a791
                                f47686faa6f4b609070642df, 156,613 bytes.
-                               Rebuilt and reinstalled FIVE times on 15 Sept.
+                               Rebuilt and reinstalled FIVE times on 15 Sept and
+                               NOT rebuilt since — 3g-ii needed no build.
                                All five pm grants and all four assistant
                                preconditions survived every one.
+    apps opened by hand        For 3g-ii: camera, Vanadium, Gallery, Clock,
+                               Calculator, Files. The low-memory killer took the
+                               browser, gallery, clock and calculator during the
+                               16:31 run and they were NOT reopened. The camera
+                               is still on screen.
     adb forward tcp:2222       DEAD (the Debian VM is down). Pointless until it
                                is reopened by hand.
-    logcat buffer              set to 64M at 15:46; does not survive a reboot,
+    logcat buffer              set to 64M at 16:09; does not survive a reboot,
                                and `setprop persist.logd.size` is REFUSED by
                                SELinux on this build, so the boot window is
                                always measured at the default size.
@@ -1115,35 +1137,79 @@ out of encrypted storage while it is there.
 were an idle phone with nothing open and the Debian VM down. Two boots is
 reproducibility, not reliability.
 
-**Rung 3g-ii — what happens on a phone somebody is using? DEFINED, NOT RUN,
-and it is now the only thing left on this handset.** Booting a 2048MB VM drove
-the low-memory killer every time in 3e-ii and the first run killed thirteen
-processes. Our own app has never been killed at 2048MB — but only ever on an
-idle phone, and 3g-i's four `cch CEM` casualties are NOT evidence about this.
-Open the camera, a browser and several apps by hand first, then start the VM.
-**Device state only — no build at all**, run an existing probe. Control:
-3g-i's idle figures above, already recorded.
+**Rung 3g-ii — what happens on a phone somebody is using? ANSWERED: the VM does
+NOT kill what is on the screen. It evicts everything behind it, and the
+keyboard.** 15 Sept, three runs on one APK, no build and no reboot.
 
-**DONE MEANS:** yes/no our app survives, plus the list of casualties and their
-oom_score_adj.
+    run  phone state   foreground app   kills   deepest adj   our app   camera
+    A    idle          our own probe      37       905        survived    --
+    B    in use        our own probe      16       201        survived   KILLED (700)
+    C    in use        the CAMERA         14       201        survived   SURVIVED (0)
 
-**Sequencing — REVISED 15 Sept, after 3e-v and 3g-i. Both are ANSWERED, and
-the loose end with them.** What is left on this handset is **one** thing, and
-it needs no build at all.
+**Our app was never killed in any run**, and the guest got `MemTotal:
+2,038,100 kB` every time. The killer walks strictly from the cheapest tier down.
+On an idle phone it eats its fill of cached processes and stops at 905; on a
+loaded phone it clears the cached band and then takes
+`com.android.inputmethod.latin` at **adj 201** (`prcp IMPB`) — and stops there.
+**201 twice is the finding: it does not enter the foreground band (200/100/0).**
+The keyboard restarts itself immediately. In run C it died **1.9s AFTER
+`onPayloadReady`**, so the pressure does not end when the guest is ready.
 
-- **3g-ii** — what happens on a phone somebody is using? Device state only:
-  open a camera, a browser and several apps by hand, then run an existing
-  probe. No build, no reboot required.
+**Run B's dead camera is an artefact of the probe, and run C is what proves
+it.** `Probe3fActivity` is an ACTIVITY, so starting it takes the screen and
+demotes whatever was there to "previous app" (adj 700) — the camera died with
+reason `prev LAST`, killed as the app behind, not the app in front. Run C
+started the same 2048MB VM from `Penny3giService`, which never touches the
+screen, and the camera sat at adj 0 and lived. **Every one of run C's 14 kills
+landed AFTER the 2048MB VM was created** (first at +2.8s); its 256MB control
+caused none. So the casualties are attributable to the 2GB VM and nothing else.
 
-Two optional extras, both cheap, neither blocking:
+**A 2GB VM is SLOWER under load**: ready in 7,424ms in run C against 4,262ms for
+the same service on the same phone forty minutes earlier, and ~4.3s in 3e-i's
+idle figures.
+
+**The margin is ONE TIER and it is not a law.** 3e-i killed our own foreground
+TOP app at 4096MB, which took the VM handle with it. 2048MB stopped short twice.
+**2GB works on this handset and 4GB does not.**
+
+**What it does NOT say.** Every VM here lived about seven seconds and exited 46 —
+a 2GB VM held open for hours while somebody uses the phone is untested and is
+the actual product shape. Nothing RAN; `CMD_INFO` reads `/proc/meminfo` and
+exits. AC power, screen on, Debian VM down, one afternoon. And **a stripped
+phone was NOT tested — that is a rung 4 question.** Two things to carry into it:
+most of what died is the operating system, not user apps
+(`settings`, `permissioncontroller`, `media`, `acore`, `externalstorage`,
+`keychain`, `rkpdapp`, `packageinstaller`, the IME — and `rkpdapp` is remote key
+provisioning, part of the attestation story that justifies the phone); and fewer
+apps is not more headroom but fewer cheap victims — the idle phone had 37
+disposable cached processes and never went below 905, the loaded phone had fewer
+and went to 201. Which way that nets out is untested and must not be asserted.
+
+**Sequencing — REVISED 15 Sept, after 3g-ii. It is ANSWERED, and it was the
+last thing this handset could answer without a build.** What is left is **two**
+things and they share ONE build.
 
 - **Can a NEW encrypted store be created before first unlock?** 3e-v answered
   the re-open case twice; the create case is untested, because boot 1 died on
   the stale-config trap and the file it eventually read had been written
   unlocked. This is the first-boot-after-factory-reset case. One constant
-  (a new VM name in `Penny3evService`) and two reboots.
-- **Endurance.** Still nothing anywhere in this repo. Nothing has run longer
-  than about twenty seconds, and nothing has been tested on battery.
+  (a new VM name in `Penny3evService` — `penny3ev2`, a name that has never
+  existed, so `getOrCreate` has no prior directory) and two reboots: boot A
+  creates and writes pre-unlock, boot B re-opens pre-unlock and banks a third
+  reproduction of 3e-v free.
+- **Endurance. DESIGN UNDECIDED — it is Matt's call, ask before building.**
+  Still nothing anywhere in this repo; nothing has run longer than about twenty
+  seconds and nothing has been tested on battery. 3g-ii sharpened this rather
+  than answering it: every VM in it lived ~7 seconds. The shape that needs no
+  new guest C — a new `directBootAware` service (a COPY of `Penny3evService`),
+  its own VM and its own store, which brings the VM up, connects ONCE and then
+  sends `CMD_VERIFY` down the SAME socket every N minutes, logging elapsed
+  time, checksum, host `/proc/meminfo`, guest MemFree and battery each time.
+  `Penny3fPayload.so` calls `accept4()` exactly once and loops to a zero-length
+  frame, so one held connection is the only shape available and a periodic
+  command is free. **Ask Matt: how long, battery or AC, 256MB or 2048MB, screen
+  off.** Do this build TOGETHER with the store-create constant — one build, not
+  two.
 
 **A rebuild now COSTS something again.** `penny3ev`'s store holds a verified
 64MB file and a reinstall strands it — and worse, `Penny3evService`'s recovery
@@ -1210,6 +1276,17 @@ Do not work ahead of the current rung.
   `cch +45 CEM`. Nothing a user would notice, and our app survived. That is
   NOT evidence for rung 3g-ii, which asks what happens when the processes in
   the way are a camera and a browser someone is actually using.
+  **3g-ii ANSWERED it, 15 Sept, and the shape holds down to the tier that
+  matters.** On a phone with apps open the killer clears the whole cached band
+  and then takes the keyboard at **adj 201** — but stops there, twice, and never
+  enters 200/100/0. Our app survived all three runs and so did the app on the
+  screen. **The margin is one tier**, and 3e-i's 4096MB run shows it is
+  crossable. Two method points that cost time: `am force-stop` restarts ALL FIVE
+  boot services, so every run in this app carries a restart storm that must be
+  present on both sides before two runs are compared; and `Penny3giService` runs
+  once per process, logging `already started by an earlier delivery — nothing to
+  do` on a second `am start-foreground-service`, so re-arming it needs a
+  force-stop.
 - **A microdroid guest that runs out of memory LIVE-LOCKS; it does not OOM
   kill and it does not return an error.** microdroid builds a zram swap
   device sized to the guest's entire RAM, and zram is compressed swap held in
@@ -1667,11 +1744,24 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   cached processes on one boot and none on the other. **So a VM big enough to
   hold a model wakes on its own, and 3e-v says it can read a model while it is
   there.** The 20-second exemption was never the constraint — see the trap.
-  **What replaced this question: 3g-ii, what happens on a phone somebody is
-  USING.** Both 3g-i boots were an idle phone with nothing open and the Debian
-  VM down. Four `cch CEM` casualties say nothing about a camera and a browser
-  someone is actually looking at. It needs no build and no reboot, only device
-  state, and it is the ONLY thing left on this handset.
+  **3g-ii ANSWERED that, 15 Sept, and it is the last thing this handset could
+  answer without a build.** On a phone with the camera, a browser and four more
+  apps open by hand, a 2048MB VM killed 16 and 14 processes across two runs —
+  the whole cached band and then the keyboard at **adj 201** — and stopped
+  there both times, never entering 200/100/0. **Our app survived all three
+  runs, and so did the app on the screen** (camera at adj 0, run C, where the
+  VM was started from a background service so nothing took the screen). Run B's
+  dead camera was the probe's own activity demoting it to "previous app"
+  (adj 700, `prev LAST`), not the VM. A 2GB VM is slower under load: 7,424ms to
+  ready against ~4.3s idle.
+  **What replaced this question: it was seven seconds, three times.** A 2GB VM
+  held open for hours while somebody uses the phone is untested, and that is the
+  actual product shape — see Endurance in Sequencing. The margin is also one
+  tier: 3e-i killed our own foreground app at 4096MB, so **2GB works here and
+  4GB does not**. And a stripped phone — "the phone is Penny, delete the other
+  apps" — was NOT tested and is a rung 4 question; most of what died is the
+  operating system, `rkpdapp` (remote key provisioning) included, and fewer apps
+  is fewer cheap victims rather than more headroom.
 - **THE LARGEST UNANSWERED THING IN THIS REPO: the guest still does nothing
   WITH the audio.** The payload hashes it and echoes it back — in 3c unlocked,
   in 3d at boot. No recognition, no model, no processing of any kind. "Audio

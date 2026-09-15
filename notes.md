@@ -4281,3 +4281,174 @@ endurance test anywhere in this repo. Still `DEBUG_LEVEL_FULL`, still
 non-protected, still sample DICE values, so no attestation claim rests on any
 of it. And delivery is unchanged: `pm grant` and `voice_recognition_service`
 both still need a cable.
+
+## 2026-09-15 — rung 3g-ii ANSWERED. A 2GB VM on a phone somebody is USING does not kill what is on the screen. It kills everything behind it, and the keyboard.
+
+The last question this handset could answer without a build. Three runs, one
+afternoon, no reboot, no reinstall. The APK is unchanged:
+`sha256 2e89918fdd783dac94946ebd81806fd5f9a8a791f47686faa6f4b609070642df`,
+156,613 bytes, the same install all five of 15 Sept's rebuilds ended at.
+
+### The answer
+
+**Our app was never killed, in any run.** The low-memory killer walks strictly
+from the cheapest tier down, and on a loaded phone it goes far deeper than it
+does on an idle one — but it stops at `oom_score_adj` **201** and does not enter
+the foreground band (200/100/0).
+
+    run  phone state   foreground app   kills   deepest adj   our app   camera
+    A    idle          our own probe      37       905        survived    --
+    B    in use        our own probe      16       201        survived   KILLED (700)
+    C    in use        the CAMERA         14       201        survived   SURVIVED (0)
+
+**201 twice is the finding.** It is `com.android.inputmethod.latin`, the
+keyboard, killed with reason `prcp IMPB` — perceptible, important background.
+Android restarts it immediately because the system needs it. In run C it died
+**1.9 seconds AFTER the guest was already ready**, so the pressure does not stop
+at `onPayloadReady`.
+
+**Run B's dead camera is an artefact of the probe, not of the VM, and run C is
+what proves it.** `Probe3fActivity` is an activity, so starting it takes the
+screen and demotes whatever was there to "previous app" (adj 700). The camera
+died in run B with reason `prev LAST` — killed as the app behind, not the app in
+front. Run C removed that confound by starting the 2048MB VM from
+`Penny3giService`, a background foreground-service that never touches the
+screen, and the camera sat at adj 0 throughout and lived.
+
+### The three runs, in full
+
+**Run A — the idle control, 16:09:00.750.** Taken before any of this, on an idle
+unlocked phone, AC power, level 100, ~15 minutes' uptime, Debian VM down.
+
+    HOST before   MemFree 649,560 kB  MemAvailable 1,430,772 kB  Cached 1,833,492 kB
+    run()         accepted in 22ms
+    onPayloadReady  3,862ms after ASK
+    guest         MemTotal 2,038,100 kB, MemFree 1,925,740 -> 1,925,252 kB
+    CMD_INFO      status=0, guest exit 46
+    HOST after    MemFree 402,088 kB  Cached 3,115,752 kB
+    kills         37, every one adj >= 905, all `cch`
+    floor         905 — com.android.settings, com.android.externalstorage,
+                  com.android.providers.calendar, com.android.cellbroadcastreceiver
+
+**Run B — loaded, our probe in the foreground, 16:21:42.224.** Camera, browser,
+Gallery, Clock, Calculator and Files opened by hand, camera brought to the front,
+screen on and unlocked. Identical command to run A.
+
+    HOST before   MemFree 157,880 kB  MemAvailable 1,035,184 kB  Cached 1,941,588 kB
+    run()         accepted in 39ms
+    onPayloadReady  4,035ms after ASK
+    guest         MemTotal 2,038,100 kB, MemFree 1,929,824 -> 1,925,404 kB
+    CMD_INFO      status=0, guest exit 46
+    HOST after    MemFree 584,512 kB
+    kills         16, floor 201
+    casualties    app.grapheneos.camera     adj 700  `prev LAST`
+                  com.android.inputmethod.latin  adj 201  `prcp IMPB`
+                  app.vanadium.browser 900, cellbroadcastreceiver 905,
+                  settings 915, shell 925, documentsui 930, media 935,
+                  calculator2 940, externalstorage 945, permissioncontroller 955,
+                  deskclock 960, gallery3d 970, three Vanadium child processes
+    survivors     com.android.launcher3 (100), com.pennyspike.probe2a (100->0)
+
+Confirmed dead afterwards by `pidof`: camera, browser, gallery, clock. The
+keyboard had already restarted itself.
+
+**Run C — loaded, the CAMERA in the foreground, 16:31:43.304.** Same apps
+reopened by hand, camera on screen. The 2048MB VM started from
+`Penny3giService` instead, so nothing took the screen.
+
+    resident before, by adj   0 app.grapheneos.camera
+                              100 com.android.launcher3
+                              100 com.pennyspike.probe2a
+                              201 com.android.inputmethod.latin
+                              700 com.android.documentsui
+                              900-960 calculator2, deskclock, gallery3d, vanadium x4
+    HOST before   MemFree 326,352 kB  MemAvailable 1,216,232 kB
+    CONTROL 256MB ready in 2,390ms, guest MemFree 143,776 kB, exit 46, ZERO kills
+    HOST between  MemFree 1,260,424 kB
+    TEST 2048MB   run() accepted in 50ms, READY 7,424ms after the attempt began
+    guest         MemFree 1,927,220 kB
+    HOST after    MemFree 2,332,156 kB
+    kills         14, floor 201, ALL of them after the 2048MB VM was created
+    survivors     app.grapheneos.camera (0), com.android.launcher3 (100),
+                  com.pennyspike.probe2a (100)
+
+**The timing is what makes run C count.** The 256MB control caused not one kill.
+The first kill landed at 16:31:46.153, 2.8s after `TEST 2048MB start`, and the
+last at 16:31:52.633. So the 14 casualties are attributable to the 2048MB VM and
+to nothing else in the run.
+
+**The 2GB VM is slower under load and that is new.** 7,424ms to ready in run C
+against 4,262ms for the same service on the same phone forty minutes earlier,
+and against ~4.3s in 3e-i's idle measurements. It still got every byte:
+`MemTotal 2,038,100 kB` from the guest's own kernel each time.
+
+### Two things about the method that cost time and are worth keeping
+
+**`am force-stop` restarts all five boot services, and every run therefore
+carries a restart storm.** The idle control had been force-stopped 2.1s before
+its `am start` (the trap that says always force-stop before `am start`), which
+means `VmService`, `Penny3dService`, `Penny3evService`, `MicFgsService` and
+`Penny3giService` all came back and re-ran — `Penny3giService` bringing up its
+own 256MB control and its own 2048MB VM at 16:09:01-16:09:12, overlapping the
+probe. Run B was checked and had the identical storm at 16:21:43-16:21:54. The
+two runs are comparable only because the storm is on both sides. **Check for it
+before comparing any two runs in this app** — five services restarting is a
+different experiment from one probe starting.
+
+**`Penny3giService` runs once per process and says so.** A second
+`am start-foreground-service` logged `already started by an earlier delivery —
+nothing to do` and did nothing at all. Re-arming it needs a force-stop, which is
+how run C was obtained. A smoke test that appears to do nothing may be a guard,
+not a failure — read the log before assuming the service is broken.
+
+### What the casualty lists actually contain
+
+Nine of the processes killed across the three runs are AOSP system components,
+not user apps: `com.android.settings`, `com.android.permissioncontroller`,
+`android.process.media`, `android.process.acore`, `com.android.externalstorage`,
+`com.android.keychain`, `com.android.rkpdapp`, `com.android.packageinstaller`,
+`com.android.inputmethod.latin`. `rkpdapp` is remote key provisioning — part of
+the attestation machinery that is the reason this project is on a phone at all.
+
+**And "the apps you have open" is mostly a list of cached processes.** The
+snapshot taken before run B, after six apps were opened by hand and the camera
+brought to the front, found only five processes below adj 900 on the whole
+device: the camera at 0, the launcher at 100, our app at 100, the keyboard at
+201 and the previous app at 700. Everything else Android had already demoted to
+900-970 the moment the user switched away. The camera's HAL and `cameraserver`
+sit at -700 to -1000 and are never candidates.
+
+### What this does NOT say
+
+**It is not an argument that the memory is free.** 16 and 14 processes died. A
+user would see the browser reload its pages, the gallery restart, and the
+keyboard blink. The claim is narrow and it is the only one the log supports:
+**the app on the screen survived, twice, and so did ours.**
+
+**One 2GB VM, not a resident one.** Every VM here lived for seconds and then
+exited 46. Nothing measures a 2GB VM held for the length of a session while
+somebody keeps using the phone, which is the actual product shape.
+
+**Nothing was RUN.** `CMD_INFO` reads `/proc/meminfo` and exits. No model, no
+recognition, no workload — unchanged and still the largest gap in this repo.
+
+**The margin to the foreground band is one tier and it is not guaranteed.**
+The killer reached 201; the next tiers are 200, 100 and 0. Rung 3e-i already
+showed that band is reachable: at 4096MB it killed our own foreground TOP app,
+which took the VM handle with it. 2048MB stopped short twice. That is a measured
+boundary on this handset at this load, not a law.
+
+**A stripped phone was NOT tested, and it is a rung 4 question.** Matt's point
+during the run — the phone is Penny, so competing apps can be deleted — is
+recorded because it is the right question and this handset cannot answer it.
+What the OS image contains is exactly what rung 4 decides. Two things to carry
+into it. First, most of what died is the operating system, which comes back on
+any build. Second, fewer apps is not more headroom but fewer cheap victims: the
+idle phone had 37 disposable cached processes and the killer never went below
+905 because it ate its fill and stopped, while the loaded phone had fewer and
+went to 201. A bare image has almost none in front of the things that matter.
+Whether that nets out for or against is untested and must not be asserted
+either way.
+
+**Three runs on one afternoon, one phone, AC power, screen on, Debian VM down.**
+Nothing here is on battery, and the screen never went off.
