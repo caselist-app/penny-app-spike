@@ -107,6 +107,17 @@
             android:name=".Probe3eActivity"
             android:exported="true" />
 
+        <!-- Rung 3e-ii. 3e-i asked whether a big VM would be GIVEN; this asks
+             whether the guest can actually reach the memory it was given.
+             Its own activity and its own VM name, because 3e-i is a committed
+             result and is not put back in the frame to answer the next
+             question - the same discipline VmService, Penny3dService and
+             Probe3eActivity each got. Both figures are intent extras so the
+             whole bisect runs off one build. -->
+        <activity
+            android:name=".Probe3eiiActivity"
+            android:exported="true" />
+
         <!-- Rung 3b control. Runs the identical mic probe in the foreground
              with the phone unlocked, where access is unambiguously allowed.
              Without it, silence at boot cannot be told apart from a broken

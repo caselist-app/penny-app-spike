@@ -624,10 +624,13 @@ host kernel (`ps -AT` shows `crosvm_vcpu0`..`vcpu7`), because microdroid's
 console pipe attaches after SMP bringup and the guest's own CPU count is not
 in the log at all.
 
-**What it does NOT say, and the first is the point.** Being GIVEN 2GB is not
-being able to USE it: on the first 2GB run the host surrendered only ~660MB
-of the 2048MB granted, because the guest kernel does not touch pages it has
-not needed. That gap is **rung 3e-ii, NOT RUN.** Nor is it known where a
+**What it does NOT say.** ~~Being GIVEN 2GB is not being able to USE it: on
+the first 2GB run the host surrendered only ~660MB of the 2048MB granted.~~
+**ANSWERED AND PARTLY CORRECTED BY 3e-ii — see below.** The memory is real
+(1792MB written and read back inside a 2048MB VM, twice), and the ~660MB
+reading was an artefact of the low-memory killer freeing memory in the same
+moment: the host in fact pays ~1.92GB up front, at VM creation. Nor is it
+known where a
 model FILE would live — 3d logged `init: Unknown /data fs type: tmpfs` and
 every guest here built a zram swap sized to its whole RAM, so a 1.5GB model
 file may cost 1.5GB of RAM on top of running it. That is **rung 3e-iii, NOT
@@ -635,6 +638,64 @@ RUN.** Nothing ran inside the VM: the payload is 3c's, unchanged, and uses
 no second CPU. And this was unlocked, in the foreground, over adb — a 2GB
 VM takes ~4s longer to reach ready, which eats into the 20-second
 foreground-service exemption, so the boot case is untested.
+
+**Rung 3e-ii — is the memory REAL? ANSWERED YES, and it corrects 3e-i.**
+15 Sept. A sideloaded app's guest **wrote, read back and held 1792MB inside a
+2048MB VM — measured twice**, at 1.78-2.15 GB/s, with `status=0` and not one
+wrong byte in 5.1GB of verified traffic.
+
+    VM      asked    written AND verified   guest ms   outcome
+    256MB    64MB     64MB                     271     clean (CONTROL)
+    2048MB 1536MB   1536MB                    1410     clean
+    2048MB 1792MB   1792MB                    2014     clean
+    2048MB 1792MB   1792MB                    1664     clean, REPRODUCED
+    2048MB 1920MB   1856MB then wedged          --     kernel live-lock,
+                                                       VM down at 94s
+
+A 2048MB config gives the guest `MemTotal: 2038100 kB` (~57MB hypervisor
+overhead). Touching 1792MB moved guest MemFree by 1,840,124 kB against
+1,835,008 kB asked — **one for one**, which is the proof that zram absorbed
+none of it.
+
+**The pseudo-random fill is the decision the whole result rests on, and it
+was written down before the run.** microdroid gives every guest a zram swap
+device sized to the guest's WHOLE RAM (`Adding 2038096k swap on
+/dev/block/zram0` in a 2038MB guest). zram is compressed swap in that same
+RAM, so a payload filling pages with zeros would have reached 2GB having
+proved nothing at all. `payload/penny3eii_payload.c` fills every byte of
+every page with xorshift64* output and reads it all back.
+
+**THE CEILING IS A LIVE-LOCK, NOT AN OOM KILL, and it is silent.** See the
+trap entry. Ceiling is between 1856MB and 1872MB; **build on 1792MB, 88% of
+the guest's RAM.**
+
+**crosvm takes the memory AT VM CREATION, not lazily** — the correction to
+3e-i. On the clean run: host MemFree 2,257,952 kB before the VM existed,
+288,756 kB at `onPayloadReady` with the guest not yet having touched a page,
+137,088 kB after 1792MB of guest writes. **~1.92GB left the host before the
+guest asked for anything**; the guest's own writes then cost a further
+~150MB. So there is no hidden gap between granted and paid-for, and nothing
+can quietly fail later because the host over-promised.
+
+Booting a 2048MB VM drives the low-memory killer **every time**. The first
+run killed thirteen processes, including the Terminal app's Debian VM which
+had been opened fifteen minutes earlier to compile this payload. Our own app
+was never killed at 2048MB.
+
+Its own component throughout: `Probe3eiiActivity`, VM `penny3eii`, and a
+THIRD payload in the same APK (`PENNY_PAYLOAD_3EII_SO`). `VmService`,
+`Penny3dService` and `Probe3eActivity` untouched — rung 3d logged exit code
+43 mid-run, so nothing regressed.
+
+**What it does NOT say.** Nothing RAN: 1.8GB written and verified is memory,
+not compute, and the payload is single-threaded, so it used one of the 8
+vCPUs. The ceiling is with an EMPTY guest — 1792MB left 88MB free with only
+init and our payload in it, and a runtime eats into that. Residency was two
+seconds, not two hours. Unlocked, foreground, over adb. And where a model
+FILE would live is **rung 3e-iii, NOT RUN**, now more urgent rather than
+less: the guest's `/data` is `tmpfs` and zram already claims a swap device
+the size of the whole guest, so a 1.5GB model file may cost 1.5GB of RAM
+before anything loads it, against a measured ceiling of 1792MB.
 
 **Rung 4 — the OS image. DO NOT START IT.** Build GrapheneOS from source,
 preinstall the app, sign with our platform key, flash, lock, verify
@@ -681,6 +742,30 @@ Do not work ahead of the current rung.
   log a verdict, so the log shows `run() returned RUNNING` and then silence
   — which reads exactly like a VM that was accepted and hung. Check
   `logcat | grep "has died"` before concluding anything about a hang.
+- **A microdroid guest that runs out of memory LIVE-LOCKS; it does not OOM
+  kill and it does not return an error.** microdroid builds a zram swap
+  device sized to the guest's entire RAM, and zram is compressed swap held in
+  that same RAM. Push a guest near its ceiling with data that does not
+  compress and `kswapd` has to allocate memory in order to free memory:
+  `zs_malloc -> alloc_zspage -> __alloc_pages: page allocation failure`. The
+  VM then hangs — 94 seconds on 15 Sept — and powers itself down through a
+  normal shutdown. On the host there is no exception, no `has died` line and
+  no reply on the channel; it presents as a hang. Ceiling measured at
+  1856-1872MB in a 2038MB guest. Leave 10%.
+- **A guest payload that allocates must fill pages with INCOMPRESSIBLE data
+  or it measures nothing.** Same zram device as above: zeros or a repeated
+  byte compress away to almost nothing, so a payload can "hold" far more than
+  the guest has and the number is meaningless. Fill every byte of every page
+  from a PRNG. Check it worked by comparing the guest's MemFree drop against
+  the bytes written — 3e-ii's was one for one.
+- **Memory for a VM is taken at CREATION, not when the guest touches it.**
+  ~1.92GB left the host at `run()` for a 2048MB VM, before the guest had
+  written a single page; the guest's subsequent 1792MB of writes cost only
+  ~150MB more. So a host memory reading taken after boot has ALREADY paid for
+  the whole VM. Rung 3e-i misread this as lazy allocation because the
+  low-memory killer was freeing memory in the same instant; sample
+  `/proc/meminfo` repeatedly through a run rather than twice, or the two
+  movements cancel and the conclusion inverts.
 - **`adb logcat -G 64M` before measuring anything with a DEBUG_LEVEL_FULL
   guest.** One guest console is several hundred lines a second and three at
   once evicted a whole run's own log lines from the default ring buffer
@@ -925,15 +1010,14 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   into a VM that lived 3 seconds. No streaming, no backpressure, no long-held
   channel, no endurance. Do not let 3c be stretched into "audio streams to the
   guest".
-- **The memory gate is OPEN but only half-measured. Rung 3e-i answered
-  "will it be given" — 2GB and 8 vCPUs, yes. `3e-ii` (can the guest
-  actually WRITE to every page it was granted?) and `3e-iii` (is
-  microdroid's writable storage a RAM disk, so that a 1.5GB model file costs
-  1.5GB of RAM on top of running it?) are DEFINED AND NOT RUN.** Both need
+- **The memory gate is OPEN and now measured on both sides. 3e-i: 2GB and 8
+  vCPUs are given. 3e-ii: 1792MB of it is genuinely writable, readable back
+  and held, twice.** What is left is **`3e-iii`, DEFINED AND NOT RUN** — is
+  microdroid's writable storage a RAM disk, so that a 1.5GB model FILE costs
+  1.5GB of RAM before anything loads it? 3e-ii made that more urgent, not
+  less: the ceiling is 1792MB and the guest's `/data` is `tmpfs`. It needs
   the guest payload rebuilt, i.e. a round trip into the phone's Debian guest
-  for gcc. Until 3e-ii is answered, "the VM has 2GB" is a number in a config
-  and not a fact about memory — the host surrendered only ~660MB of the
-  2048MB it granted on the first run.
+  for gcc.
 - **THE LARGEST UNANSWERED THING IN THIS REPO: the guest still does nothing
   WITH the audio.** The payload hashes it and echoes it back — in 3c unlocked,
   in 3d at boot. No recognition, no model, no processing of any kind. "Audio

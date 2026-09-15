@@ -2917,3 +2917,178 @@ to be a VM host and little else.
   Debian guest for a compiler, and no new variable.
 - `VmService` and `Penny3dService` were not touched. `penny3` was up
   throughout and is still up.
+
+## 2026-09-15 — rung 3e-ii ANSWERED YES. The memory is real: 1792MB written, read back and held inside a 2048MB VM, twice. The ceiling is a zram live-lock at ~1870MB.
+
+Pixel 6a, GrapheneOS 2026091001, Android 17 CP2A.260705.006, bootloader
+LOCKED. `com.pennyspike.probe2a`, uid 10192, sideloaded, throwaway-signed.
+Unlocked and in the foreground over adb. Build tools 37.0.0, Temurin 21.
+Guest payload compiled by `gcc (Debian 14.2.0-19) 14.2.0` inside the phone's
+own Debian guest, as every payload in this repo has been.
+
+### The question, and why 3e-i did not answer it
+
+3e-i proved microdroid will hand a sideloaded app a VM configured for 2048MB
+and 8 vCPUs. It did not prove the guest can reach any of it. Linux hands out
+address space eagerly and pages lazily, so `setMemoryBytes(2GB)` succeeding
+and a guest HAVING 2GB are two different claims. 3e-i's own figures said so:
+on its first 2048MB run the host appeared to surrender only ~660MB. Until
+something inside the guest demands the memory, "the VM has 2GB" is a line in
+a config file.
+
+### What was built, and the one decision that would have invalidated the result
+
+`probe2a/payload/penny3eii_payload.c`, a THIRD payload in the same APK
+alongside 2d's and 3c's (`PENNY_PAYLOAD_3EII_SO` in `build.sh`), and
+`Probe3eiiActivity`, its own component with its own VM name `penny3eii`.
+`VmService`, `Penny3dService` and `Probe3eActivity` were not touched; all
+three still ran during these measurements and `PENNY3D` logged exit code 43
+mid-run, so rung 3d did not regress.
+
+The guest mmaps 16MB at a time, fills every byte, reads every byte back and
+checks it, and keeps it mapped. Three things in that sentence are
+load-bearing and the third is the one that mattered:
+
+- **mmap succeeding proves nothing.** Linux overcommits; a successful mmap of
+  2GB on a phone with 300MB free is normal and reserves address space, not
+  memory. So every page is written to.
+- **Nothing is unmapped between chunks**, because the question is how much is
+  held AT ONCE.
+- **The fill is PSEUDO-RANDOM (xorshift64*), not zeros.** microdroid gives
+  every guest a zram swap device sized to the guest's ENTIRE RAM — the 2GB
+  guest's own console reads `zram0: detected capacity change from 0 to
+  4076200` then `Adding 2038096k swap on /dev/block/zram0`. zram is
+  COMPRESSED swap living in that same RAM. A payload filling pages with zeros
+  or a repeated byte would have sailed to 2GB having proved nothing whatever,
+  because the guest kernel would have compressed it away into a few megabytes.
+  Incompressible bytes close that escape. **Written down before the run, not
+  after.**
+
+This is the first payload in this repo that allocates, which is why 3c's
+could not be reused.
+
+### Results
+
+    VM      asked    written AND verified   guest time   outcome
+    256MB    64MB     64MB                    271ms      clean (CONTROL)
+    2048MB 1536MB   1536MB                   1410ms      clean
+    2048MB 1792MB   1792MB                   2014ms      clean
+    2048MB 1792MB   1792MB                   1664ms      clean, REPRODUCED
+    2048MB 1920MB   1856MB then wedged          --       guest kernel
+                                                         live-locked, VM
+                                                         powered down at 94s
+
+Guest exit code 44 on every clean run. `status=0` every time — no mmap was
+ever refused and no read-back ever mismatched. Not one byte came back wrong
+in 5.1GB of written-then-verified memory.
+
+**Throughput 1.78-2.15 GB/s of write-plus-verify traffic.** That is RAM
+speed. Anything travelling through zram would have been an order of magnitude
+slower, so the number is itself evidence the pages were genuinely resident.
+
+### The guest's own accounting, which is the corroboration that matters
+
+A 2048MB config gives the guest `MemTotal: 2038100 kB` — about 57MB of
+hypervisor overhead, consistent across all four 2GB runs.
+
+Touching 1792MB moved guest `MemFree` from 1,930,160 kB to 90,036 kB. That is
+a drop of 1,840,124 kB against 1,835,008 kB asked for: **one for one**. If
+zram had absorbed any of it the drop would have been smaller than the amount
+written, and it was not. The pseudo-random fill did its job.
+
+### THE CEILING, AND IT IS NOT AN OOM KILL
+
+At 1856MB held in a 2038MB guest, the guest kernel began swapping to zram and
+deadlocked on itself:
+
+    kswapd0: page allocation failure: order:0, mode:0xc00(GFP_NOIO)
+      ... zs_malloc+0x1f8 / alloc_zspage+0x58 / __alloc_pages+0x220
+      ... zram_submit_bio / __swap_writepage / shrink_folio_list / kswapd
+
+**To free memory it had to allocate memory, and there was none.** With
+incompressible pages zram cannot win that trade. The VM did not OOM-kill the
+payload and did not return an error — it hung for 94 seconds and then powered
+itself down through a normal shutdown (`init: Stopping 4 services by sending
+SIGKILL`, `reboot: Power down`). On the host side that presents as a channel
+that goes quiet: no reply, no exception, no `has died` line, nothing.
+
+So the ceiling on a 2048MB VM is **between 1856MB and 1872MB**, and the
+figure to build on is **1792MB — 88% of the guest's RAM**, measured twice.
+
+### The host pays UP FRONT. This corrects rung 3e-i.
+
+3e-i recorded that the host surrendered only ~660MB of the 2048MB granted and
+named the gap as the open question. **That reading was wrong**, and it was
+wrong because Android's low-memory killer was freeing memory at the same
+moment the figure was taken, so the two movements partly cancelled. Measured
+cleanly here, on the run where nothing was killed mid-reading:
+
+    HOST before the VM exists    MemFree 2,257,952 kB   MemAvailable 2,879,040 kB
+    HOST at onPayloadReady       MemFree   288,756 kB   MemAvailable   487,428 kB
+    HOST after touching 1792MB   MemFree   137,088 kB   MemAvailable   388,736 kB
+
+**~1.92GB left the host at VM CREATION, before the guest had touched a single
+page.** The subsequent 1792MB of guest writes cost the host only another
+~150MB, which is crosvm's own bookkeeping, not the guest's pages. Confirmed
+on the repeat run, where the drop was split across RAM and Android's own swap
+(MemFree -1.50GB, SwapFree -453MB, together ~1.95GB).
+
+**crosvm does not hand out memory lazily. It takes it when the VM is created.**
+That is better news than 3e-i's open question implied: there is no hidden gap
+between what is granted and what is paid for, and nothing can quietly fail
+later because the host over-promised.
+
+### What it costs the phone, every time
+
+Booting a 2048MB VM drives the low-memory killer on every single run. The
+first run killed thirteen processes — including `com.android.virtualization.
+terminal`, i.e. the Terminal app's 3.6GB Debian VM, which had been opened
+fifteen minutes earlier to compile this very payload. Later runs killed five
+or six: launcher, IME, Settings, media, contacts, cellbroadcast. Our own app
+was never killed at 2048MB, which matches 3e-i.
+
+### What this does NOT answer
+
+- **Nothing RAN.** Writing and verifying 1.8GB is memory, not compute. There
+  is no model, no runtime, no file, no threads — the payload is single
+  threaded and used exactly one of the 8 vCPUs 3e-i measured. "The guest can
+  hold 1.8GB" is not "the guest can run a model in 1.8GB".
+- **Where a model FILE would live is still rung 3e-iii, and this run makes it
+  worse, not better.** The guest's `/data` is `tmpfs` (3d's shutdown log:
+  `init: Unknown /data fs type: tmpfs`) and zram has already claimed a swap
+  device the size of the whole guest. A 1.5GB model file copied into the
+  guest may cost 1.5GB of RAM before anything loads it, against a measured
+  ceiling of 1792MB. NOT RUN.
+- **The ceiling is with an EMPTY guest.** 1792MB left 88MB free in a guest
+  running nothing but init and our payload. A real runtime eats into that,
+  and the live-lock above is what waits at the bottom.
+- **Residency was two seconds, not two hours.** The pages were held for the
+  length of the verify pass. Nothing here is an endurance or a
+  memory-pressure-over-time result.
+- **Unlocked, foreground, over adb.** A 2GB VM at boot before first unlock is
+  still untested, and 3e-i's ~4s extra boot time still eats into the
+  20-second foreground-service window.
+- Still `DEBUG_LEVEL_FULL`, still non-protected, still sample DICE values.
+
+### Method notes
+
+- **The control ran first, for the fifth rung running.** A 256MB VM told to
+  take 64MB: 64MB written, verified, `status=0`, exit 44, in 271ms. That
+  settled the third payload slot in `build.sh`, the new activity, the new
+  wire message and the ELF packaging before any figure that mattered was
+  measured.
+- **The ELF was verified before packaging**, per the trap: `NEEDED` only
+  `libvm_payload.so`, exactly one undefined symbol
+  (`AVmPayload_notifyPayloadReady`), OS/ABI `UNIX - System V`, `LOAD` align
+  `0x1000`. All four right first time; the flags in CLAUDE.md's glibc/bionic
+  trap were copied verbatim and none had to be rediscovered.
+- **Both figures are intent extras**, so the whole bisect — 64, 1536, 1792,
+  1920 — ran off ONE build and one install. Memory was the only thing that
+  moved.
+- **The host sampled its own `/proc/meminfo` every 500ms throughout.** That
+  is what caught the up-front allocation and corrected 3e-i; the guest cannot
+  report it, because the guest only knows what it was able to take, never
+  what the phone had to give up to supply it.
+- **Opening the Terminal app cost one manual round trip and the compiler was
+  already there** — `~/penny3c/libvm_payload.so`, the link stub from 3c, was
+  reused, so nothing was downloaded and nothing was installed in the guest.

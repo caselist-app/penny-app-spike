@@ -138,12 +138,19 @@ fi
 #    loads only the one setPayloadBinaryName() asks for — and it means a single
 #    build still reproduces 2d exactly while answering 3c. Keeping a proven
 #    result runnable is the same reason rung 3's VmService is never edited.
+#    PENNY_PAYLOAD_3EII_SO is rung 3e-ii's, added the same way and for the same
+#    reason: it is the first payload here that ALLOCATES, so it could not reuse
+#    3c's, but 3c's and 2d's both stay in the APK and stay runnable.
 if [ -n "$PENNY_PAYLOAD_SO" ]; then
     cp "$PENNY_PAYLOAD_SO" "$OUT/apkroot/lib/arm64-v8a/PennyPayload.so"
     echo "6/8 guest payload COPIED FROM $PENNY_PAYLOAD_SO"
     if [ -n "$PENNY_PAYLOAD_3C_SO" ]; then
         cp "$PENNY_PAYLOAD_3C_SO" "$OUT/apkroot/lib/arm64-v8a/Penny3cPayload.so"
         echo "    rung 3c payload COPIED FROM $PENNY_PAYLOAD_3C_SO"
+    fi
+    if [ -n "$PENNY_PAYLOAD_3EII_SO" ]; then
+        cp "$PENNY_PAYLOAD_3EII_SO" "$OUT/apkroot/lib/arm64-v8a/Penny3eiiPayload.so"
+        echo "    rung 3e-ii payload COPIED FROM $PENNY_PAYLOAD_3EII_SO"
     fi
 else
     "$CLANG" -shared -fPIC -O2 -o "$OUT/apkroot/lib/arm64-v8a/PennyPayload.so" \
@@ -166,6 +173,9 @@ fi
 (cd "$OUT/apkroot" && zip -q -0 -X "$OUT/base.apk" lib/arm64-v8a/PennyPayload.so)
 if [ -n "$PENNY_PAYLOAD_3C_SO" ]; then
     (cd "$OUT/apkroot" && zip -q -0 -X "$OUT/base.apk" lib/arm64-v8a/Penny3cPayload.so)
+fi
+if [ -n "$PENNY_PAYLOAD_3EII_SO" ]; then
+    (cd "$OUT/apkroot" && zip -q -0 -X "$OUT/base.apk" lib/arm64-v8a/Penny3eiiPayload.so)
 fi
 "$BT/zipalign" -p -f 4 "$OUT/base.apk" "$OUT/aligned.apk"
 echo "7/8 packaged and page-aligned"
