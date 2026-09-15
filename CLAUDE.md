@@ -45,6 +45,28 @@ deliberately left **ENABLED** so the device can be returned to stock.
     Claude Code    2.1.270 in the guest, native install, ~317MiB resident
     VM resources   3.9GB slider max -> 3.6Gi in guest, 8 cores, 104G disk
 
+**LIVE DEVICE STATE — as left at 15 Sept, 13:40. Check it, do not trust it.**
+This block exists because state that only survives in a handover message is
+state that gets lost. Verify each line before relying on it; correct this block
+in the same commit as whatever changes it.
+
+    Terminal app / Debian VM   STOPPED by hand before the 2GB runs. Reopen it
+                               only when a payload needs compiling.
+    penny3 (rung 3's VM)       UP. Leave it alone.
+    penny3eiii encrypted store EXISTS and holds model.bin, 1610612736 bytes,
+                               written by rung 3e-iii. **Rung 3e-iv's write
+                               half is therefore ALREADY DONE** — it needs a
+                               reboot and one read, not two runs.
+    installed APK              /data/app/~~uO7OYJk2jGyYQMs7z9Vvgg==/
+                               com.pennyspike.probe2a-WVgHUDfQnA89rlKzidwLFw==
+                               penny3eiii's stored config points at THIS path.
+                               **Reinstalling before 3e-iv's read destroys that
+                               head start** — see the getOrCreate trap.
+    adb forward tcp:2222       Set up 15 Sept. Does not survive a VM restart.
+
+Verify with: `adb shell /apex/com.android.virt/bin/vm list`,
+`adb shell pm path com.pennyspike.probe2a`.
+
 Build toolchain on the Mac, installed 14 Sept, command-line only — no
 Android Studio, deliberately (see `notes.md`):
 
