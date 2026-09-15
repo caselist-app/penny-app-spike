@@ -37,9 +37,11 @@ import java.util.concurrent.Executors;
  * ENDURANCE, and the store-creation case, answered by one service.
  *
  * A COPY of Penny3evService, not an edit. That service holds rung 3e-v's
- * committed result across eight reproductions and is byte-for-byte untouched,
- * as are VmService, Penny3dService, MicFgsService, Penny3giService and every
- * Probe*Activity. This owns its OWN VM name, its OWN encrypted store and its
+ * committed result across TWO reproductions (the pre-unlock read and the
+ * after-unlock control down the same socket) and is byte-for-byte untouched.
+ * The "eight" this comment used to claim is rung 3's VM-wake count, not
+ * 3e-v's. Also byte-for-byte untouched are VmService, Penny3dService,
+ * MicFgsService, Penny3giService and every Probe*Activity. This owns its OWN VM name, its OWN encrypted store and its
  * OWN notification id, and nothing here can take any of those down.
  *
  * ── WHY THE TWO QUESTIONS ARE ONE SERVICE ──────────────────────────────────

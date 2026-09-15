@@ -61,11 +61,33 @@ same commit as whatever changes it.
                                cleared**, so every store survives. Reverse with
                                `adb shell pm enable com.pennyspike.probe2a`.
                                Do this BEFORE expecting any boot service to run.
+                               **WARNING — DO NOT `pm enable` AS THINGS STAND.**
+                               The installed APK starts SIX boot services, and
+                               two of them each ask for 2048MB on the next
+                               boot: `PennySoakService` immediately and
+                               `Penny3giService` after ~15-45s (it waits on
+                               3e-v's verdict or its own timeout). That is the
+                               two-2GB-VM trap below, which on 15 Sept evening
+                               took `com.android.launcher3` and our own app at
+                               **adj 100**, 50 kills, settling on the third
+                               attempt. Under that pressure
+                               `Penny3evService.java` ~345-352 DELETES the
+                               `penny3ev` store on ANY `run()` failure and
+                               recreates it — the recovery path, logging
+                               `STORE WAS RESET`. So an enable can cost the
+                               verified 64MB store. **Neutralise one of the two
+                               2GB services before enabling.** Not fixed on 15
+                               Sept — recorded only.
     All VMs                    DOWN. `vm list` returns `Running VMs: []`, no
                                crosvm process, no app process. penny3, penny3d,
                                penny3ev, penny3gi and pennysoak are all
                                stopped — they are boot services and the app is
-                               disabled.
+                               disabled. **SIX services start from the boot
+                               broadcast, not five**: VmService, MicFgsService,
+                               Penny3dService, Penny3evService, Penny3giService
+                               and PennySoakService. Five of them hold a VM;
+                               MicFgsService holds none, which is why only five
+                               VM names appear here.
     Terminal app / Debian VM   DOWN since 15:37 and it does not restart itself.
                                It holds ~3.6GB while it runs, so close it again
                                before any memory-sensitive measurement.
@@ -102,25 +124,39 @@ same commit as whatever changes it.
     penny3eiii encrypted store **GONE — STRANDED, DELIBERATELY** on 15 Sept.
                                model.bin is unreachable. Do not plan anything
                                that needs it.
-    installed APK              Still installed, disabled, NOT rebuilt since the
-                               fifth install on 15 Sept.
-                               /data/app/~~F-GoV1zaM_NBcthOOhbUPQ==/
-                               com.pennyspike.probe2a-5mEXn4-0AsY5FdvzYVuz6Q==
-                               sha256 2e89918fdd783dac94946ebd81806fd5f9a8a791
-                               f47686faa6f4b609070642df, 156,613 bytes.
+    installed APK              Still installed, disabled. **THE HASH AND PATH
+                               BELOW WERE WRONG UNTIL 15 Sept EVENING** — they
+                               named an earlier install. Read off the phone at
+                               ~20:50 on 15 Sept, app disabled, 58 min uptime:
+                               /data/app/~~AfIhpIXq9pYEyRdOP2bSQw==/
+                               com.pennyspike.probe2a-nou1Eur-h0XqviaxcCE9ww==
+                               sha256 9efe27cb0aa802243123be26bcc0ee5ff9da52f6
+                               685a20831a699daf699902fe, 156,613 bytes.
+                               **That is the build on disk** —
+                               `probe2a/build/probe2a.apk`, same hash, same
+                               156,613 bytes, written 15 Sept 16:51 after
+                               PennySoakService was saved. So the soak service
+                               IS in the installed APK, and the old
+                               `2e89918f...` / `~~F-GoV1zaM...` values are
+                               superseded. Verify with
+                               `adb shell sha256sum $(adb shell pm path
+                               com.pennyspike.probe2a | sed 's/package://')`.
                                All five pm grants and all four assistant
                                preconditions survived every install. **Whether
                                they survive `pm disable-user` + `pm enable` is
                                UNTESTED — check before trusting them.**
     apps opened by hand        NONE. The reboot cleared 3g-ii's camera, browser,
                                gallery, clock, calculator and files.
-    native memory baseline     MemTotal 5,718,280 kB. MemAvailable 940,640 kB
-                               at 5.8 min after this boot, 2,119,020 kB at
-                               25.3 min, no VM and the app disabled either
-                               time. **IT SETTLES — use the later figure.**
-                               A third reading at ~60 min is pending. Swap is
-                               two-thirds spent at 25 min (SwapFree 1,074,428
-                               of 3,145,724 kB). See the host-memory bullet in
+    native memory baseline     MemTotal 5,718,280 kB. MemAvailable read three
+                               times on ONE untouched boot, no VM, app
+                               disabled, nothing opened: **940,640 kB at 5.8
+                               min, 2,119,020 kB at 25.3 min, 2,012,348 kB at
+                               60.5 min.** It settles by ~25 min and then
+                               oscillates — the third reading is 106,672 kB
+                               BELOW the second, not above. **Quote ~2.0 GB,
+                               and quote the uptime with it.** Swap two-thirds
+                               spent at idle (SwapFree 1,187,836 of 3,145,724
+                               kB at 60.5 min). See the host-memory bullet in
                                open threads.
     adb                        ALIVE (phone unlocked). GrapheneOS keeps the port
                                charging-only while locked.
@@ -164,9 +200,13 @@ and the guest payload was compiled **inside the Debian guest on the phone**
 instead — already arm64, no cross-compiler needed, `gcc 14.2.0 (Debian
 14.2.0-19)` for 43MB. See the glibc/bionic trap below — that is why
 `payload/penny_payload.c` uses no C library at all, and none of that changes.
-**The NDK does not replace the guest-side route**, because a Debian-built
-binary is glibc and will not load in microdroid or run on Android; it exists
-for the separate question of running a model natively on Android.
+**What the NDK means for the guest payloads: nothing, for now.** The five
+existing payloads are built in the Debian guest with no C library at all, and
+that route is proven — leave them exactly as they are. Building a payload with
+the NDK instead is **untested, not ruled out**: the NDK targets bionic, which
+is what microdroid runs, so there is no glibc/bionic objection to it. It is
+moot unless the VM comes back (see Sequencing). The NDK was installed for the
+separate question of running a model natively on Android.
 
 **Neither `cmake` nor the SDK's `ninja` is on `PATH`, and a second ninja is.**
 `/opt/homebrew/bin/ninja` (1.13.2, Homebrew) is found first; the sdkmanager one
@@ -189,8 +229,10 @@ by code alone and `res/xml/` is the one resource directory this spike has.
 package-and-align stage: the payload `.so` must be Stored (`zip -0`) and
 page-aligned (`zipalign -p`), because microdroid mmaps it out of the APK in
 place rather than unpacking it. `PENNY_PAYLOAD_SO=<path>` packages a `.so`
-built elsewhere — which is both the control seam AND, since there is no NDK
-here, the normal route. **As of rungs 3f/3h there are FIVE payloads in the APK** —
+built elsewhere — which is both the control seam AND the route every payload
+here has actually used, compiled in the Debian guest on the phone. (An NDK is
+now present on the Mac as of 15 Sept evening, but no payload has been built
+with it and none needs to be.) **As of rungs 3f/3h there are FIVE payloads in the APK** —
 `PennyPayload.so` (2d), `Penny3cPayload.so` (3c), `Penny3eiiPayload.so` (3e-ii),
 `Penny3eiiiPayload.so` (3e-iii) and `Penny3fPayload.so` (3f and 3h together),
 via `PENNY_PAYLOAD_SO`, `PENNY_PAYLOAD_3C_SO`, `PENNY_PAYLOAD_3EII_SO`,
@@ -669,9 +711,12 @@ thing in this repo. See the open threads.
 still byte-for-byte what rung 3 proved and it ran on both these reboots.
 Three services now start from the same boot broadcast — `VmService`,
 `MicFgsService`, `Penny3dService` — independent, none able to take the others
-down. **FIVE as of 15 Sept**, with `Penny3evService` (rung 3e-v) and
-`Penny3giService` (rung 3g-i) added the same way, and all five were granted the
-`duration:20000` exemption on one boot. The guest payload was **not rebuilt**: `Penny3cPayload.so` from 3c was
+down. **FIVE as of the 3e-v/3g-i boots**, with `Penny3evService` (rung 3e-v)
+and `Penny3giService` (rung 3g-i) added the same way, and all five were granted
+the `duration:20000` exemption on that boot. **SIX in the APK now installed** —
+`PennySoakService` was added afterwards (commit 543f9f0) and `BootReceiver`
+starts it last. The "all five took the exemption" reading is from the boot that
+had five; six on one boot is untested. The guest payload was **not rebuilt**: `Penny3cPayload.so` from 3c was
 reused unchanged, same wire protocol, no new variable.
 
 **Five things measured here that were not known before.**
@@ -1133,7 +1178,10 @@ ANSWERED YES.** 15 Sept, on two reboots, with a 256MB control on each.
     2      256MB       17,012 ms           1,901 ms        false          239,796 kB
     2      2048MB      23,519 ms           4,639 ms        false        2,038,164 kB
 
-`CMD_INFO` answered `status=0` and the guest exited 46 every time. Margins
+`CMD_INFO` answered **`status=0`, which is the success signal**, and the guest
+exited 46 every time. **Exit 46 is an identifier, not a verdict** — it says
+which payload path ran and would be logged just the same by a run that answered
+nothing. Read `status=0`. Margins
 before first unlock: 171.9s and 188.5s. **The guest's own
 `MemTotal: 2038164 kB` is the reading that matters** — not our process saying
 2048MB was accepted, but the guest kernel saying it was delivered.
@@ -1145,8 +1193,9 @@ defined as "can a 2GB VM make the 20-second exemption, given it reaches ready
 and nothing after it; every service here calls it as the FIRST statement of
 `onStartCommand` and only then hands VM work to another thread. Measured:
 `Penny3evService` reached it 33ms in, `Penny3giService` 2ms in, and **all five
-foreground services took the exemption on the same boot** — itself untested
-before. A VM that reaches ready four seconds later cannot miss a window it was
+foreground services then in the APK took the exemption on the same boot** —
+itself untested before. The APK now installed starts **six**; the sixth,
+`PennySoakService`, has never taken the exemption on a boot that was not void. A VM that reaches ready four seconds later cannot miss a window it was
 never racing. Had the rung been run on its own terms it would have produced a
 reassuring non-answer.
 
@@ -1211,7 +1260,9 @@ idle figures.
 TOP app at 4096MB, which took the VM handle with it. 2048MB stopped short twice.
 **2GB works on this handset and 4GB does not.**
 
-**What it does NOT say.** Every VM here lived about seven seconds and exited 46 —
+**What it does NOT say.** Every VM here lived about seven seconds and exited 46
+— and 46 is an identifier, not a success signal; `status=0` is the one that
+says the command worked —
 a 2GB VM held open for hours while somebody uses the phone is untested and is
 the actual product shape. Nothing RAN; `CMD_INFO` reads `/proc/meminfo` and
 exits. AC power, screen on, Debian VM down, one afternoon. And **a stripped
@@ -1235,7 +1286,8 @@ PARKED, and the work has moved to measuring a model natively on Android.**
   store inside a VM, and running the model inside a VM is CLOSED on today's
   evidence.** Three grounds, all measured in this repo: crosvm takes ~1.92GB
   from the host at VM creation (3e-ii) against a total `MemAvailable` of
-  2,119,020 kB idle (940,640 kB at 5.8 min); the guest cannot pin cores,
+  2,012,348 kB idle at 60.5 min uptime (2,119,020 kB at 25.3 min, 940,640 kB
+  at 5.8 min); the guest cannot pin cores,
   because each vCPU is an unpinned host
   thread and the guest's MIDR mix does not match the host's (3f); and
   `getCapabilities()` returns 2, so this device cannot make a PROTECTED VM and
@@ -1284,8 +1336,12 @@ compile.
 preinstall the app, sign with our platform key, flash, lock, verify
 attestation covers the app. Weeks. Not now.
 
-Before any app code: establish whether a JDK is present, whether the
-Android SDK or Android Studio is present, and what needs installing.
+~~Before any app code: establish whether a JDK is present, whether the
+Android SDK or Android Studio is present, and what needs installing.~~
+**DONE 14 Sept and superseded** — Temurin 21, the command-line SDK, build-tools
+37.0.0 and platform-tools are all installed and listed in the toolchain block
+near the top of this file, and the NDK joined them on 15 Sept. Nothing to
+establish.
 
 Do not work ahead of the current rung.
 
@@ -1336,12 +1392,13 @@ Do not work ahead of the current rung.
   and then takes the keyboard at **adj 201** — but stops there, twice, and never
   enters 200/100/0. Our app survived all three runs and so did the app on the
   screen. **The margin is one tier**, and 3e-i's 4096MB run shows it is
-  crossable. Two method points that cost time: `am force-stop` restarts ALL FIVE
-  boot services, so every run in this app carries a restart storm that must be
+  crossable. Two method points that cost time: `am force-stop` restarts ALL the
+  boot services — FIVE when 3g-ii was run, SIX in the APK now installed — so every run in this app carries a restart storm that must be
   present on both sides before two runs are compared; and `Penny3giService` runs
   once per process, logging `already started by an earlier delivery — nothing to
   do` on a second `am start-foreground-service`, so re-arming it needs a
-  force-stop.
+  force-stop. (**It is SIX boot services in the APK now installed**, not five —
+  `PennySoakService` was added after 3g-ii ran.)
 - **TWO 2048MB VMs on one boot DOES cross into the foreground band, and it
   took our own app twice.** 3g-ii's comfortable reading — the killer clears the
   cached band, takes the keyboard at adj 201 and stops — holds for ONE 2GB VM.
@@ -1362,7 +1419,8 @@ Do not work ahead of the current rung.
   the intent. And a run that must be reproducible needs a VM name that cannot
   be reached by a default.
 - **`am force-stop` does NOT stop a sticky boot service — it restarts it.**
-  The documented restart storm is not only "all five services re-run"; the one
+  The documented restart storm is not only "all the services re-run" — **six of
+  them in the APK now installed**, five when this was first written; the one
   you were trying to stop comes back too, with a null intent. To actually stop
   the app and keep it stopped: `adb shell pm disable-user --user 0
   com.pennyspike.probe2a`, which clears no data, survives a reboot, and is
@@ -1586,8 +1644,31 @@ Do not work ahead of the current rung.
 - **Copy first, kill second.** `sdkmanager` wipes its own
   `.temp/PackageOperation01/` on exit, so killing it and then trying to rescue
   the partial download loses the race. Cost a ~100MB partial NDK on 15 Sept.
-  The empty `ndk/30.0.16248370` directory it left behind is a shell, not an
-  install — `build.sh` tolerates it and resolves `CLANG` to empty.
+  The empty `ndk/30.0.16248370` directory it left behind was a shell, not an
+  install — `build.sh` tolerated it and resolved `CLANG` to empty.
+  **NO LONGER TRUE, and that is now a trap of its own — see the next entry.**
+  The NDK was reinstalled properly later the same evening, so `CLANG` resolves
+  to a real compiler and the `else` branch that was dead is now live.
+- **`sh build.sh` WITH NO `PENNY_PAYLOAD_*_SO` VARIABLES SET IS NOW DESTRUCTIVE,
+  and it was harmless until the NDK arrived.** Read off `probe2a/build.sh` on 15
+  Sept evening, not run. Two things happen, neither announced:
+  1. The `else` at ~line 180 compiles `payload/penny_payload.c` with
+     `"$CLANG" -shared -fPIC -O2` and **none** of the flags the trap below says
+     are not optional — no `-nostdlib`, no `-ffreestanding`, no `-fno-builtin`,
+     no `-fno-stack-protector`, no `-Wl,-z,max-page-size=4096`, no
+     `-Wl,--hash-style=sysv` — and at `-O2` rather than the `-O1` every proven
+     payload was built with. Until the NDK existed this branch could not run at
+     all, so the missing flags cost nothing. Whether the result would load in
+     microdroid is **UNTESTED** and is not the point: it is not the binary any
+     rung was answered with.
+  2. Every `cp` and every `zip` for the other four payloads sits inside
+     `if [ -n "$PENNY_PAYLOAD_3*_SO" ]`, so the APK it builds carries **only
+     `PennyPayload.so`**. Rungs 3c, 3d, 3e-ii, 3e-iii, 3e-v, 3f, 3g-i, 3g-ii and
+     3h all name a payload that would not be in it, and installing it would
+     strand every store as well.
+  The rule: **never run `build.sh` bare.** Set all five `PENNY_PAYLOAD_*_SO` to
+  the files in `probe2a/build-payloads/`, which is the only copy of them that
+  exists. Not fixed on 15 Sept — recorded only.
 - `VirtualMachineManager.getInstance(Context)` **does not exist**. Use
   `getSystemService(VirtualMachineManager.class)`. This matters beyond
   the typo: a wrong method name comes back as `NoSuchMethodException`,
@@ -1696,8 +1777,9 @@ Do not work ahead of the current rung.
   ~4s to `onPayloadReady` ate into this window. It does not: every service here
   calls `startForeground` as the first statement of `onStartCommand` and hands
   VM work to another thread afterwards. Measured 15 Sept, `Penny3evService` 33ms
-  in and `Penny3giService` 2ms in, with **all five foreground services taking
-  the exemption on the same boot**. Running that rung on its own terms would
+  in and `Penny3giService` 2ms in, with **all five foreground services then in
+  the APK taking the exemption on the same boot** (the installed APK now starts
+  **six**, and six on one boot is untested). Running that rung on its own terms would
   have produced a reassuring non-answer.
 - The VM does **not** start itself after a device reboot. The Terminal
   app has to be opened by hand. It reaches a prompt in 4-5 seconds.
@@ -1775,13 +1857,18 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   `MemAvailable` **2,119,020 kB** — 1.18 GB more. Nothing was freed: Android
   compressed ~1.5 GB of idle anonymous pages into ~300 MB of zram
   (`AnonPages` -1,587,268 kB, `SwapFree` -1,500,160 kB, Zram physical
-  +299,392 kB, ~5:1). **~2.02 GB is the idle figure, and 25 min may not be
-  the plateau** — a third reading at ~60 min is pending. Two numbers must
+  +299,392 kB, ~5:1). **A THIRD reading at 60.5 min on the same boot returned
+  `MemAvailable` 2,012,348 kB — 106,672 kB BELOW the 25-minute figure**, with
+  `SwapFree` +113,408 and `AnonPages` +129,616, i.e. pages faulted back OUT of
+  zram. So the curve flattens by ~25 min and then oscillates; **~2.0 GB is the
+  idle figure for the 6a** and 2.12 GB was 0.1 GB optimistic. What decompressed
+  those pages was observed, not identified. Two numbers must
   still be quoted together — `MemAvailable` is what the kernel hands over
   without killing anything, while `dumpsys meminfo` reports 3,748,470 kB free
   at 25 min of which 2,177,002 kB is cached app processes Android will kill
-  on demand. **Swap is two-thirds spent at idle** (SwapFree 1,074,428 of
-  3,145,724 kB) and a model's working set is hot anonymous memory that cannot
+  on demand (3,657,804 kB / 2,199,920 kB cached / 987,048 kB truly free at
+  60.5 min). **Swap is two-thirds spent at idle** (SwapFree 1,187,836 of
+  3,145,724 kB at 60.5 min) and a model's working set is hot anonymous memory that cannot
   be compressed away while in use, so `MemAvailable` alone is not a plan.
   **Peak RSS plus KV cache during generation is the number that decides
   anything, and it is unmeasured.** Any per-run reading MUST record the
@@ -1955,6 +2042,78 @@ for hours.
 - Push back. That is the job.
 - Say plainly when something does not work. A negative finding closes a
   question, which is the point of this repo.
+
+## Reporting rules — how every message to Matt is written
+
+Added 15 Sept (evening) by the review session. Matt cannot see the
+terminal, the files, or the phone. Every claim in a message has to be
+checkable by someone who can only read what you write.
+
+- **Every commit report shows `git show --stat <hash>` and the header line
+  of any notes.md entry it contains.** A bare hash is not a report.
+- **"Verified" names what it was verified against.** A local checksum is
+  "computed", not "verified". A match against a published hash says whose
+  hash. A file whose existence was checked says what was checked (a
+  directory existing is not a toolchain existing).
+- **Every measurement carries its conditions in the same line**: uptime
+  since boot, what was running, locked or unlocked, pinned or unpinned.
+  A number without conditions is not quoted.
+- **No adjectives on measurements.** "MemAvailable 940,640 kB at 5.8 min"
+  — not "the phone is already tight". The reader decides what it means.
+- **A first reading is a reading, not a baseline.** Nothing is called a
+  budget, a ceiling or a floor until it has been read twice under the same
+  conditions with time between.
+- **Numbers from earlier sessions or earlier entries are marked as such.**
+  "3e-ii measured 1.92GB" — never restated as if seen now.
+- **A direct question from Matt is answered first, in one line, before
+  anything else in the message.** If the answer is "not done", say so.
+- **Every install, download or dependency is listed in the message that
+  did it, with how it was installed.** Nothing arrives via a route Matt
+  did not agree to (brew when sdkmanager was agreed, for example) without
+  it being named as a deviation.
+- **Every message that reports a result ends with what it does NOT say**,
+  the same way notes.md entries do.
+
+## Decisions — CLOSED, with the only thing that reopens each
+
+Do not reopen these in prose, in a notes entry, or in a "next step". If
+you think one should be reopened, say so as a question to Matt and give
+the new evidence. Later entries in notes.md may add to this list; they may
+not soften it.
+
+- **The model runs natively on Android, not in a VM.** Closed 15 Sept on
+  3e-ii (VM costs ~1.92GB up front), 3f (cannot pin cores), and
+  getCapabilities()=2 (no protected VM on this device). A poor native
+  benchmark does NOT reopen it. Reopens only if model isolation becomes a
+  requirement.
+- **The pennysoak run is VOID and is never reported.** Reopens never; a
+  re-run is a new run with a new VM name.
+- **Endurance testing happens on whatever ships, not on a microdroid
+  soak.** Reopens only with the decision above.
+- **Official ggml-org llama.cpp built with the NDK, no third-party
+  prebuilt binaries.** Reopens never for this spike.
+- **The 6a is temporary.** No result is written as if it were the product
+  device; every ceiling is "on the 6a", and the 7a re-measures anything
+  that fails here before it is called a no.
+
+## Benchmark protocol — native llama.cpp, from 16 Sept
+
+- Prediction written in notes.md BEFORE the first run, and judged against
+  in the write-up. The standing one: token generation barely improves
+  beyond 2 threads (memory-bandwidth bound); prompt processing scales.
+- Models are identified by sha256 from MANIFEST.txt, never by name alone.
+- Every run records, in one table row: model file, quant, threads,
+  taskset mask (or "unpinned"), -p value, pp tok/s, tg tok/s, peak RSS,
+  MemAvailable before and after with uptime, and any lowmemorykiller
+  kills during the run.
+- Unpinned runs are never quoted as the chip's speed. Pinned figures are
+  labelled by which cores (c0 = X1 pair, f0 = X1+A76).
+- One model on the phone at a time. Push, run, record, delete, next.
+- Nothing VM-hosted, no thermal run, no time-to-first-token with a cached
+  prefix. Those are named as not done in the write-up.
+- Done = a notes.md entry "native llama.cpp feasibility on the 6a" with
+  all three models' tables, whether the prediction held, and a plain
+  answer to "can this silicon run a 1.7-2B model usefully".
 
 ## Do not
 

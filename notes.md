@@ -4798,3 +4798,156 @@ pushed to `/data/local/tmp`, and no tok/s figure exists for this handset at
 any quantisation. The sizes above are file sizes on disk, not peak RSS —
 peak RSS during generation is roughly the GGUF size plus the KV cache, and
 it is the number that decides feasibility. It remains unmeasured.
+
+## 2026-09-15 (evening, last) — the settling curve flattens at ~2.0 GB, and an independent audit found six things wrong in CLAUDE.md
+
+Third and final `/proc/meminfo` reading on the same untouched boot, plus the
+corrections from a read-only audit of this repo. Nothing was built, nothing was
+installed, nothing on the phone was changed. Conditions identical to the first
+two readings: booted ~19:59, unlocked by hand ~20:04 and not touched since,
+home screen only, no app opened, our app `pm disable-user`d, `vm list` returning
+`Running VMs: []` at every reading, Terminal app down, AC power, screen on.
+
+### The curve, three readings, one boot
+
+                        5.8 min        25.3 min       60.5 min    25.3 -> 60.5
+    MemTotal          5,718,280 kB   5,718,280 kB   5,718,280 kB          --
+    MemFree              75,380 kB   1,220,200 kB   1,057,296 kB    -162,904
+    MemAvailable        940,640 kB   2,119,020 kB   2,012,348 kB    -106,672
+    Cached            1,094,964 kB   1,124,860 kB   1,179,608 kB     +54,748
+    AnonPages         3,313,572 kB   1,726,304 kB   1,855,920 kB    +129,616
+    SwapTotal         3,145,724 kB   3,145,724 kB   3,145,724 kB          --
+    SwapFree          2,574,588 kB   1,074,428 kB   1,187,836 kB    +113,408
+    Zram physical       197,464 kB     496,856 kB     483,388 kB     -13,468
+    dumpsys Free RAM  3,068,208 kB   3,748,470 kB   3,657,804 kB     -90,666
+
+**25 min was close enough to the plateau.** The whole movement is in the first
+leg: `MemAvailable` +1,178,380 kB from 5.8 to 25.3 min, then **-106,672 kB**
+from 25.3 to 60.5 — a 5.0% fall, in the opposite direction. The phone is not
+still climbing; it is oscillating around roughly 2.0 GB.
+
+**The second leg ran the compression backwards, slightly.** From 25.3 to 60.5
+min `SwapFree` went UP 113,408 kB while `AnonPages` also went UP 129,616 kB and
+zram physical went DOWN 13,468 kB. Pages were faulted back OUT of zram into
+ordinary anonymous memory — decompressed — which is the reverse of what the
+first leg did. Something on the phone touched pages it had let go cold. Nothing
+was running that we started, and what did it was not identified.
+
+**So the idle figure for the 6a, read three times on one boot with nothing
+running, is `MemAvailable` ~2.0 GB of 5.72 GB total.** The 919 MB of the first
+reading stays correct as measured and wrong as a budget; ~2.12 GB at 25 min was
+0.1 GB optimistic. Quote **2,012,348 kB at 60.5 min** as the figure with the
+most settling behind it, and quote the uptime with it every time.
+
+**Swap stays two-thirds spent at idle** — `SwapFree` 1,187,836 of 3,145,724 kB,
+better than 25 min's 1,074,428 but nowhere near the 2,574,588 of 5.8 min. That
+is headroom a model run eats into, and a model's working set is hot anonymous
+memory that cannot be compressed away while it is in use. `MemAvailable` on its
+own is still not a plan. **Peak RSS plus KV cache during generation is the
+number that decides anything and it is still unmeasured** — that is tomorrow.
+
+`dumpsys meminfo` must keep being quoted alongside: 3,657,804 kB free at 60.5
+min, of which 2,199,920 kB is cached app processes Android will kill on demand
+and 987,048 kB is genuinely free. The two numbers measure different things and
+neither replaces the other.
+
+### What the audit found. Six corrections, all verified before writing
+
+**1. THE APK HASH AND PATH IN CLAUDE.md WERE WRONG.** Read off the phone at
+~20:50, app disabled, 58 min uptime:
+
+    adb shell sha256sum $(adb shell pm path com.pennyspike.probe2a | sed 's/package://')
+    9efe27cb0aa802243123be26bcc0ee5ff9da52f6685a20831a699daf699902fe
+      /data/app/~~AfIhpIXq9pYEyRdOP2bSQw==/
+      com.pennyspike.probe2a-nou1Eur-h0XqviaxcCE9ww==/base.apk
+
+CLAUDE.md recorded `2e89918fdd783dac...` at
+`/data/app/~~F-GoV1zaM_NBcthOOhbUPQ==/...-5mEXn4-0AsY5FdvzYVuz6Q==`. Both the
+hash and the directory named an earlier install. **The phone's APK is
+byte-identical to `probe2a/build/probe2a.apk` on this Mac** — same
+`9efe27cb...`, same 156,613 bytes, written 15 Sept 16:51, which is after
+`PennySoakService` was saved. So the soak service IS in the installed APK, the
+on-disk build HAS been installed, and the audit's alternative case does not
+apply. Corrected in CLAUDE.md with the command to re-check it.
+
+**2. `pm enable` IS NOT SAFE AS THINGS STAND, and this is the one that could
+have cost a store.** The installed APK's `BootReceiver` starts six services, two
+of which each ask for 2048MB on the next boot: `PennySoakService` immediately
+and `Penny3giService` after ~15-45s. That is exactly the two-2GB-VM trap already
+recorded from 15 Sept evening, which took `com.android.launcher3` and our own
+app at **adj 100**, 50 kills, settling on the third attempt. And
+`Penny3evService.java` ~345-352 deletes the `penny3ev` store and recreates it on
+**any** `run()` failure — the recovery path that logs `STORE WAS RESET`. So an
+enable under that pressure can destroy the verified 64MB store, ck64
+`0x757b795dd5138044`. **Recorded as a warning in LIVE DEVICE STATE, not fixed.**
+Neutralising one of the two 2GB services is a code change and it waits.
+
+**3. `BootReceiver` STARTS SIX SERVICES, AND CLAUDE.md SAID FIVE IN SIX
+PLACES.** Counted in the source: `VmService`, `MicFgsService`, `Penny3dService`,
+`Penny3evService`, `Penny3giService`, `PennySoakService`. Five hold a VM;
+`MicFgsService` holds none, which is why only five VM names appear in the
+device-state block. All six places corrected, and each now distinguishes the
+boot that was measured (five services) from the APK now installed (six).
+**"All five foreground services took the exemption on one boot" stays true of
+that boot and is not a claim about six.** Six on one boot is untested.
+
+**4. `sh build.sh` WITH NO PAYLOAD VARIABLES SET IS NOW DESTRUCTIVE, AND IT WAS
+HARMLESS UNTIL THE NDK ARRIVED.** Read off the script, not run. `CLANG` used to
+resolve to empty, so the `else` branch was dead. Now it resolves, and a bare run
+does two things:
+
+- compiles `payload/penny_payload.c` with `"$CLANG" -shared -fPIC -O2` and
+  **none** of the flags recorded as not optional — no `-nostdlib`,
+  `-ffreestanding`, `-fno-builtin`, `-fno-stack-protector`,
+  `-Wl,-z,max-page-size=4096` or `-Wl,--hash-style=sysv` — and at `-O2` where
+  every proven payload was `-O1`. Whether that binary would load in microdroid
+  is **untested**, and beside the point: it is not the binary any rung was
+  answered with.
+- packages **only** `PennyPayload.so`. Every `cp` and `zip` for the other four
+  sits behind `if [ -n "$PENNY_PAYLOAD_3*_SO" ]`. Rungs 3c, 3d, 3e-ii, 3e-iii,
+  3e-v, 3f, 3g-i, 3g-ii and 3h all name a payload that would not be in the APK,
+  and installing it would strand every store as well.
+
+Recorded as a trap; the CLANG-resolves-to-empty line is corrected. **Not fixed.**
+
+**5. `debug.keystore` AND `build-payloads/` ARE GIT-IGNORED AND EXIST ONLY ON
+THIS MAC.** `.gitignore` carries `probe2a/build/`, `probe2a/debug.keystore` and
+`probe2a/build-payloads/`. The keystore is 2,602 bytes, dated 14 Sept 14:10.
+Losing it means the next install is signed with a different key, which Android
+refuses as an update — so it becomes an uninstall and a fresh install, and
+**every encrypted store on the device dies with it**, `penny3ev`'s verified 64MB
+file included. `probe2a/build-payloads/` holds the only copies of the five
+payloads: `PennyPayload.so` 6,208 B and `Penny3cPayload.so` 6,504 B (15 Sept
+11:25), `Penny3eiiPayload.so` 10,712 B (12:45), `Penny3eiiiPayload.so` 11,064 B
+(13:12), `Penny3fPayload.so` 15,392 B (14:45). Each was compiled by hand in the
+Debian guest on the phone, and the Terminal app has to be opened by hand to do
+it again. **A backup command was issued; whether the .so files should be
+committed is a question for Matt and is not decided here.**
+
+**6. Four smaller ones.** `PennySoakService.java`'s header claimed rung 3e-v had
+eight reproductions — it has **two** (the pre-unlock read and the after-unlock
+control down the same socket); eight is rung 3's VM-wake count. Corrected in the
+comment. `penny3f_payload.c` claimed its FNV-1a "folds to 32 bits at the end" —
+it does not, and every value it has reported is 16 hex digits, e.g. ck64
+`0x757b795dd5138044`. Corrected in the comment. **Both are comment-only edits to
+source that has already been compiled; no `.so` was rebuilt and the five files
+in `build-payloads/` are untouched. The source files no longer hash to what
+built them.** CLAUDE.md's "before any app code, establish whether a JDK is
+present" was answered on 14 Sept and is struck through. And rung 3g-i's write-up
+quoted exit code 46 in a way that reads as a success signal: **46 is an
+identifier of which payload path ran, `status=0` is the verdict**, and a run
+that answered nothing would log 46 just the same. Both places corrected.
+
+### What this entry does NOT say
+
+The 60.5-minute reading is one reading at one uptime on one boot — three points
+is a curve flattening, not a plateau proven, and no reading was taken past 60
+min. What decompressed ~113 MB back out of zram between 25 and 60 min was not
+identified, only observed. **No measurement here involves a model**: peak RSS
+and KV cache during generation remain unmeasured, which is the number that
+decides feasibility, and it is tomorrow's first job. Every audit finding except
+the APK hash was read out of source or `.gitignore` rather than exercised — the
+`build.sh` bare run was NOT performed, the two-2GB-VM pressure was NOT re-run,
+and `pm enable` was NOT issued. Nothing was fixed in code: items 2 and 4 are
+recorded warnings only. Nothing was pushed to the phone and the app is still
+disabled.

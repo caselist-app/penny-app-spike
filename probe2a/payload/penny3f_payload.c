@@ -106,7 +106,9 @@
  * chain: roughly four cycles a byte, which over 1.5GB is several seconds on
  * BOTH ends and would be charged straight to 3h's throughput figure. So this
  * file hashes 64-bit WORDS — same FNV-1a construction, eight times fewer
- * rounds, still order-sensitive — and folds to 32 bits at the end.
+ * rounds, still order-sensitive — and the result stays 64-bit. (This comment
+ * said "folds to 32 bits at the end" until 15 Sept. It does not: every value
+ * it has ever reported is 16 hex digits, e.g. ck64 0x757b795dd5138044.)
  *
  * It therefore does NOT produce 3c's or 3d's numbers and must not be compared
  * with them. It only ever has to agree with itself, at the two ends of a wire.
