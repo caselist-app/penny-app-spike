@@ -2744,3 +2744,176 @@ was said.
   payload's thread id instead, and note it CHANGES between boots: T61 on boot
   1, T63 on boot 2, T62 in the control. Find it with `grep "PENNY3C: host
   connected"` first, then grep that thread.
+
+## 2026-09-15 — rung 3e-i ANSWERED YES, with a ceiling. 2GB and 8 CPUs are given freely; 4GB kills the phone.
+
+Defined in advance as the gate in front of the largest unanswered thing in
+this repo. Every VM this spike had ever booted had 256MB and ONE CPU. A small
+language model needs roughly 1.5GB and several threads. If microdroid would
+not hand a sideloaded app that, no benchmark would matter and the
+model-in-the-guest plan would be dead before it was written.
+
+**It hands it over without argument. `com.pennyspike.probe2a`, uid 10192,
+sideloaded and throwaway-signed, created and booted a microdroid VM with
+2048MB of RAM and 8 vCPUs, and the guest served a vsock round trip from
+inside it. Measured twice.**
+
+    GrapheneOS 2026091001, Android 17 CP2A.260705.006, Pixel 6a bluejay
+    bootloader LOCKED, verifiedbootstate=yellow
+    host: MemTotal 5,718,280 kB (5.45GiB), 8 cores, 3GB zram swap
+    com.pennyspike.probe2a, uid 10192, unprivileged, not platform-signed
+
+### The dex flags, read before a line of code was written
+
+The method that has now got rungs 2a through 3d right, and the trap it
+avoids: a blocklisted member and a typo both present as `NoSuchMethodError`.
+Out of the device's own `framework-virtualization.jar`, `dexdump -d`:
+
+    VirtualMachineConfig$Builder.setMemoryBytes  (J)   hiddenapi 0x0020 SDK
+    VirtualMachineConfig$Builder.setCpuTopology  (I)   hiddenapi 0x0020 SDK
+    VirtualMachineConfig.CPU_TOPOLOGY_MATCH_HOST  I    hiddenapi 0x0020 SDK
+    VirtualMachineConfig.CPU_TOPOLOGY_ONE_CPU     I    hiddenapi 0x0020 SDK
+
+`0x0020` is the same flag `DEBUG_LEVEL_FULL` and `setApkPath` carry, both of
+which 2b and 2d called successfully. Predicted OPEN; open it was. Ten members
+checked this way across four rungs now, no counterexample.
+
+Note `setMemoryBytes` takes a **long**, the same width trap as
+`connectVsock`.
+
+### The numbers
+
+Host free memory was measured first — CLAUDE.md records that host-side
+memory had never been measured in this spike, and every earlier statement
+about pressure was read from inside a guest. This is the host.
+
+    ask     cpu        run()      onPayloadReady   vsock   host MemAvailable    LMK
+    256MB   ONE_CPU    accepted   +0.7s            3ms     1481MB -> 1203MB     nothing killed
+    2048MB  MATCH_HOST accepted   +4.3s            4ms     1473MB ->  810MB     nothing killed
+    2048MB  MATCH_HOST accepted   +3.9s            7ms     2885MB -> 1022MB     nothing killed
+    3072MB  MATCH_HOST accepted   +5.1s            15ms    2809MB ->  312MB     5 processes killed
+    4096MB  MATCH_HOST accepted   NEVER            —       2861MB -> —          OUR APP killed
+    6144MB  MATCH_HOST accepted   NEVER            —       2876MB -> —          —
+
+**More than one CPU: YES, and it is not a token second core.** Counted from
+the host kernel rather than claimed by our app — crosvm runs one thread per
+vCPU, and during the 2GB run `ps -AT` showed `crosvm_vcpu0` through
+`crosvm_vcpu7`. Eight vCPUs on an eight-core phone. The two 256MB VMs alive
+at the same moment contributed one `crosvm_vcpu0` each, which is what makes
+the eight readable as one VM's.
+
+### Corroboration, from the guest and from the hypervisor, not from our log
+
+Neither of these is written by the app, which is the point.
+
+**The hypervisor's own command line**, logged by virtmgr:
+
+    256MB  ONE_CPU     "--cpus", "num-cores=1,sve=[auto=true]"   "--mem", "273"
+    2048MB MATCH_HOST  "--cpus", "sve=[auto=true]"               "--mem", "2065"
+
+At MATCH_HOST there is no `num-cores` at all — crosvm is told to take the
+host's topology.
+
+**The guest kernel's own reading of its memory.** microdroid sizes zram to
+its RAM, and the guest prints the figure itself. Three VMs were alive on the
+phone at once and each sized its own:
+
+    Console(2086)  Adding  242896k swap on /dev/block/zram0     penny3,  256MB
+    Console(2087)  Adding  242896k swap on /dev/block/zram0     penny3d, 256MB
+    Console(2088)  Adding 2038096k swap on /dev/block/zram0     penny3e, 2048MB
+
+2,038,096 kB is the guest kernel saying it found ~2GB. Same boot, same phone,
+next to two guests that found 243MB.
+
+**The guest served.** `onPayloadReady` fires only because our own C called
+`AVmPayload_notifyPayloadReady()`, a 42-byte vsock round trip came back with
+a matching FNV-1a and a byte-for-byte echo, and the guest exited 43 of its
+own accord. A VM that was merely registered does none of those.
+
+### Where the ceiling is, and whose ceiling it is
+
+**Nothing ever refused.** `VirtualMachineConfig.Builder` accepted every
+figure, including 6144MB — more than the phone physically has — and
+`VirtualizationService` accepted every one too, returning `STATUS_RUNNING`
+in 10-22ms each time. There is no API-level cap, no permission check on
+size, and no sanity check against physical memory.
+
+The ceiling is Android's low-memory killer, and it arrives without warning:
+
+- **3072MB boots and works**, but took host MemAvailable to 312MB and the
+  killer took `com.android.launcher3`, `com.android.inputmethod.latin`,
+  `app.grapheneos.networklocation`, `android.ext.services` and
+  `com.google.android.iwlan`. The VM was fine. The phone was not.
+- **4096MB never became ready.** The killer worked up the list and reached
+  our own app: `Process com.pennyspike.probe2a (pid 15136) has died: fg TOP`
+  — foreground and top of the stack was not enough. Killing the app kills
+  the handle, which kills the VM. This is also why no verdict was logged:
+  the probe was dead before its own watchdog could fire, which is worth
+  remembering as a failure mode that looks like a hang.
+- **6144MB** likewise, and it is above physical memory, so it could never
+  have worked.
+
+**So the usable figure on this phone is 2GB.** It is the largest tested that
+booted, served and killed nothing. 3GB is available if the phone is allowed
+to be a VM host and little else.
+
+### What this does NOT answer, and the first one is the important one
+
+- **Being GIVEN 2GB is not being able to USE it, and this run actively
+  suggests the gap is real.** On the first 2GB run the host only surrendered
+  ~660MB of the 2048MB granted. The guest kernel does not touch pages it has
+  not needed yet, so a VM can be handed memory the host would not actually
+  be able to find if it were asked for. **That is rung 3e-ii and it is not a
+  formality** — it is the difference between a number in a config and a
+  model that fits.
+- **Where a model FILE would live is untouched.** Rung 3d's shutdown log
+  carried `init: Unknown /data fs type: tmpfs`, and this run's guests each
+  built a zram swap device sized to their whole RAM. If microdroid's writable
+  storage is a RAM disk, a 1.5GB model file costs 1.5GB of RAM on top of what
+  the model needs to run, and the 2GB ceiling becomes 2GB for BOTH. That is
+  rung 3e-iii and it is not yet confirmed.
+- **Nothing was run inside the VM.** The payload is 3c's, unchanged: it
+  listens, hashes 42 bytes, echoes, exits. There is no model, no runtime, no
+  threads, and nothing that uses a second CPU. "8 vCPUs were created" is a
+  statement about crosvm, not about anything the guest did with them.
+- **This was unlocked, in the foreground, over adb.** Whether a 2GB VM comes
+  up at boot before first unlock is untested. Rung 3d's numbers were all at
+  256MB, and a 2GB VM takes ~4s longer to reach ready, which eats into the
+  20-second foreground-service exemption window.
+- **The two 256MB VMs were running throughout**, so 2GB is the headroom
+  ALONGSIDE rung 3's and 3d's VMs, not instead of them. That makes it a
+  conservative figure, not an optimistic one.
+- **Nothing here is about the Terminal app's Debian VM, which was not
+  running.** It holds 3.6GB when it is. On a phone where a user has also
+  opened the Terminal app, none of these figures hold.
+- Still `DEBUG_LEVEL_FULL`, still non-protected, still sample DICE values.
+
+### Method notes
+
+- **The control caught a bug in the probe, not in the platform, and it was
+  the fifth rung running that this has paid for itself.** The first 256MB run
+  logged `STEP7 RUNNING` and then nothing — which reads exactly like a VM
+  that was accepted and died. The guest console said otherwise: `PENNY3C:
+  notified ready, waiting for the host to connect`. The guest was fine. The
+  fault was that `setCallback()` and the watchdog were handed the same
+  single-thread executor, so the watchdog blocked the callback it was waiting
+  for. Had that been the 2048MB run, it would have been written up as the
+  ceiling, and it would have been wrong.
+- **`adb logcat -G 64M` before anything.** A DEBUG_LEVEL_FULL guest console
+  floods the ring buffer; the 4096MB and 6144MB runs' own log lines were
+  evicted before they could be read, which looked like a probe that printed
+  nothing. Three VMs' consoles at once is several hundred lines a second.
+- **Parameterise the probe, do not rebuild between attempts.** Memory and CPU
+  topology come in as intent extras, so all six runs above came off ONE APK.
+  Rebuilding would have put the packaging, the signature and the APK path
+  back in the frame on every attempt, and the whole point of a bisect is that
+  one thing moves.
+- **Count from the host kernel when the guest cannot tell you.** microdroid's
+  console pipe is attached after the kernel's SMP bringup, so the guest's own
+  CPU count is not in the log at all — `grep -i cpu` over 331 console lines
+  returns nothing. Counting crosvm's vCPU threads with `ps -AT` on the host
+  gives the same fact from a source that has no reason to flatter us.
+- `Penny3cPayload.so` reused unchanged, not rebuilt — no round trip into the
+  Debian guest for a compiler, and no new variable.
+- `VmService` and `Penny3dService` were not touched. `penny3` was up
+  throughout and is still up.

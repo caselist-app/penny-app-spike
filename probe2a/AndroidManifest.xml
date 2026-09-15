@@ -97,6 +97,16 @@
             android:name=".Probe3cActivity"
             android:exported="true" />
 
+        <!-- Rung 3e-i. Asks whether microdroid will hand a sideloaded app a
+             VM big enough to be worth putting a model in. Same package, same
+             uid, same microdroid, same 3c payload — the ONLY things that move
+             are setMemoryBytes and setCpuTopology, which is what makes a
+             failure readable as a memory ceiling rather than as anything else.
+             Both are intent extras so the whole bisect runs off one build. -->
+        <activity
+            android:name=".Probe3eActivity"
+            android:exported="true" />
+
         <!-- Rung 3b control. Runs the identical mic probe in the foreground
              with the phone unlocked, where access is unambiguously allowed.
              Without it, silence at boot cannot be told apart from a broken

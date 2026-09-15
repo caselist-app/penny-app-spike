@@ -585,6 +585,57 @@ that lived three seconds — no streaming, no endurance. Delivery is unchanged:
 attestation claim rests on it. And two reboots is reproducibility, not
 reliability — nothing was tested under memory pressure or on battery.
 
+**Rung 3e-i — will microdroid give a sideloaded app a VM big enough for a
+model? ANSWERED YES, with a ceiling.** 15 Sept. `com.pennyspike.probe2a`,
+uid 10192, created and booted a VM with **2048MB and 8 vCPUs** and the guest
+served a vsock round trip from inside it. Measured twice, nothing killed.
+
+    256MB  ONE_CPU     ready +0.7s   nothing killed          (control)
+    2048MB MATCH_HOST  ready +4.3s   nothing killed          x2
+    3072MB MATCH_HOST  ready +5.1s   launcher, IME + 3 more killed
+    4096MB MATCH_HOST  NEVER ready   OUR OWN APP killed
+    6144MB MATCH_HOST  NEVER ready   (above physical memory)
+
+**Nothing ever refused.** The builder and `VirtualizationService` accepted
+every figure, 6144MB included — more than the phone physically has —
+returning `STATUS_RUNNING` in 10-22ms each time. There is no API cap, no
+permission check on size, and no sanity check against physical memory.
+**The ceiling is Android's low-memory killer and it arrives silently.** At
+4096MB it reached our own foreground TOP process; killing the app kills the
+handle, which kills the VM, so the probe died before its own watchdog could
+fire. **The usable figure on this phone is 2GB** — largest tested that
+booted, served and killed nothing — and that is headroom ALONGSIDE rung 3's
+and 3d's 256MB VMs, which were up throughout. The Terminal app's Debian VM
+was NOT running; it holds 3.6GB when it is.
+
+Dex flags read before any code, the method that has now been right 10 times
+out of 10: `setMemoryBytes` (J), `setCpuTopology` (I),
+`CPU_TOPOLOGY_MATCH_HOST`, `CPU_TOPOLOGY_ONE_CPU` are all
+`hiddenapi 0x0020 (SDK,TEST-API)` — the same flag `DEBUG_LEVEL_FULL` and
+`setApkPath` carry. `setMemoryBytes` takes a **long**.
+
+Corroborated twice over, neither written by our app. The hypervisor's own
+command line: `"--mem", "2065"` and `"--cpus", "sve=[auto=true]"` with no
+`num-cores` at all at MATCH_HOST, against `num-cores=1` and `--mem 273` at
+the control. And the guest kernel's own reading, since microdroid sizes zram
+to its RAM — three guests alive at once, `Adding 2038096k swap` in penny3e
+next to `Adding 242896k` in penny3 and penny3d. vCPU count came from the
+host kernel (`ps -AT` shows `crosvm_vcpu0`..`vcpu7`), because microdroid's
+console pipe attaches after SMP bringup and the guest's own CPU count is not
+in the log at all.
+
+**What it does NOT say, and the first is the point.** Being GIVEN 2GB is not
+being able to USE it: on the first 2GB run the host surrendered only ~660MB
+of the 2048MB granted, because the guest kernel does not touch pages it has
+not needed. That gap is **rung 3e-ii, NOT RUN.** Nor is it known where a
+model FILE would live — 3d logged `init: Unknown /data fs type: tmpfs` and
+every guest here built a zram swap sized to its whole RAM, so a 1.5GB model
+file may cost 1.5GB of RAM on top of running it. That is **rung 3e-iii, NOT
+RUN.** Nothing ran inside the VM: the payload is 3c's, unchanged, and uses
+no second CPU. And this was unlocked, in the foreground, over adb — a 2GB
+VM takes ~4s longer to reach ready, which eats into the 20-second
+foreground-service exemption, so the boot case is untested.
+
 **Rung 4 — the OS image. DO NOT START IT.** Build GrapheneOS from source,
 preinstall the app, sign with our platform key, flash, lock, verify
 attestation covers the app. Weeks. Not now.
@@ -620,6 +671,33 @@ Do not work ahead of the current rung.
   Practical rule: a `NoSuchMethodError` on a signature you read off the
   dex is a runtime block, not a typo. Get the value another way — the CID
   came from `vm list` instead, and nothing was lost.
+- **A VM can be granted more memory than the phone can survive, and nothing
+  refuses it.** `setMemoryBytes` accepts any figure — 6GB on a 5.45GB phone
+  included — and `VirtualizationService` returns `STATUS_RUNNING` in
+  milliseconds. The refusal, when it comes, is Android's low-memory killer
+  eating the phone: at 3GB it took the launcher, the IME and three system
+  processes; at 4GB it took our own **foreground TOP** app, which killed the
+  VM handle with it. The probe therefore died before its own watchdog could
+  log a verdict, so the log shows `run() returned RUNNING` and then silence
+  — which reads exactly like a VM that was accepted and hung. Check
+  `logcat | grep "has died"` before concluding anything about a hang.
+- **`adb logcat -G 64M` before measuring anything with a DEBUG_LEVEL_FULL
+  guest.** One guest console is several hundred lines a second and three at
+  once evicted a whole run's own log lines from the default ring buffer
+  before they could be read. The symptom is a probe that appears to have
+  printed nothing.
+- **The guest's CPU count is NOT in the guest console.** microdroid attaches
+  the console pipe after the kernel's SMP bringup, so `grep -i cpu` over the
+  whole console returns zero lines and an absent count proves nothing. Count
+  crosvm's vCPU threads on the host instead: `ps -AT | grep crosvm_vcpu`,
+  one thread per guest CPU. The guest's MEMORY, by contrast, is readable —
+  microdroid sizes zram to its RAM and prints `Adding <N>k swap on
+  /dev/block/zram0`.
+- **Do not hand `setCallback()` and a watchdog the same single-thread
+  executor.** A watchdog sleeping on it blocks the very callback it is
+  waiting for, and a perfectly healthy VM is reported as one that never
+  became ready. Cost one run on 15 Sept; the control caught it before any
+  real figure was measured.
 - **A payload built on Debian will not load in microdroid, and the failure is
   at dlopen where nothing useful is logged.** Debian is glibc; microdroid is
   Android, so bionic, and there is no glibc in the guest at all. Built the
@@ -847,6 +925,15 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   into a VM that lived 3 seconds. No streaming, no backpressure, no long-held
   channel, no endurance. Do not let 3c be stretched into "audio streams to the
   guest".
+- **The memory gate is OPEN but only half-measured. Rung 3e-i answered
+  "will it be given" — 2GB and 8 vCPUs, yes. `3e-ii` (can the guest
+  actually WRITE to every page it was granted?) and `3e-iii` (is
+  microdroid's writable storage a RAM disk, so that a 1.5GB model file costs
+  1.5GB of RAM on top of running it?) are DEFINED AND NOT RUN.** Both need
+  the guest payload rebuilt, i.e. a round trip into the phone's Debian guest
+  for gcc. Until 3e-ii is answered, "the VM has 2GB" is a number in a config
+  and not a fact about memory — the host surrendered only ~660MB of the
+  2048MB it granted on the first run.
 - **THE LARGEST UNANSWERED THING IN THIS REPO: the guest still does nothing
   WITH the audio.** The payload hashes it and echoes it back — in 3c unlocked,
   in 3d at boot. No recognition, no model, no processing of any kind. "Audio
