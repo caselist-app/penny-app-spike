@@ -3285,3 +3285,147 @@ the combined ceiling, this time from cold.
   throughout, and there was not one `has died` line all session. The phone
   finished at MemFree 2272952 kB. The Terminal app's Debian VM was stopped by
   hand before the 2GB runs, as 3e-ii's results were also taken without it.
+
+## 2026-09-15 — rungs 3e-iv, 3f, 3g and 3h DEFINED, none run. The four things worth asking this handset before rung 4, and the one that nearly went unasked.
+
+Written before any of them is attempted, as 3d and 3e-iii were. The method
+matters more than the result here: a log cannot tell you afterwards what you
+decided to measure and why, and three times in this repo a hypothesis would
+have been written up wrongly had the reasoning not been recorded first.
+
+### Why these four and not others
+
+The spike has measured, exhaustively, whether there is ROOM on this phone: 2GB
+and 8 vCPUs given (3e-i), 1792MB genuinely usable (3e-ii), a 1.5GB model file
+costing no permanent RAM (3e-iii). Every one of those was taken **unlocked, in
+the foreground, over adb, on an idle phone with the Terminal app's Debian VM
+deliberately shut down**, and **not one of them asked a CPU to compute
+anything.**
+
+So the gap is no longer "is there room". It is (a) does the room still exist on
+a phone that is locked, in use, and has just been rebooted, and (b) is the
+processor in that room any good. Those are the four below.
+
+The handset goes back to Back Market and is replaced with a 7a, so anything
+that needs THIS device needs doing before the swap. The protected-VM question
+is deliberately NOT on this list: it needs the 7a, not this one, and one run of
+the existing probe settles it.
+
+### 3e-iv — does the encrypted store survive a reboot, and can it be read before first unlock?
+
+Numbered into the 3e group because it is storage, not a new axis.
+
+3e-iii proved the store survives the VM being destroyed and rebuilt, minutes
+apart, on a running phone. No power cycle was tried.
+
+**The second half is the one that nearly went unasked, and it is the more
+important of the two.** This spike's entire value is that the app works before
+anybody types the PIN. Rung 3 had to move the VM's directory to
+device-encrypted storage (`/data/user_de/0/<pkg>`) for exactly that reason. If
+the encrypted store's key is tied to the user's credential, then the model
+cannot be read at boot — and 3d's and 3e-iii's results would apply only to a
+phone somebody has already unlocked. That is a materially different product.
+**Test the pre-unlock read explicitly; do not infer it from the file
+existing.**
+
+Method: write a known-length file with a known checksum; reboot; re-open from a
+new VM with `--ei keep 1` and verify BOTH size and checksum, because a file
+that reappears short is a different answer from one that is gone. Read it with
+`userUnlocked=false`, the way 3d measured everything.
+
+**Do not reinstall the APK between the two runs** — `getOrCreate` reuses the
+stored config, the APK path changes on every install, and the failure reads as
+a missing VM. That trap cost a run today and a reboot invites a rebuild.
+
+DONE MEANS: yes/no it survives the power cycle, yes/no it is readable locked,
+and the checksum either way.
+
+### 3f — is the guest CPU real?
+
+**The largest measurable unknown left in this repo.** 3e-i was given 8 vCPUs;
+3e-ii and 3e-iii moved gigabytes; every payload here is single-threaded and
+does nothing but copy bytes. "Can a useful model run in 1792MB" splits into
+*is there room* — answered — and *is the processor any good* — never asked.
+
+1. **Single-core throughput**, integer and floating point, a fixed loop
+   reporting milliseconds. The comparison is the same C compiled by the same
+   gcc and run in the phone's Debian guest: same silicon, same day, a
+   known-good Linux. **It is not a bare-metal control and must not be written
+   up as one** — it is a sanity number that would catch a guest running at a
+   tenth of expected speed.
+2. **Scaling 1 -> 2 -> 4 -> 8 threads inside microdroid.** Needs no host
+   control at all, and is arguably the more decision-relevant half: if eight
+   vCPUs do not go roughly eight times faster, 3e-i's `CPU_TOPOLOGY_MATCH_HOST`
+   result is a line in a config file rather than eight usable cores.
+   **The hard part is threads with no C library** — `clone` by hand, a stack
+   per thread from `mmap`, no pthreads. Expect that to be the whole difficulty,
+   and run the single-core half FIRST so a failure there is not misread as a
+   threading bug.
+
+DONE MEANS: a single-core figure with its comparison, and a 1/2/4/8 curve.
+
+### 3g — does the 2GB VM survive a real phone?
+
+Two halves, both commercial risks rather than laboratory ones.
+
+**3g-i. Will a 2GB VM start at boot, locked, with nobody in the room?** 3d
+proved 256MB VMs do, twice. A 2048MB VM takes ~4s longer to reach
+`onPayloadReady` (3e-i: +4.3s against +0.7s at 256MB) and the boot broadcast's
+foreground-service exemption is **20 seconds**. The margin is real but has
+never been measured, and a cold `dex2oat` on the first boot after an update
+eats into it. **If a 2GB VM cannot make that window, the unattended wake story
+only works for VMs too small to hold a model — and those two results have never
+been in the same room.** Needs its OWN service, COPIED not edited, exactly as
+`Penny3dService` was copied from `VmService`. Control: the same service at
+256MB on the same boot, so "the service shape is wrong" and "2GB is too slow"
+stay separable.
+
+**3g-ii. What happens on a phone somebody is using?** Booting a 2048MB VM drove
+the low-memory killer every time and the first 3e-ii run killed thirteen
+processes, including the Debian VM opened fifteen minutes earlier to compile
+that very payload. Our own app was never killed at 2048MB — on an idle phone
+with nothing else running. Open the camera, a browser and several apps by hand,
+then start the VM. Control: today's idle figures, already recorded.
+
+DONE MEANS: 3g-i, yes/no plus time-to-ready and what died; 3g-ii, yes/no our
+app survives plus the casualty list.
+
+### 3h — can a gigabyte be pushed into the guest?
+
+The question 3e-iii opened and could not answer. The encrypted store is keyed
+to the VM, so the host cannot write it — the guest must — and the only inbound
+channel is vsock, which has carried **32,000 bytes, once, in a single shot**
+(3c). Nothing here measures sustained transfer in either direction.
+
+Method: the host generates incompressible bytes and streams them in chunks; the
+guest writes them straight to `/mnt/encryptedstore` and checksums as it goes,
+so truncation and corruption cannot be confused. Sample memory on BOTH sides
+throughout — **the interesting failure is the guest buffering the whole
+transfer in RAM and hitting 3e-ii's zram live-lock, which presents as a hang
+with no error and no `has died` line.** Control the size upwards: 32KB (3c's
+proven figure), then 64MB, then 1536MB.
+
+**No model and no download needed** — the bytes are generated on the device.
+
+DONE MEANS: a throughput figure and yes/no on 1.5GB arriving intact.
+
+### Sequencing, and one efficiency worth taking
+
+3e-iv, 3g-i and 3g-ii are reboot-and-device-state work needing no new guest
+code, so they belong in one sitting. 3f and 3h both need a payload rebuild,
+which costs a manual trip into the phone's Debian guest for gcc — so **give
+them ONE payload between them, a command server in the shape 3e-iii proved**,
+and pay that cost once. That shape answered nine experiments off one build
+today. **Add a fifth payload; never edit the four already in the APK.**
+
+### Deliberately NOT on this list
+
+- **The endurance soak.** The oldest open question in the project and still
+  real, but it is hours of wall clock for a result that changes no decision
+  this month, and a measured ~1.5-second self-restart already covers most of
+  what it was protecting against. Worth doing; not worth doing first.
+- **Protected VMs.** Needs the 7a, not this handset. One run of the existing
+  `getCapabilities()` probe settles whether the cause is the 6a's silicon,
+  GrapheneOS or Android 17.
+- **Anything requiring a real model.** Not available, and three of the four
+  above were chosen precisely because they do not need one.

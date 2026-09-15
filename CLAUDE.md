@@ -781,6 +781,114 @@ minutes apart, **not across a reboot**. 835 MB/s is one cold read on an idle
 phone. Unlocked, foreground, over adb. Still `DEBUG_LEVEL_FULL`, still
 non-protected, still sample DICE values.
 
+**Rung 3e-iv — does the encrypted store survive a REBOOT, and can it be read
+BEFORE first unlock? DEFINED, NOT RUN.** 3e-iii proved the store survives the
+VM being destroyed and rebuilt, minutes apart, on a running phone. It did not
+survive a power cycle because none was tried.
+
+**The second half is the one that matters and it nearly went unasked.** This
+entire spike's value is that the app works before anybody types the PIN — rung
+3 had to move the VM's directory to device-encrypted storage
+(`/data/user_de/0/<pkg>`) precisely so it could exist at all pre-unlock. If the
+encrypted store's key is tied to the user's credential, the model cannot be
+read at boot, and every result in 3d and 3e-iii applies only to a phone
+somebody has already unlocked. **Test the pre-unlock read explicitly. Do not
+infer it from the file merely existing.**
+
+Method: write a known-length file with a known checksum, reboot, then with
+`--ei keep 1` re-open it from a new VM and verify BOTH the size and the
+checksum — a file that reappears empty or short is a different answer from one
+that is gone. Read it at the lock screen with `userUnlocked=false`, the way 3d
+measured everything, not after an unlock.
+
+**DO NOT REINSTALL THE APK BETWEEN THE TWO RUNS.** `getOrCreate` reuses the
+stored config, the APK path changes on every install, and the failure reads as
+a missing VM rather than a stale path. That trap cost a run on 15 Sept and it
+bites hardest here, because a reboot invites a rebuild.
+
+**DONE MEANS:** yes/no the file survives a power cycle, yes/no it is readable
+with the phone still locked, and the checksum either way.
+
+**Rung 3f — is the guest CPU real? DEFINED, NOT RUN.** The largest MEASURABLE
+unknown left in this repo. 3e-i was given 8 vCPUs and 3e-ii and 3e-iii between
+them wrote, verified and read back gigabytes — and **not one of those runs ever
+asked a CPU to compute anything.** Every payload here is single-threaded and
+does nothing but move bytes. "Can a useful model run in 1792MB" splits into *is
+there room*, which is now answered exhaustively, and *is the processor any
+good*, which has never once been asked.
+
+What to measure, and the control is the difficult part:
+
+1. **Single-core throughput**, integer and floating point, as a fixed loop
+   reporting milliseconds. The comparison point is the SAME C compiled by the
+   same gcc and run in the phone's Debian guest — same silicon, same day, a
+   known-good Linux. It is not a bare-metal control and must not be written up
+   as one; it is a sanity number that would catch a guest running at a tenth of
+   expected speed.
+2. **Scaling, 1 -> 2 -> 4 -> 8 threads, inside microdroid.** Arguably the more
+   decision-relevant half, and it needs no host control at all: if eight vCPUs
+   do not go roughly eight times faster, the `CPU_TOPOLOGY_MATCH_HOST` result
+   from 3e-i is a number in a config file rather than eight usable cores.
+   **The hard part is threads with no C library** — `clone` by hand, each
+   thread given its own stack from `mmap`, and no pthreads to help. Budget for
+   that being the whole difficulty, and run the single-core half first so a
+   failure there is not mistaken for a threading bug.
+
+**DONE MEANS:** a single-core figure with its comparison, and a 1/2/4/8 scaling
+curve. Then stop.
+
+**Rung 3g — does the 2GB VM survive a REAL phone? DEFINED, NOT RUN.** Every
+figure in 3e-i, 3e-ii and 3e-iii was taken unlocked, in the foreground, over
+adb, on an idle phone with the Terminal app's Debian VM deliberately shut down.
+Two separate things have never been tested and both are commercial risks rather
+than laboratory ones.
+
+- **3g-i. Will a 2GB VM start at boot, locked, with nobody in the room?** Rung
+  3d proved 256MB VMs do, twice. A 2048MB VM takes ~4s longer to reach
+  `onPayloadReady` (3e-i: +4.3s against +0.7s), and the boot broadcast's
+  foreground-service exemption is **20 seconds** — so the margin is real but
+  unmeasured, and a cold `dex2oat` on the first boot after an update eats into
+  it. **If a 2GB VM cannot make that window, the unattended wake story only
+  works for VMs too small to hold a model, and those two results have never
+  been in the same room.** Needs its OWN service, copied not edited, exactly as
+  `Penny3dService` was copied from `VmService`. Control: the same service at
+  256MB on the same boot, so "the service shape is wrong" and "2GB is too slow"
+  stay separable. Measure `userUnlocked` at the moment of ready, the time, and
+  `logcat | grep "has died"`.
+- **3g-ii. What happens on a phone somebody is using?** Booting a 2048MB VM
+  drove the low-memory killer EVERY time and the first 3e-ii run killed
+  thirteen processes. Our own app was never killed at 2048MB — on an idle
+  phone. Open the camera, a browser and several apps by hand first, then start
+  the VM. Control: today's idle figures, already recorded. **If the system
+  kills us, that is a product problem and it is better found now.**
+
+**DONE MEANS:** for 3g-i, yes/no plus the time to ready and what died; for
+3g-ii, yes/no our app survives plus the list of casualties.
+
+**Rung 3h — can a GIGABYTE be pushed into the guest? DEFINED, NOT RUN.** The
+question 3e-iii opened. The encrypted store is keyed to the VM, so the host
+cannot write it — the guest must — and the only inbound channel is vsock, which
+has carried **32,000 bytes, once, in a single shot** (3c). Nothing in this repo
+measures sustained transfer in either direction, and a model has to get in
+somehow.
+
+Method: the host generates incompressible bytes and streams them in chunks; the
+guest writes them straight to `/mnt/encryptedstore` and checksums as it goes,
+so a truncation and a corruption cannot be confused. Report throughput, and
+sample memory on BOTH sides throughout — the interesting failure is the guest
+buffering the whole transfer in RAM and hitting 3e-ii's live-lock, which would
+present as a hang with no error. Control the size upwards: 32KB (3c's proven
+figure), then 64MB, then 1536MB. **No model and no download needed.**
+
+**DONE MEANS:** a throughput figure and a yes/no on 1.5GB arriving intact.
+
+**Sequencing, and one efficiency worth taking.** 3e-iv, 3g-i and 3g-ii are all
+reboot-or-device-state work needing no new guest code, so they belong in one
+sitting. 3f and 3h both need a payload rebuild, which costs a manual trip into
+the phone's Debian guest for gcc — so **give them ONE payload between them, a
+command server in the shape 3e-iii proved**, and pay that cost once. Add a
+fifth payload; never edit the four that are in the APK.
+
 **Rung 4 — the OS image. DO NOT START IT.** Build GrapheneOS from source,
 preinstall the app, sign with our platform key, flash, lock, verify
 attestation covers the app. Weeks. Not now.
@@ -1140,11 +1248,20 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   bytes cross inwards over vsock, in one 32,000-byte shot. 1.5GB has never been
   tried, and nothing in this repo measures sustained transfer in either
   direction.
-- **NEW AND UNTESTED: does the encrypted store survive a REBOOT?** Persistence
-  was measured across two VM instances minutes apart, not across a power cycle.
-  If it does not survive, a model has to be re-delivered at every boot and the
-  bullet above becomes the critical path rather than a convenience. Cheap to
-  test — it is one reboot and one `--ei keep 1` run.
+- **NEW AND UNTESTED: does the encrypted store survive a REBOOT, and can it be
+  read BEFORE first unlock?** Persistence was measured across two VM instances
+  minutes apart, not across a power cycle — and the pre-unlock half matters
+  more: if the store's key is tied to the user's credential, no model can be
+  read at boot and every unattended result in this repo applies only to an
+  already-unlocked phone. **Now written up as rung 3e-iv.**
+- **Compute has NEVER been measured. Not once.** Eight vCPUs given, gigabytes
+  moved, and no payload here has ever asked a CPU to calculate anything. This
+  is the largest measurable unknown in the repo and is **now rung 3f.**
+- **Every 2GB figure was taken on an idle, unlocked, foreground phone.** Whether
+  a 2GB VM can start at boot inside the 20-second exemption, and whether the
+  low-memory killer takes our app on a phone somebody is actually using, are
+  **now rungs 3g-i and 3g-ii** and are commercial risks rather than laboratory
+  ones.
 - **THE LARGEST UNANSWERED THING IN THIS REPO: the guest still does nothing
   WITH the audio.** The payload hashes it and echoes it back — in 3c unlocked,
   in 3d at boot. No recognition, no model, no processing of any kind. "Audio
