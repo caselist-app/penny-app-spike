@@ -78,12 +78,18 @@ package-and-align stage: the payload `.so` must be Stored (`zip -0`) and
 page-aligned (`zipalign -p`), because microdroid mmaps it out of the APK in
 place rather than unpacking it. `PENNY_PAYLOAD_SO=<path>` packages a `.so`
 built elsewhere — which is both the control seam AND, since there is no NDK
-here, the normal route. **Since rung 3c there are TWO payloads in the APK**,
-`PennyPayload.so` (2d) and `Penny3cPayload.so` (3c, via
-`PENNY_PAYLOAD_3C_SO=<path>`), packaged side by side rather than one replacing
-the other: microdroid loads only the file `setPayloadBinaryName()` names, two
-entries cost nothing, and it keeps the 2d result reproducible from the same
-build. Both must read `Stored` in the final `unzip -lv`. The
+here, the normal route. **As of rung 3e-iii there are FOUR payloads in the APK** —
+`PennyPayload.so` (2d), `Penny3cPayload.so` (3c), `Penny3eiiPayload.so` (3e-ii)
+and `Penny3eiiiPayload.so` (3e-iii), via `PENNY_PAYLOAD_SO`,
+`PENNY_PAYLOAD_3C_SO`, `PENNY_PAYLOAD_3EII_SO` and `PENNY_PAYLOAD_3EIII_SO`.
+They are packaged side by side rather than one replacing the other: microdroid
+loads only the file `setPayloadBinaryName()` names, extra entries cost nothing,
+and every earlier rung stays reproducible from the same build. **Add a payload,
+never edit one.** All four must read `Stored` in the final `unzip -lv`.
+`PENNY_BLOB_MB=<n>` additionally packs an incompressible n-MB file as
+`PennyBlob.so`, Stored and page-aligned — built for 3e-iii's APK escape hatch,
+never needed because encrypted storage was the better answer, and left in place
+because the packaging is proven and costs nothing to keep. The
 script ends by grepping the built dex for `Landroid/system/virtualmachine/`
 and printing the count, which must be 0 — if a stub ever shipped, the app
 would carry a fake copy of a platform class and which one won would be a
