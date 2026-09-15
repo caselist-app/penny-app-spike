@@ -132,5 +132,26 @@ public class BootReceiver extends BroadcastReceiver {
             Log.e("PENNY3GI", "VERDICT 3g-i: NOT TESTED — refused before any VM"
                     + " was asked for, so this says nothing about 2048MB.");
         }
+
+        // Endurance, and the store-creation case. SIXTH, and deliberately
+        // LAST: it holds a 2048MB VM for hours, so everything above it takes
+        // its exemption and gets its VM up first. Nothing waits on this one and
+        // it waits on nothing — a soak that never starts must not be able to
+        // cost any of the five committed results above it a boot.
+        Intent soak = new Intent(context, PennySoakService.class);
+        soak.putExtra("why", action);
+        try {
+            context.startForegroundService(soak);
+            Log.i("PENNYSOAK", "startForegroundService(PennySoakService)"
+                    + " accepted for " + action + " sinceBoot="
+                    + SystemClock.elapsedRealtime() + "ms");
+        } catch (Throwable t) {
+            Log.e("PENNYSOAK", "startForegroundService(PennySoakService)"
+                    + " REFUSED -> " + t.getClass().getName() + ": "
+                    + t.getMessage(), t);
+            Log.e("PENNYSOAK", "VERDICT: NOT TESTED — refused at start, so"
+                    + " neither the store-create question nor the soak was"
+                    + " ever asked.");
+        }
     }
 }

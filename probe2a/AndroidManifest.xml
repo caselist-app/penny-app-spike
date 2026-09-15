@@ -319,5 +319,34 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Holds a virtual machine alive for the life of the device" />
         </service>
+
+        <!--
+          ENDURANCE, and the store-creation case, in one service.
+
+          A COPY of Penny3evService with its own VM name, its own encrypted
+          store and its own notification id. Penny3evService is untouched and
+          still holds rung 3e-v's committed result.
+
+          Two questions, one VM. `pennysoak` is a name that has never existed
+          on this device, so getOrCreate has no prior directory and the FIRST
+          boot answers "can a NEW encrypted store be created before first
+          unlock" — the first-boot-after-factory-reset case, which 3e-v never
+          reached because its boot 1 died on the stale-config trap. That answer
+          lands in the first twenty seconds. Everything after it is the soak:
+          nothing in this repo has ever run longer than about twenty seconds.
+
+          directBootAware for the same reason as everything else here: without
+          it the OS does not deliver LOCKED_BOOT_COMPLETED and the pre-unlock
+          question cannot be asked at all.
+        -->
+        <service
+            android:name=".PennySoakService"
+            android:directBootAware="true"
+            android:exported="true"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Holds a virtual machine alive for the life of the device" />
+        </service>
     </application>
 </manifest>
