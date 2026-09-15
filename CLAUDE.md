@@ -91,18 +91,34 @@ same commit as whatever changes it.
     Terminal app / Debian VM   DOWN since 15:37 and it does not restart itself.
                                It holds ~3.6GB while it runs, so close it again
                                before any memory-sensitive measurement.
-    penny3ev (rung 3e-v's VM)  STOPPED, store believed INTACT — last VERIFIED
-                               16:31:39, /mnt/encryptedstore/penny3ev.bin,
-                               67,108,864 bytes, ck64 0x757b795dd5138044, SIZE
-                               MATCH and CONTENT MATCH, `STORE WAS RESET` never
-                               seen. NOT re-verified since, because verifying it
-                               means enabling the app and running the service.
-                               That value is DERIVABLE — Penny3evService
-                               recomputes it from the fixed-seed generator, so it
-                               needs no log to verify. **A reinstall strands it**,
-                               and the service's recovery path will then silently
-                               delete and recreate the store, logging
-                               STORE WAS RESET when it does.
+    penny3ev (rung 3e-v's VM)  STOPPED. **PROBABLY STRANDED by the 16:51
+                               reinstall — DO NOT PLAN ON IT.** This line said
+                               "believed INTACT" until 15 Sept evening and that
+                               was wrong. It was last VERIFIED 16:31:39 under
+                               the FIFTH install (/mnt/encryptedstore/
+                               penny3ev.bin, 67,108,864 bytes, ck64
+                               0x757b795dd5138044, SIZE MATCH and CONTENT
+                               MATCH). The SIXTH build was installed at 16:51
+                               — sha256 9efe27cb..., confirmed on the phone —
+                               so by the getOrCreate stale-config trap below,
+                               penny3ev's stored config now points at a
+                               /data/app path that reinstall replaced. Its next
+                               run() therefore throws, and Penny3evService's
+                               recovery path (~345-352) deletes and recreates
+                               the store, logging STORE WAS RESET.
+                               **WHETHER THAT ALREADY HAPPENED ON THE 19:36
+                               BOOT CANNOT BE ANSWERED**: Penny3evService did
+                               run then, alongside the soak, but logcat dies on
+                               reboot and the buffer's oldest line is now
+                               09-15 19:59:34 — the current boot. Checked 15
+                               Sept ~21:05; no PENNY3EV or STORE WAS RESET line
+                               survives. So the store is either already reset
+                               or will reset on its next run, and nothing
+                               distinguishes the two from here. PARKED — the
+                               ck64 is DERIVABLE from the fixed-seed generator,
+                               so if it is ever wanted back it is re-creatable
+                               rather than lost, but no result may rest on the
+                               existing file.
     pennysoak store            **CONTAMINATED, and the run that used it is
                                VOID.** A force-stop restarted PennySoakService
                                through START_STICKY with a NULL intent on an

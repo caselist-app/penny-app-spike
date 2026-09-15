@@ -4951,3 +4951,15 @@ the APK hash was read out of source or `.gitignore` rather than exercised — th
 and `pm enable` was NOT issued. Nothing was fixed in code: items 2 and 4 are
 recorded warnings only. Nothing was pushed to the phone and the app is still
 disabled.
+
+**Correction to the entry above, same evening.** `penny3ev`'s store is **not
+"believed INTACT"** — it is PROBABLY STRANDED. It was verified at 16:31:39 under
+the fifth install; the sixth build went on at 16:51 (sha256 `9efe27cb...`,
+confirmed on the phone tonight), and by this repo's own `getOrCreate`
+stale-config trap that reinstall invalidates the VM's stored APK path, so
+`Penny3evService`'s recovery path deletes and recreates the store on its next
+`run()`. Whether it already did so on the 19:36 boot — where that service ran
+alongside the soak — **cannot be answered**: logcat dies on reboot and the
+buffer's oldest line is now 09-15 19:59:34, checked ~21:05. LIVE DEVICE STATE
+corrected. Parked, not investigated; the ck64 is derivable from the fixed-seed
+generator, so the file is re-creatable rather than lost.
