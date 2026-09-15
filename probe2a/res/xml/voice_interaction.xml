@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Rung 3b. The declaration that turns this APK into something the OS will
+  accept as the device assistant.
+
+  Every attribute here is load-bearing and the failure mode is SILENT — the
+  app simply never appears in the Settings assistant picker, with nothing in
+  any log to say why. PermissionController reads this file to decide whether
+  the app qualifies, and rejects it without comment if any of the three is
+  missing:
+
+    sessionService       the class the OS constructs when the assistant is
+                         actually invoked. Must exist, must be exported, must
+                         be protected by BIND_VOICE_INTERACTION.
+    recognitionService   the speech recogniser the assistant offers. Penny
+                         does its own recognition inside the guest VM
+                         eventually, so this one is a stub — but it cannot be
+                         absent.
+    supportsAssist       without this the app is not offered as an assistant
+                         at all, only as a recogniser.
+
+  supportsLaunchVoiceAssistFromKeyguard is NOT required for rung 3b and is
+  set because it is the honest description of an appliance that has to work
+  with the phone locked. It does not grant anything on its own.
+-->
+<voice-interaction-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:sessionService="com.pennyspike.probe2a.PennySessionService"
+    android:recognitionService="com.pennyspike.probe2a.PennyRecognitionService"
+    android:supportsAssist="true"
+    android:supportsLaunchVoiceAssistFromKeyguard="true" />

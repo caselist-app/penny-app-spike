@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Required by RecognitionService's manifest contract, and NOT the empty stub it
+  first appears to be. selectableAsDefault is the attribute that decides
+  whether Penny survives a reboot as the assistant.
+
+  Read out of AOSP's VoiceInteractionManagerService.initForUserNoTracing, which
+  runs at every boot:
+
+    - It reads Settings.Secure.VOICE_RECOGNITION_SERVICE first. If that is
+      null, the whole "Current interactor/recognizer okay, done!" early return
+      is skipped.
+    - Execution then falls through to findAvailInteractor(userHandle, null),
+      which will never auto-select a third-party app — AOSP: "We never want to
+      allow third party services to be automatically selected."
+    - So it reaches setCurInteractor(null, userHandle) and WIPES the assistant
+      setting, every boot, silently.
+
+  The only way to reach the early return is for the recognizer setting to point
+  at a service that both resolves and reports isSelectableAsDefault(). That is
+  this attribute. Without it, initForUser sets recognizerInfo = null with the
+  comment "Unsetting the default and looking for another one", and Penny is
+  evicted again.
+
+  Measured on this device before it was added: the assistant role holder
+  survived the reboot, but voice_interaction_service came back empty and
+  dumpsys voiceinteraction said "(No active implementation)".
+-->
+<recognition-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:selectableAsDefault="true" />

@@ -33,14 +33,30 @@ echo
 rm -rf "$OUT"
 mkdir -p "$OUT/classes" "$OUT/stubs"
 
-# 1. Manifest -> a compiled, resource-free APK skeleton.
+# 1. Resources -> compiled, then manifest -> an APK skeleton.
+#
+#    Rung 3b is the first thing in this spike that needs a resource. An app
+#    cannot be offered as the device assistant by code alone: the OS reads an
+#    XML file named from the manifest to find out which session and recognition
+#    services the assistant provides, and rejects the app silently if it cannot
+#    resolve it. So the deliberately resource-free build gains exactly one
+#    directory, res/xml, and nothing more.
+#
+#    aapt2 is a two-stage tool. compile turns each source resource into a
+#    binary .flat file; link assembles those plus the manifest into the APK and
+#    builds the resource table the runtime looks names up in.
+"$BT/aapt2" compile --dir "$HERE/res" -o "$OUT/res.zip"
+echo "1/6 resources compiled"
+
 "$BT/aapt2" link \
     -I "$PLATFORM" \
     --manifest "$HERE/AndroidManifest.xml" \
+    -R "$OUT/res.zip" \
+    --auto-add-overlay \
     --min-sdk-version 34 \
     --target-sdk-version 37 \
     -o "$OUT/base.apk"
-echo "1/5 manifest linked"
+echo "2/6 manifest linked"
 
 # 2. The @SystemApi stubs -> class files that exist ONLY to satisfy javac.
 #    android.system.virtualmachine is absent from the public android.jar, so
@@ -52,14 +68,14 @@ javac -source 17 -target 17 -nowarn \
     -classpath "$PLATFORM" \
     -d "$OUT/stubs" \
     $(find "$HERE/stubs" -name '*.java')
-echo "2/5 stubs compiled (compile-only, not shipped)"
+echo "3/6 stubs compiled (compile-only, not shipped)"
 
 # 3. Our own Java -> JVM class files, against android.jar plus the stubs.
 javac -source 17 -target 17 -nowarn \
     -classpath "$PLATFORM:$OUT/stubs" \
     -d "$OUT/classes" \
     $(find "$HERE/src" -name '*.java')
-echo "3/5 app compiled"
+echo "4/6 app compiled"
 
 # 4. JVM class files -> Android dex bytecode. Note this dexes $OUT/classes
 #    only. If the stubs were packaged, the APK would carry a second, fake
@@ -68,7 +84,7 @@ echo "3/5 app compiled"
 #    visible to the compiler, absent from the output.
 "$BT/d8" --lib "$PLATFORM" --lib "$OUT/stubs" --min-api 34 --output "$OUT" \
     $(find "$OUT/classes" -name '*.class')
-echo "4/5 dexed"
+echo "5/6 dexed"
 
 # 5. Put the dex inside the APK and sign it. Android refuses unsigned APKs;
 #    a throwaway local key is enough for a sideload. This is NOT the
@@ -86,7 +102,7 @@ fi
 "$BT/apksigner" sign \
     --ks "$HERE/debug.keystore" --ks-pass pass:android --key-pass pass:android \
     --out "$OUT/probe2a.apk" "$OUT/base.apk"
-echo "5/5 signed"
+echo "6/6 signed"
 
 echo
 echo "built: $OUT/probe2a.apk"

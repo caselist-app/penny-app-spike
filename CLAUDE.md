@@ -31,7 +31,7 @@ Ignore its "open questions" section entirely; it predates rung 1 and
 still frames the work as questions 1-9. Do **not** read its `notes.md`
 end to end — it is 2,298 lines. Grep it.
 
-## State of play — 14 September 2026
+## State of play — 15 September 2026
 
 Pixel 6a (bluejay), refurbished, 6GB Micron DRAM, 128GB Micron UFS.
 Bootloader **LOCKED**, verified boot against a custom key. OEM unlocking
@@ -60,7 +60,10 @@ five stages directly — `aapt2 link`, `javac` for the stubs, `javac` for
 the app, `d8`, `apksigner` — all from `build-tools;37.0.0`, with
 `JAVA_HOME` pinned to Temurin 21 inside the script. The stubs compile to
 a separate directory and are passed to `d8` with `--lib`, exactly as
-`android.jar` is: visible to the compiler, absent from the APK. The
+`android.jar` is: visible to the compiler, absent from the APK. **Since
+rung 3b it is six stages, not five** — `aapt2 compile --dir res` runs ahead
+of `aapt2 link -R`, because an app cannot be offered as the device assistant
+by code alone and `res/xml/` is the one resource directory this spike has. The
 script ends by grepping the built dex for `Landroid/system/virtualmachine/`
 and printing the count, which must be 0 — if a stub ever shipped, the app
 would carry a fake copy of a platform class and which one won would be a
@@ -268,130 +271,92 @@ permissions any Play Store app may declare. Unlike
 here survives into rung 4 unchanged; it is the only part of this spike
 that is already shippable.
 
-**Rung 3b — can the thing that wakes at boot also listen? NOT STARTED.
-Defined 14 Sept, awaiting Matt's go-ahead.** Rung 3 proved the app wakes
-its own VM 15 seconds after power-on. In the same logs Android also wrote
-`Foreground service started from background can not have
-location/camera/microphone access`. Penny is a voice assistant that has
-to be listening from boot, so this is the next real question — and it is
-cheap: hours, one device, no OS build, nothing irreversible.
+**Rung 3b — can the thing that wakes at boot also listen? ANSWERED YES.**
+15 Sept. Rebooted, touched nothing, and the sideloaded app captured **real
+audio 9.5 seconds after power-on with the phone still at the lock screen**,
+`userUnlocked=false`, disk still encrypted. Corroborated by the OS's own
+audio log, which is the part that matters:
 
-The question in one line: **can a sideloaded app hold the microphone from
-boot, with nobody touching the phone?**
+    09:29:03:631 rec start riid:47 uid:10192 session:33 src:MIC
+                 not silenced pack:com.pennyspike.probe2a
 
-Desk research done before starting, 14 Sept (sources in `notes.md`):
+**"not silenced"** is the platform's word, and it is the exact inverse of
+the documented failure mode. The PIN was not typed until 68.8s.
 
-- Android documents exactly one exemption that could fit us. On the
-  while-in-use restriction list, a service "started by an app providing
-  `VoiceInteractionService`" keeps microphone, camera and location even
-  when started from the background.
-- Android 17 hardened background audio further and restates the same
-  exemption: foreground services "are granted WIU access if they are
-  started by ... system bindings representing an elevated foreground
-  state ... (such as for a `VoiceInteractionService`)". **This device is
-  Android 17, so that page is the one that binds**, not the general one.
-- So the hypothesis is: **be the assistant, and the boot-time microphone
-  denial does not apply.**
-- The DSP hotword route is **closed to us — do not spend time on it.**
-  `AlwaysOnHotwordDetector` became `@SystemApi` in Android 12 and
-  `CAPTURE_AUDIO_HOTWORD` is `signature|privileged`. That is the same
-  wall rung 2c hit. The probe uses ordinary `RECORD_AUDIO` and
-  `AudioRecord`.
+**Two attempt sites, and BOTH worked**, which is the commercially important
+half:
 
-What the device already says, read 14 Sept before any code:
+    A-assistant   inside PennyVoiceService.onReady(), in a process the OS
+                  itself started to bind the assistant.  9.5s, peak 557,
+                  rms 198, 91.6% non-zero.
+    B-fgs         an ORDINARY foreground service started from the boot
+                  broadcast with foregroundServiceType="microphone".
+                  12.3s, peak 670, rms 253, 90.6% non-zero.
 
-    android.app.role.ASSISTANT          exists, fallback_enabled=true,
-                                        and has NO HOLDER
-    settings secure assistant           empty
-    settings secure voice_interaction_service   empty
-    pm list features                    android.hardware.microphone
-                                        android.software.voice_recognizers
+**This overturns a constraint rung 3 inferred.** Same APK, same service,
+same code, same broadcast — refused with a `SecurityException` on the
+reboot where the app was not the assistant, accepted and recording on the
+reboot where it was. So the exemption is conferred by holding the assistant
+role and it reaches beyond the assistant's own process. **The wake service
+and the listening service do NOT have to be two different things.**
 
-The assistant slot on this phone is **empty**. Nothing to displace, no
-Google Assistant to fight.
+Rung 3 did not regress: VM up at 13.97s, `userUnlocked=false`, `vm list`
+`requesterUid: 10192`, cid 2048. Third reproduction.
 
-**Can Penny take the slot? Yes — read out of AOSP source, not docs.** The
-chain was verified by pulling `VoiceInteractionManagerService.java` raw
-and reading it, because two summaries of it disagreed. Quoted evidence in
-`notes.md`. What it establishes:
+**The eviction trap, which cost the first reboot and is in no document.**
+On the first attempt the assistant was never bound at all. The role holder
+and `settings secure assistant` both survived the reboot, but
+`voice_interaction_service` came back EMPTY and `dumpsys voiceinteraction`
+said `(No active implementation)`. Cause, read out of
+`VoiceInteractionManagerService.initForUserNoTracing`: it reads
+`VOICE_RECOGNITION_SERVICE` first, and if that is null the whole
+"Current interactor/recognizer okay, done!" early return is skipped,
+execution falls through to `findAvailInteractor(userHandle, null)` — which
+never auto-selects a third-party app — and reaches
+`setCurInteractor(null, userHandle)`. **Penny is wiped at every boot,
+silently, unless a recogniser is set.** The fix is one attribute and one
+setting:
 
-- The chosen assistant is bound at `PHASE_THIRD_PARTY_APPS_CAN_START`,
-  **before any unlock**. The `isUserUnlockingOrUnlocked` check in that
-  method gates only shortcut and app-switch setup; the bind block sits
-  outside it.
-- The bind uses `BIND_FOREGROUND_SERVICE` and
-  `BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS` — which is precisely the
-  "system binding representing an elevated foreground state" the Android
-  17 audio page names as the exemption. The two halves line up.
-- `SettingsProvider` is `directBootAware`, so the setting naming our
-  service is readable while the disk is still locked.
-- **The trap: `getServiceInfo(serviceComponent, 0, mCurUser)` passes
-  flags `0`.** Before first unlock PackageManager matches only
-  direct-boot-aware components, so a VoiceInteractionService without
-  `android:directBootAware="true"` silently fails to resolve, nothing
-  binds, and it then binds at unlock and looks like it worked. This is in
-  no document — only in that flags argument.
-- Nothing in the qualification path requires a system or preinstalled
-  app.
+    res/xml/recognition_service.xml   android:selectableAsDefault="true"
+    settings put secure voice_recognition_service \
+        com.pennyspike.probe2a/.PennyRecognitionService
 
-Two conditions are **not ours to control and are still unread on this
-device.** Both must be checked before building anything:
+Without `selectableAsDefault` the OS logs "Found non selectableAsDefault
+recognizer as default. Unsetting the default" and evicts Penny again.
 
-    ro.config.low_ram            on a low-RAM device the whole
-                                 VoiceInteractionService branch is
-                                 skipped and only an ACTION_ASSIST
-                                 activity qualifies — which does NOT
-                                 carry the microphone exemption
-    config_showDefaultAssistant  gates whether Settings shows the
-                                 assistant picker at all, and its
-                                 framework default is FALSE
+**Had we stopped after the first reboot we would have written rung 3b up as
+NO, and it would have been wrong.** The cause was a device-state
+precondition, not the hypothesis.
 
-And one commercial fact worth knowing now: `roles.xml` marks ASSISTANT
-`requestable="false"`. **Penny can never pop its own "make me your
-assistant" prompt.** The user must go into Settings and choose it, and a
-third-party assistant is never auto-selected — AOSP comment: "We never
-want to allow third party services to be automatically selected, because
-those require approval of the user." Plan the onboarding around a Settings
-trip, not a one-tap dialog.
+The two device conditions CLAUDE.md flagged as unread are both favourable,
+measured before any code:
 
-What has to be built — inside the existing `probe2a` APK, no new project:
+    ro.config.low_ram            EMPTY. MemTotal 5,718,280 kB. Not a
+                                 low-RAM device, so the VoiceInteractionService
+                                 branch is live.
+    config_showDefaultAssistant  TRUE — read as bool 0x01110001 out of the
+                                 device's own framework-res.apk with
+                                 `aapt2 dump resources`. Framework default is
+                                 FALSE, so this device deliberately shows the
+                                 picker.
 
-1. A near-empty `VoiceInteractionService`, `VoiceInteractionSessionService`
-   and `RecognitionService`. The manifest shape is fixed and every part of
-   it is load-bearing: `android:permission=
-   "android.permission.BIND_VOICE_INTERACTION"` on the service, an intent
-   filter for `android.service.voice.VoiceInteractionService`,
-   `meta-data android:name="android.voice_interaction"` pointing at an XML
-   file that declares `sessionService`, `recognitionService` **and
-   `android:supportsAssist="true"`** — PermissionController rejects the
-   app silently if any of the three is missing — and
-   **`android:directBootAware="true"` on the VoiceInteractionService**, or
-   it will not resolve before first unlock and will bind late while
-   appearing to work. **This is the first thing in the spike that needs an
-   XML resource**, so `build.sh` gains a real `res/` directory — a change
-   to a build that has been deliberately resource-free.
-2. `RECORD_AUDIO` in the manifest, granted once by hand.
-3. `VmService` attempts a one-second `AudioRecord` read at boot and logs
-   whether it got real audio or silence.
+**What rung 3b does NOT prove, and it is the last question on the shippable
+route.** The assistant slot was taken over adb —
+`cmd role add-role-holder android.app.role.ASSISTANT` plus
+`settings put secure voice_interaction_service` and
+`voice_recognition_service`. **Whether a user tapping through Settings sets
+all three — in particular the recogniser, which is what makes it survive a
+reboot — is UNTESTED.** ASSISTANT is `requestable="false"`, so Penny can
+never prompt for the slot; onboarding is a Settings trip. That test is a
+phone-tapping test, not a code test, and it is the next cheap thing.
 
-DONE MEANS, and nothing less: reboot, touch nothing, and the log shows
-**non-zero audio captured before the PIN is typed**, corroborated by the
-OS rather than only by our own log. **Silence with no error is the
-expected failure mode** — Android 17 suppresses background audio
-"silently without throwing an exception", so a probe that only watches
-for a thrown error will report a false YES.
+Also unchanged: the guest VM still does nothing with audio. This measures
+Android handing the app a microphone, not voice reaching Penny.
 
-What it cannot prove, whichever way it goes: the assistant slot has to be
-filled either by `adb shell settings put secure ...` or by a user tapping
-through Settings — the tap version is shippable, the cable version is not,
-and which one this device accepts is unknown until tried. The guest VM
-still does nothing with audio, so this measures Android handing the app a
-microphone, not voice reaching Penny. And `RECORD_AUDIO` is a runtime
-permission, so whether it can be *held* before first unlock is itself part
-of the question.
-
-If the answer is NO it is a hard constraint on Penny's shape and rung 4
-inherits it. Either way it is worth knowing before weeks are spent.
+The DSP hotword route is confirmed closed, from the OS itself:
+`PccSandboxManagerInternal: Package com.pennyspike.probe2a is not qualified
+for hotword detection and can't start a PCC Process`. Do not spend time on
+it.
 
 **What rung 2 buys, and what it does not. Do not get this wrong.**
 `pm grant` cannot ship. Both permissions are `development` protection
@@ -507,15 +472,38 @@ Do not work ahead of the current rung.
   hand the API `createDeviceProtectedStorageContext()`, which moves the
   VM to `/data/user_de/0/<pkg>`. Cost: that directory is readable without
   the user's PIN, so it is a confidentiality trade-off, not a free win.
-- A foreground service started from a boot broadcast is **permanently
-  denied microphone, camera and location** for its whole life. Logged as
-  `Foreground service started from background can not have
-  location/camera/microphone access`. Irrelevant to VMs, directly
-  relevant to voice. **Measured here on an ordinary foreground service.**
-  Android documents one exemption that might not apply to us — a service
-  started by an app providing `VoiceInteractionService`. Testing that is
-  rung 3b. Until 3b runs, treat the denial as absolute and assume the
-  wake service and the listening service have to be two different things.
+- A foreground service started from a boot broadcast is denied
+  microphone, camera and location — **UNLESS the app holds the assistant
+  role. CORRECTED BY RUNG 3b, 15 Sept; the earlier "treat it as absolute"
+  reading is wrong.** Measured both ways on the same APK, same service,
+  same broadcast, two reboots apart: without the role,
+  `startForeground(MICROPHONE)` throws `SecurityException ... and the app
+  must be in the eligible state/exemptions to access the foreground only
+  permission`; with the role it is accepted and records real audio at 12.3s
+  with `userUnlocked=false`. So the wake service and the listening service
+  do NOT have to be two different things. The exemption is real, it comes
+  from the assistant role, and it reaches beyond the assistant's own
+  process.
+- **A third-party assistant is silently evicted at every boot unless a
+  recogniser is also set.** The role holder and `settings secure assistant`
+  both survive the reboot, so everything looks fine — but
+  `voice_interaction_service` comes back EMPTY and `dumpsys voiceinteraction`
+  says `(No active implementation)`, with nothing logged to explain it.
+  `VoiceInteractionManagerService.initForUserNoTracing` reads
+  `VOICE_RECOGNITION_SERVICE` first; if it is null the "Current
+  interactor/recognizer okay, done!" early return is skipped and execution
+  reaches `setCurInteractor(null, userHandle)`. Two things fix it, and
+  neither is documented anywhere: `android:selectableAsDefault="true"` in
+  the `<recognition-service>` XML, and pointing
+  `settings secure voice_recognition_service` at that service. Cost one
+  reboot on 15 Sept and would have produced a false NO for rung 3b.
+- **Silence is the expected failure mode for microphone probes, and it does
+  not throw.** Android 17 suppresses background audio "silently without
+  throwing an exception" — `AudioRecord` initialises, reports
+  `RECORDSTATE_RECORDING`, and returns a buffer of zeros. Decide on the
+  samples (peak, RMS, proportion non-zero), never on the absence of an
+  exception, and always run the unlocked foreground control first or a dead
+  microphone is indistinguishable from a suppressed one.
 - The boot broadcast's temporary exemption is **20 seconds**
   (`duration:20000` in the `Background started FGS: Allowed` log line).
   `startForeground` must be called inside that window or the service is
@@ -589,14 +577,19 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
 - Claude Code has never done real work in the guest. `git` is absent. One
   arithmetic prompt at 317MiB says nothing about an agent holding a long
   context and running tools.
-- Voice has never been through the VM boundary and the microphone was
-  denied on this device. Deferred, not solved. Rung 3 added a hard
-  constraint: a foreground service started at boot can never hold the
-  microphone, so the wake service and the listening service have to be
-  two different things. **This is now rung 3b — defined, not started,
-  waiting on Matt.** Do not design around the constraint until 3b has
-  tested the one documented exemption; do not assume the exemption works
-  either. Either way, don't discover it late.
+- **Voice has still never been through the VM boundary.** Rung 3b proved
+  Android hands the app a live microphone 9.5s after power-on with the
+  phone locked — but the guest VM does nothing with audio, and nothing has
+  ever carried a sample across the host/guest boundary. That is the next
+  real unknown on the voice path, and it is not a permissions question.
+- **Can a user take the assistant slot by tapping, rather than by cable?**
+  The one thing rung 3b could not answer. The slot was taken with
+  `cmd role add-role-holder` plus two `settings put secure` calls, and the
+  recogniser setting is the one that makes it survive a reboot. If the
+  Settings picker does not set that too, Penny is evicted on the user's
+  first power cycle and the whole voice story is cable-only.
+  `config_showDefaultAssistant` is true so the picker exists. This is a
+  phone-tapping test, costs minutes, and gates the shippable route.
 - Whether the phone earns its place at all, versus a small Linux box with
   no permission games and no patch pipeline. The attestation story is
   what justifies the phone.
@@ -661,8 +654,6 @@ for hours.
 ## Do not
 
 - Do not start rung 4.
-- Do not start rung 3b without Matt's explicit go-ahead. It is defined
-  and costed; starting it is his call, not Claude's.
 - Do not compact, summarise or reorganise `notes.md` in either repo.
 - Do not write product or architecture thinking into this repo.
 - Do not disable OEM unlocking on this device while it still has to go

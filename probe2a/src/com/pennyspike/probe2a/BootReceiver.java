@@ -49,5 +49,25 @@ public class BootReceiver extends BroadcastReceiver {
             Log.e(TAG, "startForegroundService REFUSED -> "
                     + t.getClass().getName() + ": " + t.getMessage(), t);
         }
+
+        // Rung 3b, attempt site B. Started in its own right rather than from
+        // inside VmService, so that a refusal here cannot take the proven rung
+        // 3 wake path down with it. The two are independent on purpose: rung 3
+        // must keep reproducing while rung 3b is being answered.
+        Intent mic = new Intent(context, MicFgsService.class);
+        mic.putExtra("why", action);
+        try {
+            context.startForegroundService(mic);
+            Log.i(MicProbe.TAG, "startForegroundService(MicFgsService) accepted for " + action);
+        } catch (Throwable t) {
+            // A microphone-typed foreground service is one of the types the
+            // background-start rule may refuse outright. If that is what
+            // happens, site B never gets to ask the microphone question at all
+            // — which is itself the finding, and is why it is logged as one.
+            Log.e(MicProbe.TAG, "startForegroundService(MicFgsService) REFUSED -> "
+                    + t.getClass().getName() + ": " + t.getMessage(), t);
+            Log.e(MicProbe.TAG, "MIC [B-fgs] VERDICT: NOT TESTED — refused at"
+                    + " start, before the microphone was ever requested.");
+        }
     }
 }

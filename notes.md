@@ -1622,3 +1622,277 @@ adb dropped mid-research: `system_profiler SPUSBDataType` showed nothing
 on the bus and `adb devices` was empty. Same GrapheneOS charging-only-
 when-locked behaviour recorded in the traps list — the phone had locked
 itself. Not a fault.
+
+## 2026-09-15 — rung 3b ANSWERED YES. A sideloaded app holds the microphone from boot, with the phone locked and nobody in the room.
+
+Measured twice over two reboots, on the same APK, with the second reboot
+differing from the first by one XML attribute. The OS corroborates it in
+its own audio log with the word "not silenced".
+
+Versions, unchanged from rung 3 except the app:
+
+    Pixel 6a (bluejay), refurbished, bootloader LOCKED, verifiedbootstate=yellow
+    GrapheneOS     2026091001
+    Android        17, CP2A.260705.006, patch 2026-09-01
+    fingerprint    google/bluejay/bluejay:17/CP2A.260705.006/2026091001:user/release-keys
+    App            com.pennyspike.probe2a, uid 10192, hand-built, sideloaded,
+                   not platform-signed, not privileged
+    Toolchain      Temurin 21.0.12.1, build-tools 37.0.0, platform android-37.0
+    Build          probe2a/build.sh, now SIX stages (resources added)
+
+### The two device conditions that were unread. Both are favourable.
+
+CLAUDE.md flagged these as not ours to control and gating the whole rung.
+Read before any code was written:
+
+    ro.config.low_ram            EMPTY (also ro.lowram empty, and nothing in
+                                 dumpsys). MemTotal 5,718,280 kB. So this is
+                                 NOT a low-RAM device, the VoiceInteractionService
+                                 branch is live, and the ACTION_ASSIST-activity
+                                 fallback — which carries no microphone
+                                 exemption — does not apply.
+    config_showDefaultAssistant  TRUE. Read as bool 0x01110001 out of the
+                                 device's own /system/framework/framework-res.apk
+                                 with `aapt2 dump resources`, not from a doc.
+                                 The framework default is FALSE, so this device
+                                 deliberately shows the assistant picker. That
+                                 matters commercially: the user-taps-Settings
+                                 route exists here.
+
+Assistant slot before any change: role ASSISTANT had NO HOLDER, `settings
+secure assistant` empty, `voice_interaction_service` empty. Nothing to
+displace.
+
+### What was built
+
+Inside the existing probe2a APK. No new project, no new repo, no Gradle.
+
+    PennyVoiceService          VoiceInteractionService, directBootAware,
+                               android:permission=BIND_VOICE_INTERACTION,
+                               intent filter + meta-data android.voice_interaction
+    PennySessionService        VoiceInteractionSessionService (stub)
+    PennySession               VoiceInteractionSession (stub)
+    PennyRecognitionService    RecognitionService (stub)
+    MicProbe                   the measurement, shared
+    MicFgsService              ordinary FGS, foregroundServiceType="microphone"
+    MicControlActivity         the control run
+    res/xml/voice_interaction.xml
+    res/xml/recognition_service.xml
+
+`build.sh` gained `aapt2 compile --dir res` ahead of `aapt2 link -R`, so it
+is now 6 stages rather than 5. It still checks that no stub class reached
+the dex; still 0.
+
+**The mic attempt was deliberately kept OUT of VmService.** CLAUDE.md's plan
+put it there. That was changed on purpose: giving the proven rung 3 wake
+service a microphone FGS type risks the system refusing to start it at
+boot, which would have taken rung 3's result down with it. The guess was
+right — see the first reboot below, where exactly that refusal happened to
+the separate service. VmService was never touched and rung 3 reproduced a
+third time.
+
+Two attempt sites, because they can legitimately disagree and the
+difference is the finding:
+
+    A-assistant   inside PennyVoiceService.onReady(), i.e. in a process the
+                  OS itself started to bind the assistant. No FGS of ours.
+    B-fgs         an ordinary foreground service started from the boot
+                  broadcast, holding foregroundServiceType="microphone".
+
+### The probe does not trust the absence of an exception
+
+Android 17 suppresses background audio "silently without throwing". A
+try/catch would report a confident YES when the answer is NO. So MicProbe
+reads 16,000 samples (1s, 16kHz, mono, 16-bit) and decides on peak, RMS and
+the proportion of non-zero samples. Digital silence is exactly zero on every
+sample; a real mic in a quiet room has a noise floor.
+
+CONTROL RUN first, foreground and unlocked, where access is unambiguous:
+
+    MIC [CONTROL-foreground] samples=16000 peak=362 rms=127.22 nonZero=14789 (92.4%)
+
+So the probe works and the microphone is alive. Without this, silence later
+could not be told from a broken probe.
+
+### Reboot 1 — the assistant was EVICTED at boot. Not a hypothesis failure.
+
+Rebooted, touched nothing for ~80s, unlocked.
+
+- `PennyVoiceService` never logged at all. The OS never bound it.
+- `cmd role get-role-holders android.app.role.ASSISTANT` still returned
+  `com.pennyspike.probe2a`, and `settings secure assistant` still held the
+  component — but `settings secure voice_interaction_service` came back
+  **EMPTY**, and `dumpsys voiceinteraction` said `(No active implementation)`.
+- System log, 8.7s after boot:
+  `W VoiceInteractionManager: no auto selectable voice recognition services found for user 0`
+- Site B was refused outright:
+
+      SecurityException: Starting FGS with type microphone callerApp=...u0a192
+      targetSDK=37 requires permissions: all of [FOREGROUND_SERVICE_MICROPHONE]
+      and any of [... RECORD_AUDIO] and the app must be in the eligible
+      state/exemptions to access the foreground only permission
+
+  Both named permissions were held. The refusal is the last clause.
+
+**If we had stopped here we would have written rung 3b up as NO, and it
+would have been wrong.** The cause was a device-state precondition, not the
+hypothesis.
+
+### Why it was evicted. Read out of AOSP source, quoted.
+
+`VoiceInteractionManagerService.initForUserNoTracing`, which runs at every
+boot:
+
+    String curInteractorStr = Settings.Secure.getStringForUser(
+            mContext.getContentResolver(),
+            Settings.Secure.VOICE_INTERACTION_SERVICE, userHandle);
+    ComponentName curRecognizer = getCurRecognizer(userHandle);
+
+    ...
+    if (curRecognizer != null) {
+        // If we already have at least a recognizer, then we probably want to
+        // leave things as they are...  unless something has disappeared.
+        ...
+        if (recognizerInfo != null && (curInteractor == null || interactorInfo != null)) {
+            if (DEBUG) Slog.d(TAG, "Current interactor/recognizer okay, done!");
+            return;
+        }
+    }
+
+    if (curInteractorInfo == null && mEnableService && !"".equals(curInteractorStr)) {
+        curInteractorInfo = findAvailInteractor(userHandle, null);
+    }
+
+    if (curInteractorInfo != null) {
+        setCurInteractor(...);
+    } else {
+        // No voice interactor, so clear the setting.
+        setCurInteractor(null, userHandle);
+    }
+
+On this device `settings secure voice_recognition_service` was **null**. So
+`curRecognizer == null`, the early `return` is never reached, execution
+falls through to `findAvailInteractor(userHandle, null)` — which will never
+auto-select a third-party app ("We never want to allow third party services
+to be automatically selected") — and lands on `setCurInteractor(null)`.
+Penny is wiped at every boot, silently.
+
+The only way to reach that early return is for the recognizer setting to
+name a service that resolves AND reports `isSelectableAsDefault()`. Nearby
+in the same file:
+
+    if (!rsi.isSelectableAsDefault()) {
+        Slog.d(TAG, "Found non selectableAsDefault recognizer as"
+                + " default. Unsetting the default and looking for another one.");
+        recognizerInfo = null;
+    }
+
+That is the platform attribute `android:selectableAsDefault`, confirmed to
+exist on this device as `attr/selectableAsDefault` = 0x01010640 in
+framework-res.apk. It was added to `res/xml/recognition_service.xml`, and
+`voice_recognition_service` was pointed at our own stub recogniser.
+
+**THE FIX IS ONE ATTRIBUTE AND ONE SETTING**, and neither is in any
+document:
+
+    res/xml/recognition_service.xml   android:selectableAsDefault="true"
+    settings put secure voice_recognition_service \
+        com.pennyspike.probe2a/.PennyRecognitionService
+
+### Reboot 2 — YES. Both sites. Phone locked, nobody in the room.
+
+Rebooted, touched nothing, made noise near the phone, unlocked at 68.8s.
+
+    09:29:02.455 ActivityManager: Start proc 2031:com.pennyspike.probe2a/u0a192
+                 for bound-service {com.pennyspike.probe2a/...PennyVoiceService}
+    sinceBoot= 9480ms  PennyVoiceService onCreate — the OS bound the assistant
+    sinceBoot= 9491ms  MIC [A-assistant] attempt RECORD_AUDIO=GRANTED userUnlocked=false
+    sinceBoot=10715ms  MIC [A-assistant] samples=16000 peak=557 rms=198.32
+                       nonZero=14662 (91.6%)  -> VERDICT YES, REAL AUDIO
+
+    sinceBoot=12333ms  MicFgsService startForeground(MICROPHONE) ACCEPTED
+    sinceBoot=12342ms  MIC [B-fgs] attempt RECORD_AUDIO=GRANTED userUnlocked=false
+    sinceBoot=13507ms  MIC [B-fgs] samples=16000 peak=670 rms=253.27
+                       nonZero=14497 (90.6%)  -> VERDICT YES, REAL AUDIO
+
+    sinceBoot=68772ms  BOOT_COMPLETED — i.e. the PIN was typed HERE, 55 seconds
+                       after the audio was already captured
+
+`userUnlocked=false` on both. The disk was still encrypted.
+
+### Corroborated by the OS, not by our own log
+
+`adb shell dumpsys audio`, the audio server's own Recording Activity table:
+
+    09-15 09:29:03:631 rec start riid:47 uid:10192 session:33 src:MIC not silenced pack:com.pennyspike.probe2a
+    09-15 09:29:04:756 rec stop  riid:47 uid:10192 session:33 src:MIC not silenced pack:com.pennyspike.probe2a
+    09-15 09:29:06:452 rec start riid:63 uid:10192 session:41 src:MIC not silenced pack:com.pennyspike.probe2a
+
+**"not silenced"** is the platform's own word for it, and it is the exact
+inverse of the documented failure mode. Both records predate the unlock.
+
+Also from the OS:
+
+    ActivityManager: Background started FGS: Allowed [callingPackage:
+    com.pennyspike.probe2a; ... uidState: FGS; ... allowWiu:52; ...
+    reasonCode:LOCKED_BOOT_COMPLETED,duration:20000 ...]
+
+`allowWiu` is while-in-use access being granted. And
+`appops get com.pennyspike.probe2a RECORD_AUDIO` returns
+`Uid mode: RECORD_AUDIO: foreground` with a recorded
+`duration=+1s116ms`, matching the one-second read.
+
+### The controlled comparison, which is the real result
+
+Same APK, same service, same code, same boot broadcast. The ONLY difference
+between reboot 1 and reboot 2 is whether the app was actually bound as the
+assistant:
+
+    reboot 1, not the assistant   MicFgsService startForeground(MICROPHONE)
+                                  REFUSED, SecurityException
+    reboot 2, is the assistant    MicFgsService startForeground(MICROPHONE)
+                                  ACCEPTED, and recorded real audio
+
+**So the exemption is real, it is conferred by holding the assistant role,
+and it extends beyond the assistant process to an ordinary foreground
+service started from a boot broadcast.** That directly overturns the
+constraint rung 3 inferred — the wake service and the listening service do
+NOT have to be two different things.
+
+### Rung 3 did not regress. Third reproduction.
+
+    sinceBoot=12326ms  VmService onCreate uid=10192
+    sinceBoot=12326ms  STEP3 userUnlocked=false
+    sinceBoot=13967ms  CB onPayloadReady — guest booted
+
+    vm list -> name "penny3", cid 2048, requesterUid 10192, requesterPid 2031
+
+### Two things this does NOT prove
+
+1. **The assistant slot was taken over adb**, with
+   `cmd role add-role-holder android.app.role.ASSISTANT` plus
+   `settings put secure voice_interaction_service` and
+   `voice_recognition_service`. Whether a user tapping through Settings sets
+   all three — in particular the recogniser, which is what makes it survive
+   a reboot — is UNTESTED. `config_showDefaultAssistant` is true so the
+   picker exists, and ASSISTANT is `requestable="false"` so Penny can never
+   prompt for it. This is the one remaining question on the shippable route
+   and it is a phone-tapping test, not a code test.
+2. **The guest VM still does nothing with audio.** This measures Android
+   handing the app a microphone. Voice has still never crossed the VM
+   boundary.
+
+### Confirmed in passing
+
+    PccSandboxManagerInternal: Package com.pennyspike.probe2a is not qualified
+    for hotword detection and can't start a PCC Process
+
+The DSP hotword route is closed to us, exactly as the desk research said.
+Nothing was spent on it.
+
+And rung 2c was re-confirmed for free, from dex2oat at install time:
+
+    hiddenapi: Accessing hidden method Landroid/system/virtualmachine/
+    VirtualMachineCustomImageConfig$Builder;-><init>()V (runtime_flags=0,
+    domain=platform, api=blocked) from ...base.apk (domain=app,
+    TargetSdkVersion=37) using linking: denied

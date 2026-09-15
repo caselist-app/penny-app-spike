@@ -29,6 +29,22 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!--
+      Rung 3b. RECORD_AUDIO is a RUNTIME permission, so declaring it here only
+      buys the right to ask; it is granted by hand over adb for this probe. Two
+      things about it are part of the question rather than side detail: whether
+      the grant survives a reboot, and whether it can be READ before first
+      unlock (runtime grants live in device-encrypted storage, so they should
+      be — but "should be" is what this rung is for).
+
+      FOREGROUND_SERVICE_MICROPHONE is what lets a foreground service declare
+      the microphone type at all. Like the four above it is an ordinary
+      permission any Play Store app may hold — no cable, no signature. That
+      matters: if rung 3b answers yes, the mechanism it used is shippable.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
     <application android:label="Penny probe 2a">
         <activity
             android:name=".MainActivity"
@@ -50,6 +66,14 @@
              changes between 2b and 2c is which config object gets built. -->
         <activity
             android:name=".Probe2cActivity"
+            android:exported="true" />
+
+        <!-- Rung 3b control. Runs the identical mic probe in the foreground
+             with the phone unlocked, where access is unambiguously allowed.
+             Without it, silence at boot cannot be told apart from a broken
+             probe. -->
+        <activity
+            android:name=".MicControlActivity"
             android:exported="true" />
 
         <!-- Rung 3. directBootAware is what lets these two exist before the
@@ -80,5 +104,63 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Holds a virtual machine alive for the life of the device" />
         </service>
+
+        <!--
+          Rung 3b. The assistant declaration, and every line of it is
+          load-bearing. The failure mode for getting any of it wrong is that
+          the app simply never appears in the Settings assistant picker, with
+          nothing logged anywhere to say why.
+
+          directBootAware on THIS service is the trap that appears in no
+          document. AOSP's VoiceInteractionManagerService resolves the chosen
+          assistant with getServiceInfo(component, 0, user) — flags of zero —
+          and before first unlock PackageManager matches only direct-boot-aware
+          components. Without the attribute the service does not resolve at
+          boot, binds later at unlock instead, and the logs look like success
+          while measuring entirely the wrong moment.
+
+          android:permission=BIND_VOICE_INTERACTION is required so that only
+          the system may bind these. An assistant without it is rejected.
+        -->
+        <service
+            android:name=".PennyVoiceService"
+            android:directBootAware="true"
+            android:permission="android.permission.BIND_VOICE_INTERACTION"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.voice.VoiceInteractionService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.voice_interaction"
+                android:resource="@xml/voice_interaction" />
+        </service>
+
+        <service
+            android:name=".PennySessionService"
+            android:directBootAware="true"
+            android:permission="android.permission.BIND_VOICE_INTERACTION"
+            android:exported="true" />
+
+        <service
+            android:name=".PennyRecognitionService"
+            android:directBootAware="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.speech.RecognitionService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.speech"
+                android:resource="@xml/recognition_service" />
+        </service>
+
+        <!-- Rung 3b, attempt site B. Kept separate from VmService on purpose:
+             the microphone FGS type is one the system may refuse to start from
+             the background, and that refusal kills the service. VmService
+             holds a proven rung 3 result and is not going to be risked for it. -->
+        <service
+            android:name=".MicFgsService"
+            android:directBootAware="true"
+            android:exported="true"
+            android:foregroundServiceType="microphone" />
     </application>
 </manifest>
