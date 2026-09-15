@@ -130,6 +130,21 @@
             android:name=".Probe3eiiiActivity"
             android:exported="true" />
 
+        <!-- Rungs 3f and 3h, in one activity because they share one guest
+             payload. There is no C compiler on the Mac, so every payload
+             rebuild costs a hand-opened Terminal app and a trip into the
+             phone's Debian guest; 3e-iii proved the way to pay that once, by
+             making the payload a command server. 3f asks whether the guest CPU
+             is real — eight vCPUs were granted in 3e-i and no payload here has
+             ever asked one to calculate anything. 3h asks whether a gigabyte
+             can be pushed in over vsock, whose record is 32,000 bytes in a
+             single shot. Its own activity, its own VM name and its own store:
+             3e-i, 3e-ii and 3e-iii are committed results and are not put back
+             in the frame to answer the next question. -->
+        <activity
+            android:name=".Probe3fActivity"
+            android:exported="true" />
+
         <!-- Rung 3b control. Runs the identical mic probe in the foreground
              with the phone unlocked, where access is unambiguously allowed.
              Without it, silence at boot cannot be told apart from a broken

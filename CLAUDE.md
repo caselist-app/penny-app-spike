@@ -45,33 +45,41 @@ deliberately left **ENABLED** so the device can be returned to stock.
     Claude Code    2.1.270 in the guest, native install, ~317MiB resident
     VM resources   3.9GB slider max -> 3.6Gi in guest, 8 cores, 104G disk
 
-**LIVE DEVICE STATE — as left at 15 Sept, 14:20, after the 3e-iv reboot.
+**LIVE DEVICE STATE — as left at 15 Sept, 14:58, after rungs 3f and 3h.
 Check it, do not trust it.** This block exists because state that only survives
 in a handover message is state that gets lost. Verify each line before relying
 on it; correct this block in the same commit as whatever changes it.
 
-    Phone                      REBOOTED 14:08, unlocked by hand 14:17.
-    Terminal app / Debian VM   STOPPED — and the reboot cleared it anyway. It
-                               never restarts itself. Open it by hand only
-                               when a payload needs compiling (3f/3h).
-    penny3 (rung 3's VM)       UP, restarted itself at boot, cid 2049,
-                               pid 1925. Leave it alone.
+    Phone                      Last rebooted 14:08, unlocked by hand 14:17.
+                               NOT rebooted since; uptime ~49 min at 14:58.
+    Terminal app / Debian VM   UP — Matt opened it by hand at 14:42 so 3f/3h's
+                               payload could be compiled. cid 2051,
+                               requesterUid 10179. It holds ~3.6GB while it
+                               runs. Close it before any memory-sensitive
+                               measurement; it never restarts itself.
+    penny3 (rung 3's VM)       UP, cid 2078, requesterUid 10192. NOTE the cid
+                               and pid moved: each reinstall killed the app
+                               process and START_STICKY brought VmService and
+                               its VM straight back, which is rung 3's
+                               restart-after-kill result happening incidentally.
     penny3d (rung 3d's VM)     Ran at boot and exited 43, as designed.
-    penny3eiii encrypted store EXISTS and STILL holds model.bin, 1610612736
-                               bytes — verified after the power cycle by
-                               rung 3e-iv. **3e-iv's read is DONE.** Nothing
-                               further needs this store; 3e-v must build its
-                               own.
-    installed APK              /data/app/~~uO7OYJk2jGyYQMs7z9Vvgg==/
-                               com.pennyspike.probe2a-WVgHUDfQnA89rlKzidwLFw==
-                               UNCHANGED across the reboot. penny3eiii's
-                               stored config points at THIS path; a reinstall
-                               strands that store permanently — see the
-                               getOrCreate trap. 3e-iv no longer needs it,
-                               so a rebuild is now allowed.
-    adb forward tcp:2222       GONE — the reboot cleared it. Rebuild before
-                               any ssh into Debian.
-    logcat buffer              set to 64M after the reboot; does not persist.
+    penny3eiii encrypted store **GONE — STRANDED, DELIBERATELY.** The 3f/3h
+                               build required a reinstall, which changes the
+                               APK path and permanently invalidates that VM's
+                               stored config (see the getOrCreate trap).
+                               CLAUDE.md authorised this because 3e-iv's read
+                               was done. model.bin is unreachable. Do not plan
+                               anything that needs it.
+    penny3f store              Deleted at the end of every run — the activity
+                               defaults to keep=false. Nothing persists unless
+                               a run passes --ei keep 1.
+    installed APK              /data/app/~~42mm0jE2-RYnkqj1-HkwmA==/
+                               com.pennyspike.probe2a-m36X8QIowzO_17pWNniEFA==
+                               Rebuilt and reinstalled three times on 15 Sept
+                               (once for the payload, twice for Java-only
+                               changes). Both pm grants survived every one.
+    adb forward tcp:2222       LIVE, pointing at the Debian guest.
+    logcat buffer              set to 64M at 14:41; does not survive a reboot.
 
 Verify with: `adb shell /apex/com.android.virt/bin/vm list`,
 `adb shell pm path com.pennyspike.probe2a`.
@@ -109,14 +117,17 @@ package-and-align stage: the payload `.so` must be Stored (`zip -0`) and
 page-aligned (`zipalign -p`), because microdroid mmaps it out of the APK in
 place rather than unpacking it. `PENNY_PAYLOAD_SO=<path>` packages a `.so`
 built elsewhere — which is both the control seam AND, since there is no NDK
-here, the normal route. **As of rung 3e-iii there are FOUR payloads in the APK** —
-`PennyPayload.so` (2d), `Penny3cPayload.so` (3c), `Penny3eiiPayload.so` (3e-ii)
-and `Penny3eiiiPayload.so` (3e-iii), via `PENNY_PAYLOAD_SO`,
-`PENNY_PAYLOAD_3C_SO`, `PENNY_PAYLOAD_3EII_SO` and `PENNY_PAYLOAD_3EIII_SO`.
+here, the normal route. **As of rungs 3f/3h there are FIVE payloads in the APK** —
+`PennyPayload.so` (2d), `Penny3cPayload.so` (3c), `Penny3eiiPayload.so` (3e-ii),
+`Penny3eiiiPayload.so` (3e-iii) and `Penny3fPayload.so` (3f and 3h together),
+via `PENNY_PAYLOAD_SO`, `PENNY_PAYLOAD_3C_SO`, `PENNY_PAYLOAD_3EII_SO`,
+`PENNY_PAYLOAD_3EIII_SO` and `PENNY_PAYLOAD_3F_SO`.
 They are packaged side by side rather than one replacing the other: microdroid
 loads only the file `setPayloadBinaryName()` names, extra entries cost nothing,
 and every earlier rung stays reproducible from the same build. **Add a payload,
-never edit one.** All four must read `Stored` in the final `unzip -lv`.
+never edit one.** All five must read `Stored` in the final `unzip -lv`.
+**`penny3f_payload.c` also builds the Debian-side control binary**, from the
+identical source under `-DPENNY_CONTROL` — see rung 3f.
 `PENNY_BLOB_MB=<n>` additionally packs an incompressible n-MB file as
 `PennyBlob.so`, Stored and page-aligned — built for 3e-iii's APK escape hatch,
 never needed because encrypted storage was the better answer, and left in place
@@ -840,8 +851,11 @@ phone still settling after boot with ~20 processes being killed around it.
 **CONTENT WAS NOT VERIFIED and 3e-iii asked for it.** The payload checks SIZE
 and that every page faults in; it does not checksum. A store returning
 1610612736 bytes of zeroes would have logged identically. Truncation and
-absence are definitively ruled out, contents are not. **Fold a verify-file
-command into the shared 3f/3h payload** rather than making a trip for it alone.
+absence are definitively ruled out, contents are not. **DONE, and only half a
+win — see 3f/3h.** `CMD_VERIFY` is in that payload and was exercised on files
+up to 1.5GB, so the method exists. But the reinstall that build needed stranded
+`penny3eiii`'s store, so THIS file can never be checksummed. The question is
+now asked of a new file instead: `--ei keep 1`, a reboot, `--ei keep 1` again.
 
 **Why the second half could not be asked, and it generalises.** The plan was
 the same `am start` at the lock screen. Two obstacles, and the second outranks
@@ -880,33 +894,123 @@ separable.
 **DONE MEANS:** yes/no the store opens with `userUnlocked=false`, plus the size
 and checksum, plus the after-unlock control.
 
-**Rung 3f — is the guest CPU real? DEFINED, NOT RUN.** The largest MEASURABLE
-unknown left in this repo. 3e-i was given 8 vCPUs and 3e-ii and 3e-iii between
-them wrote, verified and read back gigabytes — and **not one of those runs ever
-asked a CPU to compute anything.** Every payload here is single-threaded and
-does nothing but move bytes. "Can a useful model run in 1792MB" splits into *is
-there room*, which is now answered exhaustively, and *is the processor any
-good*, which has never once been asked.
+**Rung 3f — is the guest CPU real? ANSWERED YES.** 15 Sept. Eight vCPUs
+carrying genuine physical core identities; single-core at parity with a
+known-good Linux on the same silicon on the same afternoon; 4.2x aggregate
+across eight threads, within 1% of what the same binary achieves in Debian.
 
-What to measure, and the control is the difficult part:
+**The control is the SAME FILE, and that is the reusable part.** One source
+builds both binaries — a microdroid payload by default, a static Debian
+executable under `-DPENNY_CONTROL`. Same gcc 14.2.0, same `-O1`, same flags,
+and no C library in either, so both make the same raw aarch64 syscalls. The
+syscall ABI belongs to the kernel and is identical above glibc, above bionic
+and above nothing. Nothing differs but the operating system underneath.
+**It is NOT a bare-metal control** — Debian is itself a guest in the Terminal
+app's VM — and must never be written up as one.
 
-1. **Single-core throughput**, integer and floating point, as a fixed loop
-   reporting milliseconds. The comparison point is the SAME C compiled by the
-   same gcc and run in the phone's Debian guest — same silicon, same day, a
-   known-good Linux. It is not a bare-metal control and must not be written up
-   as one; it is a sanity number that would catch a guest running at a tenth of
-   expected speed.
-2. **Scaling, 1 -> 2 -> 4 -> 8 threads, inside microdroid.** Arguably the more
-   decision-relevant half, and it needs no host control at all: if eight vCPUs
-   do not go roughly eight times faster, the `CPU_TOPOLOGY_MATCH_HOST` result
-   from 3e-i is a number in a config file rather than eight usable cores.
-   **The hard part is threads with no C library** — `clone` by hand, each
-   thread given its own stack from `mmap`, and no pthreads to help. Budget for
-   that being the whole difficulty, and run the single-core half first so a
-   failure there is not mistaken for a threading bug.
+    INT 200M iters, best of 3      microdroid 366 ms   Debian 411 ms
+    FP  200M iters, best of 3      microdroid 437 ms   Debian 434 ms
 
-**DONE MEANS:** a single-core figure with its comparison, and a 1/2/4/8 scaling
-curve. Then stop.
+**Both environments returned bit-identical results** — INT `0xae0c3710f848e024`,
+FP `0xc316fb657f0b8495`. Same arithmetic to the last bit in two operating
+systems. That is not a timing claim; it is proof the same code ran, which no
+millisecond figure gives on its own.
+
+    INT, 200M iters PER THREAD     microdroid          Debian
+    threads   wall ms / M-iters/s
+    1         445 / 449            585 / 342
+    2         540 / 740            480 / 833
+    4         583 / 1372           558 / 1434
+    8         855 / 1871           849 / 1884
+    8 again   905 / 1767  838 / 1909
+
+**Eight threads is ~4.2x one thread, and 8x was never on the table** — four of
+the eight cores are Cortex-A55s at roughly a third of an X1's throughput. The
+per-thread spread IS that heterogeneity: at 8 threads the guest's own console
+logged 597..836 ms (INT) and 606..949 ms (FP). Eight near-identical times would
+have been the surprise, because it would mean `CPU_TOPOLOGY_MATCH_HOST` was a
+number in a config file rather than eight usable cores.
+
+**The guest's `/proc/cpuinfo` IS readable from the payload, and it gives more
+than a count.** This is the answer to the trap that says the CPU count is not
+in the guest console — true of the console, false of `/proc`.
+
+    guest processors 0..7   parts: d44 d05 d0b d0b d0b d0b d05 d05
+    host  processors 0..7   parts: d05 d05 d05 d05 d0b d0b d44 d44
+
+`0xd44` Cortex-X1, `0xd0b` Cortex-A76, `0xd05` Cortex-A55. **The mixes do not
+match and that is the finding**: the host is the real 2+2+4 Tensor; the guest
+reported 1+4+3. Each vCPU is an unpinned host thread and the guest kernel reads
+`MIDR_EL1` once per vCPU at boot, so the identity recorded is wherever that
+thread happened to be sitting. **"8 vCPUs" is eight unpinned threads on a
+heterogeneous host, not a topology.** Nothing in the guest can pin them.
+
+**THREADS WITH NO C LIBRARY WORK, and microdroid does not refuse `clone`.**
+Budgeted as the whole difficulty; worked first time. mmap a stack, `clone()`
+through an eighteen-instruction assembly trampoline, join by polling a shared
+flag. Four things that each cost a round trip if wrong, all in
+`payload/penny3f_payload.c`:
+- aarch64 takes clone's arguments in **CLONE_BACKWARDS** order — flags, stack,
+  parent_tid, TLS, child_tid. NOT the x86-64 order.
+- The trampoline **cannot be C**: the child returns on a brand new stack with
+  no return address, so a C function would `ret` into nothing.
+- Thread stacks are **allocated and never freed** — a child sets its done flag
+  and then calls exit, and unmapping under it is a race worth nobody's time.
+- **`dmb ish` before the done flag.** aarch64 is weakly ordered; `volatile`
+  constrains the compiler, not the processor.
+
+**What 3f does NOT say. "The CPU is real" is not "a model will run well."** A
+dependency-chain benchmark says the processor issues instructions at the rate a
+real Cortex does. It says nothing about memory bandwidth under a real working
+set, cache behaviour, or NEON/dot-product throughput — both kernels are scalar
+and single-issue by design, because the job was to catch a fake CPU, not to
+profile a real one. The guest's features line advertises `asimd`, `asimddp` and
+`fphp`; nothing here touched them. Single-thread figures are a scheduler
+lottery (531/397/366 on the same kernel). All of it on an idle phone.
+
+**Rung 3h — can a GIGABYTE be pushed into the guest? ANSWERED YES.** 15 Sept.
+**1,610,612,736 bytes crossed into the guest over vsock and landed on the
+encrypted store intact, in 15.4 seconds** — 99 MB/s end to end including
+`fsync`, with the channel alone sustaining 268 MB/s. Same 1536MB figure 3e-iii
+wrote and 3e-iv read back, arriving by a different route.
+
+    size              guest ms   guest MB/s   INTACT
+    32,768 B                 4   --           yes
+    67,108,864 B          1479   43           yes
+    1,610,612,736 B      15401   99           yes
+
+Verified at THREE independent points each — what the host sent, what the guest
+received, and what came back off the disk afterwards (`ck64` 1536MB
+`0x1695ce2a1dce440a`). Read-back from the store ran at 2206 MB/s warm.
+
+**THE CONTROL IS THE RESULT WORTH QUOTING: a 256MB guest took the same 1536MB
+— six times its own total RAM — intact, at 73 MB/s.** The guest holds exactly
+one 1MB chunk in `.bss` and writes straight through, so it cannot buffer by
+accident, and its memory proves it did not: MemFree **oscillated** (60780 ->
+29148 -> 42032 -> 46540 kB) while Cached stayed near 110MB, the kernel writing
+back and reclaiming continuously. That is the shape that says this scales DOWN,
+not merely that it worked once at a comfortable size. The 2048MB guest simply
+let page cache grow to 1.68GB instead — same result, lazier route.
+
+**The checksum is NOT 3c's** and its numbers must never be compared with 3c's
+or 3d's. FNV-1a over 64-bit WORDS, not bytes: byte-at-a-time is a serial
+multiply chain costing several seconds over 1.5GB at each end, charged straight
+to the throughput figure.
+
+**3e-iv's loose end is HALF closed.** `CMD_VERIFY` reads a file back and
+checksums it, and was exercised on files up to 1.5GB — so the method gap is
+shut. But **3e-iv's own file is gone**: this build's reinstall stranded
+`penny3eiii`'s store, as authorised. Whether a file survives a reboot with its
+CONTENT intact rather than merely its size is now cheap to ask and **has not
+been asked** — one run with `--ei keep 1` to write and checksum, a reboot, one
+more to read and compare.
+
+**What 3h does NOT say.** One transfer, once, on an idle unlocked phone over
+adb. No transfer under memory pressure, none interrupted and resumed, and the
+1536MB case has one reproduction of the RESULT but not of the figure. **Where
+the bytes come FROM is still unanswered** — this pushed bytes the host
+manufactured; a real model arrives over a network, and nothing here measures
+that, or where it is staged on the host, or what it costs.
 
 **Rung 3g — does the 2GB VM survive a REAL phone? DEFINED, NOT RUN.** Every
 figure in 3e-i, 3e-ii and 3e-iii was taken unlocked, in the foreground, over
@@ -936,45 +1040,40 @@ than laboratory ones.
 **DONE MEANS:** for 3g-i, yes/no plus the time to ready and what died; for
 3g-ii, yes/no our app survives plus the list of casualties.
 
-**Rung 3h — can a GIGABYTE be pushed into the guest? DEFINED, NOT RUN.** The
-question 3e-iii opened. The encrypted store is keyed to the VM, so the host
-cannot write it — the guest must — and the only inbound channel is vsock, which
-has carried **32,000 bytes, once, in a single shot** (3c). Nothing in this repo
-measures sustained transfer in either direction, and a model has to get in
-somehow.
+**Sequencing — REVISED 15 Sept, after 3f and 3h.** Both are answered and the
+payload trip they shared is paid for. **What is left on this handset is three
+things, and none of them needs a compiler.**
 
-Method: the host generates incompressible bytes and streams them in chunks; the
-guest writes them straight to `/mnt/encryptedstore` and checksums as it goes,
-so a truncation and a corruption cannot be confused. Report throughput, and
-sample memory on BOTH sides throughout — the interesting failure is the guest
-buffering the whole transfer in RAM and hitting 3e-ii's live-lock, which would
-present as a hang with no error. Control the size upwards: 32KB (3c's proven
-figure), then 64MB, then 1536MB. **No model and no download needed.**
+- **3e-v** — is the encrypted store readable BEFORE first unlock? Needs a
+  Java-only rebuild (a `directBootAware` service copied from `Penny3dService`,
+  its own VM, its own store) and two reboots. **Still the one that can close
+  the plan down**: if the store's key is tied to the user's credential, no
+  model can be read at boot and every unattended result in this repo applies
+  only to an already-unlocked phone.
+- **3g-i** — will a 2GB VM start at boot, locked, inside the 20-second
+  exemption? Java-only rebuild, answered by reboots. **Do it in the same build
+  and the same reboots as 3e-v** — 3g-i's 256MB control and 3e-v's
+  after-unlock control share the boots.
+- **3g-ii** — what happens on a phone somebody is using? Device state only:
+  open a camera, a browser and several apps by hand, then run an existing
+  probe. No build at all.
 
-**DONE MEANS:** a throughput figure and a yes/no on 1.5GB arriving intact.
+**And one cheap loose end, now that `CMD_VERIFY` exists**: does a stored file
+survive a reboot with its CONTENT intact, not merely its size? 3e-iv could only
+check the size and its own file is now stranded. One `Probe3fActivity` run with
+`--ei keep 1` to write and checksum, a reboot, one more to read and compare. No
+build. Fold it into 3e-v's reboots rather than spending a power cycle on it.
 
-**Sequencing — REVISED 15 Sept, after 3e-iv.** The old plan put 3e-iv, 3g-i
-and 3g-ii in one sitting as "reboot work needing no new guest code". 3e-iv is
-now half done and the revision matters: **3e-v needs a rebuild, so it is no
-longer in that bucket.** What is left splits cleanly:
+**A rebuild is always allowed now** — there is no stored config left worth
+protecting. `penny3eiii`'s store is gone and `penny3f` deletes its own unless
+`--ei keep 1` is passed. The moment a run DOES pass `--ei keep 1`, that
+protection is back and a reinstall strands it again.
 
-- **Needs a rebuild but no new PAYLOAD** (Java only, and Java needs no phone):
-  3e-v and 3g-i. Both want a `directBootAware` service copied from
-  `Penny3dService`, and both are answered by reboots. **Do these together** —
-  one build, then reboots. 3g-i's 256MB control and 3e-v's after-unlock
-  control can share the same boots.
-- **Needs a new PAYLOAD**, i.e. a manual trip into the phone's Debian guest
-  for gcc: 3f and 3h. **Give them ONE payload between them, a command server
-  in the shape 3e-iii proved**, and pay that cost once. **Add the file-verify
-  command 3e-iv could not do to that same payload.** Add a fifth payload;
-  never edit the four that are in the APK.
-- **Needs neither**: 3g-ii is device-state only — open apps by hand, then run
-  an existing probe.
-
-**A rebuild is now allowed.** It was blocked only to protect penny3eiii's
-stored config for 3e-iv's read, and that read is done. 3e-v must still build
-its own VM and store rather than reusing penny3eiii, because the reinstall
-strands it.
+**The payload budget is spent for this handset.** Nothing in 3e-v, 3g-i or
+3g-ii needs guest C. If something later does, add a SIXTH payload in the
+command-server shape and make it answer everything outstanding at once — the
+Terminal app has to be opened by hand and that is the expensive part, not the
+compile.
 
 **Rung 4 — the OS image. DO NOT START IT.** Build GrapheneOS from source,
 preinstall the app, sign with our platform key, flash, lock, verify
@@ -1086,6 +1185,53 @@ Do not work ahead of the current rung.
           -fno-stack-protector -Wl,-z,max-page-size=4096 \
           -Wl,--hash-style=sysv -o Out.so in.c -L. -lvm_payload
 
+- **A transfer figure measures the GENERATOR until you prove otherwise.** Rung
+  3h's first 1.5GB run reported 26 MB/s. The bytes were intact; the number was
+  measuring this repo's own Java, which shifted each 64-bit word out a byte at
+  a time and then re-read the whole buffer to hash it. Splitting the host-side
+  timer into "generate and hash" against "write to the socket" settled it in
+  one run: 32 MB/s against 154 MB/s. Rewritten as one pass — hash the word
+  where it is generated, store it with a LITTLE_ENDIAN `ByteBuffer.putLong` —
+  and the same 1.5GB went in at 99 MB/s with the **identical checksum**, which
+  is the proof the rewrite changed the speed and not the bytes. **When a
+  transfer looks slow, time the generator before blaming the channel**, and
+  quote the RECEIVER's figure as the headline because it is bounded by
+  receiving rather than by manufacturing. Costs a Java-only rebuild, which
+  needs no phone.
+- **A `;` inside an `--es` extra is eaten by the device's shell.** `adb shell
+  am start ... --es plan "1;2,200,0,"` fails with `/system/bin/sh: 3,200,0,:
+  inaccessible or not found` — the double quotes are stripped by the Mac's
+  shell and the phone's shell then splits on the semicolon. Wrap the value in
+  single quotes INSIDE the double quotes: `--es plan "'1;2,200,0,'"`. Same
+  family as the `input text` trap; cost a minute on 15 Sept.
+- **The guest's CPU count and core identities ARE readable — from
+  `/proc/cpuinfo` inside the payload.** The trap below says they are not in the
+  guest console, and that stays true: microdroid attaches the console pipe
+  after SMP bringup. It is a fact about the console, not about the guest.
+  Reading `/proc/cpuinfo` from the payload returns eight processors with real
+  `MIDR` part numbers. **Do not read the mix as a topology** — each vCPU is an
+  unpinned host thread and records whichever physical core it sat on when the
+  guest kernel read the register, so the guest's 1 X1 + 4 A76 + 3 A55 does not
+  match the host's real 2 + 2 + 4.
+- **Threads in a payload need a written-out `clone` trampoline, and aarch64's
+  argument order is not x86-64's.** Proven working in rung 3f, and microdroid
+  does NOT refuse `clone`. Four things that each cost a round trip if wrong:
+  aarch64 is **CLONE_BACKWARDS** (flags, stack, parent_tid, TLS, child_tid);
+  the trampoline **cannot be C**, because the child returns on a fresh stack
+  with no return address and would `ret` into nothing; thread stacks must be
+  **allocated and never freed**, since a child sets its done flag and then
+  calls exit; and a **`dmb ish`** must precede that flag, because aarch64 is
+  weakly ordered and `volatile` constrains the compiler rather than the
+  processor. Working code is in `payload/penny3f_payload.c`.
+- **A payload source can build its own host-side control, and should.** Rung
+  3f's comparison is the same file compiled twice — a microdroid `.so` by
+  default, a static Debian executable under `-DPENNY_CONTROL`. Because these
+  payloads have no C library in either build, both make the same raw syscalls
+  and the only difference is the operating system. That is far stronger than
+  "equivalent C", it costs about fifteen lines of `_start` and argv parsing,
+  and it is the shape to reuse for any future guest-versus-host measurement.
+  Note what it is NOT: Debian on this phone is itself a guest in the Terminal
+  app's VM, so it is a sanity number and never a bare-metal control.
 - **`adb logcat -G 64M` before measuring anything with a DEBUG_LEVEL_FULL
   guest.** One guest console is several hundred lines a second and three at
   once evicted a whole run's own log lines from the default ring buffer
@@ -1338,18 +1484,25 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
 - **One second, once, is not a stream.** 3c sent 32,000 bytes in a single shot
   into a VM that lived 3 seconds. No streaming, no backpressure, no long-held
   channel, no endurance. Do not let 3c be stretched into "audio streams to the
-  guest".
-- **The memory gate is CLOSED and the storage gate with it. 3e-i: 2GB and 8
-  vCPUs are given. 3e-ii: 1792MB of it is genuinely writable and held, twice.
-  3e-iii: a 1.5GB model FILE costs no permanent RAM at all** — microdroid will
-  give a sideloaded app a real, persistent, encrypted ext4 disk via
-  `setEncryptedStorageBytes`, and 1792MB of anonymous memory is still reachable
-  with that file mapped and resident. **What replaced this question is the
-  bullet below: how does a 1.5GB file GET into that store?** It is encrypted and
-  keyed to the VM, so the host cannot write it and the guest must. 3c proved
-  bytes cross inwards over vsock, in one 32,000-byte shot. 1.5GB has never been
-  tried, and nothing in this repo measures sustained transfer in either
-  direction.
+  guest". **3h moves this only partly**: it held one connection for 1536 chunks
+  and 15 seconds and sustained 268 MB/s through it, so bulk transfer and
+  backpressure are no longer unknowns — but that was one file pushed as fast as
+  possible, not a live stream arriving in real time over minutes, and it
+  carried no audio.
+- **The memory gate is CLOSED, the storage gate with it, and as of 3h the
+  DELIVERY gate too. 3e-i: 2GB and 8 vCPUs are given. 3e-ii: 1792MB of it is
+  genuinely writable and held, twice. 3e-iii: a 1.5GB model FILE costs no
+  permanent RAM at all** — a real, persistent, encrypted ext4 disk via
+  `setEncryptedStorageBytes`, with 1792MB of anonymous memory still reachable
+  alongside it. **3h, 15 Sept: 1,610,612,736 bytes go IN over vsock in 15.4
+  seconds, 99 MB/s including fsync, intact — and a 256MB guest takes the same
+  1.5GB without buffering a byte.** So the whole route for a model is now
+  measured end to end: it can be pushed in, it lands on a real disk, it costs
+  no permanent RAM, and it survives a reboot. **What replaced this question:
+  nothing in this repo has ever asked where the bytes come FROM.** 3h pushed
+  bytes the host manufactured. A real model arrives over a network, and neither
+  the download, nor where it is staged on the host, nor what either costs has
+  been looked at once.
 - **The store survives a REBOOT — ANSWERED YES, 3e-iv.** 1610612736 bytes
   exactly, all 1536MB faulted in from cold at ~598 MB/s after a power cycle.
   **The pre-unlock half is STILL OPEN and is now rung 3e-v.** It could not be
@@ -1360,11 +1513,23 @@ wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
   repo applies only to an already-unlocked phone. It needs its own
   `directBootAware` service, its own VM, its own store and two reboots.
   **And 3e-iv verified SIZE, not CONTENT** — a store handing back 1.5GB of
-  zeroes would have logged identically. Fold a verify-file command into the
-  3f/3h payload.
-- **Compute has NEVER been measured. Not once.** Eight vCPUs given, gigabytes
-  moved, and no payload here has ever asked a CPU to calculate anything. This
-  is the largest measurable unknown in the repo and is **now rung 3f.**
+  zeroes would have logged identically. **The verify command now EXISTS**
+  (`CMD_VERIFY` in the 3f/3h payload, exercised on files up to 1.5GB), so the
+  method gap is shut — but **3e-iv's own file is stranded** by the reinstall
+  that build required, and the reboot-with-content question has still never
+  been asked. It is now cheap: `--ei keep 1`, a reboot, `--ei keep 1` again.
+  Fold it into 3e-v's reboots rather than spending a power cycle on it.
+- **Compute is MEASURED — rung 3f, 15 Sept, and the guest CPU is real.** Eight
+  vCPUs carrying genuine physical core identities, single-core at parity with
+  the same binary running in Debian on the same silicon (bit-identical results
+  from both), 4.2x aggregate across eight threads and within 1% of Debian's
+  figure. `CPU_TOPOLOGY_MATCH_HOST` is eight usable cores. **What replaced this
+  question: "the CPU is real" is not "a model will run well."** Both kernels
+  were scalar dependency chains chosen to catch a fake CPU, not to profile a
+  real one. Memory bandwidth under a real working set, cache behaviour, and
+  NEON/dot-product throughput — the things a quantised model actually leans on
+  — are all still unmeasured, and the guest advertises `asimd`, `asimddp` and
+  `fphp` that nothing here has touched.
 - **Every 2GB figure was taken on an idle, unlocked, foreground phone.** Whether
   a 2GB VM can start at boot inside the 20-second exemption, and whether the
   low-memory killer takes our app on a phone somebody is actually using, are

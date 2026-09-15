@@ -3625,3 +3625,375 @@ re-fetched at every boot.
 **3e-iv second half: NOT ANSWERED, and now known to be unaskable the way it
 was written.** Carried forward as rung 3e-v, which needs its own
 `directBootAware` service, its own VM, its own store and two reboots.
+
+## 2026-09-15 — rungs 3f and 3h BOTH ANSWERED YES, off one payload. The guest CPU is real and at parity with a known-good Linux on the same silicon; 1.5GB goes in over vsock in 15 seconds, intact.
+
+Two rungs, one guest payload, one trip into the Debian guest for gcc. The
+fifth `.so` in the APK; the four before it were not touched and still run.
+
+### Why they shared a build
+
+There is no C compiler on the Mac and there is not going to be one — the NDK
+is a 975MB download over a phone tether. So every payload rebuild costs a
+manual round trip: Matt opens the Terminal app by hand, a port is forwarded,
+the file is compiled inside the Debian guest on the phone and copied back.
+3e-iii proved the way to pay that once — make the payload a COMMAND SERVER
+rather than a single-shot, so the host connects once and sends a sequence of
+commands down the same socket while the process keeps its state between them.
+That shape answered nine experiments off one build there. Here it answered two
+whole rungs, a loose end, and four unplanned re-runs when a number turned out
+to be measuring the wrong thing.
+
+`payload/penny3f_payload.c`, seven commands:
+
+    1 INFO          dump the guest's /proc/cpuinfo, /proc/mounts, /proc/meminfo
+    2 CPU_INT       integer kernel, one thread, arg = millions of iterations
+    3 CPU_FP        floating-point kernel, one thread
+    4 THREADS_INT   arg = iterations EACH, arg2 = thread count
+    5 THREADS_FP    as above, floating point
+    6 STREAM        arg = MB, arg2 = plus KB, path = where the guest writes
+    7 VERIFY        read a file back and checksum it
+
+### THE CONTROL IS THE SAME FILE, and that is the part worth keeping
+
+3f's specified control was "the same C compiled by the same gcc and run in the
+phone's Debian guest". That is usually a promise about discipline. Here it is
+literal: **one source file builds both binaries.**
+
+    (default)        -> Penny3fPayload.so, a microdroid payload
+    -DPENNY_CONTROL  -> penny3f_control, a static Debian executable
+
+Same source, same gcc 14.2.0, same `-O1`, same flags, and — because the file
+has no C library in EITHER build — the same raw aarch64 syscalls. The syscall
+ABI belongs to the kernel and is identical above glibc, above bionic and above
+nothing at all, which is the same reason 2d's payload talks to the kernel
+directly. Nothing differs between the two binaries except the operating system
+underneath them.
+
+    gcc -shared -fPIC -O1 -nostdlib -ffreestanding -fno-builtin \
+        -fno-stack-protector -Wl,-z,max-page-size=4096 \
+        -Wl,--hash-style=sysv \
+        -o Penny3fPayload.so penny3f_payload.c -L. -lvm_payload
+
+    gcc -O1 -fPIC -no-pie -static -nostdlib -ffreestanding -fno-builtin \
+        -fno-stack-protector -DPENNY_CONTROL \
+        -o penny3f_control penny3f_payload.c
+
+It is **NOT a bare-metal control and must never be written up as one.** Debian
+is itself a guest in a VM the Terminal app owns. It is a sanity number, and its
+job was to catch a microdroid guest running at a tenth of expected speed.
+
+All four pre-packaging ELF checks passed first time: `NEEDED libvm_payload.so`
+and nothing else, exactly one undefined dynamic symbol
+(`AVmPayload_notifyPayloadReady`), OS/ABI `UNIX - System V`, `LOAD` align
+`0x1000`.
+
+### THREADS WITH NO C LIBRARY — the part budgeted as the whole difficulty
+
+It was the hard part and it worked first time, which is worth recording
+because the budget said otherwise.
+
+There is no pthreads and no libc to hold one. A thread is made by hand: mmap a
+stack, `clone()` into it, join by polling a shared flag. The trampoline cannot
+be C — the child returns from the syscall on a brand new stack with no return
+address on it, so a C function would `ret` into nothing. Eighteen instructions
+of assembly, verified by disassembling the object on the Mac before the file
+ever went near the phone:
+
+    penny_clone_thread:   x0=fn x1=arg x2=stack_top x3=flags
+        mov x9, x0 / mov x10, x1        fn and arg survive the svc because the
+        mov x0, x3 / mov x1, x2         aarch64 syscall ABI preserves every
+        mov x2, xzr / x3, xzr / x4, xzr register but x0 — the same trick
+        mov x8, #220 ; svc #0           glibc's own aarch64 clone uses
+        cbz x0, 1f ; ret                parent: returns tid or -errno
+    1:  mov x0, x10 ; blr x9            child: straight into the work
+        mov x8, #93 ; svc #0            then exit(2) — this thread, not the group
+
+Three things that would each have cost a round trip if got wrong:
+
+- **aarch64 takes clone's arguments in CLONE_BACKWARDS order** — flags, stack,
+  parent_tid, TLS, child_tid. That is NOT the x86-64 order. Swapping the last
+  two hands the kernel a garbage TLS pointer.
+- **No CLONE_SETTLS.** The children inherit the parent's `tpidr_el0` and never
+  touch thread-local storage, because a binary with no libc and
+  `-fno-stack-protector` has none. If that ever stops being true this is where
+  it breaks.
+- **Stacks are allocated and never freed.** A child sets its done flag and then
+  calls exit; unmapping its stack in that window is a race worth nobody's time.
+  Eight stacks of 1MB in a 2GB guest.
+- **`dmb ish` before the done flag.** aarch64 is weakly ordered, so `volatile`
+  constrains the compiler and not the processor. Without the barrier the flag
+  can become visible before the timings it is announcing.
+
+**microdroid did not refuse `clone`.** That was a live risk — a payload
+sandbox blocking it would have been a real finding — and the errno path was
+written to report it rather than hang. It was never taken.
+
+### 3f, half one: single core
+
+200M iterations, three runs each, same binary both sides, same afternoon.
+
+    INT 200M iters      microdroid      Debian control
+    run 1               531 ms          582 ms
+    run 2               397 ms          463 ms
+    run 3               366 ms          411 ms
+
+    FP 200M iters       microdroid      Debian control
+    run 1               444 ms          438 ms
+    run 2               447 ms          443 ms
+    run 3               437 ms          434 ms
+
+**The guest is at parity, and on the integer kernel its best run was FASTER
+than Debian's** (366ms against 411ms). Both spreads are scheduler placement,
+not measurement error — see the core-identity finding below.
+
+**A corroboration nobody planned.** Both kernels are deterministic and the
+payload reports the final value. microdroid and Debian returned
+**bit-identical** results:
+
+    INT sink   0xae0c3710f848e024     both
+    FP sink    0xc316fb657f0b8495     both
+
+Same arithmetic, to the last bit, in two different operating systems. That is
+not a timing claim — it is proof the same code ran, which no millisecond figure
+could give on its own.
+
+### The guest's own view of its CPUs, which the console could not give
+
+CLAUDE.md records that the guest's CPU count is NOT in the guest console:
+microdroid attaches the console pipe after the kernel's SMP bringup, so
+`grep -i cpu` over the whole console returns nothing. **Reading
+`/proc/cpuinfo` from inside the payload solves that**, and it returns more than
+a count.
+
+    guest processors 0..7   parts: d44 d05 d0b d0b d0b d0b d05 d05
+    host  processors 0..7   parts: d05 d05 d05 d05 d0b d0b d44 d44
+
+`0xd44` is Cortex-X1, `0xd0b` is Cortex-A76, `0xd05` is Cortex-A55. The guest
+sees **eight CPUs with real physical core identities read off the silicon** —
+not a uniform synthetic CPU.
+
+**But the mixes do not match, and the reason matters.** The host is the real
+Tensor: 2 X1 + 2 A76 + 4 A55. The guest reported 1 X1 + 4 A76 + 3 A55. Each
+guest vCPU is an unpinned host thread, and the guest kernel reads `MIDR_EL1` on
+each vCPU once at boot — so the identity recorded is whichever physical core
+that thread happened to be sitting on at that instant. **"8 vCPUs" is eight
+unpinned threads on a heterogeneous host, not a topology.** Nothing in the
+guest can pin them.
+
+### 3f, half two: scaling 1 -> 2 -> 4 -> 8
+
+Every thread runs the SAME iteration count, so ideal hardware returns the same
+wall time whatever the thread count, and the curve is read as work per
+millisecond rather than as a speed-up of a fixed job.
+
+    INT, 200M iters PER THREAD        microdroid              Debian control
+    threads   wall ms  M iters/sec    wall ms  M iters/sec
+    1         445      449            585      342
+    2         540      740            480      833
+    4         583      1372           558      1434
+    8         855      1871           849      1884
+    8 again   905      1767
+    8 again   838      1909
+
+**At eight threads the two environments are within 1%: 1871 and 1909 against
+Debian's 1884 M iterations/second.** Eight threads is about **4.2x** one
+thread.
+
+**That is not a shortfall and 8x was never on the table.** Four of the eight
+cores are Cortex-A55s at roughly a third of the throughput of an X1. The
+per-thread spread the payload logs is that heterogeneity made visible rather
+than inferred — from the guest's own console, at 8 threads:
+
+    INT  597 604 667 722 730 758 829 836 ms     ratio 1.40
+    FP   606 768 789 881 889 901 908 949 ms     ratio 1.57
+
+Eight threads with eight near-identical times would have been the surprising
+result — it would have meant `CPU_TOPOLOGY_MATCH_HOST` was a number in a config
+file rather than eight usable cores.
+
+### 3h: the size ladder
+
+`setEncryptedStorageBytes` for somewhere to put it — 3e-iii's finding, the only
+writable filesystem a microdroid guest has. The host generates incompressible
+bytes and streams them as length-prefixed chunks; the guest writes each chunk
+straight through to `/mnt/encryptedstore` and checksums as it goes, so
+truncation and corruption cannot be confused. Then VERIFY reads the file back
+off the disk and checksums it again — three independent hashes of the same
+bytes.
+
+    size              guest ms   guest MB/s   INTACT
+    32,768 B                 4   --           yes
+    67,108,864 B          1479   43           yes
+    1,610,612,736 B      15401   99           yes
+
+    ck64  32KB      0x359e1ca1fc3a1672
+    ck64  64MB      0x757b795dd5138044
+    ck64  1536MB    0x1695ce2a1dce440a
+
+Every one of those matched at all three points: what the host sent, what the
+guest received, and what came back off the disk afterwards. Read-back from the
+store ran at 2206 MB/s warm.
+
+**1,610,612,736 bytes is exactly the figure 3e-iii wrote and 3e-iv read back
+after a reboot.** It is the same 1536MB, arriving by a different route.
+
+**The checksum here is NOT 3c's and its numbers must never be compared with
+3c's or 3d's.** 3c hashed byte-at-a-time, which is a serial multiply chain of
+roughly four cycles a byte — several seconds over 1.5GB at each end, charged
+straight to the throughput figure. This one is FNV-1a over 64-bit words, same
+construction, eight times fewer rounds, still order-sensitive.
+
+### THE CONTROL THAT MATTERS: 1536MB into a 256MB guest
+
+The interesting way 3h fails is the guest buffering the transfer in RAM and
+hitting 3e-ii's live-lock — which presents as a hang with no exception, no
+`has died` line and no reply. The payload holds exactly one 1MB chunk in
+`.bss`, so it cannot buffer by accident. The control proves it does not.
+
+**A 256MB guest received 1536MB — six times its own total RAM — intact, in
+20863ms (73 MB/s), same checksum.** And its memory did not fall:
+
+    received   64 MB   MemFree 60780 kB   Cached 104460 kB
+    received  448 MB   MemFree 29148 kB   Cached 122772 kB
+    received  832 MB   MemFree 42032 kB   Cached 107232 kB
+    received 1216 MB   MemFree 46540 kB   Cached 118948 kB
+
+MemFree **oscillates** and Cached stays near 110MB. The kernel writes back and
+reclaims continuously. Compare the 2048MB guest, where the kernel had room not
+to bother and simply let page cache grow to 1.68GB — same result, lazier route.
+
+Read-back in the 256MB guest ran at 548 MB/s, off the disk rather than out of
+cache, because there was no cache to hold it.
+
+### THE TRAP THIS RUN PAID FOR: a throughput figure that measured the probe
+
+**The first 1.5GB run reported 26 MB/s and it was wrong** — not wrong about the
+bytes, which arrived intact, but wrong about what was being measured. 58
+seconds for 1.5GB, and the guest's own disk had done 210 MB/s in 3e-iii, so the
+disk was ruled out immediately. The channel was the obvious suspect.
+
+It was neither. Splitting the host-side timer into "generate and hash" against
+"write to the socket", which cost a Java-only rebuild and **no trip to the
+phone**, put it beyond argument:
+
+    256MB, first generator     generate+hash 7977 ms (32 MB/s)
+                               socket writes 1660 ms (154 MB/s)
+
+The bottleneck was this repo's own Java, shifting each 64-bit word out a byte
+at a time and then re-reading the whole buffer to hash it. Rewritten as one
+pass — hash the word where it is generated, store it with a LITTLE_ENDIAN
+`ByteBuffer.putLong` — and:
+
+    256MB, one-pass generator  generate+hash 1362 ms (187 MB/s)
+                               socket writes  704 ms (363 MB/s)
+    1536MB                     generate+hash 8815 ms (174 MB/s)
+                               socket writes 5717 ms (268 MB/s)
+
+**The rewrite produced the identical checksum on every size**, which is the
+proof it changed the speed and not the bytes.
+
+**The generalisable rule: when a transfer figure is disappointing, time the
+generator before blaming the channel.** A probe that manufactures its own data
+is measuring itself unless it is instrumented to say otherwise, and the cost of
+finding that out here was two minutes because it needed no compiler.
+
+**The honest headline is therefore the GUEST's figure, not the host's** — 15401
+ms for 1,610,612,736 bytes, **99 MB/s including fsync**, because that one is
+bounded by receiving and committing rather than by manufacturing. The channel
+alone sustained 268 MB/s.
+
+### The loose end from 3e-iv, half closed
+
+3e-iv verified the stored file's SIZE and not its CONTENT, and asked for a
+verify-file command to be folded into this payload. **It is in, and it was
+exercised on files up to 1.5GB**: CMD_VERIFY reads a file back and returns its
+checksum, and every stream in this session was verified that way.
+
+**What that does NOT close: 3e-iv's own file is gone.** The reinstall this
+build required strands `penny3eiii`'s stored config and its store with it,
+exactly as the `getOrCreate` trap predicts, and CLAUDE.md authorised that
+because 3e-iv's read was done. So the method gap is closed and the specific
+question — does a file survive a reboot with its CONTENT intact, not merely its
+size — is now cheaply askable and **has not been asked.** It needs one run with
+`--ei keep 1` to write and checksum, a reboot, and one more with `--ei keep 1`
+to read and compare.
+
+### What these two rungs do NOT say
+
+- **Nothing here is a model.** A dependency-chain benchmark is not inference.
+  It says the processor issues instructions at the rate a real Cortex issues
+  them; it says nothing about memory bandwidth under a real working set, cache
+  behaviour, NEON or dot-product throughput, or what a quantised model would
+  actually do. **"The CPU is real" is not "a model will run well."**
+- **No NEON, no SVE, no matmul.** Both kernels are scalar and single-issue by
+  design, because the point was to catch a fake CPU, not to profile one. The
+  features line says the guest has `asimd`, `asimddp` and `fphp`; nothing here
+  used them.
+- **Single-thread figures are a lottery.** The host scheduler may put a thread
+  on an X1 or an A55 and nothing in the guest can pin it. Three runs each, and
+  the spread (531/397/366) is that lottery, not noise in the timer.
+- **The Debian control is a VM too.** It is a sanity number, not bare metal.
+- **The 4.2x scaling is on an idle phone.** Rung 3g-ii's question — what
+  happens when the cores are already busy with something a person is using — is
+  untouched by this.
+- **1.5GB in 15 seconds is one transfer, once, on an idle unlocked phone over
+  adb.** No streaming under memory pressure, no interrupted-and-resumed
+  transfer, no second reproduction of the 1536MB case at the fast generator
+  (the slow-generator run is a second reproduction of the RESULT, not of the
+  figure).
+- **Where the bytes come FROM is still unanswered.** This pushed bytes the host
+  manufactured. A real model arrives over a network, and nothing here measures
+  that, or where it is staged on the host, or what it costs.
+- Unlocked, foreground, over adb throughout. Still `DEBUG_LEVEL_FULL`, still
+  non-protected, still sample DICE values, so no attestation claim rests on
+  any of it.
+
+### Nothing regressed
+
+`logcat | grep "has died"` returned **zero** lines across the whole session,
+including three separate 2048MB VMs — better than 3e-ii's thirteen and 3e-iv's
+twenty, because the Terminal app's Debian VM was up and holding its memory the
+whole time rather than being killed and restarted. Our own app was never
+killed.
+
+`VmService` was not touched and `penny3` came back on its own after each
+reinstall killed the process — START_STICKY doing what rung 3 measured, at cid
+2078, `requesterUid: 10192`. The Terminal app's `debian` sat alongside it at
+`requesterUid: 10179`, cid 2051. Two owners, enumerated together, as in rung 1.
+
+`Probe3eActivity`, `Probe3eiiActivity`, `Probe3eiiiActivity` and
+`Penny3dService` were not touched. The four earlier payloads are still in the
+APK, still Stored, still page-aligned.
+
+### Versions
+
+GrapheneOS 2026091001, Android 17 (CP2A.260705.006, patch 2026-09-01),
+bootloader bluejay-17.0-15199431 locked, verifiedbootstate=yellow.
+Pixel 6a (bluejay), 6GB. Debian 13.7 trixie, kernel
+6.12.92-android16-6-g4e585dd7f3b7-ab16266940-4k, gcc 14.2.0 (Debian 14.2.0-19).
+build-tools 37.0.0, Temurin 21.0.12.1, platform-tools 37.0.1.
+`Penny3fPayload.so` 15,392 bytes, sha256
+1314006353fd7fa950322e0e00fb58f631ee7459ffa58fd98dac460b0b2c7591.
+
+### Verdict
+
+**3f: YES.** The guest CPU is real. Eight vCPUs carrying genuine physical core
+identities, single-core at parity with a known-good Linux on the same silicon
+on the same afternoon — bit-identical results from both — and 4.2x aggregate
+scaling across eight threads, within 1% of what the same binary achieves in
+Debian. `CPU_TOPOLOGY_MATCH_HOST` is eight usable cores, not a number in a
+config file. Hand-rolled threads with no C library work inside microdroid and
+`clone` is not refused.
+
+**3h: YES.** 1,610,612,736 bytes crossed into the guest over vsock and landed
+on the encrypted store intact, verified at three independent points, in 15.4
+seconds — 99 MB/s end to end including fsync, with the channel alone sustaining
+268 MB/s. And a guest with 256MB of RAM took the same gigabyte and a half
+without buffering a byte of it, which is the result that says this scales down
+rather than merely working once at a comfortable size.
+
+**The delivery route for a model is now measured end to end: it can be pushed
+in, it lands on a real disk, it costs no permanent RAM, and it survives a
+reboot.** What has never been measured is a model doing anything once it is
+there.

@@ -130,9 +130,15 @@ fi
 #
 #    The build command used in the guest, for the record:
 #
-#      gcc -shared -fPIC -O1 -ffreestanding -fno-stack-protector \
-#          -Wl,-z,max-page-size=4096 -Wl,--hash-style=sysv \
+#      gcc -shared -fPIC -O1 -nostdlib -ffreestanding -fno-builtin \
+#          -fno-stack-protector -Wl,-z,max-page-size=4096 \
+#          -Wl,--hash-style=sysv \
 #          -o PennyPayload.so penny_payload.c -L. -lvm_payload
+#
+#    -nostdlib is NOT optional and was missing from this comment until 15 Sept.
+#    Without it the compile fails on a missing crti.o, because the Debian guest
+#    has gcc but no libc development files — which is the very reason these
+#    payloads use no C library at all.
 #    PENNY_PAYLOAD_3C_SO is rung 3c's payload and is packaged ALONGSIDE 2d's,
 #    not instead of it. Two .so files in one APK costs nothing — microdroid
 #    loads only the one setPayloadBinaryName() asks for — and it means a single
@@ -145,6 +151,12 @@ fi
 #    single-shot: there is no compiler on this Mac, so a rebuild costs a manual
 #    trip into the phone's Debian guest, and one build therefore has to answer
 #    the whole rung.
+#    PENNY_PAYLOAD_3F_SO is the fifth, and it carries TWO rungs — 3f's CPU
+#    benchmarks and 3h's inbound stream — plus the file checksum 3e-iv could
+#    not do. Same reasoning taken one step further: the trip into Debian is the
+#    expensive part, so anything that needs a guest payload goes in the same
+#    one. Its source also builds the Debian-side control binary for 3f under
+#    -DPENNY_CONTROL, from the identical file.
 if [ -n "$PENNY_PAYLOAD_SO" ]; then
     cp "$PENNY_PAYLOAD_SO" "$OUT/apkroot/lib/arm64-v8a/PennyPayload.so"
     echo "6/8 guest payload COPIED FROM $PENNY_PAYLOAD_SO"
@@ -159,6 +171,10 @@ if [ -n "$PENNY_PAYLOAD_SO" ]; then
     if [ -n "$PENNY_PAYLOAD_3EIII_SO" ]; then
         cp "$PENNY_PAYLOAD_3EIII_SO" "$OUT/apkroot/lib/arm64-v8a/Penny3eiiiPayload.so"
         echo "    rung 3e-iii payload COPIED FROM $PENNY_PAYLOAD_3EIII_SO"
+    fi
+    if [ -n "$PENNY_PAYLOAD_3F_SO" ]; then
+        cp "$PENNY_PAYLOAD_3F_SO" "$OUT/apkroot/lib/arm64-v8a/Penny3fPayload.so"
+        echo "    rungs 3f/3h payload COPIED FROM $PENNY_PAYLOAD_3F_SO"
     fi
 else
     "$CLANG" -shared -fPIC -O2 -o "$OUT/apkroot/lib/arm64-v8a/PennyPayload.so" \
@@ -213,6 +229,9 @@ fi
 if [ -n "$PENNY_PAYLOAD_3EIII_SO" ]; then
     (cd "$OUT/apkroot" && zip -q -0 -X "$OUT/base.apk" lib/arm64-v8a/Penny3eiiiPayload.so)
 fi
+if [ -n "$PENNY_PAYLOAD_3F_SO" ]; then
+    (cd "$OUT/apkroot" && zip -q -0 -X "$OUT/base.apk" lib/arm64-v8a/Penny3fPayload.so)
+fi
 if [ -n "$PENNY_BLOB_MB" ]; then
     (cd "$OUT/apkroot" && zip -q -0 -X "$OUT/base.apk" lib/arm64-v8a/PennyBlob.so)
 fi
@@ -252,5 +271,5 @@ echo "stub libvm_payload.so leaked into the apk: $SOLEAK  (must be 0)"
 
 # The payload must be Stored, not Defl:N. zipfuse in the guest cannot read a
 # deflated entry, and the symptom is the VM failing rather than this build.
-echo "payload entries in the apk (both must say Stored):"
+echo "payload entries in the apk (EVERY ONE must say Stored):"
 unzip -lv "$OUT/probe2a.apk" | grep "Payload.so"
