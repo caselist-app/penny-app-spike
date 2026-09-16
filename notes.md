@@ -8854,8 +8854,20 @@ BEFORE the reboot, which is why it is harmless.
     NO SPEED, TTFT OR RSS FIGURE FROM ROW 4 IS QUOTED ANYWHERE -- it selects
     different matmul kernels. `-n 1` because only the load matters.
 
-    END OF BOOT 1: hash the state file and record it.
-    adb shell 'sha256sum /data/local/tmp/q17_state.bin; ls -la /data/local/tmp/q17_state.bin'
+    END OF BOOT 1: **`sync` FIRST**, then hash the state file and record it.
+    adb shell 'sync; sha256sum /data/local/tmp/q17_state.bin; ls -la /data/local/tmp/q17_state.bin'
+
+    **WHY THE `sync` — ADDED 16 Sept BY MATT, AFTER ROW 2.** Row 2 measured
+    B4 at 17.91 ms for 44.5 MiB, which is a write into the page cache:
+    `llama_state_save_file` issues NO `fsync`. So at the end of boot 1 the
+    file's bytes may exist only in RAM. Hashing it would read them straight
+    back out of that cache and report a hash for something not yet on UFS,
+    and a reboot could then land row 5 on a short or absent file. `sync`
+    flushes it first, and **the fact that `sync` was run is recorded in the
+    row entry**, so that if the boot-2 hash differs it is a real result about
+    the storage rather than an unflushed page cache.
+    (Hashing here is safe and hashing on boot 2 before row 5 is not: boot 1's
+    cache is about to be destroyed by the reboot anyway.)
 
 #### BOOT 2 — Qwen3-1.7B, OPTIONAL, ONE REBOOT, AND IT IS THE ONLY TRUE B3
 
@@ -9261,3 +9273,105 @@ the cache row 5 exists to measure cold.
 The 64 tokens are again `0xcba17a2fcbba49f4`, identical across a cold load, a
 warm load and two ungated smoke runs. Text recorded as text produced; two of
 its three facts are wrong and quality is out of scope.
+
+### ROW 3 — `q17_r3_warm_cached`. WARM model, WARM state file, gated. B2 PASSES.
+
+    gate passed  uptime 2282.78 s, wallclock 17:55:20, both clusters at rated
+                 -- 497 s after row 2 ended
+    started uptime 2282.88 s   ended 2291.03 s   rc=0
+    c0, -t 2, -lm none, n_ctx 1024, greedy, chat_template=NONE
+    --load-state, NO --sys-file: the system prompt is neither read nor
+    tokenised, by design (T6 falls inside the cached TTFT window)
+    user_tokens 20, -n 64 --print
+
+    t_backend_ms          1.87
+    t_model_open_ms     370.45
+    t_tensor_band_ms   2527.36
+    t_model_total_ms   2900.36
+    t_ctx_create_ms      57.72
+    t_ready_ms         2959.95
+    t_tokenize_ms         0.33   (user turn only)
+    t_state_load_ms      19.17   state file WARM in page cache
+    state_bytes    46,685,237    state_tokens_restored 407
+    t_user_decode_ms    401.99   20 tokens
+    t_sample_ms           0.81
+    ttft_cached_ms      422.31   == B2, "state file WARM"
+    ttft_cold_proc_ms  3382.26   NOT B3
+    gen_tokens 64      gen_ms 4104.77      gen_tps 15.35  (63 decodes)
+    first_token_id 32313     token_fnv1a64 0xcba17a2fcbba49f4
+    peak_rss_kB 1,500,212    max_rssanon_kB 1,494,604 (99.6%)
+
+    MemAvailable   before 2,679,200 kB   after 2,878,632 kB
+    SwapFree       before   767,996      after   530,940
+    Cached         before 1,269,556      after 1,529,716   (ROSE 260,160)
+    pswpin         before    98,658      after    98,706
+    pswpout        before   748,829      after   819,972
+    pgmajfault     before   111,797      after   111,854
+    ceil_x1        before 2,802,000   min 2,401,000 (85.7%) 7 s in  after rated
+    ceil_a76       before 2,253,000   min 2,253,000 (rated)         after rated
+    lmk_kill_lines 2
+
+### THE PREDICTION, SCORED
+
+    #   prediction                        point   band        measured   verdict
+    B2  TTFT cached, model RESIDENT        0.5 s  0.35-1.5    0.42231 s  PASS
+
+**B2 IS "STATE FILE WARM" AND THE LABEL IS NOT A FORMALITY.** Row 2 wrote
+`q17_state.bin` nine minutes earlier on this same boot, so `t_state_load_ms`
+19.17 ms is a read of 44.5 MiB **out of RAM**, not off UFS — the mirror image
+of B4's no-`fsync` write. Row 5, on boot 2, is the cold-file version of exactly
+this quantity, and the difference between the two is the cost of the storage
+read. Until row 5 runs, **B2 is measured only in its easiest form.**
+
+**THE SPEEDUP, WHICH IS THE POINT OF Q-B, AND IT IS QUOTED AGAINST BOTH FRESH
+ROWS:**
+
+    row 1 ttft_cached  6372.68 ms  ->  row 3  422.31 ms   15.09x
+    row 2 ttft_cached  6323.06 ms  ->  row 3  422.31 ms   14.97x
+
+A 407-token prefix that costs ~6.0 s to process fresh costs **19.17 ms to
+restore**, and the whole path from a ready model to a first token falls from
+~6.37 s to 0.42 s. What remains in that 422 ms is almost entirely the 20-token
+user turn: `t_user_decode_ms` 401.99 ms, i.e. **95.2% of B2 is decoding the
+turn itself**, not restoring the prefix. Prefix caching has moved the cost
+somewhere else entirely, and the remaining cost is the user's own words.
+
+**TWO KILL LINES, ONE PROCESS, WITH `MemAvailable` BEFORE AT 2,679,200 kB:**
+`app.grapheneos.carrierconfig2`, `oom_score_adj 905`, `cch CEM`, `reason: low
+watermark is breached`. Cached band, nothing a user would see. Same flattering
+caveat as row 2 — this row started 401,248 kB above row 1 — so the honest
+ordering is row 1's eight lines at 2,277,952 kB, then two here, then zero on
+row 2, and only row 1 is a cold-start figure.
+
+**`Cached` ROSE 260,160 kB and `SwapFree` FELL 237,056 kB across the row.**
+`pgmajfault` moved 57. The contamination condition is not met, but SwapFree is
+now 530,940 kB — **16.9% of `SwapTotal`**, against the ~10% floor that voids a
+boot. It has fallen on every row (889,596 -> 720,380 -> 751,100 -> 530,940 kB
+at the row boundaries). Row 4 is the last row of boot 1 and will be watched for
+it.
+
+### WHAT ROW 3 DOES NOT SAY
+
+**IT IS NOT B3 AND `ttft_cold_proc_ms` 3382.26 MUST NEVER BE QUOTED AS ONE.**
+This is a new process, but its model load was warm — rows 1 and 2 had already
+read the file. B3 is a cached run whose model load is cold, which only row 5 on
+boot 2 supplies. This is the distinction the plan settled in advance and this
+row is exactly the shape that would have been misreported without it.
+
+**`t_ctx_create_ms` 57.72 ms is the highest of the three rows** (36.62, 38.75,
+57.72). No explanation is offered; three samples on one boot, and A3 was
+already scored on row 1.
+
+One sample. The X1 ceiling fell to 2,401,000 kHz (85.7%), a shallower dip than
+rows 1 and 2 — this row does ~6 s less arithmetic, since it never decodes the
+system prompt. `gen_tps` 15.35 over 63 decodes is the fastest of the three and
+is not an error bar.
+
+`state_tokens_restored` is 407, the count row 2 saved, and the 64 generated
+tokens hash to `0xcba17a2fcbba49f4` — identical across a cold fresh load, a
+warm fresh load, a cached load, and two ungated smoke runs. **The restored
+prefix produces the same output as the decoded one**, which is the control, and
+it is not a quality claim. Text as before: Canberra right, the other two facts
+wrong, quality out of scope.
+
+A4 is still unscored — row 4 next.
