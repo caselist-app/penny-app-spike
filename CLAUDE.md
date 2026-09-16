@@ -2270,9 +2270,17 @@ not soften it.
   `policy6/scaling_max_freq` read **1,426,000 kHz against a `cpuinfo_max_freq`
   of 2,802,000** immediately after a 65-second two-thread run — the ceiling
   itself at 50.9% of rated, not the governor picking a low point. It climbed
-  back monotonically to 2,802,000 over **109.8 seconds of idle**. The A55
-  (`policy0`, 1,803,000) and A76 (`policy4`, 2,253,000) clusters never moved
-  from their own rated maxima; **only the X1 pair is capped.**
+  back monotonically to 2,802,000 over **109.8 seconds of idle**.
+  **"ONLY THE X1 PAIR IS CAPPED" WAS WRONG AND IS REFUTED BY THE COOLED RUN.**
+  That claim came from ONE reading taken after a row had ended, i.e. during
+  recovery, not during load. With the ceiling sampled THROUGHOUT each row, the
+  A76 pair (`policy4`, rated 2,253,000) fell on six of the seven cooled rows —
+  floor **910,000 kHz, 40.4% of rated** on C3 and C5 — and it fell on C1 while
+  `taskset c0` scheduled nothing onto it at all. **The limiter acts across the
+  package, not per cluster.** The X1 pair fell below half rated on **every**
+  cooled row without exception, floor **851,000 kHz, 30.4% of rated** (C5), and
+  **no cooled row ended at the X1's rated clock**. `policy0` (the A55 cluster)
+  has still never been sampled on any row.
   **The consequence for the protocol: rows run back to back measure heat, not
   cores.** Gaps of 15-28 seconds between rows are a fraction of the ~110 s
   recovery, so every row after the first starts at an unrecorded clock and
@@ -2288,8 +2296,20 @@ not soften it.
   CLAUDE.md names as out of scope for today.
   `pennybench.sh` records this from 16 Sept: `ceil_x1_kHz` and `ceil_a76_kHz`,
   each `before=` / `min=` / `after=`, with the minima tracked inside the
-  existing poll loop so the DESCENT is measured rather than inferred. Wrapper
-  sha256 `67eefed108ff79ec65029ccb8ba6311bfa62926965c1f277667c0aa8d2b7b1f6`.
+  existing poll loop so the DESCENT is measured rather than inferred.
+  **From the second revision it also records `ceil_x1_min_at` /
+  `ceil_a76_min_at`** (the uptime each minimum was first seen at, and how many
+  seconds into the row that was), **`pswpin`, `pswpout` and `pgmajfault` from
+  `/proc/vmstat` either side of the row**, and reports the swap device once so
+  the record says what swap actually is on this handset rather than assuming
+  zram. **`/proc/swaps` is `Permission denied` to the shell user on this build,
+  and so is every attribute under `/sys/block/zram0` (the node itself exists).**
+  `dumpsys meminfo` answers it and is readable: read 16 Sept at 66,065 s uptime,
+  **`ZRAM: 666,716K physical used for 2,830,100K in swap (3,145,724K total
+  swap)`** — so swap on this handset IS zram, compressed in RAM at ~4.25:1, and
+  a "SwapFree" figure is not disk. Wrapper sha256
+  `484d75d4f006822afe3354cd8dd4bc7fba45f42d5178639c644440643e3b92ab`
+  (supersedes `67eefed1…`, which supersedes `e5a81104…`).
   **Do not compare a `c0` figure with another `c0` figure unless both carry
   their thermal state.** The four throttled rows stay in the record as what
   they are and are never quoted as the chip's speed.
@@ -2298,6 +2318,24 @@ not soften it.
   read), and what the clock was during any row — only after.
   Memory is unaffected: peak RSS is set by `-p` and is indifferent to `-t`
   (1,491,612 vs 1,491,668 kB at 1 and 2 threads, 0.004% apart).
+- **A BOOT WHOSE PAGE CACHE HAS COLLAPSED AND WHOSE SWAP IS SPENT IS
+  CONTAMINATED, AND NO FURTHER ROW ON IT COUNTS. REBOOT.** Decided 16 Sept by
+  Matt, from row C7. During that single row `Cached` fell **1,104,136 kB**
+  (1,413,100 -> 308,964) and was still only 427,980 kB 34 s later, while
+  `SwapFree` reached **93,416 kB of 3,145,724 — 97.0% spent**. The model file
+  is 1,081,454 kB, so the figure that left the cache is the size of the model:
+  **the kernel evicted the model mid-row.** C7 returned a `pp512` 30% BELOW its
+  own throttled counterpart with a *tight* `tg128` error bar (±0.27 on 6.00),
+  which is the signature of memory starvation rather than of clock — a clock
+  cap is noisy, a starved machine is consistently slow. Nothing was killed and
+  `MemAvailable` never fell below 2,695,176 kB, so the ordinary stop conditions
+  do not catch this: **swap and `Cached` have to be read as gating conditions
+  in their own right.** The rule: if `Cached` drops by roughly the model size
+  inside a row, or `SwapFree` falls below ~10% of `SwapTotal`, the boot is
+  spent — reboot, take the protocol's ~5 min and ~25 min `MemAvailable`
+  readings, and re-run. `pennybench.sh` now carries `pswpin` / `pswpout` /
+  `pgmajfault` so the next occurrence is measured rather than inferred from
+  `Cached` alone.
 - Prediction written in notes.md BEFORE the first run, and judged against
   in the write-up. The standing one: token generation barely improves
   beyond 2 threads (memory-bandwidth bound); prompt processing scales.
