@@ -8752,3 +8752,194 @@ Nothing was gated, nothing was cold, nothing was repeated, and no reboot was
 spent. Qwen3.5-2B is untouched — the hybrid-model question the predictions
 entry flagged as the one thing that could fail on a code path rather than on a
 number is **still open**, because this pair ran on Qwen3-1.7B only.
+
+### THE ROW PLAN FOR Q-A AND Q-B, written 16 Sept 17:1x BEFORE ANY REBOOT IS SPENT
+
+Ten rows, four boots, of which **two boots are mandatory and two are optional
+and are Matt's to spend**. Every measured row is GATED. Nothing below has run.
+
+**THE GATE, IDENTICAL ON EVERY MEASURED ROW.** Polled until BOTH clusters read
+rated, with the row launched in the same shell invocation so nothing intervenes
+between the check and the start:
+
+    while [ "$(cat /sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq)" != 2802000 ] ||
+          [ "$(cat /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq)" != 2253000 ]; do
+        sleep 5
+    done; PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh <tag> c0 -- <pennyload args>
+
+Recovery from a row is ~110 s of idle (measured 16 Sept), so the gate will
+usually block for about that long between rows. Every row is `c0` (the X1
+pair), `-t 2`, `-lm none`, `n_ctx` 1024, greedy, no chat template,
+`--sys-file penny_system.txt --user-file penny_user.txt` at 407 and 20 tokens
+on Qwen3-1.7B. Common prefix below is written `GATE;` for brevity; the real
+command is the loop above with the row's own tag and args.
+
+#### BOOT 1 — Qwen3-1.7B-Q4_K_M, MANDATORY. Model already on the phone.
+
+Before any row, the protocol's two fresh-boot readings, each with uptime and
+wallclock read in the SAME invocation:
+
+    adb shell 'echo "uptime_s=$(cut -d\  -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"; \
+               grep -E "^(MemTotal|MemAvailable|MemFree|SwapFree|Cached):" /proc/meminfo'
+
+taken at **~5 min** and again at **~25 min** after power-on. Row 1 runs AFTER
+the 25-minute reading, which is also where `MemAvailable` peaks on this
+handset. Nothing between the reboot and row 1 may read the model file, or the
+cold row is not cold.
+
+    tag   q17_r1_cold_fresh          COLD page cache, gated, fresh, no state
+    GATE; ./pennybench.sh q17_r1_cold_fresh c0 -- \
+      -m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t 2 -lm none -n 64 --print \
+      --sys-file /data/local/tmp/penny_system.txt \
+      --user-file /data/local/tmp/penny_user.txt --tag r1
+    SCORES  A1 (t_ready_ms), A2 (t_model_total_ms), A3 (t_ctx_create_ms),
+            B1 (ttft_fresh_ms, T10-T6)
+    WHY NO --save-state HERE: the save sits between T9a and T9b by design, so
+    it lands INSIDE the TTFT window and cost ~20 ms on the smoke pair. Row 1's
+    B1 is kept clean; the save moves to row 2.
+
+    tag   q17_r2_warm_fresh_save     WARM page cache, gated, fresh + save
+    GATE; ./pennybench.sh q17_r2_warm_fresh_save c0 -- \
+      -m ... -t 2 -lm none -n 64 --print --sys-file ... --user-file ... \
+      --save-state /data/local/tmp/q17_state.bin --tag r2
+    SCORES  A5 (t_ready_ms, and the ratio to row 1 -- A5 FAILS if warm >= 90%
+            or <= 40% of cold), B4 (t_state_save_ms), B5 (state_bytes)
+    NOTE    its ttft_fresh_ms carries the save inside it and is NOT a second
+            clean B1. Its token_fnv1a64 is the reference for rows 3 and 5.
+    WRITES  q17_state.bin, which rows 3 and 5 consume.
+
+    tag   q17_r3_warm_cached         WARM page cache, gated, --load-state
+    GATE; ./pennybench.sh q17_r3_warm_cached c0 -- \
+      -m ... -t 2 -lm none -n 64 --print --user-file ... \
+      --load-state /data/local/tmp/q17_state.bin --tag r3
+    SCORES  B2 (ttft_cached_ms, T10-T5) and NOTHING ELSE.
+    **B2 IS PAGE-CACHE INDEPENDENT AND THAT IS WHY IT SITS HERE.** T10-T5
+    starts after the model is already loaded, so a warm boot does not flatter
+    it. Its T10-T0 is NOT B3 -- see the B3 section below.
+
+    tag   q17_r4_warm_nobufts        WARM, gated, CONTROL, --extra-bufts 0
+    GATE; ./pennybench.sh q17_r4_warm_nobufts c0 -- \
+      -m ... -t 2 -lm none --extra-bufts 0 -n 1 \
+      --sys-file ... --user-file ... --tag r4
+    SCORES  A4, by subtraction: repack cost = row2.t_model_total -
+            row4.t_model_total, **both WARM and both gated**.
+    **THE SUBTRACTION MUST BE WARM-AGAINST-WARM.** Repack is CPU work and is
+    cache-independent; the file read is not. Subtracting a warm no-repack row
+    from row 1's COLD figure would fold the disk read into the repack and
+    invert the answer A4 exists to give. A4 is then reported as a share of
+    BOTH row 2's warm t_model_total and row 1's cold A2, each labelled.
+    NO SPEED, TTFT OR RSS FIGURE FROM ROW 4 IS QUOTED ANYWHERE -- it selects
+    different matmul kernels. `-n 1` because only the load matters.
+
+    END OF BOOT 1: hash the state file and record it.
+    adb shell 'sha256sum /data/local/tmp/q17_state.bin; ls -la /data/local/tmp/q17_state.bin'
+
+#### BOOT 2 — Qwen3-1.7B, OPTIONAL, ONE REBOOT, AND IT IS THE ONLY TRUE B3
+
+    tag   q17_r5_coldcache_cached    COLD page cache, gated, --load-state,
+                                     THE FIRST RUN OF THE BOOT
+    GATE; ./pennybench.sh q17_r5_coldcache_cached c0 -- \
+      -m ... -t 2 -lm none -n 64 --print --user-file ... \
+      --load-state /data/local/tmp/q17_state.bin --tag r5
+    SCORES  B3 (ttft_cold_proc_ms, T10-T0) -- and this row is the only place
+            in the plan where B3 can be scored.
+
+**SETTLING B3, BECAUSE THE TWO CASES WERE ABOUT TO BE BLURRED.** Matt raised
+this and he is right. `pennyload` prints `ttft_cold_proc_ms` on EVERY run,
+including row 3, and it is tempting to read row 3's as B3. **It is not.**
+
+    row 3   new process, state file on disk, SAME boot as rows 1-2
+            -> the model file's pages are in the page cache, so the model load
+               inside it is a WARM load. Call it TTFT-cached-warm-process.
+    row 5   new process, state file on disk, FIRST run after a power cycle
+            -> nothing has read the model on this boot, so the load is COLD.
+               This is the wake case: the phone came up, nobody touched it,
+               and the first thing that happens is a cached prefix answering.
+
+B3's own prediction (4.9 s, band 3.5-8.5 s) was built as cold-ready plus state
+load plus one 20-token decode, so it assumes a COLD load and only row 5
+supplies one. Row 3's T10-T0 is recorded as its own quantity, under its own
+name, and **is never quoted as B3**. The smoke pair's 2903.74 ms is the same
+mistake avoided in advance: it was warm, and it is not B3 either.
+
+**THE COST IS ONE EXTRA REBOOT PER MODEL** — two in total if both are wanted —
+because a boot can supply exactly one cold read of the model file, and boot 1
+has to spend that on row 1 to answer A1/A2. **Matt decides whether to spend
+them.** If he does not, B3 is reported as NOT MEASURED, and row 3's
+warm-process figure is reported under its own name, with the plan's reasoning
+attached so a later reader knows why B3 is blank rather than forgotten.
+
+**THE STATE FILE MUST SURVIVE THE REBOOT, AND IT DOES.**
+`/data/local/tmp` sits on the `/data` partition, which is exactly where the
+`penny3ev` and `penny3eiii` encrypted stores survived power cycles in rungs
+3e-iv and 3e-v. It is not tmpfs. But it is stated rather than assumed, and it
+is CHECKED: sha256 at the end of boot 1, and sha256 again on boot 2 **AFTER
+row 5 has run, never before it.**
+
+**HASHING IT FIRST WOULD DESTROY THE ROW.** Reading 44.5 MiB to hash it pulls
+the state file into the page cache, and row 5's whole point is that both the
+model AND the state file are read cold. So the order on boot 2 is: unlock, the
+two protocol readings, row 5, then the hash. If the two hashes differ the row
+is VOID and is re-run; if they match, the file row 5 read is the file boot 1
+wrote.
+
+#### BOOT 3 — Qwen3.5-2B-Q4_K_M, MANDATORY. Model swap happens BEFORE the reboot.
+
+One model on the phone at a time. `adb push` writes THROUGH the page cache, so
+the push must happen before the power cycle or the "cold" row is measuring a
+cache that was filled ninety seconds earlier. Order, all of it Matt's:
+
+    1  adb shell rm /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf
+    2  adb push ~/Documents/penny-models/Qwen3.5-2B-Q4_K_M.gguf /data/local/tmp/
+    3  adb shell sha256sum /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf
+       -> must read aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223
+    4  adb reboot        <- this is what makes the next read cold
+
+Then rows 6-9, identical in shape to rows 1-4 with the new model path and tags
+`q35_r6_cold_fresh`, `q35_r7_warm_fresh_save` (writes `q35_state.bin`),
+`q35_r8_warm_cached`, `q35_r9_warm_nobufts`.
+
+    SCORES  A6 (row 6 t_ready_ms), B6 (row 7 state_bytes), and row 8's B2
+            equivalent. A1-A5 are Qwen3-1.7B's and are not re-scored here.
+    **THE ONE THING HERE THAT CAN FAIL ON A CODE PATH RATHER THAN A NUMBER.**
+    Qwen3.5-2B is a HYBRID -- eighteen of its twenty-four layers are recurrent.
+    If `llama_state_save_file` returns false on row 7, or
+    `llama_state_load_file` returns false on row 8, `pennyload` prints
+    `FAILED state_save=false` / `FAILED state_load=false` and exits 3.
+    **THAT IS THE RESULT AND NOTHING IS PATCHED TO GET AROUND IT** -- it is
+    reported as "a hybrid's prefix cannot be cached at this commit", B6 is
+    reported as not obtainable, and row 9 still runs because A4's control does
+    not depend on the state path. The smoke pair proves the path works on a
+    dense model only; it says nothing about the hybrid.
+
+#### BOOT 4 — Qwen3.5-2B, OPTIONAL, the hybrid's true B3
+
+    tag   q35_r10_coldcache_cached   as row 5, with q35_state.bin.
+    Only meaningful if row 7 and row 8 both succeeded.
+
+#### WHAT VOIDS A ROW, DECIDED BEFORE THE RUNS
+
+- **The contamination rule.** If `Cached` falls by roughly the model's size
+  inside a row, or `SwapFree` drops below ~10% of `SwapTotal`, the boot is
+  spent: the row is void, the phone is rebooted, the two protocol readings are
+  retaken, and the row re-runs. Rev 4 records `pswpin`, `pswpout` and
+  `pgmajfault` either side so the next occurrence is measured, not inferred.
+- **A kill count is reported only with the row's `MemAvailable` before it.**
+  A zero on a long-running boot is flattered by that boot's earlier kills.
+- Every row's numbers are read from `out/<tag>.report` and `out/<tag>.bench`.
+  Scrollback is not a record.
+- `token_fnv1a64` on rows 2, 3 and 5 must all match, and on rows 7, 8 and 10.
+  A mismatch is reported as the more important finding of the two, exactly as
+  the smoke pair's match was.
+
+#### WHAT THIS PLAN DOES NOT SAY
+
+Nothing here has been measured; it is an order of operations. It spends two
+reboots and asks for two more. It does NOT include: a sustained or thermal run,
+`-ub`, Q4_0, anything on battery, `policy0` sampled during a row, any VM, any
+third model, or any judgement of output quality. Gemma is not in it. The
+`-n 64 --print` text from every row is recorded as text produced and nothing
+more. And the plan assumes the phone comes back on adb after each reboot only
+because a human unlocks it — GrapheneOS keeps the port charging-only while
+locked, so every boot in this plan has a hand-unlock in it that is not
+automatable and is not measured.
