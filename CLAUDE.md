@@ -210,15 +210,18 @@ same commit as whatever changes it.
                                this phone** — different kernels, and it is
                                where llama.cpp's ARM dot-product repacking
                                lives. `--help` alone had proved nothing here.
-    models on the phone        **Qwen3-1.7B-Q4_K_M.gguf, 1,107,409,472 B**,
-                               sha256 b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866
-                               c823204dc42c0d91fa181897, computed ON THE PHONE
-                               and matched to MANIFEST.txt's HF-verified value.
-                               **PEAK RSS 2,230,332 kB (2.13 GiB) on a 16-token
-                               test** — roughly twice the file, measured and
-                               NOT explained. Two processes killed (adj 995,
-                               cch +95 CEM). One model at a time: delete before
-                               pushing the next.
+    models on the phone        **gemma-4-E2B-it-Q4_K_M.gguf, 3,106,738,272 B**,
+                               sha256 740185b21d22ceb83a11c3aa62ad5842ef32c70f
+                               6096d756bbee85a1e4ec34b8, computed ON THE PHONE
+                               16 Sept and matched to MANIFEST.txt's
+                               HF-LFS-verified value. **It is the ONLY model on
+                               the phone** — Qwen3-1.7B-Q4_K_M was deleted at
+                               15:00 and Qwen3.5-2B-Q4_K_M at 15:05, both with
+                               Matt's authorisation, both still
+                               manifest-verified in ~/Documents/penny-models.
+                               99 G free on /data. **Gemma has NOT been deleted
+                               — ask before doing it.** One model at a time:
+                               delete before pushing the next.
     logcat buffer              **RAISED to 64 MiB, 16 Sept 12:22**, after
                                saving the whole buffer to
                                ~/Documents/logcat-2026-09-16-preraise.txt
@@ -1379,14 +1382,23 @@ PARKED, and the work has moved to measuring a model natively on Android.**
   re-run needs a fresh VM name and a guard that tests the PHONE rather than the
   intent — see the trap. **Still true that nothing in this repo has run longer
   than about twenty seconds, and nothing has been tested on battery.**
-- **What is being measured instead: can this phone run a small model natively
-  on Android, outside any VM?** Nothing in this repo has ever run a model. The
-  memory baseline above is the first half of that question; `llama-bench` built
-  with the NDK and run from `/data/local/tmp` is the second. This is an
-  ABSOLUTE feasibility measurement of the handset — "does a small model run
-  usefully here at all" — and **not** a native-versus-VM comparison, which is
-  closed per the bullet above and is not an open to-do. It belongs in this repo
-  only as far as the numbers go.
+- **Can this phone run a small model natively on Android, outside any VM?
+  ANSWERED YES, 16 Sept. DONE — see the closing entry at notes.md 7543.**
+  Fifteen `-lm none` rows across three models on a Pixel 6a: **Qwen3-1.7B
+  Q4_K_M generates 14.1-14.9 t/s pinned to the X1 pair at 1.35-1.42 GiB peak
+  RSS; Qwen3.5-2B 10.9-11.2 t/s at 1.69-1.74 GiB; Gemma 4 E2B 9.99 t/s at
+  3.09 GiB.** Prompt processing 48-85 t/s. All on AC power, screen on, idle
+  phone, each row gated at rated clock on `policy4` and `policy6`. P3 holds
+  (pp scales with cores, 2.10x from 1 thread to 4); P2 holds (tg does not —
+  four threads are SLOWER than two); P5's kills half FAILS. **Loading a 2B on
+  a boot that has not already been cleared by hours of kills costs one to three
+  cached processes; Gemma costs 34, all at `oom_score_adj` 905, in 2.4 s.**
+  The X1 clock ceiling falls to 18-46% of rated INSIDE every row and no row
+  ended at rated. **It is an ABSOLUTE feasibility measurement of the handset,
+  never a native-versus-VM comparison**, which is closed per the bullet above.
+  **Not done and named as such: no thermal or sustained run, nothing on
+  battery, no time-to-first-token, no Q4_0, `policy0` never sampled, and no
+  output judged for quality.**
 
 **A rebuild now COSTS something again.** `penny3ev`'s store holds a verified
 64MB file and a reinstall strands it — and worse, `Penny3evService`'s recovery
