@@ -194,9 +194,14 @@ same commit as whatever changes it.
                                44015c0614b3f1c0f4ee3240fb8f3a37503420ab
                                7285a36a10ad14abaaaeb84e, byte-identical to
                                `~/Documents/llama.cpp/build-android/bin/
-                               llama-bench-stripped` on the Mac. It EXECUTES:
-                               `--help` printed usage and exited 0, so the
-                               shell user has exec here and there is no SIGILL.
+                               llama-bench-stripped` on the Mac. It LOADS AND
+                               LINKS: `--help` printed usage and exited 0, so
+                               the shell user has exec here and the binary
+                               resolves against bionic with no LD_LIBRARY_PATH.
+                               **THAT IS NOT "NO SIGILL".** `--help` executes
+                               no quantised kernel, and i8mm instructions could
+                               only ever be in those, so SIGILL stays
+                               UNOBSERVED until a model actually runs.
                                NO MODEL has been pushed. A `microdroid/`
                                directory from 14 Sept also sits there — left
                                alone, nothing needs it gone. 102 G free on
@@ -2188,7 +2193,23 @@ not soften it.
   **`llama-cli` cannot be built offline at this commit**: `tools/cli` sits
   inside `if (LLAMA_BUILD_SERVER)` with `tools/ui`, which downloads
   prebuilt web assets from a Hugging Face bucket at build time.
-  `llama-bench` alone supplies every column this protocol asks for.
+  **`examples/simple` (`llama-simple`) IS buildable offline** — it is added
+  unconditionally under `LLAMA_BUILD_EXAMPLES` and links only `llama`, no
+  `common`, no curl, no OpenSSL, no server. Build it: a tok/s figure with
+  no printed text cannot show the model produces sensible output, and a
+  broken kernel still reports a tok/s.
+  **`llama-bench` does NOT supply every column this protocol asks for, and
+  an earlier version of this bullet said it did.** It prints pp and tg
+  tok/s and nothing else — **no peak RSS, no MemAvailable, no uptime, no
+  lowmemorykiller kills**, which is four of the protocol's own required
+  columns. Those come from a wrapper on the phone
+  (`/data/local/tmp/pennybench.sh`): `VmHWM` from `/proc/<pid>/status`
+  polled at 5 Hz while the child lives (VmHWM only grows, so the last read
+  before exit is the peak), `/proc/meminfo` and `/proc/uptime` read either
+  side, and `logcat -d -b all -t <start>` grepped tag-anchored for
+  `am_kill|lowmemorykiller| lmkd : |has died`. **Exclude `am_cpu`** — those
+  lines name lmkd and are not kills; they were the one false positive found
+  when the grep was calibrated on 16 Sept.
   Otherwise as before: NDK toolchain file, `ANDROID_ABI=arm64-v8a`,
   `BUILD_SHARED_LIBS=OFF` (no `.so` to push, no `LD_LIBRARY_PATH` — but
   the binary still links bionic `libc/libm/libdl`, so it is not a static
