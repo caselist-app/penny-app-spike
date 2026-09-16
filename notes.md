@@ -7355,3 +7355,187 @@ contamination rule's floor is 10% and Gemma has not run yet.
 no thermal run, nothing on battery, no time-to-first-token, and `policy0` still
 never sampled. And this is an absolute feasibility measurement of the 6a, not a
 native-versus-VM comparison, which is closed.
+
+## 2026-09-16 — Gemma 4 E2B RUNS on the 6a: 9.99 t/s, peak RSS 3.09 GiB, rc=0 — and it costs 34 background processes killed in 2.4 seconds. The prediction written this morning holds on memory and on kills, and its one wrong sentence is the instructive part.
+
+    model      gemma-4-E2B-it-Q4_K_M.gguf, 3,106,738,272 B = 2963.0 MiB
+    sha256     740185b21d22ceb83a11c3aa62ad5842ef32c70f6096d756bbee85a1e4ec34b8
+               computed ON THE PHONE, matched to MANIFEST.txt's
+               HF-LFS-verified value. Size on the phone 3,106,738,272 B.
+    pushed     16 Sept 15:07, 94.78 s at 31.3 MB/s, after Qwen3.5-2B was
+               deleted. 99 G free on /data afterwards.
+    llama-bench reads it as `gemma4 E2B Q4_K - Medium`, 2.88 GiB, **4.65 B
+    params** -- the total parameter count, not the "E2B" effective figure.
+
+### Row G1 — c0, 2 threads, -p 64, -n 128, -lm none. ONE ROW, as scoped.
+
+    gate         PASSED on the first check, 0 waits, uptime 2765, both rated
+    conditions   uptime 2,765.45 s (46.1 min) before, 2,851.22 s after,
+                 85.77 s wall. AC power, screen on, no VM, app disabled.
+    command      pennybench.sh g1_c0_t2_p64 c0 -- -t 2 -p 64 -n 128 -lm none
+
+    pp64                  30.53 +/- 0.55 t/s      (1.80% error bar)
+    tg128                  9.99 +/- 0.60 t/s      (6.01%)
+    ceil X1   before/min/after    2,802,000 / 1,106,000 / 1,745,000 kHz
+              min_at uptime 2,826.25 -- 61 s into the row
+    ceil A76  before/min/after    2,253,000 / 1,836,000 / 2,253,000 kHz
+              min_at uptime 2,844.43 -- **79 s in. The A76 pair FELL on this
+              row**, the first of the four rows since the reboot where it did,
+              and `taskset c0` scheduled nothing onto it.
+    peak RSS (VmHWM)   3,244,696 kB   3168.6 MiB   3.0944 GiB   3.3226 GB
+    max RssAnon        3,239,088 kB   3163.2 MiB   3.0890 GiB   99.83% of peak
+    max RssFile            5,328 kB
+    rss_samples              196   (2.29 Hz over 85.77 s)
+    MemAvailable       3,101,624 -> 3,784,816 kB   (+683,192)
+    MemFree              264,548 -> 3,521,020 kB   (+3,256,472)
+    SwapFree             245,000 -> 1,599,500 kB   (+1,354,500 -- it ROSE)
+    Cached             3,060,868 ->   494,968 kB   (-2,565,900)
+    pswpin               134,616 ->   487,778      (**+353,162 pages, ~1.35 GiB**)
+    pswpout              922,767 -> 1,364,003      (**+441,236 pages, ~1.68 GiB**)
+    pgmajfault           147,883 ->   502,889      (**+355,006**)
+    ZRAM               324,724K physical for 1,524,464K in swap
+    LMK kills                 34 kills (68 lines), MemAvailable before
+                              3,101,624 kB
+    rc                         0
+
+**IT RAN. `rc=0`, both tests completed, 9.99 t/s of token generation.** The
+morning's prediction allowed for "a failed load"; there was none.
+
+### THE COST: 34 PROCESSES, ALL IN 2.434 SECONDS, ALL AT THE SAME DEPTH
+
+    window          09-16 15:09:19.652 -> 15:09:22.086   (2.434 s, at load)
+    kills                34, each with its own `has died` line
+    oom_score_adj        **905 on all 34 of them, without exception**
+    reason               19  min watermark is breached even after kill
+                         12  low watermark is breached and swap is low
+                          2  low watermark is breached
+                          1  min watermark is breached and swap is low
+    every casualty       `cch CEM` -- cached and empty
+
+**The killer emptied the entire cached band and stopped at its edge.** Nothing
+below 905 died: no `prcp`, no IME, nothing in the 200/100/0 foreground bands,
+and not the benchmark. For scale, rung 3g-ii's 2GB VM on a phone somebody was
+using reached **adj 201**; this reached 905 and stayed there, because the phone
+was idle and had 34 disposable processes to give. Among them: `com.android.settings`,
+`android.process.acore`, `android.process.media`, `com.android.packageinstaller`,
+`com.android.externalstorage`, `com.android.rkpdapp` (remote key provisioning,
+part of the attestation story that justifies this phone) and
+`com.android.shell` — which is adb's own family, and the benchmark survived it.
+
+**Swap reached zero.** One kill line reads `swap is low (0kB < 314572kB)`.
+`SwapFree` then ROSE from 245,000 to 1,599,500 kB across the row, because 34
+processes' swapped pages were freed with them — the row ended with more swap
+headroom than it started, by killing for it.
+
+### THIS IS THE FIRST ROW IN THE REPO THAT SHOWS WHAT STARVATION LOOKS LIKE ON THE COUNTERS
+
+The `/proc/vmstat` counters were added this morning specifically because C7's
+mechanism had to be inferred from `Cached` alone. This row is the positive
+control they never had:
+
+    row              pgmajfault   pswpin       pswpout      verdict
+    B2-R1 1.7B            +488        +427     +129,239     comfortable
+    Q2    2B              +364        +316      +56,858     comfortable
+    G1    Gemma        +355,006   +353,162     +441,236     thrashing
+
+**Three orders of magnitude.** ~1.35 GiB read back IN from swap and ~1.68 GiB
+pushed out, in 85.77 s, on a row whose own peak was 3.09 GiB. That is a
+process whose working set does not fit and which is paying for it continuously
+— and it is exactly the signature C7 was hypothesised to have and could not be
+shown to have. **It does not retrospectively prove anything about C7**; it
+establishes what the counters read when the hypothesis is true, so the next
+occurrence is decidable rather than arguable.
+
+`Cached` fell 2,565,900 kB — 84.6% of the model file, which the `adb push` had
+put there minutes earlier.
+
+### THE PREDICTION (notes.md ~5990, written this morning before any Gemma run), JUDGED
+
+    PREDICTED  "roughly 3.0-3.1 GB of ANONYMOUS memory"
+    MEASURED   max RssAnon 3,239,088 kB = 3.0890 GiB = 3.3168 GB
+    ** HOLDS on the GiB reading, which is the one the prediction's own working
+       used (it reasoned in MiB from a 2963.0 MiB file). On the decimal GB
+       reading it is 7.0% over the top of the band. The unit ambiguity is the
+       prediction's fault, not the measurement's, and it is recorded rather
+       than resolved in the prediction's favour. **
+
+    PREDICTED  "Expect the lowmemorykiller to take processes during the load,
+                and expect either a failed load or a run that only completes
+                because the killer freed enough first."
+    MEASURED   34 kills in 2.434 s AT LOAD, then rc=0 and both tests complete
+    ** HOLDS, and precisely: the second branch is what happened. MemFree went
+       264,548 -> 3,521,020 kB across the row. The killer freed enough first. **
+
+    PREDICTED  "3.1 GB of unreclaimable anonymous memory does not fit in
+                [idle MemAvailable of 1,771,920-2,617,156 kB]"
+    MEASURED   MemAvailable before the row was 3,101,624 kB, and it fit
+    ** THE SENTENCE IS WRONG AND THE ARITHMETIC BEHIND IT IS RIGHT. Two things
+       it did not account for. First, `MemAvailable` was 3,101,624 kB rather
+       than an idle 2.0 GB because the `adb push` had just filled `Cached` with
+       3,060,868 kB of this very file, and `MemAvailable` counts reclaimable
+       page cache. Second, and the real answer: `MemAvailable` is not a
+       ceiling. It is what the kernel will hand over WITHOUT killing anything,
+       and the kernel is entirely willing to kill. The model did not fit in
+       what the phone had spare; it fit in what the phone was prepared to take
+       from everything else. **
+
+    NOT TESTED  "Under mmap the peak would be higher still ... so mmap is not
+                the escape." No mmap row was run on Gemma.
+    NOT TESTED  "the KV buffer will be larger than Qwen3-1.7B's 28.00 MiB".
+                llama.cpp's buffer lines were not captured for this row.
+
+### PEAK RSS IS NOT A FIXED MULTIPLE OF THE MODEL FILE, AND THREE MODELS NOW PROVE IT
+
+    model          file kB     peak RSS kB   non-file kB   peak / file
+    Qwen3-1.7B   1,081,455       1,492,260      410,805       1.380
+    Qwen3.5-2B   1,250,816       1,822,804      571,988       1.457
+    Gemma 4 E2B  3,033,924       3,244,696      210,772       **1.070**
+
+All three at `-lm none`, `-p 512` for Qwen3-1.7B and `-p 64` for the other two.
+**The multiplier ranges 1.07 to 1.46 and does not move with file size** — the
+largest file has the smallest overhead. Twelve hours ago this repo predicted
+Qwen3.5-2B from a multiplier and was 9.7% low; predicting Gemma from
+Qwen3.5-2B's multiplier would have been 36% HIGH. **Estimating peak RSS from
+file size is not a method.** llama.cpp's own buffer lines are, and they are
+what accounted for the 2.13 GiB earlier today.
+
+### SPEED: THE FILE IS 2.43x BIGGER AND TOKEN GENERATION IS 8.7% SLOWER
+
+    row              file MiB    pp64 t/s          tg128 t/s        wall s
+    Q2  Qwen3.5-2B     1221.5    48.14 +/- 1.19    10.94 +/- 0.62    71.86
+    G1  Gemma 4 E2B    2963.0    30.53 +/- 0.55     9.99 +/- 0.60    85.77
+                       x2.43     -36.6%            **-8.7%**         +19.4%
+
+**Prompt processing fell by more than a third; token generation barely moved.**
+On a purely bandwidth-bound reading a 2.43x larger weight file should have cost
+far more than 8.7% per token. **The candidate explanation is the architecture —
+"E2B" is an effective-2B configuration and llama-bench's 4.65 B is the total
+parameter count, so the bytes touched per token may be far below the file size
+— but nothing here measured that, and it is offered as a candidate, not a
+finding.** It is also the most commercially interesting number of the day: the
+largest model tested generates tokens at 9.99 t/s on this handset.
+
+### What this entry does NOT say
+
+**One row, once.** No repetition, no second `-p` value, no other mask, no other
+thread count. Every Gemma figure here is n=1.
+
+**It ran on a boot that had already run three benchmark rows**, with `SwapFree`
+at 245,000 kB (7.8% of `SwapTotal`) when the row started — **below the 10%
+floor the contamination rule names**. The rule was written for a boot whose
+cache had collapsed AND whose swap was spent; this boot's `Cached` was 3.06 GB
+at the start, so it does not meet the rule as written. **But this row would be
+worth repeating on a fresh boot before the 34-kill figure is quoted as the
+cost on a phone in its normal state**, and that is a real caveat on the
+headline, not a formality.
+
+**34 kills on an IDLE phone with 34 disposable processes to take.** rung 3g-ii
+showed that a phone somebody is using has fewer cheap victims and the killer
+goes deeper — to adj 201 there. **What Gemma costs on a phone in use is
+untested**, and it is the number that would matter to a product.
+
+**Nothing at Q4_0** — the repack path has still never executed on this phone —
+no thermal run, no sustained run, nothing on battery, no time-to-first-token,
+`policy0` never sampled, and the model was not asked to produce text, so
+nothing here says its output is sensible. And this is an absolute feasibility
+measurement of the 6a, not a native-versus-VM comparison, which is closed.
