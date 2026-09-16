@@ -5223,3 +5223,183 @@ and is **not** a measured speed difference on this phone. Whether KleidiAI
 (`GGML_CPU_KLEIDIAI`, off here and off by default) would beat these kernels is
 untested. And step 0's device checks are outstanding, so every figure below
 this line waits on a phone that is currently not visible.
+
+## 2026-09-16 — step 0, and llama-bench RUNS on the phone. Fifth memory reading on the same 16-hour boot: the decline decelerates. `system_profiler` is a dead check and the trap that names it is now misleading.
+
+Device state read, the binary pushed and executed, the prediction written
+before any model is pushed. No model is on the phone and no benchmark has
+been run.
+
+### Step 0, read 12:13 on 16 Sept
+
+    adb                    ALIVE, device 25301JEGR11115
+    phone clock            Wed Sep 16 12:13:13 BST 2026
+    uptime                 58,392.47 s = 973.2 min = 16.22 h
+    vm list                Running VMs: []
+    crosvm / app process   NONE
+    pm path                /data/app/~~AfIhpIXq9pYEyRdOP2bSQw==/
+                           com.pennyspike.probe2a-nou1Eur-h0XqviaxcCE9ww==/base.apk
+    pm list packages -d    com.pennyspike.probe2a  -> still DISABLED
+    /data free             102 G of 110 G
+
+**The phone did NOT reboot overnight.** 973.2 minutes before 12:13 is ~19:59
+on 15 Sept, which is the boot the four memory readings were taken on. So this
+is a fifth reading on that same boot, and the APK path is unchanged from the
+one read off the phone at ~20:50 last night.
+
+**But "untouched" cannot be claimed and is not claimed.** The four readings
+last night were on a phone verified as sitting at the home screen. Between
+21:05 last night and 12:13 today the phone was out of contact, was unlocked at
+some point (adb requires it on this build), and what if anything was opened is
+unknown. Conditions today are: same boot, our app disabled, no VM, AC power —
+**not** the "untouched since 20:04" of last night's series.
+
+### The fifth memory reading, and it corrects an extrapolation nobody made
+
+                        5.8 min      25.3 min     60.5 min    120.6 min    973.2 min
+    MemAvailable      940,640 kB  2,119,020 kB 2,012,348 kB 1,929,032 kB 1,771,920 kB
+    MemFree            75,380 kB  1,220,200 kB 1,057,296 kB   938,232 kB    79,008 kB
+    Cached          1,094,964 kB  1,124,860 kB 1,179,608 kB 1,214,492 kB 1,873,292 kB
+    AnonPages       3,313,572 kB  1,726,304 kB 1,855,920 kB 1,942,980 kB 2,025,388 kB
+    SwapFree        2,574,588 kB  1,074,428 kB 1,187,836 kB 1,261,820 kB 1,266,044 kB
+    dumpsys Free RAM 3,068,208 kB 3,748,470 kB 3,657,804 kB 3,527,022 kB 3,552,852 kB
+
+**The decline is real and it is decelerating, sharply.** Last night's entry
+measured ~2.0 MB/min of `MemAvailable` lost between 25.3 and 120.6 min and
+explicitly declined to extrapolate it. That restraint was right: the rate from
+120.6 to 973.2 min is **-157,112 kB over 852.6 min = 0.18 MB/min**, an eleventh
+of it. Holding 2.0 MB/min would have predicted the phone running out entirely
+before morning. The curve peaks at ~25 min, falls quickly, then flattens.
+
+**So the figure with the most settling behind it is `MemAvailable` 1,771,920 kB
+at 973.2 min uptime**, and it is ~157 MB below the 120-minute reading and ~240
+MB below the 60-minute one. The practical rule is unchanged and now has a
+sixteen-hour point behind it: **there is no single idle number, and every
+reading must carry its uptime.**
+
+**The mechanism changed between the two legs, which is why the rate did.** From
+120.6 to 973.2 min, `SwapFree` barely moved (+4,224 kB) — the steady
+decompression out of zram that drove the 25-to-120-minute leg has stopped.
+What moved instead is `Cached`, +658,800 kB, and `MemFree`, which collapsed
+from 938,232 to 79,008 kB. The kernel spent the night turning free pages into
+page cache, which is ordinary and mostly reclaimable; `dumpsys` agrees the
+reclaimable pool is intact (2,194,608K cached pss + 1,237,884K cached kernel,
+against only 120,360K genuinely free). **The two figures diverge further than
+ever here** — 1.77 GB from `MemAvailable` against 3.55 GB of `dumpsys` Free RAM
+— and both must still be quoted.
+
+### `system_profiler SPUSBDataType` RETURNS NOTHING ON THIS MAC, AND THE TRAP SAYS TO TRUST IT
+
+This is the correction that matters most, because the trap it breaks is one
+that cost an afternoon and has been relied on three times since.
+
+CLAUDE.md says: "Run `system_profiler SPUSBDataType` on the Mac **before**
+`adb devices` — empty output means macOS sees nothing on the bus at all."
+Measured today, with the phone connected and `adb devices` reporting
+`25301JEGR11115  device`:
+
+    $ system_profiler SPUSBDataType
+    $ echo $?
+    0
+
+**Empty output, exit 0, with a live device on the cable.** The command produces
+nothing on this Mac today whether or not anything is plugged in, so it
+distinguishes nothing. It is not a check; it is a constant.
+
+**This invalidates the evidence in the 16 Sept entry above, though not its
+conclusion.** That entry reported "zero devices on the bus" at 12:05 as if it
+established something. It did not — `adb devices` was independently empty at
+that moment, and the phone genuinely was not reachable, so the conclusion held
+for a different reason than the one given. The `system_profiler` line in that
+entry should be read as worthless, not as corroboration. Earlier entries are
+never rewritten in this repo; this is the later one and it wins.
+
+Why the command is empty was not investigated. Candidates not tested: a macOS
+26 change to the `SPUSBDataType` data type, a permissions gate, or the Mac's
+own USB topology reporting moving elsewhere. **The replacement check is
+`adb devices` itself**, which is the thing actually being asked, plus
+`adb get-state`. The trap is corrected in CLAUDE.md in the same commit.
+
+### The binary RUNS. The SIGILL this build was shaped to avoid is now avoided, not merely unobserved.
+
+    adb push bin/llama-bench-stripped /data/local/tmp/llama-bench
+      4,708,216 bytes in 0.032 s
+    adb shell chmod 755 /data/local/tmp/llama-bench
+    adb shell sha256sum /data/local/tmp/llama-bench
+      44015c0614b3f1c0f4ee3240fb8f3a37503420ab7285a36a10ad14abaaaeb84e
+      -- byte-identical to the Mac's copy
+    adb shell /data/local/tmp/llama-bench --help
+      prints the full usage block, EXIT=0
+
+**Three things settled at once by one 4.7 MB push, before spending 1.1 GB on a
+model.** `/data/local/tmp` grants the `shell` user execute — it is
+`drwxrwx--x shell shell`, and the binary ran. The aarch64 build loads and links
+against bionic with no `LD_LIBRARY_PATH` and no `.so` alongside it, which is
+what `BUILD_SHARED_LIBS=OFF` was for. And it did not die with SIGILL, which is
+the failure the whole `-march` argument was about — the 16 Sept entry above was
+careful to say that failure was "unobserved rather than avoided"; it is now
+avoided.
+
+`/data/local/tmp` already contains a `microdroid/` directory dated 14 Sept from
+the rung work. **Not touched, not deleted, and nothing here needs it gone.**
+
+### The host's cores, read off the phone, and the taskset masks check out
+
+    processor  0 1 2 3   CPU part 0xd05  Cortex-A55  max 1,803,000 kHz
+    processor  4 5       CPU part 0xd0b  Cortex-A76  max 2,253,000 kHz
+    processor  6 7       CPU part 0xd44  Cortex-X1   max 2,802,000 kHz
+
+    Features: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp
+              asimdhp cpuid asimdrdm lrcpc dcpop asimddp
+
+`asimddp` is dotprod and `fphp`/`asimdhp` are fp16 — the two the build enabled.
+**`i8mm` and `sve` do not appear**, which is the device confirming from its own
+side what the build was shaped around.
+
+**The protocol's masks are hex CPU masks and they land where the labels say**,
+which is worth stating because the big cores are numbered last on this chip and
+the obvious reading of "c0" is wrong:
+
+    taskset c0  = 0xc0 = 1100 0000 = cpus 6,7      = the X1 pair
+    taskset f0  = 0xf0 = 1111 0000 = cpus 4,5,6,7  = X1 pair + A76 pair
+
+### THE PREDICTION, written before any model is on the phone
+
+Recorded now so the write-up is judged against it rather than fitted to it.
+The standing prediction in CLAUDE.md is "token generation barely improves
+beyond 2 threads (memory-bandwidth bound); prompt processing scales." Made
+specific, for **Qwen3-1.7B Q4_K_M** (unsloth, 1,107,409,472 bytes):
+
+    P1  tg at 2 threads pinned to c0 (X1 pair) lands between 8 and 16 tok/s.
+    P2  tg at 4 threads on f0 is LESS than 1.3x the 2-thread c0 figure.
+        Token generation reads essentially the whole model per token, so it
+        is bounded by memory bandwidth, and two more cores do not add any.
+    P3  pp512 DOES scale: pp at 4 threads on f0 is at least 2x pp at
+        1 thread on c0. Prompt processing is a batched matmul and is
+        compute-bound.
+    P4  unpinned 4 threads is no faster than pinned f0, and probably slower,
+        because the scheduler can place a thread on an A55 at 1.80 GHz and
+        every layer waits for the slowest thread.
+    P5  peak RSS lands between 1.1 and 1.4 GB, and NO lowmemorykiller kills
+        occur during any Qwen3-1.7B run. MemAvailable was 1,771,920 kB at
+        973.2 min uptime.
+    P6  -p 64 returns a LOWER pp tok/s than -p 512, because a smaller batch
+        amortises the weight reads over fewer tokens.
+
+**P5 is the one that decides feasibility and P1 is the one that decides
+usefulness.** If P5 fails the model does not fit this handset; if P1 comes in
+far below 8 tok/s the silicon does not run a 1.7B usefully whatever else is
+true.
+
+### What this entry does NOT say
+
+**No model has been pushed and no benchmark has been run**, so there is still
+no tok/s figure, no peak RSS and no KV cache measurement for this handset at
+any quantisation. `--help` exiting 0 proves the binary loads and links; it
+executes none of the quantised kernels, so it is not evidence that the dotprod
+paths run correctly — only that the binary is not wholesale illegal on this
+CPU. The fifth memory reading is one reading at one uptime and the phone's
+history over the preceding fifteen hours is unknown, so it extends the curve
+without being a controlled continuation of it. Why `system_profiler` returns
+empty was observed, not diagnosed. And the six predictions above are
+predictions: none of them has been tested.

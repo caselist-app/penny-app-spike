@@ -51,9 +51,15 @@ exists because state that only survives in a handover message is state that
 gets lost. Verify each line before relying on it; correct this block in the
 same commit as whatever changes it.
 
-    Phone                      Rebooted ~19:59 on 15 Sept, unlocked by hand
-                               ~20:04, and NOT touched since — home screen only,
-                               no app opened. AC power, screen on.
+    Phone                      Booted ~19:59 on 15 Sept. **STILL THAT SAME
+                               BOOT as of 16 Sept 12:13 — uptime 58,392 s
+                               (973.2 min, 16.22 h), no reboot overnight.**
+                               AC power. "NOT touched since ~20:04" held for
+                               last night's four memory readings and does NOT
+                               hold now: the phone was out of contact from
+                               ~21:05 to 12:13 and was unlocked at some point
+                               in between (adb requires it), and what was
+                               opened is unknown.
     OUR APP IS DISABLED        `adb shell pm disable-user --user 0
                                com.pennyspike.probe2a` at ~19:57. Nothing of
                                ours starts at boot, nothing restarts, and the
@@ -163,18 +169,38 @@ same commit as whatever changes it.
                                UNTESTED — check before trusting them.**
     apps opened by hand        NONE. The reboot cleared 3g-ii's camera, browser,
                                gallery, clock, calculator and files.
-    native memory baseline     MemTotal 5,718,280 kB. MemAvailable read three
-                               times on ONE untouched boot, no VM, app
-                               disabled, nothing opened: **940,640 kB at 5.8
-                               min, 2,119,020 kB at 25.3 min, 2,012,348 kB at
-                               60.5 min, 1,929,032 kB at 120.6 min.** It peaks
-                               at ~25 min and then DECLINES at every later
-                               reading — three falls in a row, ~2.0 MB/min.
-                               **THERE IS NO SINGLE IDLE NUMBER. Never quote
-                               one without its uptime.** Swap two-thirds spent
-                               at idle (SwapFree 1,261,820 of 3,145,724 kB at
-                               120.6 min). See the host-memory bullet in
-                               open threads.
+    native memory baseline     MemTotal 5,718,280 kB. MemAvailable read FIVE
+                               times on ONE boot, no VM, app disabled:
+                               **940,640 kB at 5.8 min, 2,119,020 kB at 25.3
+                               min, 2,012,348 kB at 60.5 min, 1,929,032 kB at
+                               120.6 min, 1,771,920 kB at 973.2 min.** It peaks
+                               at ~25 min and declines at every later reading.
+                               **THE DECLINE DECELERATES SHARPLY** — ~2.0
+                               MB/min over 25->120 min, but only **0.18 MB/min**
+                               over 120->973 min, so last night's rate must not
+                               be extrapolated. The first four were on an
+                               untouched phone; the 973-min reading was not
+                               (see Phone above). **THERE IS NO SINGLE IDLE
+                               NUMBER. Never quote one without its uptime.**
+                               Swap two-thirds spent at idle and now static
+                               (SwapFree 1,266,044 of 3,145,724 kB at 973.2 min,
+                               +4,224 kB in 14 hours); what moved overnight was
+                               Cached, +658,800 kB. `dumpsys` Free RAM
+                               3,552,852 kB at 973.2 min, of which only
+                               120,360 kB is genuinely free. See the
+                               host-memory bullet in open threads.
+    /data/local/tmp            **llama-bench IS ON THE PHONE as of 16 Sept
+                               12:15** — 4,708,216 B, mode 755, sha256
+                               44015c0614b3f1c0f4ee3240fb8f3a37503420ab
+                               7285a36a10ad14abaaaeb84e, byte-identical to
+                               `~/Documents/llama.cpp/build-android/bin/
+                               llama-bench-stripped` on the Mac. It EXECUTES:
+                               `--help` printed usage and exited 0, so the
+                               shell user has exec here and there is no SIGILL.
+                               NO MODEL has been pushed. A `microdroid/`
+                               directory from 14 Sept also sits there — left
+                               alone, nothing needs it gone. 102 G free on
+                               /data.
     adb                        ALIVE (phone unlocked). GrapheneOS keeps the port
                                charging-only while locked.
     models on the Mac          ~/Documents/penny-models, 10 GGUF files,
@@ -1713,11 +1739,20 @@ Do not work ahead of the current rung.
   Developer options > "Linux development environment". Not in the app
   drawer. Absence of an icon proves nothing.
 - Losing adb mid-session is far more likely to be the wired connection
-  than anything clever on the phone. Run `system_profiler SPUSBDataType`
+  than anything clever on the phone. ~~Run `system_profiler SPUSBDataType`
   on the Mac **before** `adb devices` — empty output means macOS sees
-  nothing on the bus at all, and no adb question can help. A phone
-  charging normally can still have a dead data path. This cost an
-  afternoon.
+  nothing on the bus at all~~ **— THAT CHECK IS DEAD. MEASURED 16 Sept:
+  `system_profiler SPUSBDataType` returns EMPTY OUTPUT AND EXIT 0 on this
+  Mac with the phone connected and `adb devices` reporting
+  `25301JEGR11115  device`.** It produces nothing whether or not anything
+  is plugged in, so it distinguishes nothing and will falsely "confirm" a
+  dead bus every time. It cost a wrong diagnosis on 16 Sept, where an
+  entry cited it as evidence for a conclusion that happened to be right
+  for another reason. **Use `adb devices` and `adb get-state`**, which are
+  the question actually being asked. Why the command is empty was not
+  diagnosed — macOS 26, a permissions gate and a reporting change are all
+  untested candidates. The half that stays true: a phone charging normally
+  can still have a dead data path, and this cost an afternoon.
 - GrapheneOS sets the USB-C port to "charging-only when locked". It was
   not the cause in penny-box, but it **WAS** the cause on 14 Sept during
   rung 3, and again on 15 Sept during rung 3e-iv: after `adb reboot` the
