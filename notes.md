@@ -5663,3 +5663,141 @@ Qwen3.5-2B or Gemma 4 E2B follows from this entry — the extrapolation flagged
 in the previous entry stands unresolved, and if the peak is a load-time spike
 it is the wrong basis for one. Still one model, one thread count, tiny batch,
 warm cache, idle phone, AC power. The Q4_0 repack path has still never run.
+
+## 2026-09-16 — the 2.13 GiB splits almost exactly in half: ~1.10 GiB anonymous and unreclaimable, ~1.04 GiB file-backed. The unreclaimable floor is roughly the file size, not double it.
+
+Step 2 of the RSS chase. `pennybench.sh` extended to track max `RssAnon` and
+max `RssFile` alongside `VmHWM` (committed b14764a), then the identical smoke
+row re-run. No matrix run. The model, the mask, the thread count and the
+`-p 16 -n 16` are unchanged from the two runs before it.
+
+### The split
+
+    peak RSS (VmHWM)      2,230,268 kB   2178.00 MiB
+    max VmRSS             2,230,268 kB   2178.00 MiB
+    max RssAnon           1,155,516 kB   1128.43 MiB   NOT reclaimable
+    max RssFile           1,086,744 kB   1061.27 MiB   reclaimable
+    samples                      23 at 5 Hz
+
+**The two maxima sum to 2,242,260 kB, about 12 MB MORE than `VmHWM`.** That is
+expected and is why they are tracked separately: `RssAnon` and `RssFile` are
+not monotonic and do not peak at the same instant, so their sum is not itself
+a peak and must never be quoted as one.
+
+### Both halves reconcile against llama.cpp's own buffer lines
+
+Taking the figures the `-v` run printed, from the entry above:
+
+    ANONYMOUS
+      CPU_REPACK model buffer         1049.96 MiB
+      CPU KV buffer                     28.00
+      CPU compute buffer                 9.52
+      CPU output buffer                  0.58
+      accounted                       1088.06 MiB
+      measured max RssAnon            1128.43 MiB
+      difference                        40.37 MiB   allocator overhead, stack
+
+    FILE-BACKED
+      CPU_Mapped model buffer         1043.68 MiB
+      accounted                       1043.68 MiB
+      measured max RssFile            1061.27 MiB
+      difference                        17.59 MiB   the binary and bionic
+
+**So the `CPU_REPACK` buffer is anonymous, as inferred in the previous entry
+and now measured.** The inference is retired and replaced by the reading.
+
+### THE NUMBER THAT CONSTRAINS THE PHONE IS ~1.10 GiB, NOT 2.13 GiB
+
+Anonymous pages cannot be dropped: to free them the kernel must compress them
+into zram or swap them, and a model's weights are touched every token, so in
+practice they stay. File-backed clean pages can simply be dropped and re-read
+from UFS. **The hard floor for this model is therefore max `RssAnon`,
+1,155,516 kB — roughly the size of the GGUF, not twice it.**
+
+**This does NOT mean the 2.13 GiB peak is harmless**, and two specific things
+stand against reading it that way.
+
+**First, nothing was reclaimed in this run and that is not evidence.**
+`max VmRSS` equals `VmHWM` exactly, so the file-backed half was never dropped
+while the process lived. But the run began with `MemAvailable` at 2,538,708 kB
+and killed nothing — the kernel had no reason to reclaim anything. **That is
+the absence of pressure, not a demonstration that those pages would yield
+under it.**
+
+**Second, part of the file-backed half is HOT, and this is the caveat that
+qualifies the whole "it is only a load-time spike" argument.** The `-v` run
+logged:
+
+    done_getting_tensors: tensor 'token_embd.weight' (q6_K) (and 113 others)
+      cannot be used with preferred buffer type CPU_REPACK, using CPU instead
+
+Those 114 tensors were never repacked, so they have no anonymous copy and are
+read **out of the mmap** during generation. Their pages are file-backed and
+live. Only the mmap'd originals of the tensors that WERE repacked go cold
+after load. **What fraction of the 1,086,744 kB is hot rather than cold is
+NOT measured here**, and until it is, "the file-backed half is reclaimable"
+is true of an unknown portion of it rather than of all of it.
+
+### The row
+
+    conditions   uptime 60,407.04 s (1006.8 min) before, 60,415.46 s after,
+                 run 8.42 s wall. AC power, screen on, no VM, app disabled,
+                 model warm in page cache. Command identical to the smoke
+                 run; only the wrapper changed.
+
+    pp16                  69.04 +/- 0.83 t/s
+    tg16                  18.05 +/- 0.21 t/s
+    peak RSS (VmHWM)   2,230,268 kB
+    max RssAnon        1,155,516 kB
+    max RssFile        1,086,744 kB
+    MemAvailable       2,538,708 -> 2,605,020 kB
+    MemFree            1,210,092 -> 1,290,776 kB
+    SwapFree             614,364 ->   492,080 kB
+    Cached             1,551,496 -> 1,537,476 kB
+    LMK kills                  0
+    rc                         0
+
+**Peak RSS across three runs of the identical row: 2,230,332 / 2,230,572 /
+2,230,268 kB — a spread of 304 kB, 0.01%.** The measurement is stable enough
+that any difference in a later row is a real difference and not noise.
+
+tg16 came in at 18.05 against 18.48 and 18.53 on the two earlier runs — a 2.6%
+spread across three runs, which is the scale of run-to-run variation on this
+row and is the figure to judge later rows against.
+
+### Prediction for -mmp 0, written before the run
+
+Quoted verbatim, as written before step 3 was run:
+
+> With `-mmp 0` there is no mapping to duplicate: the loader reads each tensor
+> straight into its destination, so repacked tensors land directly in the
+> repack buffer and only the 114 non-repackable ones need a separate copy.
+> **Peak RSS lands near 1.2-1.4 GB rather than 2.13 GB, and RssFile collapses
+> to near zero** — the binary and libraries only — with essentially all of it
+> anonymous.
+>
+> **The failure mode that would refute it:** peak stays near 2.1 GB but with
+> RssAnon at ~2.1 GB instead of 1.13. That would mean the loader still
+> materialises the whole model before repacking, and it would be *worse* than
+> mmap, because none of it could then be reclaimed. If that happens, the two
+> lines I drafted earlier stand and go into the entry with this as their
+> evidence.
+
+The two lines referred to are the ones withheld in the previous entry: that
+"any llama.cpp process on this chip pays it" and that this is "not a benchmark
+artefact that would go away in a real app". **Both remain unmade.**
+
+### What this entry does NOT say
+
+**Still nothing about generation specifically.** VmHWM, RssAnon and RssFile
+are maxima across the whole invocation — load, repack, warmup, pp16, tg16 —
+and none of them says at which phase the peak occurred, which remains the open
+question. The reclaimability of the file-backed half is argued from what
+file-backed clean pages ARE, and is neither measured under pressure nor
+apportioned between the cold repacked originals and the 114 hot un-repacked
+tensors. Whether repacking can be disabled, and at what cost in tok/s, is
+still untested. No conclusion about Qwen3.5-2B or Gemma 4 E2B follows: the
+earlier extrapolation from 2.13 GiB is now doubly unsafe, because the binding
+figure may be ~1.10 GiB instead. One model, one thread count, tiny batch, warm
+cache, idle phone, AC power, 8.4 seconds. The Q4_0 repack path has still never
+run, and no pp512 or tg128 has been measured at all.
