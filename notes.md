@@ -8608,3 +8608,33 @@ conditions and this figure does not extend, contradict or replace it.
 Nothing was gated, nothing was cold, nothing was repeated, no reboot was spent,
 and no text was printed — `-n 1` generated exactly one token and `--print` was
 not passed, so the run says nothing whatever about output quality.
+
+### penny_user.txt LENGTHENED TO LAND ON 20 TOKENS, 16 Sept 17:06
+
+The smoke test measured the user turn at **15** tokens against a ~20 target, so
+the file was lengthened. One clause added — the question is still one general-
+knowledge question, still answerable by eye, and still needs no tool under the
+system prompt's own routing rule.
+
+    was   "What is the capital of Australia, and roughly how many people live
+           there?"                                     74 B  f6d8be90…  15 tok
+    now   "What is the capital of Australia, roughly how many people live
+           there, and when was it founded?"            95 B  b61e0a99…  20 tok
+
+    sha256 b61e0a992e5e8b4cd479c8596c63381b95372ee8b0c3982b895259f9b7a4121b
+    (supersedes f6d8be90cd53c97f2593a4d38d8fb6f766cdc8f1365787de835a72c76fab1210)
+
+**The 20 is MEASURED, not aimed at.** Read from a `pennyload -n 1` run on the
+phone at 17:06 — `user_tokens=20`, `user_bytes=95`, `add_special=0
+parse_special=1`, Qwen3-1.7B's tokeniser, `rc=0`. That run was a tokeniser
+check and nothing else; no timing from it is quoted anywhere and it did not go
+through `pennybench.sh`. `sys_tokens` was 407 on the same run, unchanged.
+
+**Every figure in the smoke-test entry above was taken at 15 user tokens** and
+the file has now changed under it. The smoke entry keeps its numbers as what
+they were; no row has been run at either length.
+
+**What this does NOT say.** Qwen3.5-2B has a different vocabulary and will
+produce a different count from the same 95 bytes; that count is unknown until
+that model is on the phone. The count says nothing about whether the question
+is a good one — content is not the variable here, length is.
