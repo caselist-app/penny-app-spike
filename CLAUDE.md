@@ -198,10 +198,27 @@ same commit as whatever changes it.
                                LINKS: `--help` printed usage and exited 0, so
                                the shell user has exec here and the binary
                                resolves against bionic with no LD_LIBRARY_PATH.
-                               **THAT IS NOT "NO SIGILL".** `--help` executes
-                               no quantised kernel, and i8mm instructions could
-                               only ever be in those, so SIGILL stays
-                               UNOBSERVED until a model actually runs.
+                               **SIGILL RULED OUT 16 Sept 12:24, NARROWLY.**
+                               A real run returned correct text, so the Q4_K
+                               and Q6_K kernels this model uses are clean.
+                               **The Q4_0 repack path has NEVER executed on
+                               this phone** — different kernels, and it is
+                               where llama.cpp's ARM dot-product repacking
+                               lives. `--help` alone had proved nothing here.
+    models on the phone        **Qwen3-1.7B-Q4_K_M.gguf, 1,107,409,472 B**,
+                               sha256 b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866
+                               c823204dc42c0d91fa181897, computed ON THE PHONE
+                               and matched to MANIFEST.txt's HF-verified value.
+                               **PEAK RSS 2,230,332 kB (2.13 GiB) on a 16-token
+                               test** — roughly twice the file, measured and
+                               NOT explained. Two processes killed (adj 995,
+                               cch +95 CEM). One model at a time: delete before
+                               pushing the next.
+    logcat buffer              **RAISED to 64 MiB, 16 Sept 12:22**, after
+                               saving the whole buffer to
+                               ~/Documents/logcat-2026-09-16-preraise.txt
+                               (6.6 MB, 43,759 lines, oldest 09-15 19:59:34).
+                               The resize did NOT clear it. Dies on reboot.
                                NO MODEL has been pushed. A `microdroid/`
                                directory from 14 Sept also sits there — left
                                alone, nothing needs it gone. 102 G free on

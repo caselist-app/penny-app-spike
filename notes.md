@@ -5403,3 +5403,153 @@ history over the preceding fifteen hours is unknown, so it extends the curve
 without being a controlled continuation of it. Why `system_profiler` returns
 empty was observed, not diagnosed. And the six predictions above are
 predictions: none of them has been tested.
+
+## 2026-09-16 — the kernels execute and the model talks, and the finding of the day is that peak RSS is 2.13 GiB for a 1.03 GiB model. Two of six predictions already fail.
+
+Smoke run only. One model, one thread count, one 8.7-second run. The matrix
+has NOT been run and will not be until the 2.13 GiB is explained.
+
+### CORRECTION to the heading of the 16 Sept step-0 entry above
+
+That entry is headed "the SIGILL this build was shaped to avoid is now
+avoided, not merely unobserved." **That was wrong when written and is right
+now, for a different and narrower reason.** It rested on `llama-bench --help`,
+which executes no quantised kernel at all — and i8mm instructions could only
+ever be inside those kernels — so at the time SIGILL was exactly as unobserved
+as before. Its own "What this entry does NOT say" section said so; the heading
+contradicted it. Earlier entries are never rewritten here, so this is the
+correction and it wins.
+
+**What the smoke run now establishes, stated at its true width.** Quantised
+kernels ran and returned correct text, so SIGILL is ruled out **for the tensor
+types Qwen3-1.7B Q4_K_M actually contains — the Q4_K and Q6_K paths.**
+**The Q4_0 repack path has still never executed on this phone.** That is a
+different set of kernels, it is where llama.cpp's ARM dot-product repacking
+lives, and it is the whole reason half the model set was downloaded at Q4_0.
+Nothing here says anything about it.
+
+### The model talks. Verbatim, and this is the half a tok/s figure cannot give.
+
+    $ cd /data/local/tmp && taskset c0 ./llama-simple \
+        -m Qwen3-1.7B-Q4_K_M.gguf -n 48 'The capital of France is'
+
+    The capital of France is Paris. The capital of Spain is Madrid. The capital
+    of Italy is Rome. The capital of Germany is Berlin. The capital of Japan is
+    Tokyo. The capital of Brazil is Brasília. The capital of Mexico is Mexico
+    City. The capital
+
+    EXIT=0
+
+Coherent, factually correct in all seven, and the accent in "Brasília" survived
+— so the tokeniser round-trips multi-byte UTF-8. **A broken kernel still
+reports a tok/s; it does not do this.** That is why `llama-simple` was built,
+and it took one 3.8 MB binary and no network.
+
+### The row
+
+Qwen3-1.7B Q4_K_M, unsloth, 1,107,409,472 bytes, sha256
+`b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897` — computed
+ON THE PHONE after the push and matched against MANIFEST.txt, where it is
+recorded as VERIFIED against Hugging Face's own published LFS oid. Pushed at
+32.2 MB/s in 32.8 s.
+
+    conditions   uptime 59,078.89 s (984.6 min) before, 59,087.56 s after
+                 run 8.67 s wall. AC power, screen on, no VM
+                 (Running VMs: [] at step 0), our app pm disable-user'd,
+                 nothing opened by hand. Model WARM in host page cache —
+                 pushed 90 seconds earlier. Not a cold-start figure.
+    command      pennybench.sh smoke c0 -- -m <model> -t 2 -p 16 -n 16
+    mask         c0 = cpus 6,7 = the Cortex-X1 pair at 2.802 GHz
+
+    pp16                  68.20 +/- 1.84 t/s
+    tg16                  18.48 +/- 0.18 t/s
+    peak RSS (VmHWM)   2,230,332 kB   = 2.13 GiB
+    MemAvailable       2,050,024 -> 2,536,008 kB
+    MemFree              193,548 -> 1,247,868 kB
+    SwapFree           1,089,660 ->   627,824 kB   (-461,836)
+    Cached             2,076,392 -> 1,513,232 kB   (-563,160)
+    LMK kills                  2 processes (4 log lines)
+    rc                         0
+
+Kills, verbatim, both at the cheapest tier:
+
+    12:24:12.675 lowmemorykiller: Kill 'com.shannon.rcsservice:shannonrcsservice'
+      (2843), uid 10151, oom_score_adj 995 to free 160564kB rss, 9456kB anon rss,
+      41988kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss;
+      reason: low watermark is breached
+    12:24:12.742 ActivityManager: Process com.shannon.rcsservice:shannonrcsservice
+      (pid 2843) has died: cch  +95 CEM
+    12:24:13.552 lowmemorykiller: Kill '.ShannonImsService' (2848), uid 10154,
+      oom_score_adj 995 to free 146592kB rss, ... ;
+      reason: low watermark is breached
+    12:24:13.623 ActivityManager: Process .ShannonImsService (pid 2848)
+      has died: cch  +95 CEM
+
+Both are adj 995 and `cch +95 CEM` — cached and empty, nothing a user would
+notice, the same tier 3e-iv and 3g-ii recorded from the VM side. **The shape
+is familiar; what is new is that a 16-token test on a 1 GB model reached it
+at all.**
+
+### PEAK RSS IS 2.13 GiB FOR A 1.03 GiB MODEL, AND THAT IS THE FINDING
+
+**P5 predicted 1.1-1.4 GB and no kills. It fails on both halves.** The
+prediction was written before the model was pushed precisely so this could not
+be fitted afterwards, and it was wrong by roughly 800 MB — about twice the
+file, on the smallest test that will be run all day. **16 tokens in, 16 tokens
+out.** Every other run in the protocol is larger.
+
+**It is measured and NOT explained.** The candidate is llama-bench's default
+batch and micro-batch sizing allocating compute buffers for far more tokens
+than the test uses, with a 151k-vocab logits buffer attached; a second
+candidate is llama.cpp making a repacked copy of the weights for the ARM
+kernels, which would by itself account for "roughly double the file". Nothing
+here distinguishes them and neither is asserted. Three checks follow in order,
+each its own run: `-v` for llama.cpp's own buffer accounting, an `RssAnon` /
+`RssFile` split in the wrapper, and `-b 16 -ub 16`.
+
+**The consequence for the rest of the protocol, if the ratio holds — and it is
+not yet known to hold.** Idle `MemAvailable` on this handset was 2,012,348 kB
+at 60.5 min and 1,771,920 kB at 973.2 min. At roughly 2x the file:
+Qwen3.5-2B (1,280,835,840 B) lands near 2.4 GiB, and **Gemma 4 E2B
+(3,106,738,272 B) lands near 5.8 GiB on a phone with 5.45 GiB of physical
+memory.** Gemma may simply not run here. That is an extrapolation from one
+measurement and is written as a flag for the next runs, not as a result.
+
+### THE BEFORE/AFTER MEMORY PAIR LIES UNLESS THE KILL COUNT IS BESIDE IT
+
+`MemAvailable` went **UP** across the run, 2,050,024 -> 2,536,008 kB, and
+`MemFree` went up by over a gigabyte. Read on its own that says the run cost
+nothing and left the phone better off.
+
+**It went up BECAUSE the killer freed memory.** The run evicted 563,160 kB of
+page cache, pushed 461,836 kB more into swap, and killed two processes worth
+~307 MB of RSS between them. The protocol requires MemAvailable before and
+after; **this entry adds that the pair is uninterpretable without the kill
+count on the same line**, and a run that killed nothing is not comparable to
+one that did. Recorded as a protocol point, not as a trap, because the wrapper
+already captures both.
+
+### The predictions so far
+
+    P1  tg 8-16 t/s at 2 threads on c0     18.48 -- ABOVE the band, but this
+                                           is tg16 and the matrix uses tg128.
+                                           NOT settled; early indication only.
+    P2  tg gains <1.3x at 4 threads        untested
+    P3  pp scales >=2x 1->4 threads        untested
+    P4  unpinned no faster than pinned f0  untested
+    P5  peak RSS 1.1-1.4 GB, no kills      **FAILS BOTH HALVES.** 2.13 GiB,
+                                           two processes killed.
+    P6  -p 64 lower pp t/s than -p 512     untested
+
+### What this entry does NOT say
+
+**One run, one model, one thread count, 8.7 seconds.** No pp512, no tg128, no
+thread scaling, no unpinned comparison, no second model, nothing on battery,
+nothing under load. The model was warm in page cache from a push 90 seconds
+earlier, so this is not a cold-load figure and says nothing about time to first
+token from flash. `tg16` and `pp16` are not the protocol's tests and their
+numbers must not be quoted as the handset's speed. **The 2.13 GiB peak is
+measured and unexplained**, so no conclusion about Gemma or Qwen3.5-2B rests on
+it yet. The Q4_0 repack path has never executed. And nothing here is a
+native-versus-VM statement: that comparison is closed and this is an absolute
+feasibility measurement of the 6a.
