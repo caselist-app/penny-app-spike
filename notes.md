@@ -8470,3 +8470,36 @@ result entry.
 **The `--extra-bufts 0` control run selects different matmul kernels**, so no
 speed figure from it is comparable with anything and none will be quoted. It
 exists to subtract `t_tensor_band_ms` and for no other purpose.
+
+### THE TWO PROMPT FILES, written 16 Sept before any run
+
+    prompts/penny_system.txt   1,911 bytes
+      sha256 9496977025bffba32886e447cf10ab2281c439dc7c4811124827762fdb730ff4
+    prompts/penny_user.txt        74 bytes
+      sha256 f6d8be90cd53c97f2593a4d38d8fb6f766cdc8f1365787de835a72c76fab1210
+
+The system prompt is Penny-shaped by design and by nothing more: five paragraphs
+of routing instructions naming thirteen tools (`calendar_read`,
+`calendar_write`, `contacts_lookup`, `message_send`, `alarm_set`, `timer_set`,
+`note_append`, `note_search`, `weather_local`, `music_control`, `call_place`,
+`device_setting`, `location_current`), a confirmation rule, an ambiguity rule
+and a don't-invent rule. **The content is not the variable and nothing in this
+work depends on it; the LENGTH is the variable.** It is not product design and
+must not be read into the Penny project — CLAUDE.md keeps product thinking out
+of this repo, and this is a fixture.
+
+The user turn is one general-knowledge question, chosen so that a correct
+answer is checkable by eye if a `--print` row is ever read, and so that it needs
+no tool under the system prompt's own routing rule.
+
+**NO TOKEN COUNT IS QUOTED FOR EITHER FILE AND NONE MAY BE UNTIL A RUN HAS
+PRINTED ONE.** Byte counts are measured; token counts are whatever `pennyload`
+reports as `sys_tokens=` and `user_tokens=` on the phone, against each model's
+own tokeniser. The target was ~400 and ~20; whether it was hit is unknown until
+then, and the two models tokenise differently in any case — Qwen3-1.7B and
+Qwen3.5-2B have different vocabularies (`tokenizer.ggml.pre` `qwen2` against
+`qwen35`, eos 151645 against 248046), so ONE file will produce TWO token counts
+and both get recorded.
+
+Both files are read verbatim, trailing newline included, with no chat template.
+
