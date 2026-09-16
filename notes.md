@@ -8970,3 +8970,168 @@ more. And the plan assumes the phone comes back on adb after each reboot only
 because a human unlocks it — GrapheneOS keeps the port charging-only while
 locked, so every boot in this plan has a hand-unlock in it that is not
 automatable and is not measured.
+
+## 2026-09-16 — Q-A AND Q-B, THE MEASURED ROWS. Boot 1, Qwen3-1.7B-Q4_K_M.
+
+Rows are appended here one at a time and committed BEFORE the next one runs.
+Nothing lives only in `/data/local/tmp/out/` and a terminal.
+
+**THE BOOT.** `adb reboot` issued 16 Sept 17:16:57, last pre-reboot reading
+uptime 6943.86 s in the same invocation. Unlocked by hand; adb answered at
+uptime 31.69 s. Qwen3-1.7B-Q4_K_M.gguf was already on the phone from the
+15:20:52 boot and **was not hashed on this boot before row 1** — presence
+confirmed by `ls -la` alone, 1,107,409,472 B, because hashing 1,056 MiB would
+read every byte into the page cache row 1 exists to measure cold. App
+`enabled=3` (disable-user'd), `Running VMs: []`, AC power, screen on.
+
+**THE THREE FRESH-BOOT READINGS**, each with uptime and wallclock read in the
+SAME `adb shell` invocation:
+
+    uptime s   wallclock   MemAvailable   MemFree     Cached      SwapFree
+      31.69    17:17:49        726,468     80,828     873,560   2,739,964
+     303.33    17:22:21      2,282,044  1,618,340     887,812     888,060
+    1506.32    17:42:24      2,284,200  1,587,984     919,096     889,596
+
+All three cluster ceilings read rated at every one of them — `policy6`
+2,802,000, `policy4` 2,253,000, `policy0` 1,803,000.
+
+**The 31.69 s reading is the earliest this repo has ever read `MemAvailable` on
+a fresh boot** and it was a bonus: adb answered far sooner than expected. It is
+recorded, not used — 726,468 kB is a phone 32 seconds into settling.
+
+**THE 5-MINUTE AND 25-MINUTE FIGURES REPRODUCE THE HANDSET'S KNOWN CURVE, AND
+SWAP DOES NOT.** `MemAvailable` 2,282,044 kB at 303 s and 2,284,200 kB at
+1,506 s, against 2,190,520 kB at 308.17 s and 2,135,144 kB at 1,500.30 s on the
+15:20:52 boot (notes.md 7915) — within 4.2% and 7.0%. But `SwapFree` compared
+at the MATCHED marks: **889,596 kB at 1,506 s here against 1,126,396 kB at
+1,500.30 s there.** And the shapes differ: this boot went 888,060 -> 889,596 kB
+between 303 s and 1,506 s, i.e. **flat**, where the 15:21 boot RECOVERED over
+the same window (988,156 -> 1,126,396, +138,240 kB). Recorded as an observed
+difference between two boots and nothing more; nothing here identifies what
+recovered swap on one boot and not the other.
+
+### ROW 1 — `q17_r1_cold_fresh`. COLD page cache, gated. A1, A2, B1 PASS; A3 FAILS.
+
+    started uptime 1520.56 s   ended 1536.00 s   rc=0
+    c0, -t 2, -lm none, n_ctx 1024, n_ubatch 512, greedy, chat_template=NONE
+    sys_tokens 407, user_tokens 20, -n 64 --print, NO --save-state
+    gate: policy6 2,802,000 AND policy4 2,253,000 read in the launching
+          invocation; both at rated, so the gate did not block
+    first run of the boot -- nothing had read the .gguf since power-on
+
+    t_backend_ms          3.04
+    t_model_open_ms     398.49   header + hparams + vocab + alloc
+    t_tensor_band_ms   3581.59   tensor data read + repack
+    t_model_tail_ms       2.04
+    t_model_total_ms   3982.13   == A2
+    t_ctx_create_ms      36.62   == A3
+    t_ready_ms         4021.78   == A1
+    t_tokenize_ms         3.56
+    t_sys_decode_ms    5996.47   407 tokens, one llama_decode
+    t_user_decode_ms    371.75   20 tokens
+    t_sample_ms           0.89
+    ttft_fresh_ms      6369.12   == B1  (T10-T6)
+    ttft_cached_ms     6372.68
+    ttft_cold_proc_ms 10394.46   NOT B3 -- see below
+    gen_tokens 64      gen_ms 4188.65      gen_tps 15.04
+    first_token_id 32313     token_fnv1a64 0xcba17a2fcbba49f4
+    peak_rss_kB 1,541,140    max_rssanon_kB 1,535,512 (99.6%)
+    max_rssfile_kB 5,304     rss_samples 38
+
+**`gen_tps` 15.04 IS 63 DECODES, NOT 64.** `pennyload.cpp:390` divides by
+`gen_ids.size() - 1`, because the first token was already produced by the
+sampler at T10 and the generation loop decodes the remaining 63.
+63,000 / 4188.65 = 15.0406 t/s; the same interval over 64 would read 15.2794.
+The divisor is stated so no later reader has to infer it.
+
+**MEMORY AND KILLS.**
+
+    MemAvailable   before 2,277,952 kB   after 2,669,292 kB
+    MemFree        before 1,577,080      after 1,649,232
+    SwapFree       before   889,596      after   720,380
+    Cached         before   919,096      after 1,241,384   (ROSE)
+    pswpin         before    30,361      after    30,672
+    pswpout        before   597,499      after   689,982
+    pgmajfault     before    43,278      after    43,663
+    ceil_x1        before 2,802,000   min 2,048,000 (73.1%) 10 s in   after rated
+    ceil_a76       before 2,253,000   min 2,253,000 (rated)           after rated
+    lmk_kill_lines 8
+
+**EIGHT LINES, FOUR PROCESSES, AND THE `MemAvailable` IN FRONT OF THEM IS
+2,277,952 kB.** All four `reason: low watermark is breached`, all four `cch`:
+
+    com.android.DeviceAsWebcam   oom_score_adj 915   cch +15 CEM
+    com.android.keychain         oom_score_adj 915   cch +15 CEM
+    com.android.deskclock        oom_score_adj 905   cch CEM
+    com.google.euiccpixel        oom_score_adj 905   cch CEM
+
+Nothing in the foreground band, nothing a user would notice, and our own
+process was never touched. **This is the fresh-boot condition the B2-R1 rule
+names as representative**: a boot that has not already bought itself headroom
+by killing its own processes over hours. The twelve zero-kill `-lm none` rows
+in the closing entry were all on a 17-18 hour boot and were flattered by it.
+
+**The contamination condition is NOT met.** `Cached` ROSE by 322,288 kB across
+the row rather than collapsing by the model's size, and `SwapFree` ended at
+720,380 kB — 22.9% of `SwapTotal`, above the ~10% floor. `pgmajfault` moved 385.
+
+### THE PREDICTIONS, SCORED
+
+    #   prediction              point   band        measured    verdict
+    A1  cold load -> ready       4.2 s  3.0-6.0     4.0218 s    PASS
+    A2  ... read + repack        3.5 s  2.5-5.0     3.9821 s    PASS
+    A3  ... context creation     0.4 s  0.2-0.8     0.03662 s   **FAIL, LOW**
+    B1  TTFT fresh, resident     7.7 s  6.0-9.0     6.3691 s    PASS
+
+**A3 FAILS BY AN ORDER OF MAGNITUDE AND IT WAS ALREADY KNOWN TO BE FAILING.**
+The 16:50 smoke test read `t_ctx_create_ms` **35.83 ms**, and the state pair
+read 34.46 and 32.44 ms — all three before this row, all on the same `n_ctx`
+1024. **The prediction was deliberately left frozen rather than revised**, on
+the rule that a prediction written before the work is judged, not edited to
+fit what the instrument later showed. Row 1's 36.62 ms is the gated,
+cold-boot confirmation of a figure the smoke runs had already put a factor of
+ten below its band. Creating a 1024-token KV cache on this model is tens of
+milliseconds, not hundreds.
+
+**A1 PASSED WHILE ITS TWO COMPONENTS MISSED IN OPPOSITE DIRECTIONS.** A2 ran
+482 ms ABOVE its 3.5 s point and A3 came in 363 ms BELOW its 0.4 s point, and
+the two nearly cancel. A1 is a sum and its pass is partly arithmetic luck; A2
+and A3 are the figures with meaning.
+
+**B1 PASSED AT THE BOTTOM OF ITS BAND.** 6.369 s against a 6.0-9.0 band built
+from the gated c0 two-thread `pp512` of 55.36 t/s (row C1, notes.md 7592):
+427 tokens across `t_sys_decode` + `t_user_decode` = 6368.22 ms works out at
+67.05 t/s, i.e. **21% faster than the `llama-bench` figure the prediction was
+derived from**, on a gated row this time rather than the ungated smoke. Why a
+single real prompt outruns `llama-bench`'s `pp512` is NOT established here and
+must not be guessed at; it is the instrument question B1's failure condition
+anticipated, arriving as a pass rather than a fail.
+
+### WHAT ROW 1 DOES NOT SAY
+
+**One sample, no error bar.** The X1 ceiling was already descending inside the
+row (2,048,000 kHz, 73.1% of rated, 10 s in), so no figure here is this chip's
+speed and none is a sustained figure.
+
+**A5 IS NOT SCORED.** `t_tensor_band_ms` 3581.59 here against 2124.62 and
+2115.08 on the two 16:50-17:06 smoke runs suggests the cold read costs ~1.46 s,
+but those were UNGATED, on a different boot, and A5 is defined as a warm load
+immediately after a cold one. Row 2 is the controlled pair and A5 is scored
+there.
+
+**A4, B2, B3, B4, B5, A6 and B6 are all untouched.** A4 needs row 4's
+`--extra-bufts 0` control; B4 and B5 need row 2's save; B2 needs row 3; B3
+needs row 5 on boot 2; A6 and B6 need Qwen3.5-2B, which is not on the phone.
+
+**`ttft_cold_proc_ms` 10,394.46 ms IS NOT B3.** `pennyload` prints it on every
+run. B3 is a cached run whose model load is cold — row 5 — and this row had no
+state file in existence at all.
+
+The 64 generated tokens are byte-identical to both smoke-pair runs
+(`0xcba17a2fcbba49f4`) on a different boot and a cold load, which is a useful
+determinism check and is not a quality claim. The text says Canberra's
+population is around 4 million and that it was founded in 1901; both are wrong.
+It is one greedy 64-token sample with NO chat template, so it is recorded as
+text produced and settles nothing about output quality in either direction.
+
+Qwen3-1.7B on the 6a, on AC power, screen on, unlocked, idle, once.
