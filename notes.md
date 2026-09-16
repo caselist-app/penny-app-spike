@@ -5801,3 +5801,236 @@ earlier extrapolation from 2.13 GiB is now doubly unsafe, because the binding
 figure may be ~1.10 GiB instead. One model, one thread count, tiny batch, warm
 cache, idle phone, AC power, 8.4 seconds. The Q4_0 repack path has still never
 run, and no pp512 or tg128 has been measured at all.
+
+## 2026-09-16 — no-mmap removes 800 MiB of DEAD repacked originals, not 800 MiB of working set. Peak RSS 1,410,496 kB, 99.6% anonymous, zero kills. `-mmp` does not exist at this commit.
+
+Step 3 of the RSS chase, and the last of it. Same model, same mask, same thread
+count, same `-p 16 -n 16` as the three rows before it. No matrix run.
+
+### `-mmp 0` DOES NOT EXIST AT COMMIT 38a5b42d, AND THE FIRST ATTEMPT FAILED
+
+The flag named in the step-2 prediction was taken from older llama.cpp. Run as
+written it returned `rc=1`, printed usage, and loaded no model:
+
+    error: invalid parameter for argument: -mmp
+
+The replacement is `-lm, --load-mode <auto|none|mmap|mlock|mmap+mlock|dio>`.
+That `none` is the no-mmap mode was read out of the source, not guessed —
+`src/llama-model-loader.cpp:559`:
+
+    this->use_mmap = load_mode == LLAMA_LOAD_MODE_MMAP
+                  || load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK
+                  || load_mode == LLAMA_LOAD_MODE_AUTO;
+
+`LLAMA_LOAD_MODE_NONE` is none of those, so `use_mmap` is false. `-v` was added
+as well; step 1 measured that flag's cost at 240 kB of peak RSS, 0.01%.
+
+### llama.cpp's own buffer lines, verbatim from /data/local/tmp/out/nommap.err
+
+    133:  load_tensors: loading model tensors, this can take a while... (load_mode = none)
+    980:  done_getting_tensors: tensor 'token_embd.weight' (q6_K) (and 113 others)
+            cannot be used with preferred buffer type CPU_REPACK, using CPU instead
+    981:  load_tensors:          CPU model buffer size =   243.90 MiB
+    982:  load_tensors:   CPU_REPACK model buffer size =  1049.96 MiB
+    1199: llama_context:        CPU  output buffer size =     0.58 MiB
+    1228: llama_kv_cache:        CPU KV buffer size =    28.00 MiB
+    1250: sched_reserve:        CPU compute buffer size =     9.52 MiB
+
+    1185: llama_context: n_ctx                 = 256
+    1187: llama_context: n_batch               = 16
+    1188: llama_context: n_ubatch              = 16
+
+**The `CPU_Mapped model buffer size = 1043.68 MiB` line of the three mmap runs
+is GONE, and a `CPU model buffer size = 243.90 MiB` stands in its place.** That
+243.90 MiB is the 114 tensors the repacker cannot convert. Everything else went
+straight into `CPU_REPACK`, which is byte-for-byte the size it was under mmap —
+1049.96 MiB, unchanged to two decimal places across all four runs.
+
+    ANONYMOUS, accounted
+      CPU model buffer (the 114 non-repackable)   243.90 MiB
+      CPU_REPACK model buffer                    1049.96
+      CPU KV buffer                                28.00
+      CPU compute buffer                            9.52
+      CPU output buffer                             0.58
+      accounted                                  1331.96 MiB
+      measured max RssAnon                       1372.45 MiB
+      difference                                   40.49 MiB
+
+The 40.49 MiB residue is the same allocator-and-stack overhead step 2 measured
+at 40.37 MiB on the mmap path. Two runs, two loaders, the same number.
+
+### The row
+
+    conditions   uptime 61,060.93 s (1017.7 min, 16.96 h) before,
+                 61,070.11 s after, run 9.18 s wall. SAME BOOT as all
+                 three earlier rows (step 2 was 1006.8 min). AC power,
+                 screen on, no VM, app pm disable-user'd, nothing opened
+                 by hand. Model warm in host page cache.
+    command      pennybench.sh nommap c0 -- -m Qwen3-1.7B-Q4_K_M.gguf
+                 -t 2 -p 16 -n 16 -lm none -v
+    mask         c0 = cpus 6,7 = the Cortex-X1 pair at 2.802 GHz
+
+    pp16                  67.54 +/- 0.54 t/s
+    tg16                  17.96 +/- 0.28 t/s
+    peak RSS (VmHWM)   1,410,496 kB   1377.44 MiB   1.345 GiB
+    max VmRSS          1,410,496 kB
+    max RssAnon        1,405,388 kB   1372.45 MiB   99.6% of peak
+    max RssFile            5,272 kB      5.15 MiB   the binary and bionic
+    samples                   25 at 5 Hz
+    MemAvailable       2,617,156 -> 2,801,012 kB   (+183,856)
+    MemFree            1,299,380 -> 1,547,560 kB   (+248,180)
+    SwapFree             508,976 ->   227,308 kB   (-281,668)
+    Cached             1,539,712 -> 1,476,696 kB   (-63,016)
+    LMK kills                  0   (nommap.kills is empty)
+    rc                         0
+
+llama-bench's own table, verbatim from `/data/local/tmp/out/nommap.bench`, and
+note it prints the load mode as a column of its own:
+
+    | model                    |   size | params | backend | threads |   lm | test |            t/s |
+    | qwen3 1.7B Q4_K - Medium | 1.03 GiB | 1.72 B | CPU     |       2 | none | pp16 |   67.54 ± 0.54 |
+    | qwen3 1.7B Q4_K - Medium | 1.03 GiB | 1.72 B | CPU     |       2 | none | tg16 |   17.96 ± 0.28 |
+    build: 38a5b42d9 (10989)
+
+### The prediction held, and it was quoted in full before the run
+
+> Peak RSS lands near 1.2-1.4 GB rather than 2.13 GB, and RssFile collapses to
+> near zero — the binary and libraries only — with essentially all of it
+> anonymous.
+
+1.345 GiB, RssFile 5,272 kB, 99.6% anonymous. **Held on all three counts.** The
+named failure mode — peak staying near 2.1 GB with RssAnon at ~2.1 GB, meaning
+the loader materialises the whole model before repacking — did not occur, so
+the two lines withheld since the `-v` entry stay withheld and are now retired
+rather than pending. It is not the case that any llama.cpp process on this chip
+pays 2.13 GiB; **a process that does not mmap pays 1.35 GiB.**
+
+### WHAT NO-MMAP ACTUALLY REMOVES, AND THE FIRST READING OF IT WAS WRONG
+
+Reported in the message before this entry as a "trade": peak down 800 MiB, but
+the unreclaimable anonymous half up 244 MiB. **That framing is wrong and is
+corrected here.**
+
+The 249,872 kB that moved into anonymous memory is the 243.90 MiB `CPU model
+buffer` — the 114 tensors that cannot be repacked. Under mmap those same
+tensors were file-backed, and the step-2 entry already recorded the reason that
+does not help: **they are read out of the mapping on every token.** A clean
+file-backed page that is touched every token is not spare capacity. Reclaiming
+it means faulting it straight back from UFS, which is thrashing, not saving.
+It was never available memory in the first place.
+
+So the hot working set is the same figure on both paths:
+
+    with mmap     RssAnon 1128.43 MiB + the ~243.90 MiB of mapping that is
+                  read every token                        ~= 1372.3 MiB
+    without mmap  RssAnon                                  = 1372.45 MiB
+
+**~1372 MiB, ~1.34 GiB, either way — the two agree to about 0.1 MiB.** Nothing
+hot was converted from reclaimable to unreclaimable, because none of it was
+reclaimable in any useful sense.
+
+**What no-mmap removes is the part that was genuinely dead.** Under mmap the
+mapping holds the whole 1043.68 MiB file, of which only ~243.90 MiB is ever
+read after load; the other ~817 MiB is the mmap'd originals of tensors that
+have already been repacked into anonymous memory and will never be read again.
+Measured saving 819,772 kB — 800.56 MiB — against ~817 MiB of dead pages
+predicted from the buffer lines. **That is the whole of it.**
+
+**Stated as what it is for this handset: a win.** The 2.13 GiB peak was the
+number that killed `com.shannon.rcsservice` and `.ShannonImsService` on the
+smoke run, and it is a load-time artefact of mmap that a real app can simply
+not have. 1.35 GiB against 2.13 GiB is 800 MiB of headroom returned on the
+smallest model in the set, on a phone whose idle `MemAvailable` has been read
+between 1,771,920 kB and 2,617,156 kB.
+
+**The cost, recorded rather than waved past: SwapFree fell 281,668 kB across
+9.18 seconds**, against 122,284 kB on step 2's mmap run of the same length.
+2.3x the swap traffic. Anonymous pages under pressure can only be compressed
+into zram or written out — they cannot be dropped — so a peak that is 99.6%
+anonymous puts its pressure somewhere with a CPU cost rather than somewhere
+free. Zero processes were killed, and the run began with 2,617,156 kB
+available; on a tighter phone that pressure has to go somewhere else.
+
+pp16 67.54 and tg16 17.96 both sit at or just below the bottom of the mmap
+spread (pp16 68.20/69.02/69.04, tg16 18.05/18.48/18.53), and the run took 9.18 s
+against 8.42 s — consistent with reading 1.03 GiB from UFS rather than mapping
+it, but one run each and within the 2.6% run-to-run variation step 2 recorded.
+**No speed claim is made either way.**
+
+### DECISION: EVERY MATRIX RUN USES `-lm none`
+
+Two reasons, and neither is about tok/s.
+
+1. **It is what a real app would do.** A Penny that loads a model once and
+   generates from it has no use for a mapping of bytes it has already repacked.
+2. **It is the only mode where peak RSS IS the working set.** Under mmap,
+   VmHWM mixes ~817 MiB of dead pages in with the live ones and the number
+   cannot be used to size anything. At `-lm none` the peak is 99.6% anonymous
+   and every byte of it is memory the phone genuinely has to find.
+
+CLAUDE.md's Benchmark protocol bullet is updated in the same commit.
+
+### PREDICTION FOR GEMMA 4 E2B, WRITTEN NOW, BEFORE ANY GEMMA RUN
+
+`gemma-4-E2B-it-Q4_K_M.gguf`, 3,106,738,272 bytes = 2963.0 MiB = 2.894 GiB,
+sha256 `740185b21d22ceb83a11c3aa62ad5842ef32c70f6096d756bbee85a1e4ec34b8`,
+MANIFEST.txt VERIFIED vs HF LFS oid.
+
+**The repack copy scales with the file** — `CPU_REPACK` came out at 1049.96 MiB
+for a 1043.68 MiB mapped buffer here, i.e. the repackable tensors cost about
+what they cost in the file. At `-lm none` the repack buffer plus the
+non-repackable buffer together approximate the whole file, so:
+
+> **Gemma 4 E2B at `-lm none` needs roughly 3.0-3.1 GB of ANONYMOUS memory**
+> — ~2963 MiB of weights in the two model buffers, plus KV, compute and output
+> buffers, plus ~40 MiB of allocator overhead, and the KV buffer will be larger
+> than Qwen3-1.7B's 28.00 MiB at any real context. **Idle `MemAvailable` on
+> this handset has been read between 1,771,920 kB and 2,617,156 kB. 3.1 GB of
+> unreclaimable anonymous memory does not fit in that.** Expect the
+> lowmemorykiller to take processes during the load, and expect either a failed
+> load or a run that only completes because the killer freed enough first.
+> Under mmap the peak would be higher still — roughly file + repack, ~5.8 GiB
+> on a phone with 5.45 GiB — so mmap is not the escape.
+>
+> **This is a 7a question, not a no.** Per CLAUDE.md's closed decision, the 6a
+> is temporary and every ceiling is "on the 6a". A Gemma that does not fit in
+> 5.45 GiB of physical memory alongside Android must be re-measured on the
+> device that replaces this one before it is called a no.
+
+Gemma is still run, and run last, exactly as the protocol says — the point of
+writing this down now is that the result cannot then be fitted to it.
+
+### What this entry does NOT say
+
+**Still nothing about generation specifically.** VmHWM, RssAnon and RssFile are
+maxima across the whole invocation — load, repack, warmup, pp16, tg16 — and
+none of them says at which phase the peak occurred. The "~1372 MiB hot either
+way" figure rests on treating the 243.90 MiB `CPU model buffer` as the same
+bytes that were hot in the mapping; that is what the buffer IS, but the hot
+fraction of the mmap was never measured directly under pressure and still has
+not been.
+
+**No pp512, no tg128, no thread scaling, no unpinned row, no second model.**
+This is `-p 16 -n 16`, one thread count, one mask, 9.18 seconds, fourth run of
+the same row. The tok/s figures here are not the protocol's tests and must not
+be quoted as this handset's speed.
+
+**The speed cost of `-lm none` is NOT established.** pp16 and tg16 came in at
+the bottom of the mmap spread and the run was 0.76 s longer, but that is one
+observation against three, inside the recorded run-to-run variation, on a model
+warm in the host's page cache — which is the condition most favourable to a
+no-mmap load and says nothing about a cold read from UFS. Time to first token
+from cold is untested and is explicitly not in today's protocol.
+
+**Zero kills is a property of this run AND of its starting headroom.** It began
+with `MemAvailable` at 2,617,156 kB, left over from earlier runs' kills. The
+same peak on a tighter phone is not known to kill nothing.
+
+**The Gemma prediction is arithmetic on one model's buffer lines**, not a
+measurement, and Gemma has never been on this phone. The `CPU_REPACK`-scales-
+with-file assumption rests on a single ratio from a single model.
+
+**The Q4_0 repack path has still never executed on this phone.** Nothing about
+`-lm none` changes that. And nothing here is a native-versus-VM statement:
+that comparison is closed and this is an absolute feasibility measurement of
+the 6a.

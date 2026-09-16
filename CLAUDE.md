@@ -2240,6 +2240,27 @@ not soften it.
   of every measured column except pp/tg tok/s. Push it to
   `/data/local/tmp/` alongside the binary; the copy on the phone must hash
   to the copy in the repo.
+- **EVERY MATRIX RUN USES `-lm none`. `-mmp` DOES NOT EXIST AT THIS COMMIT.**
+  Added 16 Sept after step 3 of the RSS chase; see the notes.md entry.
+  `-mmp 0` is older llama.cpp and returns `error: invalid parameter for
+  argument: -mmp`, printing usage and loading nothing — a run that looks
+  like it happened and did not. The flag is now
+  `-lm, --load-mode <auto|none|mmap|mlock|mmap+mlock|dio>`, and `none` is
+  the no-mmap mode: `src/llama-model-loader.cpp:559` sets `use_mmap` true
+  only for `MMAP`, `MMAP_MLOCK` and `AUTO`. llama-bench prints the mode as
+  an `lm` column of its own, so the table records which was used.
+  **Two reasons it is the mode for every run, and neither is about tok/s.**
+  It is what a real app would do — a process that has repacked its weights
+  has no use for a mapping of the bytes it repacked from. And it is the
+  only mode where **peak RSS IS the working set**: under mmap, VmHWM mixes
+  ~817 MiB of dead already-repacked originals in with the live pages and
+  cannot be used to size anything, whereas at `-lm none` the peak is 99.6%
+  anonymous and every byte is memory the phone has to find. Measured on
+  Qwen3-1.7B Q4_K_M, `-p 16 -n 16`, c0, 2 threads: 1,410,496 kB at
+  `-lm none` against 2,230,268 kB under mmap, with the hot working set
+  ~1372 MiB on BOTH paths. The cost is swap traffic — SwapFree fell
+  281,668 kB against 122,284 kB on the mmap run of the same length —
+  because anonymous pages can only be compressed, never dropped.
 - Prediction written in notes.md BEFORE the first run, and judged against
   in the write-up. The standing one: token generation barely improves
   beyond 2 threads (memory-bandwidth bound); prompt processing scales.
