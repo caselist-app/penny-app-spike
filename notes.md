@@ -7855,3 +7855,191 @@ rather than without it.
 Back Market; the 7a that replaces it has more memory. Anything that fits here
 fits there, and anything that failed here must be re-measured there before it
 is called a no.
+
+## 2026-09-16 — three corrections to the closing entry, and G1 repeated on a fresh boot: it is FASTER (35.05 / 11.21) and kills MORE (39), so the caveat was right and G1 is the figure that was depressed
+
+### CORRECTION 1 — TOKENS ARE NOT WORDS. The closing entry's "three to five times faster than a person reads aloud" is wrong and the figure is 2.5-4x.
+
+notes.md 7798 reads: *"unhurried speech is about 2.5 words a second, and reading
+aloud about 3. Both models generate faster than a person reads out loud, by
+roughly three to five times."* **It divided tokens per second by words per
+second as if the units matched. They do not.** A token is roughly 0.75 of an
+English word, so:
+
+    10-15 tokens/s  x 0.75  =  7.5-11.25 words/s
+    against reading aloud at ~3 words/s
+    = **2.5x to 3.75x, call it 2.5-4x** -- not 3-5x
+
+Raised by Matt. The corrected sentence: **both models generate text faster than
+a person reads it aloud, by roughly two and a half to four times.** The
+conclusion it supports is unchanged — the models are comfortably faster than
+reading speed — but the multiple was inflated by a third and the arithmetic was
+wrong, not merely imprecise. **Every future comparison of a t/s figure to human
+speech must apply the ~0.75 words-per-token conversion explicitly.** There is
+no copy of this claim in CLAUDE.md to correct; it existed only in that entry.
+
+### CORRECTION 2 — "MEMORY RATHER THAN COMPUTE" IS A CLAIM ABOUT 1-4 MINUTE ROWS AND IS NOT ESTABLISHED FOR SUSTAINED USE.
+
+The closing entry's headline and its body at 7803 both say the constraint that
+bites is memory, not compute. **That entry's own clock section contradicts any
+broader reading of it: every row was still descending in clock when it ended.**
+Raised by Matt, and he is right that the two cannot both stand unqualified.
+
+**The claim as it must now be written, here and in CLAUDE.md: memory binds
+rather than compute IN ROWS OF 1-4 MINUTES; the sustained case is unmeasured
+and the thermal cap may bind there.** Every row in this repo is 52-247 seconds
+on an idle phone on AC power with the screen on. A model held resident and
+working for ten minutes has never been run, and the clock data is the reason to
+expect it to be different rather than the reason to assume it is not.
+CLAUDE.md's Sequencing bullet is corrected in the same commit as this entry.
+
+### CORRECTION 3 — "NO ROW ENDED AT THE X1's RATED CLOCK" IS REFUTED BY THE ROW BELOW.
+
+The closing entry states it twice. **G2 ended with `policy6/scaling_max_freq` at
+2,802,000 kHz — rated — after falling to 1,426,000 during the row.** It is the
+first row in this repo to finish at the X1's rated ceiling. The claim was true
+of all fifteen rows when it was written and is now false; the shape it was
+describing (the cap engages inside every row) is untouched.
+
+### THE BOOT
+
+    rebooted     16 Sept 15:20:52 BST, ending a 3,463 s (57.7 min) boot.
+                 Unlocked by hand. adb returned at uptime 57 s, 15:22:09.
+    app state    com.pennyspike.probe2a still `disable-user`'d.
+                 `Running VMs: []`. AC power, screen on.
+    on the phone gemma-4-E2B-it-Q4_K_M.gguf, 3,106,738,272 B, the only model.
+                 pennybench.sh sha256 484d75d4...3a92ab, byte-identical to the
+                 repo copy, re-checked after the reboot.
+
+    uptime s   MemFree     MemAvailable   Cached      SwapFree    AnonPages
+     308.17    1,298,152   2,190,520      1,120,932     988,156   1,656,008
+    1500.30    1,197,664   2,135,144      1,162,652   1,126,396   1,746,476
+
+    uptime s   pswpin    pswpout   pgmajfault   ZRAM
+     308.17     30,544   570,929      43,305    481,996K / 1,868,288K in swap
+    1500.30    106,806   615,920     119,694    485,120K / 2,012,928K in swap
+
+**The settling curve now reproduces across two consecutive fresh boots to
+within 1.2%**, which is better than anything else measured in this repo:
+
+    boot            ~5 min                  ~25 min
+    14:22 boot      2,193,244 @ 302.94      2,159,732 @ 1515.90
+    15:21 boot      2,190,520 @ 308.17      2,135,144 @ 1500.30
+    apart              0.12%                   1.14%
+
+Both start high and drift down, where the 15 Sept boot climbed from 940,640 kB.
+**~2.1-2.2 GB at five minutes and ~2.14-2.16 GB at twenty-five is the idle
+figure for this handset on a fresh boot**, and it is now read twice.
+
+**`policy0` WAS SAMPLED, for the first time in this repo** — 1,803,000 kHz, its
+rated clock, at both readings. It has still never been sampled DURING a row,
+which is the gap the closing entry names; this closes only the "never read at
+all" half.
+
+### Row G2 — Gemma 4 E2B, c0, 2 threads, -p 64, -n 128, -lm none. FRESH BOOT. G1 repeated.
+
+    gate         PASSED on the first check, 0 waits, uptime 1654, both rated
+    conditions   uptime 1,654.51 s (27.6 min) before, 1,732.90 s after,
+                 78.39 s wall. AC power, screen on, no VM, app disabled.
+                 **SwapFree at the start 1,142,524 kB = 36.3% of SwapTotal**,
+                 against G1's 245,000 kB = 7.8%.
+    command      pennybench.sh g2_c0_t2_p64_freshboot c0 -- -t 2 -p 64 -n 128
+                 -lm none
+
+    pp64                  35.05 +/- 0.61 t/s      (1.74% error bar)
+    tg128                 11.21 +/- 0.34 t/s      (3.03%)
+    ceil X1   before/min/after    2,802,000 / 1,426,000 / **2,802,000** kHz
+              min_at uptime 1,720.55 -- 66 s into the row.
+              **Ended at RATED. First row in this repo to do so.**
+    ceil A76  before/min/after    2,253,000 / 2,253,000 / 2,253,000 kHz
+              min_at 0 s in -- never fell, where on G1 it did
+    peak RSS (VmHWM)   3,337,804 kB   3259.6 MiB   3.1832 GiB
+    max RssAnon        3,332,116 kB   99.83% of peak
+    max RssFile            5,416 kB
+    rss_samples              181   (2.31 Hz over 78.39 s)
+    MemAvailable       2,104,964 -> 3,850,448 kB   (+1,745,484)
+    MemFree            1,161,388 -> 3,491,272 kB   (+2,329,884)
+    SwapFree           1,142,524 -> 1,511,416 kB   (+368,892 -- it ROSE)
+    Cached             1,165,892 ->   585,428 kB   (-580,464)
+    pswpin               110,844 ->   404,057      (+293,213 pages, ~1.12 GiB)
+    pswpout              615,920 -> 1,292,648      (+676,728 pages, ~2.58 GiB)
+    pgmajfault           123,732 ->   419,735      (+296,003)
+    ZRAM               368,536K physical for 1,588,228K in swap
+    LMK kills                 39 kills (78 lines), MemAvailable before
+                              2,104,964 kB
+    rc                         0
+
+    window       09-16 15:48:52.283 -> 15:48:57.571   (5.288 s, at load)
+    adj          35 at 905, 2 at 915, 1 at 935, 1 at 945
+    deepest      **905. Nothing below it. Every one `cch` -- cached and empty.**
+    reason       19 low watermark is breached and swap is low
+                 13 low watermark is breached
+                  7 min watermark is breached even after kill
+
+### G1 vs G2: MATT'S PREDICTION HOLDS ON KILLS, AND THE SPEED WENT THE OTHER WAY
+
+    row   boot state                 MemAvail   SwapFree   pp64    tg128   wall
+    G1    3 rows in, swap 7.8%      3,101,624    245,000   30.53    9.99  85.77
+    G2    fresh boot, swap 36.3%    2,104,964  1,142,524   35.05   11.21  78.39
+                                     -32.1%      +366%    +14.8%  +12.2%  -8.6%
+
+    row   kills  deepest adj  window   peak RSS kB   pgmajfault
+    G1      34       905      2.434 s   3,244,696     +355,006
+    G2      39       905      5.288 s   3,337,804     +296,003
+
+**The kills prediction holds: 39 against 34, from 1.0 GB less starting
+headroom.** The reasoning behind it holds too — a fresh boot has not yet been
+cleared, so there is more to take. What it did NOT predict, and neither did I,
+is that **the deepest casualty is 905 on both runs**. Two runs an hour apart,
+starting a gigabyte apart in available memory, and the killer stopped at the
+same tier. On an idle phone the cached band is deep enough to absorb a 3.18 GiB
+model twice over, and the number of victims moves while the DEPTH does not.
+
+**G2 is 14.8% faster on `pp64` and 12.2% faster on `tg128`, with tighter error
+bars on both** (1.74% and 3.03% against 1.80% and 6.01%). **So the caveat
+attached to G1 was the right call and it was the understatement, not the
+overstatement: G1 ran with `SwapFree` at 7.8% — below the contamination rule's
+own 10% floor — and it was the depressed figure.** Same shape as C7 against
+B2-R1 earlier today, at a third of the magnitude.
+
+**G2 is the Gemma figure to quote. G1 stays in the record as what it is.**
+
+**And it changes the closing entry's most interesting comparison in the
+direction that makes it stronger:**
+
+    row   model        file MiB   pp64 t/s   tg128 t/s
+    Q2    Qwen3.5-2B     1221.5     48.14      10.94
+    G2    Gemma 4 E2B    2963.0     35.05      **11.21**
+                         x2.43     -27.2%      **+2.5%**
+
+**A file 2.43 times larger generates tokens 2.5% FASTER**, not 8.7% slower as
+G1 suggested. Prompt processing still falls by a quarter. The candidate
+explanation is unchanged and still unverified — "E2B" is an effective-2B
+configuration and llama-bench's 4.65 B is the total parameter count, so the
+bytes touched per token may be far below the file size. **Nothing here measured
+that. It is a candidate, not a finding**, and it is now the most interesting
+unanswered question this benchmark work produced.
+
+Peak RSS rose 2.9% between the two runs (3,337,804 against 3,244,696 kB). Both
+are ~1.07x the model file, so the multiplier finding is unaffected.
+
+### What this entry does NOT say
+
+**Two runs, and they disagree by 12-15%.** G1 and G2 are not a reproduction of
+a figure; they are two runs under different memory conditions that differ in
+the direction those conditions predict. Neither is repeated under its own
+conditions. There is still no n=2 on Gemma at matched starting memory.
+
+**39 kills on an IDLE phone with 39 disposable processes to take.** What Gemma
+costs on a phone somebody is using is untested, and rung 3g-ii says the killer
+goes deeper there — to adj 201 for a 2GB VM. That remains the number that would
+matter to a product and it has not been measured for any model.
+
+**The corrections above change three sentences and no measurement.** No figure
+in the closing entry moves except Gemma's, which is superseded by G2 here.
+
+**Still not done, and these are the next session's first four items:**
+cold-load time, time-to-first-token with a cached prefix, the `-ub` test that
+would separate batch size from micro-batch size, and a sustained run. Also
+still: Q4_0, `policy0` during a row, anything on battery, and any judgement of
+output quality.

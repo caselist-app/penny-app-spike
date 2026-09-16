@@ -51,7 +51,18 @@ exists because state that only survives in a handover message is state that
 gets lost. Verify each line before relying on it; correct this block in the
 same commit as whatever changes it.
 
-    Phone                      **REBOOTED 16 Sept at 14:22:50 BST**, ending
+    Phone                      **REBOOTED AGAIN 16 Sept at 15:20:52 BST**, to
+                               repeat the Gemma row on a boot that had not been
+                               cleared by earlier rows. adb back at uptime 57 s
+                               after a hand unlock. Fresh-boot readings:
+                               MemAvailable **2,190,520 kB at 308.17 s** and
+                               **2,135,144 kB at 1500.30 s** — within 1.2% of
+                               the 14:22 boot's pair, so **~2.1-2.2 GB is the
+                               idle figure on a fresh boot, read twice**.
+                               `policy0` sampled for the first time in this
+                               repo: 1,803,000 kHz, rated, at both readings.
+                               The earlier reboot that day: **16 Sept 14:22:50
+                               BST**, ending
                                the 15 Sept ~19:59 boot at 66,065 s (18.35 h).
                                The reboot was Matt's call under the
                                contaminated-boot rule below — that boot's page
@@ -210,18 +221,17 @@ same commit as whatever changes it.
                                this phone** — different kernels, and it is
                                where llama.cpp's ARM dot-product repacking
                                lives. `--help` alone had proved nothing here.
-    models on the phone        **gemma-4-E2B-it-Q4_K_M.gguf, 3,106,738,272 B**,
-                               sha256 740185b21d22ceb83a11c3aa62ad5842ef32c70f
-                               6096d756bbee85a1e4ec34b8, computed ON THE PHONE
-                               16 Sept and matched to MANIFEST.txt's
-                               HF-LFS-verified value. **It is the ONLY model on
-                               the phone** — Qwen3-1.7B-Q4_K_M was deleted at
-                               15:00 and Qwen3.5-2B-Q4_K_M at 15:05, both with
-                               Matt's authorisation, both still
-                               manifest-verified in ~/Documents/penny-models.
-                               99 G free on /data. **Gemma has NOT been deleted
-                               — ask before doing it.** One model at a time:
-                               delete before pushing the next.
+    models on the phone        **NONE. All three were deleted on 16 Sept with
+                               Matt's authorisation** — Qwen3-1.7B-Q4_K_M at
+                               15:00, Qwen3.5-2B-Q4_K_M at 15:05,
+                               gemma-4-E2B-it-Q4_K_M at 15:52 — and all three
+                               remain manifest-verified in
+                               ~/Documents/penny-models. 102 G free on /data.
+                               `/data/local/tmp` now holds llama-bench,
+                               llama-simple, pennybench.sh, `out/` (every row's
+                               .bench/.err/.kills) and the pre-existing
+                               `microdroid/`. One model at a time: delete
+                               before pushing the next.
     logcat buffer              **RAISED to 64 MiB, 16 Sept 12:22**, after
                                saving the whole buffer to
                                ~/Documents/logcat-2026-09-16-preraise.txt
@@ -1386,19 +1396,30 @@ PARKED, and the work has moved to measuring a model natively on Android.**
   ANSWERED YES, 16 Sept. DONE — see the closing entry at notes.md 7543.**
   Fifteen `-lm none` rows across three models on a Pixel 6a: **Qwen3-1.7B
   Q4_K_M generates 14.1-14.9 t/s pinned to the X1 pair at 1.35-1.42 GiB peak
-  RSS; Qwen3.5-2B 10.9-11.2 t/s at 1.69-1.74 GiB; Gemma 4 E2B 9.99 t/s at
-  3.09 GiB.** Prompt processing 48-85 t/s. All on AC power, screen on, idle
+  RSS; Qwen3.5-2B 10.9-11.2 t/s at 1.69-1.74 GiB; Gemma 4 E2B 11.21 t/s at
+  3.18 GiB** (row G2 on a fresh boot; G1's 9.99 ran with swap at 7.8% and is
+  the depressed figure). Prompt processing 48-85 t/s. All on AC power, screen on, idle
   phone, each row gated at rated clock on `policy4` and `policy6`. P3 holds
   (pp scales with cores, 2.10x from 1 thread to 4); P2 holds (tg does not —
   four threads are SLOWER than two); P5's kills half FAILS. **Loading a 2B on
   a boot that has not already been cleared by hours of kills costs one to three
-  cached processes; Gemma costs 34, all at `oom_score_adj` 905, in 2.4 s.**
+  cached processes; Gemma costs 34-39, deepest `oom_score_adj` 905 on BOTH
+  runs, in 2.4-5.3 s.**
   The X1 clock ceiling falls to 18-46% of rated INSIDE every row and no row
-  ended at rated. **It is an ABSOLUTE feasibility measurement of the handset,
+  ended at rated. **THE FINDING IS "MEMORY BINDS, NOT COMPUTE" IN ROWS OF 1-4
+  MINUTES ONLY. THE SUSTAINED CASE IS UNMEASURED AND THE THERMAL CAP MAY BIND
+  THERE.** Every row was still descending in clock when it ended, so the
+  headline must never be quoted without that qualifier — it is a claim about
+  52-247 second rows on an idle phone on AC power, not about a model held
+  resident and working.
+  **It is an ABSOLUTE feasibility measurement of the handset,
   never a native-versus-VM comparison**, which is closed per the bullet above.
-  **Not done and named as such: no thermal or sustained run, nothing on
-  battery, no time-to-first-token, no Q4_0, `policy0` never sampled, and no
-  output judged for quality.**
+  **Not done, and these are the NEXT SESSION'S FIRST FOUR ITEMS, in order:
+  cold-load time; time-to-first-token with a cached prefix; the `-ub` test that
+  separates batch size from micro-batch size; a sustained run.** Also not done:
+  Q4_0, anything on battery, `policy0` sampled DURING a row (it has now been
+  read at idle, 1,803,000 kHz), and any judgement of output quality — no
+  benchmark row produced text a person read.
 
 **A rebuild now COSTS something again.** `penny3ev`'s store holds a verified
 64MB file and a reinstall strands it — and worse, `Penny3evService`'s recovery
