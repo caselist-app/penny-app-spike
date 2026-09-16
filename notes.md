@@ -6278,3 +6278,563 @@ figure**; the model was warm in host page cache for all four rows. The Q4_0
 repack path has still never executed on this phone. And none of this is a
 native-versus-VM statement — that comparison is closed and this is an absolute
 feasibility measurement of the 6a.
+
+## 2026-09-16 — the matrix re-run COOLED, with the descent measured instead of inferred. The X1 ceiling falls to 1,106,000 kHz DURING a row, and the A76 pair is capped too — "only the X1 pair is capped" was wrong.
+
+### CORRECTION to the entry immediately above, and to the CLAUDE.md bullet it produced
+
+That entry is headed **"Every `c0` figure in this repo is a throttled figure."**
+**That overstates what was measured and contradicts the entry's own body**,
+which argues that row 1 began on a cool chip and that the two 1-thread rows do
+not trip the cap. The ceiling was read **after row 4 only** — never before any
+row and never during one — so the correct statement is that every `c0` figure
+in this repo **MAY** be throttled, and which ones are was unknown when that
+entry was written. CLAUDE.md has been corrected in place; earlier entries are
+never rewritten here, so this paragraph is the correction and it wins.
+
+**Three further claims in that entry are hereby marked down from findings to
+fits, before this entry's own measurements are read.**
+
+1. "That accounts for all four anomalies without any further hypothesis" is a
+   **fit, not a finding.** The `tg128` ordering offered there runs by each row's
+   own runtime and ignores what the chip had accumulated at the row's *start*.
+   Row 4 began **28.34 s after a 132.62 s run**; row 3 began **15.28 s after an
+   81.04 s run**. By any reading of accumulated load, row 4 started at least as
+   hot as row 3 and plausibly hotter — and row 4 came out **faster** (12.75 vs
+   10.35). The mechanism is **consistent with** the timings. It does not explain
+   them, and no further weight is put on it here.
+2. "One X1 core working does not trip the cap" was **never measured.** The two
+   1-thread rows agreeing to 0.30% is equally consistent with both of them being
+   capped, by the same amount, throughout. Nothing distinguishes those cases
+   from the readings taken.
+3. "Only the X1 pair is capped" is **refuted by this entry's first row** — see
+   below. It rested on readings taken while the phone was idle or recovering,
+   which is exactly when the A76 cap is not engaged.
+
+### The instrument was changed first, and this is what changed
+
+`pennybench.sh` now reads `policy6/scaling_max_freq` (X1 pair, cpus 6-7, rated
+2,802,000) and `policy4/scaling_max_freq` (A76 pair, cpus 4-5, rated 2,253,000)
+before and after the child, and tracks the **minimum of each inside the existing
+poll loop**. Before/after readings bound a row; only the minimum shows the
+descent. Repo copy sha256
+`67eefed108ff79ec65029ccb8ba6311bfa62926965c1f277667c0aa8d2b7b1f6`, pushed and
+confirmed byte-identical on the phone before the first cooled row.
+
+**A second correction, to the four throttled rows and to every earlier entry
+that quotes a sampling rate.** The loop sleeps 0.2 s *between* samples and does
+work either side, so the achieved rate is well below 5 Hz: row 1 took 453
+samples over 162.19 s, i.e. **2.79 Hz**. "5 Hz" in the smoke, `-v`, anon/file,
+no-mmap and four-row entries is the sleep interval, not the rate. The wrapper
+now prints the sample count with the interval and no rate at all.
+
+**Every row below was gated on BOTH `policy6` = 2,802,000 AND `policy4` =
+2,253,000**, polled in the same shell invocation that launches the row, so
+nothing intervenes between the gate passing and the child starting. The gate
+value and the wrapper's own `before=` reading are independent reads and agree
+on every row.
+
+### Row C1 — c0, 2 threads, -p 512, -n 128, `-lm none`, `-v`
+
+    conditions   uptime 63,807.06 s (1063.5 min, 17.72 h) before, 63,910.38 s
+                 after, run 103.32 s wall. SAME BOOT as every row of the RSS
+                 chase and of the throttled four. AC power, screen on, no VM,
+                 app pm disable-user'd, model warm in host page cache.
+    gate         PASSED on the first check, 0 waits, uptime 63,807.00,
+                 c6=2,802,000 c4=2,253,000
+    command      pennybench.sh r3c_c0_t2_p512v c0 -- -t 2 -p 512 -n 128
+                 -lm none -v
+
+    pp512                 55.36 +/- 5.11 t/s
+    tg128                 14.11 +/- 0.59 t/s
+    ceil X1  before/min/after   2,802,000 / 1,106,000 / 1,745,000 kHz
+    ceil A76 before/min/after   2,253,000 / 1,836,000 / 2,253,000 kHz
+    peak RSS (VmHWM)   1,491,536 kB   1456.58 MiB   1.4225 GiB
+    max RssAnon        1,486,064 kB   1451.23 MiB   99.63% of peak
+    max RssFile            5,188 kB      5.07 MiB
+    samples                  239   (0.2 s sleep between samples)
+    MemAvailable       2,813,952 -> 2,837,352 kB   (+23,400)
+    MemFree            1,575,984 -> 1,675,456 kB   (+99,472)
+    SwapFree             231,732 ->   184,156 kB   (-47,576)
+    Cached             1,460,916 -> 1,387,396 kB   (-73,520)
+    LMK kills                  0
+    rc                         0
+
+**THE DESCENT IS NOW MEASURED, AND IT GOES FURTHER DOWN THAN THE INFERENCE
+DID.** The X1 ceiling starts at its rated 2,802,000 and reaches **1,106,000
+kHz — 39.5% of rated** — inside this single 103-second row. The 1,426,000
+reading the previous entry took *after* row 4 was not the floor; it was already
+part-way back up. The row ends at 1,745,000, recovering while it finishes.
+
+**AND THE A76 PAIR IS CAPPED TOO, WHICH REFUTES "ONLY THE X1 PAIR IS CAPPED".**
+`policy4` falls from 2,253,000 to **1,836,000 kHz, 81.5% of rated**, and returns
+to rated by the end of the row. **`taskset c0` never schedules anything onto
+cpus 4-5**, so the A76 cluster was idle throughout and was capped anyway. Two
+clusters moving together while only one of them is loaded says the cap is
+imposed across the package rather than per-cluster — which is what a thermal or
+power limiter looks like, and is not what a per-core-load governor looks like.
+Stated at its width: this is one row, and `policy0` (A55) was not sampled.
+
+**Cooled against throttled, same row, same everything but the starting
+ceiling** — the previous entry's row 3 at notes.md 6062:
+
+    test     throttled r3     cooled C1      change
+    pp512    45.39 +/- 5.78   55.36 +/- 5.11  +22.0%
+    tg128    10.35 +/- 0.13   14.11 +/- 0.59  +36.3%
+    wall     132.62 s         103.32 s        -22.1%
+
+**The error bar did not close.** `pp512` is +/- 5.11 cooled against +/- 5.78
+throttled — 9.2% relative, still the widest in the matrix. Cooling the start
+does not make the measurement steady, because the row throttles itself *during*
+its own five repetitions regardless of where it began. That is the finding the
+min column was added to get, and it means **no `pp512` figure on this handset
+is reproducible to better than about 10% however it is started.**
+
+### THE BATCH BUFFER, TIED TO LLAMA.CPP'S OWN LINES RATHER THAN TO SUBTRACTION
+
+The previous entry attributed "+79.2 MiB for the 512 micro-batch" by
+subtracting two peak-RSS figures. **No buffer line was read, because those rows
+did not run `-v`.** This row did. From `r3c_c0_t2_p512v.err` on the phone, with
+line numbers:
+
+    980:  done_getting_tensors: tensor 'token_embd.weight' (q6_K) (and 113
+            others) cannot be used with preferred buffer type CPU_REPACK,
+            using CPU instead
+    981:  load_tensors:          CPU model buffer size =   243.90 MiB
+    982:  load_tensors:   CPU_REPACK model buffer size =  1049.96 MiB
+
+    the pp512 context
+    1185: llama_context: n_ctx     = 512
+    1187: llama_context: n_batch   = 512
+    1188: llama_context: n_ubatch  = 512
+    1199: llama_context:        CPU  output buffer size =     0.58 MiB
+    1228: llama_kv_cache:        CPU KV buffer size =    56.00 MiB
+    1250: sched_reserve:        CPU compute buffer size =   304.75 MiB
+
+    the tg128 context, created after the pp512 one is torn down
+    1269: llama_context: n_ctx     = 256
+    1271: llama_context: n_batch   = 128
+    1272: llama_context: n_ubatch  = 128
+    1283: llama_context:        CPU  output buffer size =     0.58 MiB
+    1312: llama_kv_cache:        CPU KV buffer size =    28.00 MiB
+    1334: sched_reserve:        CPU compute buffer size =    76.19 MiB
+
+**RESERVED AND RESIDENT ARE DIFFERENT NUMBERS AND THE GAP IS LARGE.** Against
+step 3's `-p 16 -n 16` row, whose `-v` gave `n_batch` 16 and a compute buffer of
+**9.52 MiB** with KV **28.00 MiB**:
+
+    reserved, -p 512 vs -p 16   compute 304.75 - 9.52 = 295.23 MiB
+                                KV       56.00 - 28.00 =  28.00 MiB
+                                total reserved difference  323.23 MiB
+    resident, -p 512 vs -p 16   VmHWM 1,491,536 - 1,410,496 = 81,040 kB
+                                                            =  79.14 MiB
+
+So llama.cpp **reserves 323 MiB more** at `-p 512` than at `-p 16`, and the
+process is **79 MiB more resident**. Both numbers are real and they answer
+different questions: 79 MiB is what the phone actually had to find, 323 MiB is
+what was committed. Anonymous mappings are faulted lazily, so most of that
+compute buffer is never touched.
+
+How much of it *is* touched, **by subtraction and labelled as such**: the
+buffers that must be resident sum to 243.90 + 1049.96 + 0.58 + 56.00 = 1350.44
+MiB, against a measured `RssAnon` peak of 1451.23 MiB, leaving **~100.8 MiB of
+the 304.75 MiB compute buffer ever resident, about a third.** That is a
+subtraction across two different instruments and is not a buffer line; it is
+offered as an estimate and nothing rests on it.
+
+**`CPU_REPACK` is 1049.96 MiB here, identical to all five earlier runs**, and
+`CPU model buffer` 243.90 MiB identical to the no-mmap row. The batch size
+moves the compute and KV buffers and nothing else.
+
+### Row C2 — c0, 2 threads, -p 64, -n 128, `-lm none`
+
+    conditions   uptime 64,078.45 s (1067.9 min) before, 64,131.02 s after,
+                 run 52.57 s wall. Same boot and same conditions as C1.
+    gate         PASSED on the first check, 0 waits, uptime 64,078.41,
+                 c6=2,802,000 c4=2,253,000
+    command      pennybench.sh r4c_c0_t2_p64 c0 -- -t 2 -p 64 -n 128 -lm none
+
+    pp64                  61.79 +/- 1.80 t/s
+    tg128                 14.91 +/- 0.92 t/s
+    ceil X1  before/min/after   2,802,000 / 1,277,000 / 2,188,000 kHz
+    ceil A76 before/min/after   2,253,000 / 2,253,000 / 2,253,000 kHz
+    peak RSS (VmHWM)   1,415,980 kB   1382.79 MiB   1.3504 GiB
+    max RssAnon        1,410,488 kB   1377.43 MiB   99.61% of peak
+    max RssFile            5,208 kB      5.09 MiB
+    samples                  123
+    MemAvailable       2,848,012 -> 2,809,444 kB   (-38,568)
+    MemFree            1,682,152 -> 1,644,552 kB   (-37,600)
+    SwapFree             188,252 ->   188,508 kB   (+256)
+    Cached             1,388,840 -> 1,388,920 kB   (+80)
+    LMK kills                  0
+    rc                         0
+
+**P6 NOW INVERTS ON A COOLED CHIP TOO, AND THE THROTTLE EXPLANATION FOR IT
+FAILS.** `pp64` 61.79 beats `pp512` 55.36 at 2 threads, both gated at rated
+clock — a 11.6% inversion, wider than the 8.2% inversion the throttled pair
+showed. The previous entry attributed that inversion to `pp512` repetitions
+being eight times longer under load. That attribution is now **refuted for the
+2-thread case**: cooling both rows did not remove the inversion, it widened it.
+Whatever makes `pp64` faster than `pp512` here is not the clock ceiling. P6 is
+addressed properly in the judgement below.
+
+**The A76 cap did NOT engage on this row** — `policy4` min 2,253,000, flat at
+rated throughout 52.57 s, against C1's 1,836,000 over 103.32 s. So the
+package-wide cap observed on C1 is a function of sustained load and not a
+constant, and C1's A76 reading is not yet reproduced.
+
+**A tg128 gap that is flagged, not waved through.** C1 returned 14.11 +/- 0.59
+and C2 14.91 +/- 0.92 on the identical mask, thread count and test — **5.67%
+apart, above the 2.6% run-to-run spread**. It was not treated as a stop because
+the two rows are no longer identical in the respect that matters and the
+wrapper now proves it: C1's X1 ceiling reached 1,106,000 and C2's only
+1,277,000, and C2 is the faster row. The direction matches. **That is a
+consistency check on two points, not an explanation, and it is not offered as
+one.** What it does establish is that gating on a cool start cut the r3/r4
+`tg128` discrepancy from **23.2% to 5.67%** without removing it: a cool start
+bounds the problem, it does not solve it.
+
+### Row C3 — f0, 4 threads, -p 512, -n 128, `-lm none`
+
+`taskset f0` = 0xf0 = cpus 4,5,6,7 = the A76 pair plus the X1 pair.
+
+    conditions   uptime 64,202.61 s (1070.0 min) before, 64,303.02 s after,
+                 run 100.41 s wall. Same boot and same conditions.
+    gate         PASSED on the first check, 0 waits, uptime 64,202.55,
+                 c6=2,802,000 c4=2,253,000
+    command      pennybench.sh r5_f0_t4_p512 f0 -- -t 4 -p 512 -n 128 -lm none
+
+    pp512                 66.19 +/- 3.84 t/s
+    tg128                 12.78 +/- 2.41 t/s
+    ceil X1  before/min/after   2,802,000 / 1,106,000 / 1,106,000 kHz
+    ceil A76 before/min/after   2,253,000 /   910,000 / 1,024,000 kHz
+    peak RSS (VmHWM)   1,491,364 kB   1456.41 MiB   1.4223 GiB
+    max RssAnon        1,485,820 kB   1451.00 MiB   99.63% of peak
+    max RssFile            5,252 kB      5.13 MiB
+    samples                  159
+    MemAvailable       2,846,648 -> 2,715,256 kB   (-131,392)
+    MemFree            1,680,292 -> 1,522,940 kB   (-157,352)
+    SwapFree             188,764 ->   146,588 kB   (-42,176)
+    Cached             1,390,632 -> 1,414,028 kB   (+23,396)
+    LMK kills                  0
+    rc                         0
+
+**THE HARDEST CAP MEASURED SO FAR, AND BOTH CLUSTERS ARE IN IT.** X1 down to
+1,106,000 (39.5% of rated) and **A76 down to 910,000 kHz — 40.4% of rated.**
+Neither had recovered when the row ended: X1 still at 1,106,000, A76 at
+1,024,000. With four cores loaded instead of two, the cap engages on both
+clusters and stays engaged past the end of the run. C1 saw the A76 reach only
+1,836,000 with the cluster idle; loading it takes it to 910,000.
+
+**`tg128` at 4 threads on f0 is 12.78 +/- 2.41 — SLOWER than 2 threads on c0
+cooled (14.11 and 14.91), and its error bar is 18.9%.** Two more cores made
+token generation worse. That is the direction P2 predicted, past the point P2
+predicted: P2 said "less than 1.3x", and the measured ratio is **0.88x and
+0.86x against the two cooled c0 rows** — below 1.0, not merely below 1.3.
+Whether that is memory bandwidth alone or bandwidth plus the deeper cap on
+these four cores is **not separable from this row**, because the A76 cluster is
+both the extra compute and the extra heat.
+
+**`pp512` 66.19 against C1's 55.36 on 2 cooled X1 cores: 1.20x for twice the
+cores.** Prompt processing does scale, and it scales poorly.
+
+### Row C4 — f0, 4 threads, -p 64, -n 128, `-lm none`
+
+    conditions   uptime 64,406.02 s (1073.4 min) before, 64,459.93 s after,
+                 run 53.91 s wall. Same boot and same conditions.
+    gate         PASSED after 9 five-second waits (~45 s of forced cooling —
+                 the first row that had to wait), uptime 64,405.98,
+                 c6=2,802,000 c4=2,253,000
+    command      pennybench.sh r6_f0_t4_p64 f0 -- -t 4 -p 64 -n 128 -lm none
+
+    pp64                  84.68 +/- 3.00 t/s
+    tg128                 14.23 +/- 1.84 t/s
+    ceil X1  before/min/after   2,802,000 / 1,106,000 / 2,188,000 kHz
+    ceil A76 before/min/after   2,253,000 / 1,328,000 / 1,328,000 kHz
+    peak RSS (VmHWM)   1,415,824 kB   1382.64 MiB   1.3502 GiB
+    max RssAnon        1,410,316 kB   1377.26 MiB   99.61% of peak
+    max RssFile            5,216 kB      5.09 MiB
+    samples                   86
+    MemAvailable       2,746,720 -> 2,694,492 kB   (-52,228)
+    MemFree            1,555,308 -> 1,499,360 kB   (-55,948)
+    SwapFree             147,100 ->   148,892 kB   (+1,792)
+    Cached             1,416,240 -> 1,416,348 kB   (+108)
+    LMK kills                  0
+    rc                         0
+
+**`pp64` 84.68 beats `pp512` 66.19 at 4 threads — a 27.9% inversion, the widest
+yet, and the second cooled pair to invert.** P6 predicted the opposite. Two
+cooled pairs, at two different core counts, both inverted, with the inversion
+WIDENING as cores are added (11.6% at 2 threads, 27.9% at 4). The clock is not
+doing this.
+
+**`tg128` 14.23 against C3's 12.78 on the identical mask and thread count** —
+11.3% apart, with error bars of 12.9% and 18.9% that overlap heavily. Same
+pattern as the C1/C2 pair and the same partial covariate: C3's A76 ceiling
+reached 910,000 and C4's only 1,328,000, and C4 is the faster row. Recorded;
+not claimed as explained.
+
+### Row C5 — UNPINNED, 4 threads, -p 512, -n 128, `-lm none`
+
+No `taskset`. The scheduler may place any of the four threads on any of the
+eight cores, A55s at 1.803 GHz included.
+
+    conditions   uptime 64,534.01 s (1075.6 min) before, 64,640.04 s after,
+                 run 106.03 s wall. Same boot and same conditions.
+    gate         PASSED after 7 five-second waits, uptime 64,533.95,
+                 c6=2,802,000 c4=2,253,000
+    command      pennybench.sh r7_un_t4_p512 none -- -t 4 -p 512 -n 128
+                 -lm none
+
+    pp512                 63.52 +/- 4.71 t/s
+    tg128                 11.74 +/- 1.76 t/s
+    ceil X1  before/min/after   2,802,000 /   851,000 /   984,000 kHz
+    ceil A76 before/min/after   2,253,000 /   910,000 / 1,024,000 kHz
+    peak RSS (VmHWM)   1,491,144 kB   1456.20 MiB   1.4221 GiB
+    max VmRSS          1,490,976 kB   (168 kB below VmHWM — the high-water
+                                       mark caught a moment between samples;
+                                       first row where the two differ)
+    max RssAnon        1,485,724 kB   1450.90 MiB   99.64% of peak
+    max RssFile            5,048 kB      4.93 MiB
+    samples                  167
+    MemAvailable       2,738,252 -> 2,764,940 kB   (+26,688)
+    MemFree            1,546,176 -> 1,591,304 kB   (+45,128)
+    SwapFree             149,148 ->   126,684 kB   (-22,464)
+    Cached             1,416,364 -> 1,397,600 kB   (-18,764)
+    LMK kills                  0
+    rc                         0
+
+**P4 HOLDS, on both tests.** Unpinned is slower than pinned `f0` at the same
+thread count: `pp512` 63.52 against 66.19 (-4.0%) and `tg128` 11.74 against
+12.78 (-8.1%). The prediction was "no faster than pinned f0, and probably
+slower", and it is slower on both.
+
+**THE DEEPEST X1 CAP OF THE DAY, 851,000 kHz — 30.4% of rated.** Unpinned is
+also the row that drove the ceiling lowest, and the A76 matched C3's 910,000.
+Neither cluster had recovered at the end (984,000 and 1,024,000). Why an
+unpinned run should cap harder than a pinned one is **not answerable from
+these rows** and is not guessed at here; that threads also ran on the A55
+cluster, which was never sampled, is one of several possibilities.
+
+### Row C6 — UNPINNED, 4 threads, -p 64, -n 128, `-lm none`
+
+    conditions   uptime 64,742.46 s (1079.0 min) before, 64,795.39 s after,
+                 run 52.93 s wall. Same boot and same conditions.
+    gate         PASSED after 12 five-second waits (~60 s, the longest wait of
+                 the run), uptime 64,742.42, c6=2,802,000 c4=2,253,000
+    command      pennybench.sh r8_un_t4_p64 none -- -t 4 -p 64 -n 128 -lm none
+
+    pp64                  82.34 +/- 2.80 t/s
+    tg128                 14.47 +/- 1.73 t/s
+    ceil X1  before/min/after   2,802,000 /   984,000 / 2,188,000 kHz
+    ceil A76 before/min/after   2,253,000 / 1,328,000 / 1,328,000 kHz
+    peak RSS (VmHWM)   1,415,508 kB   1382.33 MiB   1.3499 GiB
+    max RssAnon        1,410,272 kB   1377.22 MiB   99.63% of peak
+    max RssFile            4,956 kB      4.84 MiB
+    samples                   87
+    MemAvailable       2,710,096 -> 2,688,780 kB   (-21,316)
+    MemFree            1,512,376 -> 1,512,160 kB   (-216)
+    SwapFree             133,852 ->   122,956 kB   (-10,896)
+    Cached             1,405,576 -> 1,403,528 kB   (-2,048)
+    LMK kills                  0
+    rc                         0
+
+**P4 holds on `pp64`** (82.34 unpinned against 84.68 pinned f0, -2.8%) and is a
+**wash on `tg128`** (14.47 against 14.23, +1.7%, against error bars of 12.0%
+and 12.9% that overlap almost completely). At `-p 512` unpinned was clearly
+slower on both tests; at `-p 64` only the prompt half separates.
+
+**Third cooled P6 inversion**: `pp64` 82.34 beats `pp512` 63.52 by 29.6%,
+unpinned. Three cooled pairs, three inversions, at 2 threads pinned, 4 threads
+pinned and 4 threads unpinned.
+
+### Row C7 — c0, 1 thread, -p 512, -n 128, `-lm none`. THE P3 BASELINE, AND IT CONTRADICTS ROW 1. THE MATRIX STOPPED HERE.
+
+Run because P3 compares four threads on `f0` against **one thread on c0**, and
+no cooled 1-thread `pp512` row existed. Row 1 of the throttled four began on a
+chip that had been idle 803 s, but its ceiling was never read, so it is not a
+measured cooled row.
+
+    conditions   uptime 64,868.03 s (1081.1 min) before, 65,114.76 s after,
+                 run 246.73 s wall. Same boot and same conditions.
+    gate         PASSED after 5 five-second waits, uptime 64,867.97,
+                 c6=2,802,000 c4=2,253,000
+    command      pennybench.sh r1c_c0_t1_p512 c0 -- -t 1 -p 512 -n 128 -lm none
+
+    pp512                 22.68 +/- 5.38 t/s     (23.7% relative error bar)
+    tg128                  6.00 +/- 0.27 t/s
+    ceil X1  before/min/after   2,802,000 /   984,000 / 1,106,000 kHz
+    ceil A76 before/min/after   2,253,000 / 1,836,000 / 2,253,000 kHz
+    peak RSS (VmHWM)   1,491,292 kB   1456.34 MiB   1.4222 GiB
+    max RssAnon        1,486,020 kB   1451.19 MiB   99.65% of peak
+    max RssFile            4,980 kB      4.86 MiB
+    samples                  563
+    MemAvailable       2,695,176 -> 2,753,668 kB   (+58,492)
+    MemFree            1,504,524 -> 2,668,432 kB   (+1,163,908)
+    SwapFree             140,364 ->    93,416 kB   (-46,948)
+    Cached             1,413,100 ->   308,964 kB   (-1,104,136)
+    LMK kills                  0
+    rc                         0
+
+**IT IS 30.0% SLOWER ON `pp512` AND 39.3% SLOWER ON `tg128` THAN ROW 1 — the
+same configuration, and this is the row that was supposed to be the CLEAN
+one.** Row 1 (notes.md 6060, throttled sequence) returned 32.40 and 9.89 in
+162.19 s. This row, gated at rated clock on both clusters, returned 22.68 and
+6.00 in **246.73 s** — 52.1% longer for identical work. Every other
+cooled-versus-throttled comparison today went the other way, by 17-25%.
+
+**The matrix stopped here under the rule Matt set, and the contradiction is NOT
+explained.** What is recorded, and no more:
+
+- **`Cached` collapsed by 1,104,136 kB during this single row**, 1,413,100 ->
+  308,964, while `MemFree` rose by 1,163,908 kB. The kernel dropped roughly a
+  gigabyte of clean page cache and handed it to nobody. No other row did this;
+  the largest `Cached` movement before it was -73,520 kB (C1). Checked 34 s
+  after the row ended: `Cached` still only 427,980 kB, so it is a persistent
+  loss, not a momentary dip.
+- **Swap is nearly exhausted.** `SwapFree` 93,416 kB of `SwapTotal`
+  3,145,724 — **97.0% spent** at the end of this row. Across today it ran
+  244,972 (r1) -> 93,416 (C7). CLAUDE.md records 1,266,044 kB free at 973.2 min
+  on this same boot, so roughly 1.17 GB of swap headroom has gone during this
+  session's eleven runs.
+- **One thread DOES trip the cap**, which the previous entry guessed it did
+  not. `policy6` reached **984,000 kHz, 35.1% of rated**, on a single-threaded
+  row. That guess is now refuted by measurement rather than left standing.
+- **Zero LMK kills**, and `MemAvailable` never below 2,695,176 kB. Nothing was
+  killed and nothing ran short.
+
+**Three candidates, none tested, none asserted:** swap exhaustion making the
+process's own 1.45 GiB anonymous working set expensive to hold; the page-cache
+collapse being cause rather than effect; or row 1's 32.40 being the outlier
+rather than this row's 22.68. **Arithmetic that bears on the third and is worth
+having: 55.36 / 22.68 = 2.44x from one thread to two, which is superlinear and
+implausible, while 55.36 / 32.40 = 1.71x is not.** That points at this row
+being the anomaly, not row 1 — but it is an argument from plausibility, not a
+measurement, and it is offered as such.
+
+**The cheap next measurement, not taken because the stop rule applies:** re-run
+this identical row once and see which figure reproduces. `pennybench.sh` should
+also sample `/proc/vmstat` (`pswpin`, `pswpout`, `pgmajfault`) either side —
+those counters were read once afterwards, with no baseline, so they say
+nothing.
+
+### THE MATRIX AS IT STANDS — seven cooled rows, every one gated at rated clock
+
+    row  mask  -t   -p    pp t/s           tg128 t/s        wall s   notes.md
+    C7   c0     1   512   22.68 +/- 5.38    6.00 +/- 0.27   246.73     6651
+    C1   c0     2   512   55.36 +/- 5.11   14.11 +/- 0.59   103.32     6337
+    C2   c0     2    64   61.79 +/- 1.80   14.91 +/- 0.92    52.57     6449
+    C3   f0     4   512   66.19 +/- 3.84   12.78 +/- 2.41   100.41     6497
+    C4   f0     4    64   84.68 +/- 3.00   14.23 +/- 1.84    53.91     6541
+    C5   un     4   512   63.52 +/- 4.71   11.74 +/- 1.76   106.03     6577
+    C6   un     4    64   82.34 +/- 2.80   14.47 +/- 1.73    52.93     6619
+
+    row  ceil X1 before/min/after      ceil A76 before/min/after     peak RSS kB
+    C7   2802000 /  984000 / 1106000   2253000 / 1836000 / 2253000     1,491,292
+    C1   2802000 / 1106000 / 1745000   2253000 / 1836000 / 2253000     1,491,536
+    C2   2802000 / 1277000 / 2188000   2253000 / 2253000 / 2253000     1,415,980
+    C3   2802000 / 1106000 / 1106000   2253000 /  910000 / 1024000     1,491,364
+    C4   2802000 / 1106000 / 2188000   2253000 / 1328000 / 1328000     1,415,824
+    C5   2802000 /  851000 /  984000   2253000 /  910000 / 1024000     1,491,144
+    C6   2802000 /  984000 / 2188000   2253000 / 1328000 / 1328000     1,415,508
+
+**The X1 ceiling fell below half its rated clock on EVERY cooled row without
+exception**, floor 851,000 (30.4%) to 1,277,000 (45.6%). **The A76 ceiling fell
+on every row but C2**, floor 910,000 (40.4%). **No row ended at the X1's rated
+clock**; three ended at 1,106,000 or below. The cap is not an edge case on this
+handset — at this workload it is the normal operating condition, and gating on
+a cool start buys the first few seconds of a row and nothing after that.
+
+**The four throttled rows from the previous entry (notes.md 6059-6063) remain in the
+record as what they are: rows with an unrecorded starting clock. They are not
+quoted as this chip's speed anywhere, here or later.**
+
+### THE PREDICTIONS, JUDGED
+
+    P1  tg 8-16 t/s at 2 threads pinned to c0
+        HOLDS. Cooled tg128 = 14.11 (C1) and 14.91 (C2), both inside.
+        BUT NOT SAFELY, and the earlier claim that "throttled is the harder
+        case so the band is not in danger" was wrong in one direction:
+        throttled is the harder case for the FLOOR only. The band's ceiling
+        is 16 and C2 came within 1.09 t/s of it; tg16 on a cool chip was
+        17.96, already outside. A faster cooled 2-thread row can fail P1 on
+        the TOP side. It did not here.
+    P2  tg at 4 threads on f0 < 1.3x the 2-thread c0 figure
+        HOLDS, and by far more than predicted. Matched by -p: 12.78/14.11 =
+        0.91x at -p 512, 14.23/14.91 = 0.95x at -p 64. Four threads are
+        SLOWER than two, not merely short of 1.3x. Token generation on this
+        handset does not benefit from the A76 pair at all.
+    P3  pp512 at 4 threads on f0 >= 2x pp512 at 1 thread on c0
+        HOLDS ON BOTH AVAILABLE BASELINES, which is why the C7 contradiction
+        does not cost it. Against cooled C7: 66.19/22.68 = 2.92x. Against
+        throttled row 1: 66.19/32.40 = 2.04x. Both clear the 2x bar, so P3
+        is answered whichever of the two 1-thread figures is right.
+    P4  unpinned 4 threads no faster than pinned f0
+        HOLDS on three of four comparisons and is a wash on the fourth.
+        pp512 63.52 vs 66.19 (-4.0%), tg128 11.74 vs 12.78 (-8.1%),
+        pp64 82.34 vs 84.68 (-2.8%); tg128 at -p 64 is 14.47 vs 14.23
+        (+1.7%), inside error bars of 12.0% and 12.9%. Never faster by more
+        than its own noise.
+    P5  peak RSS 1.1-1.4 GB, and NO kills on any Qwen3-1.7B run
+        THE KILLS HALF HOLDS OUTRIGHT: zero LMK kills across all eleven
+        rows run today at -lm none, against two processes killed on the one
+        mmap smoke run.
+        THE RSS HALF HOLDS AT -p 64 AND FAILS AT -p 512, and it does not
+        turn on units. At -p 64: 1,415,508-1,415,980 kB = 1.350 GiB, inside
+        the band (1.450 GB on the decimal reading, 3.5% over). At -p 512:
+        1,491,144-1,491,668 kB = 1.422 GiB AND 1.491 GB, outside the band
+        on BOTH readings. The default 512 micro-batch is what puts it over.
+    P6  -p 64 returns a LOWER pp t/s than -p 512
+        FAILS. Three cooled pairs, three inversions, widening with cores:
+        2 threads c0 61.79 vs 55.36 (+11.6%), 4 threads f0 84.68 vs 66.19
+        (+27.9%), 4 threads unpinned 82.34 vs 63.52 (+29.6%). The previous
+        entry attributed the 2-thread inversion to throttling; gating both
+        rows at rated clock WIDENED it, which refutes that attribution.
+        Why a 64-token batch beats a 512-token batch here is NOT explained.
+        The one cheap test that would separate batch size from micro-batch
+        size -- vary -ub independently of -p -- has not been run.
+
+### What this entry does NOT say
+
+**The matrix is not complete and C7 is a live contradiction.** Seven cooled
+rows exist; one of them disagrees with its own throttled counterpart by 30% in
+the direction no other row went, and that is recorded as unexplained rather
+than reasoned away. Nothing in P1-P6 above rests on C7 except P3, which clears
+its bar on either baseline.
+
+**"Cooled" means the row STARTED at rated clock on both sampled clusters.** It
+does not mean the row ran at rated clock, and every row proves it did not. The
+gate buys a known starting point, nothing more. `policy0` (the A55 cluster) was
+never sampled on any row, so the unpinned rows in particular have a third of
+the chip unobserved.
+
+**The cap's mechanism is still unidentified.** `/sys/class/thermal/` is
+`Permission denied` to the shell user on this build; no temperature was read at
+any point today. "Throttle" describes the behaviour. A power or current limiter
+would look identical from here, and so would a platform HAL policy.
+
+**One reading each.** Every cooled row is a single run. The only figure
+reproduced under matched conditions today is `tg128` at 1 thread (9.89 and
+9.86, 0.30% apart, both throttled). Everything else is n=1 and the error bars
+on the four-thread `tg128` rows run to 18.9%.
+
+**No thermal run, and the sustained question is NEXT, not done.** Matt's
+decision was to cool between rows and not to run sustained today; CLAUDE.md
+names a thermal run as out of scope. So this entry measures the handset with
+its best foot forward and says nothing about what it does after ten minutes of
+continuous generation — which is the product shape.
+
+**Swap is nearly gone and that is not a controlled variable.** `SwapFree` fell
+from 244,972 kB at the first row to 93,416 kB at the last, 97.0% of swap spent.
+Every row today ran on a phone with less swap headroom than the row before it,
+and no row was repeated at a matched swap level. Whether that affects any
+figure here is unknown.
+
+**One model, one quantisation, one boot, `-lm none` throughout.** Nothing on
+Qwen3.5-2B, nothing on Gemma 4 E2B, nothing at Q4_0 — the Q4_0 repack path has
+still never executed on this phone. Nothing on battery, nothing under load,
+nothing with the screen off, no cold-load figure, no time-to-first-token. The
+model was warm in host page cache at the start of every row except possibly
+C7, whose page cache collapsed mid-row. And none of this is a
+native-versus-VM statement: that comparison is closed and this is an absolute
+feasibility measurement of the 6a.
