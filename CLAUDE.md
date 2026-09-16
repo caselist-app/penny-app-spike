@@ -221,26 +221,48 @@ same commit as whatever changes it.
                                this phone** — different kernels, and it is
                                where llama.cpp's ARM dot-product repacking
                                lives. `--help` alone had proved nothing here.
-    models on the phone        **NONE. All three were deleted on 16 Sept with
-                               Matt's authorisation** — Qwen3-1.7B-Q4_K_M at
-                               15:00, Qwen3.5-2B-Q4_K_M at 15:05,
-                               gemma-4-E2B-it-Q4_K_M at 15:52 — and all three
-                               remain manifest-verified in
-                               ~/Documents/penny-models. 102 G free on /data.
-                               `/data/local/tmp` now holds llama-bench,
-                               llama-simple, pennybench.sh, `out/` (every row's
-                               .bench/.err/.kills) and the pre-existing
-                               `microdroid/`. One model at a time: delete
-                               before pushing the next.
+    models on the phone        **ONE — Qwen3-1.7B-Q4_K_M, and this block said
+                               NONE until 16 Sept ~17:05.** All three had been
+                               deleted on 16 Sept with Matt's authorisation
+                               (Qwen3-1.7B at 15:00, Qwen3.5-2B at 15:05,
+                               gemma-4-E2B-it at 15:52) and all three remain
+                               manifest-verified in ~/Documents/penny-models.
+                               Qwen3-1.7B-Q4_K_M was then pushed BACK for the
+                               Q-A/Q-B work, on the 15:20:52 boot, before the
+                               16:50 smoke test. Verified on the phone 16 Sept
+                               16:55: 1,107,409,472 B, sha256
+                               b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c8232
+                               04dc42c0d91fa181897, matching the MANIFEST.txt
+                               line that reads VERIFIED vs HF LFS oid.
+                               **Its mtime reads 2026-09-15 20:25 and that is
+                               NOT when it was pushed** — `adb push` preserves
+                               the SOURCE file's mtime, so an mtime on this
+                               phone dates the Mac's copy, never the transfer.
+                               Cost a wrong read on 16 Sept 17:00 on a
+                               different file. **Because it was pushed on this
+                               boot, its page cache is WARM and every load on
+                               this boot is a warm load.** Cold needs a reboot.
+                               One model at a time: delete before pushing the
+                               next.
     logcat buffer              **RAISED to 64 MiB, 16 Sept 12:22**, after
                                saving the whole buffer to
                                ~/Documents/logcat-2026-09-16-preraise.txt
                                (6.6 MB, 43,759 lines, oldest 09-15 19:59:34).
                                The resize did NOT clear it. Dies on reboot.
-                               NO MODEL has been pushed. A `microdroid/`
-                               directory from 14 Sept also sits there — left
-                               alone, nothing needs it gone. 102 G free on
-                               /data.
+    /data/local/tmp contents   **Read off the phone 16 Sept 16:55 and 17:01.**
+                               `Qwen3-1.7B-Q4_K_M.gguf` (see above),
+                               `llama-bench` 4,708,216 B `44015c06…`,
+                               `llama-simple` 3,805,208 B `3d6b6afa…`,
+                               `pennyload` 3,817,808 B `be2cab2c…` (= the
+                               repo's `build/pennyload-stripped`),
+                               `pennybench.sh` **revision 4**, 8,402 B,
+                               `c5b9f03a7c5add80196e8ed584c1091cc62390e24fafe
+                               3cda91004c8512ffc99`, `penny_system.txt` 1,911 B
+                               `94969770…`, `penny_user.txt` 74 B `f6d8be90…`,
+                               `out/` (every row's .bench/.err/.kills, and from
+                               rev 4 a `.report` too) and the pre-existing
+                               `microdroid/` from 14 Sept — left alone, nothing
+                               needs it gone. 102 G free on /data.
     adb                        ALIVE (phone unlocked). GrapheneOS keeps the port
                                charging-only while locked.
     models on the Mac          ~/Documents/penny-models, 10 GGUF files,
@@ -2349,9 +2371,16 @@ not soften it.
   `dumpsys meminfo` answers it and is readable: read 16 Sept at 66,065 s uptime,
   **`ZRAM: 666,716K physical used for 2,830,100K in swap (3,145,724K total
   swap)`** — so swap on this handset IS zram, compressed in RAM at ~4.25:1, and
-  a "SwapFree" figure is not disk. Wrapper sha256
-  `484d75d4f006822afe3354cd8dd4bc7fba45f42d5178639c644440643e3b92ab`
-  (supersedes `67eefed1…`, which supersedes `e5a81104…`).
+  a "SwapFree" figure is not disk. **Wrapper sha256, revision 4, 16 Sept:
+  `c5b9f03a7c5add80196e8ed584c1091cc62390e24fafe3cda91004c8512ffc99`**
+  (supersedes `0f5cb2b5…` rev 3, which added `PENNYBIN`; which superseded
+  `484d75d4…`, `67eefed1…` and `e5a81104…`). **Revision 4 adds one thing and
+  one only: the whole REPORT section is tee'd to `$OUT.report` as well as to
+  stdout.** Until it, every `PENNYBENCH` line — peak RSS, the kill count,
+  the clock ceilings, `MemAvailable` either side — existed ONLY in the
+  operator's terminal, so a row's own conditions could not be re-read from the
+  phone afterwards. From rev 4 **every row's numbers are read from
+  `out/<tag>.report` and `out/<tag>.bench`, never from scrollback.**
   **Do not compare a `c0` figure with another `c0` figure unless both carry
   their thermal state.** The four throttled rows stay in the record as what
   they are and are never quoted as the chip's speed.

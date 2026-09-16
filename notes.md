@@ -8503,3 +8503,108 @@ and both get recorded.
 
 Both files are read verbatim, trailing newline included, with no chat template.
 
+
+### THE SMOKE TEST, 16 Sept 16:50 — pennyload's first execution, and NOT A ROW
+
+The habit CLAUDE.md records from the `mExecutor` bug: run the thing by hand on
+an unlocked phone before spending a reboot on it. `pennyload` had never been
+executed anywhere — it is an aarch64 Android binary, so it cannot run on the
+Mac — and this is the run that changes that.
+
+    PENNYBIN=/data/local/tmp/pennyload  pennybench.sh smoke_pennyload c0 -- \
+      -m Qwen3-1.7B-Q4_K_M.gguf -t 2 -lm none -n 1 \
+      --sys-file penny_system.txt --user-file penny_user.txt --tag smoke
+
+Conditions, and every one of them disqualifies the numbers below from being a
+row: phone UNLOCKED and in the foreground over adb, NO thermal gate (the
+protocol's `policy6`/`policy4` rated-clock poll was not applied), page cache
+WARM because the model was pushed on this same boot, and the boot was 89
+minutes old — uptime 5334.39 s at the PRE reading, 5346.79 s at the POST.
+AC power, screen on, app disabled, `Running VMs: []`.
+
+`rc=0`. It loads, links, reads both prompt files, decodes twice, samples, and
+prints every mark the four definitions asked for.
+
+**THE TWO TOKEN COUNTS, WHICH ARE THE FIRST THING HERE THAT IS A FACT RATHER
+THAN A SMOKE FIGURE.** The prompt-files entry above refused to quote a token
+count until a run printed one. It has:
+
+    sys_tokens  = 407    penny_system.txt, 1,911 B, add_special=1 parse_special=1
+    user_tokens =  15    penny_user.txt,      74 B, add_special=0 parse_special=1
+
+on Qwen3-1.7B's tokeniser. **The system prompt hit its ~400 target; the user
+turn missed its ~20 and is 15.** Both are model-specific and Qwen3.5-2B will
+produce two different numbers from the same two files.
+
+Read from `/data/local/tmp/out/smoke_pennyload.bench` on the phone, not from
+the terminal:
+
+    progress_calls     312
+    t_backend_ms          2.57
+    t_model_open_ms     349.88   header + hparams + vocab + alloc
+    t_tensor_band_ms   2124.62   tensor data read + repack
+    t_model_tail_ms       1.97
+    t_model_total_ms   2476.47   llama_model_load_from_file
+    t_ctx_create_ms      35.83   llama_init_from_model
+    t_ready_ms         2514.86   READY TO GENERATE
+    t_tokenize_ms         3.36
+    t_sys_decode_ms    6027.60   407 tokens, one llama_decode
+    t_user_decode_ms    326.01   15 tokens
+    t_sample_ms           0.73
+    ttft_fresh_ms      6354.34   T10-T6
+    ttft_cold_proc_ms  8872.56   T10-T0
+    first_token_id     32313
+    token_fnv1a64      0xe110526cecfd31d0
+
+and from `smoke_pennyload.err`, `CPU model buffer 243.90 MiB` with
+`CPU_REPACK 1049.96 MiB` — the same two lines the predictions entry recorded
+from `llama-bench`, so `pennyload` is taking the same repack path.
+
+**THE STATE PATH IS STILL UNEXECUTED.** `--save-state` and `--load-state` were
+not passed, so `llama_state_save_file` and `llama_state_load_file` have never
+been called on this handset. Every line of the Q-B machinery is unproven, and
+the whole of Q-B still rests on two functions that have not run once.
+
+**FOUR FIGURES FROM THIS RUN EXIST ONLY IN THE OPERATOR'S TERMINAL AND ARE
+MARKED AS SUCH.** `pennybench.sh` revision 3 wrote its `PENNYBENCH` report to
+stdout and to no file, so peak RSS **1,538,944 kB with 99.6% anonymous**,
+`MemAvailable` before the run **3,669,276 kB**, the PRE/POST uptimes quoted
+above, and the X1 ceiling falling to **2,188,000 kHz about 7 s in** are
+reported-from-terminal, not re-readable from the phone. They are recorded here
+because they are the only copy. The kill count is the exception and IS on the
+phone: `smoke_pennyload.kills` is **0 bytes**, i.e. zero kill lines, with that
+3,669,276 kB of `MemAvailable` in front of it.
+
+**`pennybench.sh` REVISION 4 EXISTS BECAUSE OF THAT**, committed alongside this
+paragraph. Six added lines, all inside the REPORT section: a brace group and
+`| tee "$OUT.report"`. Nothing above that line changed, so every row measured
+on or before 16 Sept still reproduces. sha256
+`c5b9f03a7c5add80196e8ed584c1091cc62390e24fafe3cda91004c8512ffc99`, superseding
+rev 3's `0f5cb2b5…`; pushed and hashed on the phone at 17:01, 8,402 B.
+**From here, a row's numbers are read from `out/<tag>.report` and
+`out/<tag>.bench`. Scrollback is not a record.**
+
+**WHAT THE SMOKE TEST DOES NOT SAY**
+
+**NO FIGURE ABOVE IS A ROW AND NONE MAY BE QUOTED AS ONE.** Warm, ungated,
+unlocked, foreground, on an 89-minute boot, once. Every prediction A1-A6 and
+B1-B6 is judged against gated rows that have not been run.
+
+**The system-prompt decode works out at ~67.5 t/s (407 tokens in 6027.60 ms)
+and that is at most a hint about B1, not a measurement of it.** B1 predicts
+7.7 s for 420 tokens from a GATED c0 two-thread `pp512` of 55.36 t/s; this ran
+with no thermal gate on a chip whose X1 ceiling had already fallen to 78% of
+rated seven seconds in, at a different prompt length, through a different
+binary, in one sample with no error bar. A faster number under worse thermal
+conditions is interesting and is not evidence until a gated row says so.
+
+**Peak RSS 1,538,944 kB is at `n_ctx` 1024 and is NOT comparable with the
+`-p 512` rows in the closing entry.** Those rows carry their own context and KV
+allocation; this one holds a 1024-token KV cache plus a 304.75 MiB compute
+buffer that `sched_reserve` sized for `n_ubatch` 512. The closing entry's
+1.35-1.42 GiB peak-RSS band for this model was measured under llama-bench's
+conditions and this figure does not extend, contradict or replace it.
+
+Nothing was gated, nothing was cold, nothing was repeated, no reboot was spent,
+and no text was printed — `-n 1` generated exactly one token and `--print` was
+not passed, so the run says nothing whatever about output quality.

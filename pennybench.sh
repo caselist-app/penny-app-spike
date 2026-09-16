@@ -124,6 +124,11 @@ logcat -d -b all -t "$LOGSTART" 2>/dev/null \
 KILLS=$(wc -l < "$OUT.kills")
 
 # ---------------- REPORT ----------------
+# Revision 4, 16 Sept: the whole report is tee'd to $OUT.report as well as
+# to stdout, so every row's peak RSS, kills, clock ceilings and MemAvailable
+# exist as a file on the phone rather than only in the operator's terminal.
+# Nothing above this line changed.
+{
 echo "PENNYBENCH tag=$TAG rc=$RC mask=$MASK"
 echo "PENNYBENCH bin=$BIN"
 echo "PENNYBENCH args=$*"
@@ -158,3 +163,4 @@ dumpsys meminfo 2>/dev/null | grep -iE "zram|swap"
 echo "--- llama-bench stdout ---"; cat "$OUT.bench"
 echo "--- llama-bench stderr (tail) ---"; tail -5 "$OUT.err"
 echo "--- kill lines ---"; cat "$OUT.kills"
+} | tee "$OUT.report"
