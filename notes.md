@@ -8159,7 +8159,20 @@ LEFT UNEXPLAINED HERE.** Raised by Matt on reading the figures above.
     difference                     +  237.73 MiB  resident OVER the file
 
 No explanation is offered and none should be read into the ordering of those
-lines. It is recorded because it bears on two things already written down:
+lines. **AMENDED 16 Sept AFTER ROW 4, AND STILL NOT AN EXPLANATION.** The
+`--extra-bufts 0` control loads the same file into a SINGLE 1,050.43 MiB buffer
+with no `CPU_REPACK` line and zero `repack tensor` lines, and its peak RSS is
+251,596 kB (245.70 MiB) below row 2's. The buffer sum is 243.43 MiB higher with
+the repack on, and the peak RSS is 245.70 MiB higher — **the two agree to
+2.27 MiB**, and both are close to the 237.73 MiB excess recorded above. All of
+that is **CONSISTENT WITH** the repacked representation being the source of the
+excess. **It is not established**, for two reasons that must be kept in view:
+row 4 is a CONTROL and the plan excludes its figures from being quoted as
+results, so this is a flagged consistency and not a measurement; and the
+arithmetic points at the repacked tensors being LARGER than their file form
+(806.53 MiB unrepacked against 1,049.96 MiB repacked) rather than at a
+duplicate of them being retained, which are different mechanisms with the same
+total. Which of the two it is has NOT been determined here. It is recorded because it bears on two things already written down:
 **A2**, which predicted `llama_model_load_from_file` at 2.5-5.0 s on an
 assumption of ~1,056 MiB moved off disk, and **the peak-RSS-over-file
 multiplier table in the closing entry at notes.md 7662**, which reports 1.07 to
@@ -9444,6 +9457,24 @@ it. The band is where `set_tensor` — and therefore the repack — actually run
 
 **`progress_calls` IS 311 HERE AND 312 ON EVERY OTHER ROW.** Recorded as
 observed. No explanation is offered.
+
+**THE BUFFER LINES, SIDE BY SIDE, READ OFF THE TWO `.err` FILES ON THE PHONE.**
+This is the structural half of the same difference the 2019.76 ms measures:
+
+    row 2, repack ON        CPU        model buffer size     243.90 MiB
+                            CPU_REPACK model buffer size   1,049.96 MiB
+                            sum                            1,293.86 MiB
+                            "repack tensor" lines                  197
+
+    row 4, repack OFF       CPU        model buffer size   1,050.43 MiB
+                            NO CPU_REPACK line at all
+                            "repack tensor" lines                    0
+
+    Qwen3-1.7B-Q4_K_M on disk                              1,056.13 MiB
+
+With the repack off there is ONE buffer and it is 5.70 MiB BELOW the file.
+The 197 tensors that row 2 repacks would, unrepacked, account for
+1050.43 - 243.90 = **806.53 MiB**; repacked they occupy **1,049.96 MiB**.
 
 ### WHAT ROW 4 DOES NOT SAY
 
