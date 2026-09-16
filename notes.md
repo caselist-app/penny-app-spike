@@ -5553,3 +5553,113 @@ measured and unexplained**, so no conclusion about Gemma or Qwen3.5-2B rests on
 it yet. The Q4_0 repack path has never executed. And nothing here is a
 native-versus-VM statement: that comparison is closed and this is an absolute
 feasibility measurement of the 6a.
+
+## 2026-09-16 — the 2.13 GiB is a repacked SECOND COPY of the weights. 97.9% of it accounted from llama.cpp's own buffer lines. Whether it is a load-time spike or the working set is NOT yet known.
+
+Step 1 of three on the RSS question. Identical row to the smoke run plus `-v`.
+No matrix run. Nothing else changed.
+
+### llama.cpp says where the memory went
+
+    load_tensors:   CPU_Mapped model buffer size =  1043.68 MiB
+    load_tensors:   CPU_REPACK model buffer size =  1049.96 MiB
+    llama_kv_cache:        CPU KV buffer size =       28.00 MiB
+    sched_reserve:         CPU compute buffer size =    9.52 MiB
+    llama_context:         CPU output buffer size =     0.58 MiB
+
+    total accounted                                 2131.74 MiB
+    measured VmHWM   2,230,572 kB                 = 2178.29 MiB
+    unaccounted                                      46.55 MiB  (2.1%)
+
+**97.9% of the peak is accounted for, and the excess is one thing: a repacked
+duplicate of the weights.** llama.cpp rewrites quantised tensors into
+ARM dot-product layouts — the log names `q4_K_8x4` and `q6_K_8x4` — and holds
+them in a `CPU_REPACK` buffer alongside the memory-mapped original. The
+remaining 46.55 MiB is the binary, the tokeniser caches (`token to piece cache
+size = 0.9311 MB`), stack and allocator overhead.
+
+**Not every tensor is repacked**, which is worth recording because the two
+buffers are nonetheless almost the same size:
+
+    done_getting_tensors: tensor 'token_embd.weight' (q6_K) (and 113 others)
+      cannot be used with preferred buffer type CPU_REPACK, using CPU instead
+
+So the mapped buffer is the whole 1.03 GiB file and the repack buffer is a
+second copy of the 114 tensors that could be converted — and that second copy
+comes out marginally LARGER than the whole file. Why it is larger rather than
+smaller was not investigated.
+
+### THE QUESTION THIS DOES NOT ANSWER, AND IT IS THE ONE THAT MATTERS
+
+**Is 2.13 GiB a load-time spike, or the working set during generation?**
+Nothing here says. The argument that it is a spike is specific and plausible:
+once a tensor has been repacked, its mmap'd original is never read again, so
+those pages are clean, file-backed and reclaimable — the kernel can drop them
+under pressure and never needs to write them back. On that reading the phone
+pays 2.13 GiB briefly at load and then settles near the repack buffer alone.
+
+**Two claims were drafted and are deliberately NOT made here**: that "any
+llama.cpp process on this chip pays it", and that this is "not a benchmark
+artefact that would go away in a real app". Both assume the peak is the
+steady state, and that is exactly what is unmeasured. They are recorded as
+pending, not as findings. Two runs settle it: the `RssAnon`/`RssFile` split,
+which says whether the repack copy is anonymous and therefore unreclaimable;
+and a `-mmp 0` run, where the loader has no mmap to duplicate.
+
+### The row
+
+    conditions   uptime 59,589.66 s (993.2 min) before, 59,598.01 s after,
+                 run 8.35 s wall. AC power, screen on, no VM, app disabled,
+                 model warm in page cache. Identical command to the smoke
+                 run plus -v.
+
+    pp16                  69.02 +/- 1.25 t/s   (smoke run: 68.20 +/- 1.84)
+    tg16                  18.53 +/- 0.20 t/s   (smoke run: 18.48 +/- 0.18)
+    peak RSS (VmHWM)   2,230,572 kB            (smoke run: 2,230,332 kB)
+    MemAvailable       2,502,796 -> 2,576,932 kB
+    MemFree            1,160,216 -> 1,255,964 kB
+    SwapFree             664,364 ->   570,588 kB
+    Cached             1,566,524 -> 1,544,968 kB
+    LMK kills                  0
+    rc                         0
+
+**Peak RSS reproduced to within 240 kB of 2,230,332 kB — 0.01%.** Two runs,
+same configuration, and the figure is stable enough to treat differences in
+later rows as real.
+
+**ZERO kills this time, and the reason is the trap from the previous entry
+working in reverse.** This run began with `MemAvailable` at 2,502,796 kB
+instead of 2,050,024 kB, because the smoke run's two kills had already freed
+that memory. **Same peak RSS, same phone, different starting headroom,
+opposite kill outcome.** A kill count is a property of the run AND of what the
+phone happened to have free, and neither run's count means anything without
+the starting figure beside it.
+
+### The `-b 16 -ub 16` experiment is already answered and was NOT run
+
+Planned as step 3 and dropped on this evidence. `-v` prints:
+
+    llama_context: n_ctx     = 256
+    llama_context: n_batch   = 16
+    llama_context: n_ubatch  = 16
+
+**llama-bench already sizes batch, micro-batch and context to the test**, so
+`-b 16 -ub 16` would have re-run an identical configuration. The compute buffer
+it produced is 9.52 MiB, which cannot be part of a 1 GiB discrepancy under any
+reading. **The ubatch question is real but belongs to the pp512 row**, where
+the default micro-batch and the 151,936-entry vocabulary's logits buffer are
+large enough to matter, and it is carried forward to there rather than
+abandoned. Replaced in the sequence by a `-mmp 0` run.
+
+### What this entry does NOT say
+
+**Nothing about generation.** The peak was measured across a whole
+llama-bench invocation — load, repack, warmup, pp16, tg16 — and VmHWM cannot
+say when in that sequence it occurred, which is the entire open question. The
+repack buffer is described as anonymous by inference from what it is, and has
+NOT been measured as anonymous. Whether repacking can be disabled, and what
+that would cost in tok/s, is untested and unlooked-at. No conclusion about
+Qwen3.5-2B or Gemma 4 E2B follows from this entry — the extrapolation flagged
+in the previous entry stands unresolved, and if the peak is a load-time spike
+it is the wrong basis for one. Still one model, one thread count, tiny batch,
+warm cache, idle phone, AC power. The Q4_0 repack path has still never run.
