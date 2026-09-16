@@ -7150,3 +7150,208 @@ clock cap, both of which this repo has failed to predict twice today, and a
 band wide enough to be safe would be worthless. It says nothing about Q4_0 —
 the repack path has still never executed on this phone. And it is a prediction
 about the 6a only; the 7a re-measures anything that fails here.
+
+## 2026-09-16 — Qwen3.5-2B Q4_K_M on the 6a: it runs, at 11.21 t/s and 1.74 GiB, and it costs three cached processes. The prediction written twenty minutes earlier fails on BOTH memory and speed, and P6's inversion does not survive a second model.
+
+    model      Qwen3.5-2B-Q4_K_M.gguf, 1,280,835,840 B = 1221.5 MiB
+    sha256     aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223
+               computed ON THE PHONE after the push, matched to MANIFEST.txt's
+               HF-LFS-verified value. Size on the phone 1,280,835,840 B.
+    pushed     16 Sept 14:59, 39.29 s at 31.1 MB/s over adb, after
+               Qwen3-1.7B-Q4_K_M.gguf was deleted from /data/local/tmp --
+               one model on the phone at a time, and the Mac's copy is
+               manifest-verified so nothing is lost.
+    llama-bench reads it as `qwen35 2B Q4_K - Medium`, 1.18 GiB, **1.88 B
+    params** -- 9.3% more parameters than Qwen3-1.7B's 1.72 B.
+
+### Row Q1 — c0, 2 threads, -p 512, -n 128, -lm none
+
+    gate         PASSED on the first check, 0 waits, uptime 2277, both rated
+    conditions   uptime 2,277.10 s (38.0 min) before, 2,398.12 s after,
+                 121.02 s wall. AC power, screen on, no VM, app disabled.
+    command      pennybench.sh q1_c0_t2_p512 c0 -- -t 2 -p 512 -n 128 -lm none
+
+    pp512                 51.41 +/- 1.57 t/s      (3.05% error bar)
+    tg128                 11.21 +/- 1.00 t/s      (8.92%)
+    ceil X1   before/min/after    2,802,000 / **500,000** / 2,401,000 kHz
+              min_at uptime 2,361.72 -- **84 s into the row**
+    ceil A76  before/min/after    2,253,000 / 2,253,000 / 2,253,000 kHz
+              min_at uptime 2,277.10 -- 0 s in, i.e. it NEVER fell
+    peak RSS (VmHWM)   1,822,804 kB   1780.1 MiB   1.7384 GiB
+    max RssAnon        1,816,464 kB   99.65% of peak
+    max RssFile            6,036 kB
+    rss_samples              276   (2.28 Hz over 121.02 s)
+    MemAvailable       2,561,040 -> 2,709,720 kB   (+148,680)
+    MemFree              916,792 -> 1,956,664 kB   (+1,039,872)
+    SwapFree             691,708 ->   537,340 kB   (-154,368)
+    Cached             1,869,136 ->   981,404 kB   (-887,732)
+    pswpin               122,080 ->   122,433      (+353 pages)
+    pswpout              750,420 ->   801,817      (+51,397 pages, ~201 MiB)
+    pgmajfault           135,232 ->   135,611      (+379)
+    ZRAM               570,852K physical for 2,597,632K in swap
+    LMK kills                  1 kill (2 lines), MemAvailable before 2,561,040 kB
+    rc                         0
+
+    09-16 15:01:10 lowmemorykiller: Kill '.ShannonImsService' (2803), uid 10154,
+      oom_score_adj 975 ... reason: low watermark is breached
+    09-16 15:01:10 ActivityManager: ... has died: cch  +75 CEM
+
+**500,000 kHz is the lowest X1 ceiling ever recorded in this repo — 17.8% of
+rated**, against a previous floor of 851,000 (30.4%, C5). It was first seen 84 s
+into a 121 s row, the same place in the row as B2-R1's minimum. The A76 pair
+again never moved from rated, the second row running for the second time.
+
+**The `Cached` drop of 887,732 kB does NOT trip the contamination rule and the
+difference is instructive.** `Cached` stood at 1,869,136 kB before the row
+because the `adb push` had just filled it with this very file; the drop is 71%
+of the model's size and what left was the file's own page cache, which under
+`-lm none` nothing is mapping and nothing needs after load. C7's collapse was
+the same shape by a different mechanism — there the drop happened to a boot
+with 97% of its swap already spent, and `pgmajfault` here moved 379 in total.
+`SwapFree` ended at 17.1% of `SwapTotal`, above the 10% floor.
+
+### Row Q2 — c0, 2 threads, -p 64, -n 128, -lm none
+
+    gate         PASSED after 3 waits (~15 s), uptime 2432, both rated
+    conditions   uptime 2,432.69 s (40.5 min) before, 2,504.55 s after,
+                 71.86 s wall.
+    command      pennybench.sh q2_c0_t2_p64 c0 -- -t 2 -p 64 -n 128 -lm none
+
+    pp64                  48.14 +/- 1.19 t/s      (2.47% error bar)
+    tg128                 10.94 +/- 0.62 t/s      (5.67%)
+    ceil X1   before/min/after    2,802,000 / 1,277,000 / 1,745,000 kHz
+              min_at uptime 2,475.14 -- 43 s into the row
+    ceil A76  before/min/after    2,253,000 / 2,253,000 / 2,253,000 kHz
+              min_at uptime 2,432.69 -- 0 s in, NEVER fell
+    peak RSS (VmHWM)   1,768,596 kB   1727.1 MiB   1.6866 GiB
+    max RssAnon        1,763,176 kB   99.69% of peak
+    max RssFile            5,384 kB
+    rss_samples              166   (2.31 Hz over 71.86 s)
+    MemAvailable       2,710,124 -> 2,922,636 kB   (+212,512)
+    MemFree            1,950,824 -> 1,866,088 kB   (-84,736)
+    SwapFree             569,084 ->   484,552 kB   (-84,532)
+    Cached               985,972 -> 1,280,348 kB   (+294,376)
+    pswpin               130,285 ->   130,601      (+316 pages)
+    pswpout              801,817 ->   858,675      (+56,858 pages, ~222 MiB)
+    pgmajfault           143,481 ->   143,845      (+364)
+    ZRAM               589,296K physical for 2,660,660K in swap
+    LMK kills                  3 kills (6 lines), MemAvailable before 2,710,124 kB
+    rc                         0
+
+    09-16 15:03:46 lowmemorykiller: Kill 'app.seamlessupdate.client' (3038),
+      oom_score_adj 945     -> died: cch  +45 CEM
+    09-16 15:03:46 lowmemorykiller: Kill 'com.android.DeviceAsWebcam' (3544),
+      oom_score_adj 915     -> died: cch  +15 CEM
+    09-16 15:03:46 lowmemorykiller: Kill 'com.android.keychain' (3193),
+      oom_score_adj 915     -> died: cch  +15 CEM
+
+All three inside one 102 ms window at model load, all `cch` — cached and empty
+— and the deepest reached was **915**, well clear of the 900 line and far from
+the 201 the 2GB VM reached in rung 3g-ii. Nothing on the screen, no IME, no
+foreground process.
+
+### THE PREDICTION, JUDGED. It fails on both measured halves it named.
+
+    PREDICTED peak RSS -p 512   1,659,000 - 1,730,000 kB  (point est 1,662,000)
+    MEASURED                    1,822,804 kB
+    ** FAILS -- 5.4% above the top of the band, 9.7% above the point estimate **
+
+    PREDICTED peak RSS -p 64    1,582,000 - 1,644,000 kB  (point est 1,586,000)
+    MEASURED                    1,768,596 kB
+    ** FAILS -- 7.6% above the top of the band, 11.5% above the point estimate **
+
+    PREDICTED tg128 @2t c0      12.2 (-p 512) and 12.9 (-p 64), band 11.5-13.5
+    MEASURED                    11.21 +/- 1.00  and  10.94 +/- 0.62
+    ** FAILS on both point estimates. The -p 512 row's error bar (10.21-12.21)
+       reaches into the band; the -p 64 row's (10.32-11.56) barely grazes its
+       floor. Both are slower than predicted, in the same direction. **
+
+    PREDICTED kills             1-5 kill lines, all cached band, nothing below
+                                oom_score_adj 900, rc=0, both rows complete
+    MEASURED                    Q1: 1 kill / 2 lines, adj 975
+                                Q2: 3 kills / 6 lines, adj 945, 915, 915
+    ** HOLDS on everything that matters and is one over on the letter of it:
+       the band half holds outright -- every casualty cached, deepest 915,
+       nothing below 900, rc=0 on both rows. Q2's SIX log lines exceed the
+       "1-5 lines" I wrote, though it is THREE kills; the line count was a
+       careless unit and the kill count is the quantity meant. Recorded as
+       written rather than reinterpreted after the fact. **
+
+**WHY THE MEMORY PREDICTION FAILED, and it is the useful part.** Both models of
+it assumed the non-file memory either stays constant or scales with the file.
+It did neither:
+
+    model            file kB     peak kB @-p512   non-file kB   peak/file
+    Qwen3-1.7B     1,081,455        1,492,260       410,805       1.380
+    Qwen3.5-2B     1,250,816        1,822,804       571,988       1.457
+
+**The file grew 15.6% and the non-file memory grew 39.2%.** So peak RSS is not
+a fixed multiple of the model file and never was — the KV, compute and output
+buffers scale with the model's SHAPE (layers, KV heads, context), which the
+file size does not carry. **Any future estimate from file size alone will
+understate, and this is the second time today a memory figure has come in above
+what was reasoned to it.** The reliable route is llama.cpp's own buffer lines,
+which is how the 2.13 GiB was accounted earlier today.
+
+The `-p 512` micro-batch costs **54,208 kB** on this model against 76,280 kB on
+Qwen3-1.7B — the one component that did NOT grow.
+
+### AGAINST Qwen3-1.7B, SAME MASK, SAME THREAD COUNT, BOTH COOLED AND GATED
+
+    row              pp t/s          tg128 t/s       wall s    peak RSS kB
+    C1  1.7B -p512   55.36 +/- 5.11  14.11 +/- 0.59  103.32     1,491,536
+    Q1  2B   -p512   51.41 +/- 1.57  11.21 +/- 1.00  121.02     1,822,804
+                     -7.1%           -20.6%          +17.1%     +22.2%
+
+    C2  1.7B -p64    61.79 +/- 1.80  14.91 +/- 0.92   52.57     1,415,980
+    Q2  2B   -p64    48.14 +/- 1.19  10.94 +/- 0.62   71.86     1,768,596
+                     -22.1%          -26.6%          +36.7%     +24.9%
+
+**Token generation fell further than bytes-per-token predicts.** The file ratio
+is 0.865 and the parameter ratio 0.915; the measured `tg128` ratios are 0.794
+and 0.734. So the extra cost is not only more weight bytes to read — 9.3% more
+parameters bought a 20.6-26.6% slowdown. **Pure memory-bandwidth scaling does
+not account for it, and what does is not established here.**
+
+### P6 DOES NOT SURVIVE A SECOND MODEL, AND THAT IS THE FINDING OF THIS PAIR
+
+P6 predicted `-p 64` returns a LOWER pp figure than `-p 512`. On Qwen3-1.7B it
+failed three times over — `-p 64` was 11.6% to 29.6% FASTER. **On Qwen3.5-2B it
+holds: pp64 48.14 against pp512 51.41, `-p 64` is 6.4% SLOWER**, which is the
+direction P6 named.
+
+**And the throttling cuts the wrong way for an easy explanation.** Q1 ran with
+its X1 ceiling down to 500,000 kHz; Q2's only reached 1,277,000. **The row with
+far worse throttling returned the higher pp figure.** So on this model the
+inversion is absent even though the thermal conditions favoured it appearing.
+
+    model         pp512    pp64    -p 64 is
+    Qwen3-1.7B    55.36   61.79    +11.6% FASTER   (P6 fails)
+    Qwen3.5-2B    51.41   48.14     -6.4% SLOWER   (P6 holds)
+
+**Whatever produces the inversion is a property of the model, not of the
+handset**, and it is still unexplained. The `-ub` test that would separate
+batch size from micro-batch size remains unrun on either model.
+
+### What this entry does NOT say
+
+**One reading per row.** Q1 and Q2 are single runs. Neither is repeated, and
+`tg128` at `-p 512` carries an 8.92% error bar.
+
+**The two rows are not thermally matched to each other.** Both were gated at
+rated clock, and they then went to 500,000 and 1,277,000 kHz respectively. The
+gate controls the start and nothing else, as every row today has shown.
+
+**Nothing at 1 thread, nothing at 4 threads, nothing on `f0`, nothing
+unpinned.** Matt's reduced scope for this model was two rows, so P1-P4 are not
+re-judged on it — only P5 and P6 are, and P5 only on the RSS and kills this
+pair produced.
+
+**`SwapFree` is down to 484,552 kB of 3,145,724 — 15.4%**, from 1,122,300 kB at
+the start of B2-R1. Three rows have spent two thirds of this boot's swap. The
+contamination rule's floor is 10% and Gemma has not run yet.
+
+**Nothing at Q4_0** — the repack path has still never executed on this phone —
+no thermal run, nothing on battery, no time-to-first-token, and `policy0` still
+never sampled. And this is an absolute feasibility measurement of the 6a, not a
+native-versus-VM comparison, which is closed.
