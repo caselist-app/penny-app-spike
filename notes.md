@@ -9521,3 +9521,153 @@ Boot 1 closing state, same invocation: `MemAvailable` 2,870,644 kB, `SwapFree`
 A3 failed low.** Outstanding on Qwen3-1.7B: **B3 only**, which needs boot 2 and
 is approved. Qwen3.5-2B's A6 and B6 need boot 3 and its model is not on the
 phone.
+
+## 2026-09-16 — BOOT 2, Qwen3-1.7B. ROW 5, THE ONLY TRUE B3.
+
+**THE STATE FILE SURVIVED THE POWER CYCLE, BYTE FOR BYTE.** Hashed at uptime
+1544.55 s, wallclock 18:32:29, **AFTER** row 5 ran:
+
+    boot 1, after `sync`   707e0ea3c1cc490187616a67ba0097747c8b8c58fcd2dcf38e1870a31a8f6f4d
+    boot 2, after row 5    707e0ea3c1cc490187616a67ba0097747c8b8c58fcd2dcf38e1870a31a8f6f4d
+    **MATCH.**  46,685,237 B both times, mtime 2026-09-16 17:46.
+
+The ordering is what makes it worth anything: hashing BEFORE the row would have
+pulled 44.5 MiB into the page cache and destroyed the cold read the row exists
+to measure. And the `sync` on boot 1 means a mismatch would have been a real
+result about storage rather than an unflushed write. Neither file was read
+before the row — presence confirmed by `ls -la` only.
+
+**THE BOOT.** `adb reboot` 18:06:24 (last pre-reboot reading uptime 2946.71 s,
+same invocation). Unlocked by hand; adb answered at uptime 201.70 s. App
+`enabled=3`, `Running VMs: []`, AC power, screen on.
+
+    uptime s   wallclock   MemAvailable   MemFree     Cached      SwapFree
+     201.70    18:10:06      1,043,824     68,236   1,206,340   2,625,020
+     301.38    18:11:46      2,185,268  1,347,412   1,065,320     993,788
+    1507.69    18:31:52      2,197,612  1,312,536   1,111,096     997,372
+
+All three ceilings rated at all three readings. Against boot 1 at the matched
+marks: `MemAvailable` 2,185,268 vs 2,282,044 kB at ~5 min (4.2% lower) and
+2,197,612 vs 2,284,200 kB at ~25 min (3.8% lower); `SwapFree` 997,372 vs
+889,596 kB at ~25 min. **The two boots are close but not identical**, and one
+difference is worth stating because it is in the page cache: `Cached` read
+1,206,340 kB at 201.70 s here, against 873,560 kB at 31.69 s and 887,812 kB at
+303.33 s on boot 1. **Nothing of ours was in it** — neither file had been read —
+but the boots did not start the same, and that is recorded rather than
+explained.
+
+### ROW 5 — `q17_r5_coldcache_cached`. COLD model AND COLD state file. B3 PASSES.
+
+    gate passed  uptime 1520.91 s, wallclock 18:32:05, both clusters at rated
+    started uptime 1520.98 s   ended 1530.08 s   rc=0
+    FIRST run of the boot. Nothing had read the .gguf or the state file.
+    c0, -t 2, -lm none, n_ctx 1024, greedy, --load-state, no --sys-file
+    user_tokens 20, -n 64 --print
+
+    t_backend_ms          2.80
+    t_model_open_ms     418.46
+    t_tensor_band_ms   3216.54
+    t_model_total_ms   3637.26
+    t_ctx_create_ms      52.46
+    t_ready_ms         3692.53
+    t_tokenize_ms         0.33
+    t_state_load_ms      59.16   state file COLD -- off UFS
+    state_bytes    46,685,237    state_tokens_restored 407
+    t_user_decode_ms    345.96
+    t_sample_ms           0.76
+    ttft_cached_ms      406.21   B2-equivalent, cold state file
+    ttft_cold_proc_ms  4098.74   == **B3**
+    gen_tokens 64      gen_ms 4177.14      gen_tps 15.08  (63 decodes)
+    first_token_id 32313     token_fnv1a64 0xcba17a2fcbba49f4
+    peak_rss_kB 1,500,196    max_rssanon_kB 1,494,564 (99.6%)
+
+    MemAvailable   before 2,191,292 kB   after 2,713,172 kB
+    SwapFree       before   997,372      after   651,260   (20.70% of total)
+    Cached         before 1,111,096      after 1,331,588   (ROSE 220,492)
+    pswpin         before    36,933      after    37,035
+    pswpout        before   577,326      after   715,772
+    pgmajfault     before    49,795      after    49,951
+    ceil_x1        before 2,802,000   min 2,507,000 (89.5%) 7 s in  after rated
+    ceil_a76       before 2,253,000   min 2,253,000 (rated)         after rated
+    lmk_kill_lines 8
+
+### THE PREDICTION, SCORED
+
+    #   prediction                          point   band       measured   verdict
+    B3  TTFT cached, COLD PROCESS            4.9 s  3.5-8.5    4.0987 s   PASS
+
+**THIS IS THE WAKE CASE AND IT IS THE ONE THE WHOLE OF Q-B WAS SET TO ANSWER.**
+The phone came up, nobody touched it, nothing had read either file, and a new
+process loaded the model, restored a 407-token prefix from disk and had a first
+token in **4.099 seconds**.
+
+**THE COLD STATE FILE COSTS 39.99 ms MORE THAN THE WARM ONE**, and that is the
+number row 3's label was reserving:
+
+    row 3  t_state_load  19.17 ms   state file warm in page cache
+    row 5  t_state_load  59.16 ms   state file cold, read off UFS
+    difference           39.99 ms
+
+44.5 MiB off UFS in 59.16 ms is ~753 MiB/s, the same order as the 598 and
+835 MB/s cold reads rungs 3e-iv and 3e-iii measured through dm-crypt inside a
+VM. **So reading the prefix off storage is not where the wake cost is.** The
+B2-equivalent figures barely move: 406.21 ms here against row 3's 422.31 ms —
+the cold row is 16.10 ms FASTER overall despite the 39.99 ms slower state read,
+because its user-turn decode ran 345.96 ms against 401.99 ms. Two samples, one
+each, and nothing here explains the decode difference.
+
+**WHERE THE 4.099 s ACTUALLY GOES, AND IT IS NOT THE PREFIX:**
+
+    t_ready_ms        3692.53   90.1%   loading the model
+    t_state_load_ms     59.16    1.4%   restoring the 407-token prefix
+    t_user_decode_ms   345.96    8.4%   the 20-token user turn
+    everything else      ~1.09   0.0%
+
+**The model load is 90% of the wake, and the cached prefix is 1.4% of it.**
+Against the two fresh cold-process figures — row 1's 10,394.46 ms and row 2's
+9,163.00 ms — the cached path is **2.54x and 2.24x** faster, and what it
+removes is the ~6.0 s system-prompt decode. What it cannot remove is the load.
+
+**EIGHT KILL LINES, FOUR PROCESSES, WITH `MemAvailable` BEFORE AT 2,191,292 kB:**
+
+    .ShannonImsService                        oom_score_adj 985   cch +85 CEM
+    com.shannon.rcsservice:shannonrcsservice  oom_score_adj 975   cch +75 CEM
+    app.seamlessupdate.client                 oom_score_adj 945   cch +45 CEM
+    com.android.localtransport                oom_score_adj 915   cch +15 CEM
+
+All cached, all `reason: low watermark is breached`, none in the foreground
+band, our own process untouched. **The same count as row 1's eight, at a
+similar fresh-boot `MemAvailable` (2,191,292 here, 2,277,952 there) — so the
+first row of a boot costs about four cached processes on this handset whether
+it decodes a system prompt or restores one.** Different four processes each
+time; the killer takes whatever is cheapest.
+
+`SwapFree` ended at 651,260 kB, **20.70%** of `SwapTotal`, well above the
+314,572 kB floor; `Cached` ROSE 220,492 kB. Not contaminated.
+
+### WHAT ROW 5 DOES NOT SAY
+
+**The cold model load here (`t_ready_ms` 3692.53 ms) is NOT a second A1.** A1
+was scored on row 1 at 4021.78 ms on a different boot; this row is 329.25 ms
+faster, with the tensor band 365.05 ms faster. Two cold loads on two boots that
+did not start identically — see the `Cached` difference above — and neither is
+an error bar for the other. **A1 stands on row 1 alone.**
+
+One sample. The X1 ceiling fell to 2,507,000 kHz (89.5%), the shallowest dip of
+any row, because this row does no system-prompt decode.
+
+**B3's band was wide (3.5-8.5 s) and the pass is therefore weak evidence about
+the prediction and strong evidence about the phone.** The interesting content
+is the 90/1.4/8.4 split, not that 4.099 falls inside a five-second band.
+
+`state_tokens_restored` is 407 and `token_fnv1a64` is `0xcba17a2fcbba49f4` —
+identical across a cold fresh load, a warm fresh load, a warm cached load, a
+**cold** cached load on a different boot, and two ungated smoke runs. The state
+file round-tripped a power cycle and still produces the same 64 tokens. That is
+the control; it is not a quality claim, and the text still gets two of its three
+facts wrong.
+
+**Qwen3-1.7B is DONE: A1-A5 and B1-B5 are all scored, A3 the only failure.**
+Outstanding for this repo's predictions: **A6 and B6, which need Qwen3.5-2B**,
+which is not on the phone. Boot 3 is a separate decision and the hybrid's state
+path may refuse outright.
