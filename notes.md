@@ -8343,3 +8343,130 @@ boot, A2's read half on cold-read rates measured inside a VM through dm-crypt
 rather than natively. The recurrent-state size in B6 is not derived. No
 judgement of output quality is planned here, no sustained run, no thermal run,
 no `-ub` test, no Q4_0, no VM, and no third model.
+
+### THE INSTRUMENT AS BUILT, 16 Sept — recorded before any row runs
+
+**`pennybench.sh` revision 3.** Three hunks, nine lines: `BIN="${PENNYBIN:-/data/
+local/tmp/llama-bench}"`, the two launch lines use `"$BIN"`, and the report gains
+`PENNYBENCH bin=$BIN` so every row records which binary produced it. **The
+default is unchanged, so every row measured on or before 16 Sept reproduces
+with no variable set.**
+
+    sha256  0f5cb2b5b6a68243f81d699a939652c6b4150ec3e296b3050a34caf4a7ff208c
+    supersedes 484d75d4..., which superseded 67eefed1..., which superseded
+    e5a81104...
+
+**`pennyload.cpp`, 407 lines, in THIS repo.** Links `llama.h` and nothing else —
+no `common` — exactly as `examples/simple` does, against the static libraries
+already built at 16 Sept 12:08:
+
+    66,071,426 B  build-android/src/libllama.a
+       774,674 B  build-android/ggml/src/libggml.a
+     7,954,690 B  build-android/ggml/src/libggml-cpu.a
+     9,446,196 B  build-android/ggml/src/libggml-base.a
+
+    pennyload.cpp        baf75cd8631687ba9138326ee0d7ced1f750bf51ae2a74425ba30ad7240a6b15
+    build-pennyload.sh   0659d5d5c7d6b1d70cbda3f4ed4271f821eee3ee85a4ea9083a1e698f5f16f04
+    build/pennyload            44,634,904 B  8228c9fb86490bddadf35d190c839510613270795dea7d453e9938a1621aa5d0
+    build/pennyload-stripped    3,817,808 B  be2cab2cba9ec0768d23dd61f9fbfde2f9de86cc95cbe374416e655cde8c0158
+
+    ELF 64-bit LSB pie executable, ARM aarch64, SYSV, interpreter
+    /system/bin/linker64, NEEDED libm.so libdl.so libc.so, stripped.
+
+**Instruction census on the stripped binary, the same check `llama-bench` had:**
+
+    smmla | ummla | usmmla        0
+    SVE / SME (ptrue, whilelo,
+    smstart, smstop, z<n>.)       0
+    sdot | udot                 898
+
+**898 is llama-bench's own count, to the instruction.** That is the check that
+this binary linked the identical `ggml-cpu` objects rather than a differently
+configured rebuild, and it is stronger than comparing flags.
+
+**ONE DEVIATION FROM THE RECORDED NINJA LINE, NAMED RATHER THAN IMPLIED AWAY.**
+`build-pennyload.sh` drops llama.cpp's own extra warning set
+(`-Wmissing-declarations -Wmissing-noreturn -Wcast-qual -Wno-unused-function
+-Wunreachable-code-break -Wunreachable-code-return -Wmissing-prototypes
+-Wextra-semi`) and `-Xclang -fno-pch-timestamp`, and adds `-std=c++17` in place
+of cmake's `target_compile_features(cxx_std_17)`. **Every one of those is a
+warning or a precompiled-header flag and none affects code generation**; the
+codegen-relevant flags (`--target`, `--sysroot`, `-O3 -DNDEBUG -fPIE
+-fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong
+-D_FORTIFY_SOURCE=2`) are copied verbatim. The 898 count is the evidence, not
+the argument. It compiled with zero warnings under `-Wall -Wextra -Wpedantic`
+and `-Wl,--fatal-warnings`.
+
+### THE FOUR DEFINITIONS, FIXED HERE BEFORE ANY ROW RUNS
+
+Every run makes **two** `llama_decode` calls, never one — the system prompt,
+then the user turn — so the prefix and the turn are separable in every row.
+
+    T0   first statement of main()
+    T1   after ggml_backend_load_all()
+    T2   FIRST progress_callback, progress == 0.0   (llama-model-loader.cpp:1626)
+    T3   LAST  progress_callback, progress == 1.0   (llama-model-loader.cpp:1785)
+    T4   after llama_model_load_from_file()
+    T5   after llama_init_from_model()              <- READY TO GENERATE
+    T6   after llama_tokenize()
+    T7   after llama_state_load_file()              (--load-state only)
+    T9a  after the SYSTEM-PROMPT llama_decode()  -- or == T7 on a cached run
+    T8   after llama_state_save_file()              (--save-state only),
+         sitting BETWEEN T9a and T9b
+    T9b  after the USER-TURN llama_decode()
+    T10  after llama_sampler_sample()               <- FIRST TOKEN EXISTS
+
+    B4    state save cost           =  T8  - T9a
+    TTFT resident, FRESH            =  T10 - T6
+    TTFT resident, CACHED           =  T10 - T5
+    B3    cold process, cached      =  T10 - T0
+
+**The state file's byte size is printed beside its save time and beside its load
+time in every row that has one**, as `state_bytes=`, read with `stat()` rather
+than inferred.
+
+**On a `--load-state` run the system prompt is deliberately NOT tokenised.** T6
+falls inside the TTFT-resident-cached window (T10 - T5) and a real cached path
+would not redo that work; the restored token count comes from the state file, as
+`state_tokens_restored=`.
+
+### FOUR MORE THINGS FIXED HERE, ALL AT MATT'S INSTRUCTION
+
+- **Sampler is greedy** — `llama_sampler_init_greedy()`, printed as
+  `sampler=greedy` in every row. Generation is therefore deterministic, which is
+  what makes the control below mean anything.
+- **The `-n 64 --print` rows compare ALL 64 tokens between the fresh run and the
+  cached run, not the first.** The binary prints `token_ids=` (the full list) and
+  `token_fnv1a64=` (FNV-1a over the 32-bit ids) so the comparison is mechanical.
+  **Match or mismatch is recorded as a result either way** — a mismatch says the
+  reloaded state is not the state that was saved, which would be the more
+  important finding of the two.
+- **NO CHAT TEMPLATE IS APPLIED.** Both prompt files are tokenised verbatim and
+  the binary prints `chat_template=NONE` in every row. Tokenize flags are fixed
+  and printed: the system prompt at `add_special=1 parse_special=1`, the user
+  turn at `add_special=0 parse_special=1`. (Qwen3-1.7B's GGUF carries
+  `tokenizer.ggml.add_bos_token = False`, so `add_special` adds nothing for that
+  model; the flag is recorded regardless of what it does.)
+- **Prompt text goes to stdout only after a line reading `--- text ---`**, so the
+  `PENNYLOAD` lines parse cleanly and text is buffered rather than written
+  inside any timed window.
+
+### WHAT THE INSTRUMENT DOES NOT SAY, BEFORE IT HAS RUN ONCE
+
+**`pennyload` has never been executed.** It is an aarch64 Android binary, so it
+cannot run on the Mac, and nothing has been pushed to the phone. It compiles and
+links; that is all that is known. **The first thing it does on the phone is a
+smoke test on an unlocked phone**, the habit CLAUDE.md records from the
+`mExecutor` bug, before any measured row and before any reboot is spent.
+
+**No chat template means these are not conversational turns.** The model sees a
+block of instruction text followed by a block of question text with no role
+markers, no `<|im_start|>`, and no generation prompt. Whatever it generates is
+text produced under those conditions and nothing else. **Any text printed is
+recorded as text produced, never as a judgement of output quality** — quality is
+out of scope for this session and stays in the "does NOT say" list of the
+result entry.
+
+**The `--extra-bufts 0` control run selects different matmul kernels**, so no
+speed figure from it is comparable with anything and none will be quoted. It
+exists to subtract `t_tensor_band_ms` and for no other purpose.

@@ -15,6 +15,12 @@ OUTDIR=/data/local/tmp/out
 mkdir -p "$OUTDIR"
 OUT="$OUTDIR/$TAG"
 
+# Which binary the row runs. Defaults to llama-bench, so every row measured on
+# or before 16 Sept reproduces byte-for-byte with no argument set. PENNYBIN=<path>
+# points it at pennyload for the cold-load and TTFT rows, which need -t, -c and
+# -lm -- flags llama-bench and llama-simple do not both accept.
+BIN="${PENNYBIN:-/data/local/tmp/llama-bench}"
+
 mem()  { grep "^$1:" /proc/meminfo | tr -s ' ' | cut -d' ' -f2; }
 vmst() { grep "^$1 " /proc/vmstat | tr -s ' ' | cut -d' ' -f2; }
 upt()  { cut -d' ' -f1 /proc/uptime; }
@@ -50,9 +56,9 @@ LOGSTART=$(date +'%m-%d %H:%M:%S.000')
 
 # ---------------- RUN (background, so VmHWM can be polled) ----------------
 if [ "$MASK" = "none" ]; then
-    /data/local/tmp/llama-bench "$@" > "$OUT.bench" 2> "$OUT.err" &
+    "$BIN" "$@" > "$OUT.bench" 2> "$OUT.err" &
 else
-    taskset "$MASK" /data/local/tmp/llama-bench "$@" > "$OUT.bench" 2> "$OUT.err" &
+    taskset "$MASK" "$BIN" "$@" > "$OUT.bench" 2> "$OUT.err" &
 fi
 PID=$!
 
@@ -119,6 +125,7 @@ KILLS=$(wc -l < "$OUT.kills")
 
 # ---------------- REPORT ----------------
 echo "PENNYBENCH tag=$TAG rc=$RC mask=$MASK"
+echo "PENNYBENCH bin=$BIN"
 echo "PENNYBENCH args=$*"
 echo "PENNYBENCH uptime_s        before=$UP_B after=$UP_A"
 echo "PENNYBENCH memavail_kB     before=$MA_B after=$MA_A"
