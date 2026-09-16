@@ -8784,8 +8784,23 @@ wallclock read in the SAME invocation:
 
 taken at **~5 min** and again at **~25 min** after power-on. Row 1 runs AFTER
 the 25-minute reading, which is also where `MemAvailable` peaks on this
-handset. Nothing between the reboot and row 1 may read the model file, or the
-cold row is not cold.
+handset.
+
+**NOTHING BETWEEN THE REBOOT AND ROW 1 MAY READ THE MODEL FILE. IN PARTICULAR,
+NO `sha256sum` OF THE `.gguf`.** Added at Matt's instruction, and it is the
+same rule the state file gets on boot 2 for the same reason: hashing a
+1,056 MiB file reads every byte of it into the page cache, which is precisely
+the cache row 1 exists to measure cold. Presence is confirmed with `ls -la`
+ONLY -- name, size and mode, no read of the contents:
+
+    adb shell 'ls -la /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf'
+    -> must read 1107409472 bytes
+
+The file's sha256 was verified against MANIFEST.txt on the phone at 16 Sept
+16:55 and again is not re-checked until AFTER row 1 has run. Size plus that
+earlier verification is what stands in for it in the meantime. The same rule
+applies to the model swap before boot 3: the `sha256sum` at step 3 there runs
+BEFORE the reboot, which is why it is harmless.
 
     tag   q17_r1_cold_fresh          COLD page cache, gated, fresh, no state
     GATE; ./pennybench.sh q17_r1_cold_fresh c0 -- \
@@ -8813,9 +8828,17 @@ cold row is not cold.
       -m ... -t 2 -lm none -n 64 --print --user-file ... \
       --load-state /data/local/tmp/q17_state.bin --tag r3
     SCORES  B2 (ttft_cached_ms, T10-T5) and NOTHING ELSE.
-    **B2 IS PAGE-CACHE INDEPENDENT AND THAT IS WHY IT SITS HERE.** T10-T5
-    starts after the model is already loaded, so a warm boot does not flatter
-    it. Its T10-T0 is NOT B3 -- see the B3 section below.
+    **B2 IS PAGE-CACHE INDEPENDENT AS FAR AS THE MODEL GOES, AND THAT IS WHY
+    IT SITS HERE.** T10-T5 starts after the model is already loaded, so a warm
+    boot does not flatter the model half of it.
+    **BUT THE STATE FILE IS WARM IN THE PAGE CACHE ON THIS ROW, AND THE LABEL
+    SAYS SO.** Row 2 wrote `q17_state.bin` seconds earlier, so row 3's
+    `t_state_load_ms` is a warm read of 44.5 MiB, not a cold one. Row 3's B2
+    is therefore recorded as **"B2, state file WARM"**, and row 5 is the
+    cold-file version of the same quantity. If the two differ, the difference
+    is the cost of reading the state file off UFS rather than out of RAM, and
+    that is worth having rather than worth hiding. Row 3's T10-T0 is NOT B3 --
+    see the B3 section below.
 
     tag   q17_r4_warm_nobufts        WARM, gated, CONTROL, --extra-bufts 0
     GATE; ./pennybench.sh q17_r4_warm_nobufts c0 -- \
@@ -8836,7 +8859,8 @@ cold row is not cold.
 
 #### BOOT 2 — Qwen3-1.7B, OPTIONAL, ONE REBOOT, AND IT IS THE ONLY TRUE B3
 
-    tag   q17_r5_coldcache_cached    COLD page cache, gated, --load-state,
+    tag   q17_r5_coldcache_cached    COLD page cache -- BOTH the model AND the
+                                     state file -- gated, --load-state,
                                      THE FIRST RUN OF THE BOOT
     GATE; ./pennybench.sh q17_r5_coldcache_cached c0 -- \
       -m ... -t 2 -lm none -n 64 --print --user-file ... \
@@ -8864,10 +8888,13 @@ mistake avoided in advance: it was warm, and it is not B3 either.
 
 **THE COST IS ONE EXTRA REBOOT PER MODEL** — two in total if both are wanted —
 because a boot can supply exactly one cold read of the model file, and boot 1
-has to spend that on row 1 to answer A1/A2. **Matt decides whether to spend
-them.** If he does not, B3 is reported as NOT MEASURED, and row 3's
-warm-process figure is reported under its own name, with the plan's reasoning
-attached so a later reader knows why B3 is blank rather than forgotten.
+has to spend that on row 1 to answer A1/A2.
+**BOOT 2 IS APPROVED — Matt, 16 Sept, before the first reboot — so row 5 is
+planned on, not optional. BOOT 4 IS UNDECIDED** and the hybrid's B3 is
+therefore not planned on. If boot 4 is never spent, that B3 is reported as NOT
+MEASURED and row 8's warm-process figure is reported under its own name, with
+this reasoning attached so a later reader knows it is blank rather than
+forgotten.
 
 **THE STATE FILE MUST SURVIVE THE REBOOT, AND IT DOES.**
 `/data/local/tmp` sits on the `/data` partition, which is exactly where the
