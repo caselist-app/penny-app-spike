@@ -9375,3 +9375,118 @@ it is not a quality claim. Text as before: Canberra right, the other two facts
 wrong, quality out of scope.
 
 A4 is still unscored — row 4 next.
+
+### ROW 4 — `q17_r4_warm_nobufts`. The `--extra-bufts 0` CONTROL, warm, gated. A4 PASSES.
+
+    gate passed  uptime 2429.84 s, wallclock 17:57:47, both clusters at rated
+    started uptime 2429.92 s   ended 2447.29 s   rc=0
+    c0, -t 2, -lm none, **--extra-bufts 0**, -n 1, n_ctx 1024
+    WARM, and warm is what makes the subtraction valid
+
+    t_model_open_ms     383.94
+    t_tensor_band_ms    411.44   <- against row 2's 2431.20
+    t_model_total_ms    797.67
+    t_ctx_create_ms      33.16
+    t_ready_ms          833.77
+    progress_calls         311   (row 1/2/3 all reported 312)
+    lmk_kill_lines           0
+
+    MemAvailable   before 2,887,072 kB   after 2,863,200 kB
+    SwapFree       before   568,828      after   569,084
+    Cached         before 1,532,872      after 1,535,688
+    pswpout        before   819,972      after   819,972   (did not move)
+    pgmajfault     before   121,393      after   121,439
+    ceil_x1        before 2,802,000   min 1,826,000 (65.2%) 16 s in  after rated
+    ceil_a76       before 2,253,000   min 2,253,000 (rated)          after rated
+
+**SWAPFREE AGAINST THE FLOOR, EXPLICITLY.** The void condition is `SwapFree`
+below ~10% of `SwapTotal` = **314,572 kB of 3,145,724**.
+
+    before  568,828 kB   =  18.08% of SwapTotal
+    after   569,084 kB   =  18.09%
+
+**It did not cross, and it did not fall — it rose by 256 kB.** `pswpout` did
+not move at all across the row. Swap had also recovered between rows 3 and 4
+(530,940 -> 568,828 kB while the phone sat idle through the gate), so the
+monotonic decline noted after row 3 was not monotonic. Boot 1 is not
+contaminated and row 4 stands without that caveat.
+
+### A4, SCORED — WARM AGAINST WARM, FROM THE TENSOR BAND ONLY
+
+    row 2  t_tensor_band_ms   2431.20   repack ON,  warm
+    row 4  t_tensor_band_ms    411.44   repack OFF, warm
+    repack cost                2019.76 ms
+
+    #   prediction                    point   band     measured   verdict
+    A4  repack's share of A2            52%   40-65%   **50.72%**  PASS
+
+A2 is the COLD `llama_model_load_from_file` figure, 3982.13 ms (row 1), which
+is what the predictions entry defined A4 as a share of. 2019.76 / 3982.13 =
+**50.72%**, two-thirds of a point from the 52% predicted.
+
+**THE SAME NUMBER AS A SHARE OF OTHER DENOMINATORS, LABELLED, BECAUSE IT IS
+EASY TO QUOTE THE WRONG ONE:**
+
+    2019.76 / 3982.13 (row 1 cold total)   50.72%   <- this is A4
+    2019.76 / 2797.56 (row 2 warm total)   72.20%
+    2019.76 / 2431.20 (row 2 warm band)    83.08%
+
+**On a WARM load the repack is 83% of the tensor band and 72% of the whole
+load.** The read is what a warm cache removes, and what is left is almost
+entirely repack — which is the same conclusion A5's 70.61% ratio reached from
+the other direction, now with the repack isolated rather than inferred.
+
+**THE SUBTRACTION IS TAKEN FROM THE TENSOR BAND AND NOT FROM `t_model_total`**,
+at Matt's instruction. `t_model_open_ms` differs between the two rows (364.13
+against 383.94) for reasons this row does not establish, and folding that
+difference into the repack figure would put ~20 ms of unexplained work inside
+it. The band is where `set_tensor` — and therefore the repack — actually runs.
+
+**`progress_calls` IS 311 HERE AND 312 ON EVERY OTHER ROW.** Recorded as
+observed. No explanation is offered.
+
+### WHAT ROW 4 DOES NOT SAY
+
+**NO SPEED, TTFT OR RSS FIGURE FROM THIS ROW IS QUOTED AS A RESULT**, per the
+rule written into the plan before it ran: `--extra-bufts 0` selects different
+matmul kernels, so nothing it does at runtime is comparable with any other row.
+**The row confirms that rule rather than testing it**: its system-prompt decode
+took 15,089.42 ms against row 2's 5,940.43 — **2.54x slower** — which is what
+switching off the ARM dot-product repack does to the kernels, and is exactly
+why its arithmetic figures are excluded.
+
+**Two things sit in `q17_r4_warm_nobufts.report` that the plan's rule excludes,
+and they are FLAGGED rather than used.** Its `peak_rss_kB` is 1,289,416 against
+row 2's 1,541,012, and its `ceil_x1` minimum is 1,826,000 kHz (65.2% of rated,
+the deepest of boot 1) reached 16 s in. The RSS difference looks structural
+rather than kernel-speed — a repacked weight copy is memory the process holds —
+but **the plan excluded row 4's RSS in advance and this entry honours that**.
+If the repack's memory cost is worth having it needs its own designed
+comparison, and that is a question for Matt, not a figure to lift from a
+control row.
+
+One sample. `-n 1`, so there is no generation here at all.
+
+### END OF BOOT 1 — `sync`, THEN THE STATE FILE HASHED
+
+Run at uptime 2477.46 s, wallclock 17:58:35, in one invocation, `sync` first:
+
+    adb shell 'sync; ...; sha256sum /data/local/tmp/q17_state.bin; ls -la ...'
+
+    q17_state.bin   46,685,237 B   mtime 2026-09-16 17:46
+    sha256  707e0ea3c1cc490187616a67ba0097747c8b8c58fcd2dcf38e1870a31a8f6f4d
+
+**`sync` WAS RUN AND THAT IS THE POINT OF RECORDING IT.** Row 2's B4 of
+17.91 ms proves `llama_state_save_file` issues no `fsync`, so without the
+`sync` these bytes might have been hashed out of the page cache while still
+unwritten. They are flushed. **So if boot 2's hash differs from
+`707e0ea3…`, that is a real result about the file surviving a power cycle and
+not an artefact of an unflushed write.**
+
+Boot 1 closing state, same invocation: `MemAvailable` 2,870,644 kB, `SwapFree`
+589,820 kB (18.75% of `SwapTotal`), `Cached` 1,535,700 kB.
+
+**Boot 1 is complete: rows 1-4 run, A1, A2, A4, A5, B1, B2, B4 and B5 scored,
+A3 failed low.** Outstanding on Qwen3-1.7B: **B3 only**, which needs boot 2 and
+is approved. Qwen3.5-2B's A6 and B6 need boot 3 and its model is not on the
+phone.
