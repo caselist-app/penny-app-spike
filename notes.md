@@ -5019,3 +5019,207 @@ table and unchanged since. Corrected in place rather than left to mislead; the
 cell is the only thing altered, and no figure derived from it changes — the
 25.3 -> 120.6 min `SwapFree` movement quoted in the prose (+187,392 kB) was
 computed from the right number.
+
+## 2026-09-16 — llama-bench cross-compiles for the 6a, with dotprod and without i8mm. Four things in the protocol written last night were wrong, and the phone is not on the bus.
+
+First half of step 3. The binary exists, it is aarch64, it carries the
+instructions this handset has and none of the ones it does not. Nothing has
+been pushed and nothing has been run. Step 0 did not complete — see the end.
+
+### The configure line, exactly as run
+
+Run from `~/Documents/llama.cpp` at commit
+`38a5b42d9a3e82e0a586bcd1caed121f36c87a73` ("HIP: Enable AllReduce for ROCm
+(#27825)"), working tree clean. `build-android/` was `rm -rf`'d first so this
+is a configure from nothing.
+
+    NDK=/opt/homebrew/share/android-commandlinetools/ndk/30.0.16248370
+    SDKCM=/opt/homebrew/share/android-commandlinetools/cmake/3.22.1/bin
+
+    "$SDKCM/cmake" \
+      -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
+      -DANDROID_ABI=arm64-v8a \
+      -DANDROID_PLATFORM=android-28 \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DBUILD_SHARED_LIBS=OFF \
+      -DGGML_NATIVE=OFF \
+      -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16 \
+      -DGGML_OPENMP=OFF \
+      -DGGML_LLAMAFILE=OFF \
+      -DLLAMA_OPENSSL=OFF \
+      -DLLAMA_BUILD_EXAMPLES=OFF \
+      -DLLAMA_BUILD_SERVER=OFF \
+      -DLLAMA_BUILD_TESTS=OFF \
+      -G Ninja \
+      -DCMAKE_MAKE_PROGRAM="$SDKCM/ninja" \
+      -B build-android
+
+    "$SDKCM/cmake" --build build-android --target llama-bench -j 8
+
+Both `cmake` and `ninja` are named by full path, so the SDK's ninja 1.10.2 is
+used and Homebrew's 1.13.2 on `PATH` is not. No network was reached by either
+step.
+
+### `GGML_CPU_ARM_ARCH` is the right knob, and a global `-march` is not
+
+**The protocol written last night said to pass `-march=armv8.2-a+dotprod+fp16`.
+The flag value is right; the mechanism is not, and llama.cpp provides a
+targeted one.** `docs/build.md:669` at this commit warns specifically against
+global `-march` flags because they "raise the baseline instruction set for
+generic code" — every source file in the project, not just the kernels.
+`ggml/CMakeLists.txt:184` exposes `GGML_CPU_ARM_ARCH`, which
+`ggml/src/ggml-cpu/CMakeLists.txt:172-173` turns into `-march=<value>` appended
+to `ARCH_FLAGS` **for the `ggml-cpu` target alone**. Same instruction set where
+it is wanted, stock baseline everywhere else.
+
+**Passing nothing at all would have been the real mistake, and it is the
+default this doc recommends.** With `GGML_NATIVE=OFF` — which is mandatory for
+cross-compilation — and neither `GGML_CPU_ARM_ARCH` nor `GGML_CPU_ALL_VARIANTS`
+set, the `else()` branch at `ggml/src/ggml-cpu/CMakeLists.txt:171-216` adds no
+`-march` whatsoever. The NDK's `arm64-v8a` baseline is plain `armv8-a`: no
+dotprod, no fp16 vector arithmetic. That binary would run on this phone and
+would understate it, because llama.cpp's Q4_0 repack path and its quantised dot
+kernels are compiled behind `__ARM_FEATURE_DOTPROD`. A feasibility figure from
+a build with dotprod compiled out is not a feasibility figure for this silicon.
+
+### The configure proved the flag before any binary existed
+
+cmake's own feature probes, quoted from the configure output:
+
+    -- Checking for ARM features using flags:
+    --   -march=armv8.2-a+dotprod+fp16
+    -- Performing Test HAVE_DOTPROD                  - Success
+    -- Performing Test HAVE_SVE                      - Failed
+    -- Performing Test HAVE_MATMUL_INT8              - Failed
+    -- Performing Test HAVE_FMA                      - Success
+    -- Performing Test HAVE_FP16_VECTOR_ARITHMETIC   - Success
+    -- Performing Test HAVE_SME                      - Failed
+    -- Adding CPU backend variant ggml-cpu: -march=armv8.2-a+dotprod+fp16
+
+`HAVE_MATMUL_INT8` is i8mm. Failed, SVE failed, SME failed, which is the whole
+point: Tensor G1's Cortex-X1/A76/A55 have none of the three, and a binary
+containing them dies with SIGILL in a way that reads as a broken build rather
+than a wrong flag.
+
+### The binary
+
+    build time         25 s wall, -j 8, 131 ninja steps, from a clean
+                       build-android/. Configure was a separate invocation
+                       and was not timed.
+    compiler           Android clang 21.0.0, NDK 30.0.16248370
+                       (16134705, +pgo, -bolt, +lto, -mlgo, based on r574158c)
+    ggml version       0.24.0, ggml commit 38a5b42d9
+    unstripped         105,462,376 B, with debug_info
+                       sha256 2bb2a48e1f411f1527655a422997de19192fe7cb
+                              24d1d274a47f96fec3e4d084
+    stripped           4,708,216 B  <- this is the one to push
+                       sha256 44015c0614b3f1c0f4ee3240fb8f3a37503420ab
+                              7285a36a10ad14abaaaeb84e
+    file               ELF 64-bit LSB pie executable, ARM aarch64, version 1
+                       (SYSV), dynamically linked, interpreter
+                       /system/bin/linker64, stripped
+    NEEDED             libm.so, libdl.so, libc.so — and nothing else
+
+**"Static" means static against ggml, llama and libc++, not a static ELF, and
+the distinction must not be blurred.** `BUILD_SHARED_LIBS=OFF` plus the NDK's
+default `c++_static` means there is no `libllama.so`, no `libggml*.so` and no
+`libc++_shared.so` to push and no `LD_LIBRARY_PATH` to set — which is the whole
+reason the protocol asked for it. The three `NEEDED` entries above are bionic,
+which every Android process links and which cannot be statically linked on a
+general Android binary. `docs/android.md`'s `LD_LIBRARY_PATH=lib` instruction
+does not apply to this build.
+
+### `readelf -A` DOES NOT WORK ON aarch64, and the protocol named it as the check
+
+Written into CLAUDE.md last night, before the build, as "Verify before pushing:
+`readelf -A` on the binary must not list `i8mm` or `sve`." Run against this
+binary it returns:
+
+    BuildAttributes {
+    }
+
+An empty block. The `Tag_CPU_arch` build attributes that check relies on are a
+32-bit ARM ELF feature; aarch64 objects do not carry them. **A check that
+returns empty for every binary passes every binary, including one full of
+`smmla`.** It would have given a clean bill of health to exactly the build it
+was written to catch.
+
+**The check that does work is to disassemble and count instructions.** Over
+900,738 lines of `llvm-objdump -d`:
+
+    i8mm      smmla / ummla / usmmla            0      must be 0
+    SVE/SME   ptrue / whilelo / smstart /
+              smstop / any z<n>. register       0      must be 0
+    dotprod   sdot / udot                     898      must be > 0
+    fp16      any .8h vector operand         1566      expected > 0
+
+The two zeroes are the safety check. **The 898 is the one worth having**: it is
+positive evidence the dotprod kernels were compiled in, which the absence-only
+check could never have given, and it is the difference between measuring this
+handset and measuring a generic armv8-a.
+
+### Three more things in last night's protocol bullet that are wrong
+
+**1. `docs/android.md` does not suggest `armv8.7a`.** The bullet's stated reason
+for the flag was that the doc recommends `armv8.7a`. At commit 38a5b42d it
+recommends the opposite, in as many words: "Do not add a global `-march` flag
+unless you intentionally want to raise the baseline instruction set for every
+compiled source", and `docs/build.md:669` adds "Global -march flags such as
+`-march=armv8.7a` flag are not required for a portable Android `arm64-v8a`
+build." The only `armv8.7a` in the tree is
+`docs/backend/snapdragon/CMakeUserPresets.json`, which is a Snapdragon preset
+and carries `+i8mm` explicitly. **The conclusion — do not use armv8.7a here —
+is right and is now better supported than it was. The premise was wrong.**
+Presumably true of an older revision of that doc; not checked, and not worth
+checking.
+
+**2. `LLAMA_CURL=OFF` is a dead option.** `CMakeLists.txt:195` lists it under
+`llama_option_depr(WARNING LLAMA_CURL)` with no replacement mapping. Passing it
+produces a deprecation warning and changes nothing. The live option that keeps
+the network library out is `LLAMA_OPENSSL=OFF` (`CMakeLists.txt:144`, default
+ON), which is what was passed and what `docs/android.md` names.
+
+**3. `llama-cli` was not built, and building it would have wanted the
+network.** `tools/CMakeLists.txt:23-27` puts `cli` inside
+`if (LLAMA_BUILD_SERVER)`, alongside `ui` and `server` — at this commit
+`llama-cli` links `llama-server-impl`, so it cannot be had without the server
+tree. `tools/ui/CMakeLists.txt` then provisions prebuilt web assets from a
+Hugging Face bucket (`LLAMA_UI_HF_BUCKET "ggml-org/llama-ui"`) **at build
+time**. The Mac is on a phone tether and nothing is being downloaded, so the
+build was stopped at `llama-bench`. `llama-bench` supplies every column the
+benchmark protocol asks for — pp tok/s, tg tok/s, threads, `-p` — so nothing in
+the protocol is blocked by this. `llama-cli` is only wanted for an interactive
+sanity check, and it is Matt's call whether it is worth a download later.
+
+### Step 0 did not complete: the phone is not on the USB bus
+
+Attempted before the build, 12:05 on 16 Sept.
+
+    adb devices                  List of devices attached   (empty)
+    system_profiler SPUSBDataType   0 devices with a Product ID
+
+**Zero devices on the bus means macOS sees nothing at all**, so no adb question
+can help — this repo's own trap entry says to run `system_profiler` first for
+exactly this reason, and it was. Cable, or the GrapheneOS charging-only-while-
+locked behaviour, or a dead data path; nothing here distinguishes them. So
+**uptime, `vm list`, `pm path` and `MemAvailable` are all unread**, and whether
+the phone rebooted overnight is unknown. The last recorded state — app
+`pm disable-user`d, `Running VMs: []`, booted ~19:59 on 15 Sept — is from last
+night and is not confirmed today.
+
+### What this entry does NOT say
+
+**Nothing has been run and nothing has been pushed.** There is no tok/s figure
+for this handset at any quantisation, no peak RSS, no KV cache measurement, and
+no model on the phone. The instruction counts prove what the compiler emitted,
+not that the binary executes — it has never been run on any device, and the
+SIGILL this build was shaped to avoid is unobserved rather than avoided until
+it runs. 25 s is one build on one Mac and is recorded because the protocol asked
+for it, not because it means anything. `GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16`
+is an argued choice, not a measured one: no build at the plain `armv8-a`
+baseline was made, so the claim that dotprod matters here is llama.cpp's source
+structure plus this repo's 3f reading of `asimddp` in the guest's feature line,
+and is **not** a measured speed difference on this phone. Whether KleidiAI
+(`GGML_CPU_KLEIDIAI`, off here and off by default) would beat these kernels is
+untested. And step 0's device checks are outstanding, so every figure below
+this line waits on a phone that is currently not visible.

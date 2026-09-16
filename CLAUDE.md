@@ -2122,19 +2122,45 @@ not soften it.
 
 ## Benchmark protocol — native llama.cpp, from 16 Sept
 
-- **Build flags: `-march=armv8.2-a+dotprod+fp16`, NEVER `armv8.7a`.**
-  llama.cpp's `docs/android.md` suggests `armv8.7a`; that turns on i8mm
-  (and more), which Tensor G1's Cortex-X1/A76/A55 do not have, so the
-  compiler emits `smmla`-family instructions and the binary dies with
-  SIGILL on the phone — and it reads as a broken build, not a wrong flag.
-  Verify before pushing: `readelf -A` on the binary must not list `i8mm`
-  or `sve`. Cross-compile with the NDK toolchain file, `ANDROID_ABI=
-  arm64-v8a`, `BUILD_SHARED_LIBS=OFF` (one static binary, no library path
-  games in `/data/local/tmp`), `LLAMA_CURL=OFF`, targets `llama-bench`
-  and `llama-cli` only. cmake and ninja are the SDK's copies in
-  `cmake/3.22.1/bin/`, called by full path — the brew ninja on PATH is a
-  different version. Added 16 Sept by the review session, before the
-  first build; untested until the build runs.
+- **Build flags: `-DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16`, NEVER
+  `armv8.7a`, and never as a global `-march`. RUN 16 Sept — the flag VALUE
+  was right and four other things in this bullet were wrong. Corrected
+  here; see the 16 Sept notes.md entry.**
+  `armv8.7a` turns on i8mm, which Tensor G1's Cortex-X1/A76/A55 do not
+  have, so the compiler emits `smmla`-family instructions and the binary
+  dies with SIGILL on the phone — reading as a broken build, not a wrong
+  flag. **`docs/android.md` does NOT recommend it** (this bullet said it
+  did): at commit 38a5b42d that doc says "Do not add a global `-march`
+  flag" and `docs/build.md:669` says `armv8.7a` is "not required". The
+  only `armv8.7a` in the tree is a Snapdragon preset.
+  **Use `GGML_CPU_ARM_ARCH`, not `CMAKE_C_FLAGS`.** It applies `-march`
+  to the `ggml-cpu` target alone (`ggml/src/ggml-cpu/CMakeLists.txt:172`)
+  instead of raising the baseline for every source in the project.
+  **Passing nothing is the trap, not the safe option.** With
+  `GGML_NATIVE=OFF` — mandatory for cross-compilation — and no
+  `GGML_CPU_ARM_ARCH`, ggml adds no `-march` at all and the NDK baseline
+  is plain `armv8-a`: no dotprod, no fp16 vector arithmetic, and the Q4_0
+  repack and quantised dot kernels compiled out. That binary runs and
+  understates the handset.
+  **`readelf -A` IS NOT THE CHECK — it returns an empty `BuildAttributes`
+  block for every aarch64 binary**, so it would pass a build full of
+  `smmla`. Disassemble instead: `llvm-objdump -d` must show **0**
+  `smmla|ummla|usmmla`, **0** `ptrue|whilelo|smstart|smstop` or `z<n>.`
+  operands, and — the positive half, which absence-checking cannot give —
+  a nonzero count of `sdot|udot`. This build: 0, 0, 898.
+  **`LLAMA_CURL=OFF` is a dead option** (`CMakeLists.txt:195`,
+  `llama_option_depr`, no replacement). Use `LLAMA_OPENSSL=OFF`.
+  **`llama-cli` cannot be built offline at this commit**: `tools/cli` sits
+  inside `if (LLAMA_BUILD_SERVER)` with `tools/ui`, which downloads
+  prebuilt web assets from a Hugging Face bucket at build time.
+  `llama-bench` alone supplies every column this protocol asks for.
+  Otherwise as before: NDK toolchain file, `ANDROID_ABI=arm64-v8a`,
+  `BUILD_SHARED_LIBS=OFF` (no `.so` to push, no `LD_LIBRARY_PATH` — but
+  the binary still links bionic `libc/libm/libdl`, so it is not a static
+  ELF), cmake and ninja as the SDK's copies in `cmake/3.22.1/bin/` by full
+  path. The working line, the binary's hashes and the instruction counts
+  are in the 16 Sept notes.md entry. **Still untested on the phone — the
+  binary has never been executed on any device.**
 - Prediction written in notes.md BEFORE the first run, and judged against
   in the write-up. The standing one: token generation barely improves
   beyond 2 threads (memory-bandwidth bound); prompt processing scales.
