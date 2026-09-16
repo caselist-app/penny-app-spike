@@ -7069,3 +7069,84 @@ sustained run, nothing on battery, nothing with the screen off, no
 time-to-first-token. `policy0` (the A55 cluster) has still never been sampled.
 And none of this is a native-versus-VM statement: that comparison is closed and
 this is an absolute feasibility measurement of the 6a.
+
+## 2026-09-16 — PREDICTION FOR Qwen3.5-2B Q4_K_M, WRITTEN BEFORE THE FILE IS ON THE PHONE
+
+Written to the protocol's rule — the prediction goes in notes.md and is
+committed BEFORE the run, so the result cannot be fitted to it.
+
+    model      Qwen3.5-2B-Q4_K_M.gguf
+    size       1,280,835,840 B = 1221.5 MiB = 1.1929 GiB
+    sha256     aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223
+               MANIFEST.txt, VERIFIED vs HF LFS oid
+    versus     Qwen3-1.7B-Q4_K_M.gguf, 1,107,409,472 B = 1056.1 MiB
+               +173,426,368 B = +165.4 MiB = +15.66%
+    planned    c0, 2 threads, -p 512 then -p 64, -n 128, -lm none, each gated
+               on policy6 = 2,802,000 AND policy4 = 2,253,000
+
+**Phone state at the moment of deletion and push, read now:** Qwen3-1.7B
+deleted from `/data/local/tmp` at uptime 2154.22 s (35.9 min) on the 14:22
+boot, 102 G free on `/data`. `MemFree` 2,197,316 kB, **`MemAvailable`
+2,583,580 kB**, `Cached` 611,936 kB (down from 1,199,624 kB — the `rm` freed
+the model's own page cache), `SwapFree` 682,492 kB, `AnonPages` 1,261,616 kB.
+
+### 1. PEAK RSS
+
+The measured relationship on Qwen3-1.7B at `-lm none`, both readings taken
+today: peak RSS 1,492,260 kB (1457.3 MiB) at `-p 512` and 1,415,980 kB
+(1383.0 MiB) at `-p 64`. Over a 1056.1 MiB file that is **+401.2 MiB and
++326.9 MiB of non-file memory**, and **+74.3 MiB is the cost of the 512-token
+micro-batch alone**. Two ways to carry that across, and they disagree because
+KV, compute and output buffers are not file-proportional:
+
+    additive   (file + the same non-file memory)   1622.9 / 1548.4 MiB
+    scaled     (file x 1.380 / x 1.310)            1685.7 / 1600.2 MiB
+
+> **PREDICTED peak RSS at `-p 512`: 1,620-1,690 MiB = 1,659,000-1,730,000 kB.**
+> **PREDICTED peak RSS at `-p 64`:  1,545-1,605 MiB = 1,582,000-1,644,000 kB.**
+> The additive figure is the point estimate in each case (1,662,000 kB and
+> 1,586,000 kB) because the KV and compute buffers scale with context and
+> batch, not with file size — but a 2B model has more layers and more KV heads
+> than a 1.72B one, so the true answer should sit ABOVE additive and below
+> scaled. **The `-p 512` figure lands outside P5's 1.1-1.4 GB band on any
+> reading, as Qwen3-1.7B's already does.**
+
+### 2. tg128 AT 2 THREADS ON c0
+
+Token generation on this handset is memory-bandwidth bound — that is the
+standing prediction and P2 has held twice. If it is bytes-per-token that binds,
+the figure scales with the inverse of the weight bytes read per token, i.e. by
+the file-size ratio 1056.1 / 1221.5 = 0.8646 applied to the cooled Qwen3-1.7B
+rows (C1 14.11 at `-p 512`, C2 14.91 at `-p 64`):
+
+> **PREDICTED tg128 at 2 threads on c0: 12.2 t/s at `-p 512` and 12.9 t/s at
+> `-p 64`, band 11.5-13.5 t/s on both rows.** Below P1's 8-16 t/s ceiling and
+> comfortably inside its floor, so **P1 is predicted to hold on this model
+> too**. If the measured figure comes in materially BELOW 11.5, the binding
+> constraint is not bandwidth alone — architecture or the clock cap is doing
+> work the file-size ratio does not capture.
+
+### 3. KILLS
+
+B2-R1 took one cached process at `oom_score_adj 985` with a peak of
+1,492,260 kB against `MemAvailable` 2,128,524 kB — a kill with ~636,000 kB of
+apparent headroom, because the killer fires on watermarks during the load
+transient, not on the final margin. This model asks for **~170,000-240,000 kB
+more anonymous memory** than that row did, against a current `MemAvailable` of
+2,583,580 kB which will have drifted by the time the row runs.
+
+> **PREDICTED: kills DO occur, on the `-p 512` row for certain and probably on
+> the `-p 64` row too. Expect 1-5 kill lines, all in the cached band
+> (`oom_score_adj` 900+, `cch` reasons), and expect NOTHING below 900** —
+> no `prcp`, no IME, nothing in the foreground bands. **`rc=0` and both rows
+> complete.** If anything at `oom_score_adj` < 900 dies, or a row returns
+> non-zero, the prediction fails and the model is at this handset's edge rather
+> than inside it.
+
+### What this prediction does NOT say
+
+It says nothing about `pp512`. The pp figure depends on compute and on the
+clock cap, both of which this repo has failed to predict twice today, and a
+band wide enough to be safe would be worthless. It says nothing about Q4_0 —
+the repack path has still never executed on this phone. And it is a prediction
+about the 6a only; the 7a re-measures anything that fails here.
