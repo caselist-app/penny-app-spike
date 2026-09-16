@@ -7539,3 +7539,319 @@ no thermal run, no sustained run, nothing on battery, no time-to-first-token,
 `policy0` never sampled, and the model was not asked to produce text, so
 nothing here says its output is sensible. And this is an absolute feasibility
 measurement of the 6a, not a native-versus-VM comparison, which is closed.
+
+## 2026-09-16 — NATIVE llama.cpp FEASIBILITY ON THE 6a. The answer is YES for 1.7-2B, at 10-15 tokens/second and 1.35-1.74 GiB, and the constraint that bites is memory rather than compute.
+
+This is the closing entry for the native benchmark work started this morning.
+It gathers every row run, judges all six predictions, answers the question the
+work was set up to ask, and says what it does not answer. Every figure below is
+from `-lm none` unless the line says otherwise; the four mmap figures from the
+RSS chase are in their own entries and are not repeated as speed results.
+
+### THE APPARATUS
+
+    handset      Pixel 6a (bluejay), Tensor G1: 2x Cortex-X1 (cpus 6-7,
+                 policy6, rated 2,802,000 kHz), 2x Cortex-A76 (cpus 4-5,
+                 policy4, 2,253,000), 4x Cortex-A55 (cpus 0-3, policy0,
+                 1,803,000 -- NEVER SAMPLED). 5,718,280 kB MemTotal,
+                 3,145,724 kB of zram swap. GrapheneOS 2026091001,
+                 Android 17, bootloader LOCKED. AC power, screen on.
+    binary       llama-bench, llama.cpp commit 38a5b42d9 (10989), built on
+                 the Mac with NDK 30.0.16248370,
+                 -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16, GGML_NATIVE=OFF,
+                 BUILD_SHARED_LIBS=OFF. Disassembly: 0 smmla/ummla/usmmla,
+                 0 SVE/SME, 898 sdot/udot. sha256 44015c0614b3f1c0f4ee3240fb
+                 8f3a37503420ab7285a36a10ad14abaaaeb84e.
+    wrapper      pennybench.sh, sha256 484d75d4f006822afe3354cd8dd4bc7fba45
+                 f42d5178639c644440643e3b92ab, byte-identical on the phone.
+                 It supplies every measured column except pp/tg t/s.
+    correctness  llama-simple returned correct text from the Q4_K/Q6_K
+                 kernels before any timing was taken. **The Q4_0 repack path
+                 has still never executed on this phone.**
+    masks        c0 = 0xc0 = cpus 6,7 (the X1 pair). f0 = 0xf0 = cpus 4,5,6,7
+                 (X1 + A76). "un" = unpinned.
+
+### EVERY ROW RUN, IN THREE GROUPS THAT MUST NOT BE MIXED
+
+**Group A — Qwen3-1.7B Q4_K_M, 15 Sept boot, NO thermal gate.** Run back to
+back with 15-28 s between them, against a ~110 s recovery. Each row therefore
+started at an unrecorded clock. **These are not quoted as this chip's speed.**
+
+    row  mask  -t   -p    pp t/s          tg128 t/s       wall s  peak RSS kB  kills
+    r1   c0     1   512   32.40 +/- 0.78   9.89 +/- 0.38  162.19   1,491,612     0
+    r2   c0     1    64   30.54 +/- 0.69   9.86 +/- 0.36   81.04   1,415,860     0
+    r3   c0     2   512   45.39 +/- 5.78  10.35 +/- 0.13  132.62   1,491,668     0
+    r4   c0     2    64   49.44 +/- 2.55  12.75 +/- 2.27   64.86   1,415,856     0
+
+**Group B — Qwen3-1.7B Q4_K_M, 15 Sept boot, GATED at rated clock on both
+sampled policies.** The matrix as designed. C7 is struck through: it ran on a
+boot whose page cache had collapsed by the size of the model and whose swap was
+97.0% spent, and the re-run on a fresh boot disagrees with it by 39-69%.
+
+    row  mask  -t   -p    pp t/s          tg128 t/s       wall s  peak RSS kB  kills
+    C1   c0     2   512   55.36 +/- 5.11  14.11 +/- 0.59  103.32   1,491,536     0
+    C2   c0     2    64   61.79 +/- 1.80  14.91 +/- 0.92   52.57   1,415,980     0
+    C3   f0     4   512   66.19 +/- 3.84  12.78 +/- 2.41  100.41   1,491,364     0
+    C4   f0     4    64   84.68 +/- 3.00  14.23 +/- 1.84   53.91   1,415,824     0
+    C5   un     4   512   63.52 +/- 4.71  11.74 +/- 1.76  106.03   1,491,144     0
+    C6   un     4    64   82.34 +/- 2.80  14.47 +/- 1.73   52.93   1,415,508     0
+    --   ----   -   ---   --------------  --------------  ------   ---------   ---
+    C7   c0     1   512   22.68 +/- 5.38   6.00 +/- 0.27  246.73   1,491,292     0
+         VOID -- contaminated boot. Superseded by B2-R1 below.
+
+**Group C — 16 Sept 14:22 boot, GATED, one row per line, three models.** This
+is the clean group: a boot that had killed nothing, `MemAvailable` 2.13-3.10 GB
+at the start of each row, and the swap and major-fault counters recorded either
+side.
+
+    row     model         mask -t  -p   pp t/s          tg128 t/s       wall s
+    B2-R1   Qwen3-1.7B     c0   1  512  31.45 +/- 0.70  10.13 +/- 0.64  164.38
+    Q1      Qwen3.5-2B     c0   2  512  51.41 +/- 1.57  11.21 +/- 1.00  121.02
+    Q2      Qwen3.5-2B     c0   2   64  48.14 +/- 1.19  10.94 +/- 0.62   71.86
+    G1      Gemma 4 E2B    c0   2   64  30.53 +/- 0.55   9.99 +/- 0.60   85.77
+
+    row     peak RSS kB   RssAnon %  MemAvail before kB  kills  deepest adj  rc
+    B2-R1     1,492,260      99.59         2,128,524       1        985       0
+    Q1        1,822,804      99.65         2,561,040       1        975       0
+    Q2        1,768,596      99.69         2,710,124       3        915       0
+    G1        3,244,696      99.83         3,101,624      34        905       0
+
+**B2-R1 replaces C7 and reproduces r1**: 31.45 / 10.13 against 32.40 / 9.89,
+error bars overlapping on `pp512`. The falsification condition was committed
+before that row ran.
+
+### THE CLOCK, WHICH TURNED OUT TO BE THE STORY OF THE DAY
+
+`scaling_max_freq` is the CEILING the governor may not exceed. Both sampled
+clusters lower their own ceiling under load, and the wrapper samples it
+throughout each row rather than after it.
+
+    row     X1 before/min/after kHz        min at    A76 before/min/after kHz
+    C1      2802000/1106000/1745000         --       2253000/1836000/2253000
+    C2      2802000/1277000/2188000         --       2253000/2253000/2253000
+    C3      2802000/1106000/1106000         --       2253000/ 910000/1024000
+    C4      2802000/1106000/2188000         --       2253000/1328000/1328000
+    C5      2802000/ 851000/ 984000         --       2253000/ 910000/1024000
+    C6      2802000/ 984000/2188000         --       2253000/1328000/1328000
+    B2-R1   2802000/1426000/2630000       86 s       2253000/2253000/2253000
+    Q1      2802000/ 500000/2401000       84 s       2253000/2253000/2253000
+    Q2      2802000/1277000/1745000       43 s       2253000/2253000/2253000
+    G1      2802000/1106000/1745000       61 s       2253000/1836000/2253000
+
+- **The X1 ceiling fell below half its rated clock on every gated row without
+  exception.** Floor **500,000 kHz on Q1 — 17.8% of rated**, and it was reached
+  84 s into a 121 s row.
+- **The A76 pair falls too, and it falls on rows where `taskset c0` schedules
+  nothing onto it** — C1 and G1 both. Floor 910,000 kHz, 40.4% of rated.
+  **The limiter acts across the package, not per cluster.** An earlier claim in
+  CLAUDE.md that only the X1 pair is capped came from one reading taken after a
+  row had ended, during recovery, and is refuted.
+- Three of the four Group C rows saw their minimum **43-86 s into the row**, so
+  the descent is well inside a single row's runtime.
+- **Gating buys a known starting clock and nothing else.** No row ended at the
+  X1's rated clock.
+- **What writes the cap is NOT identified.** `/sys/class/thermal/` is
+  `Permission denied` to the shell user, so no temperature was read at any
+  point. "Throttle" describes the behaviour; a power or current limiter, or a
+  platform HAL policy, would look identical from here.
+- `policy0`, the four A55s, was never sampled on any row. The unpinned rows in
+  particular have a third of the chip unobserved.
+
+### MEMORY
+
+    model         file kB     peak RSS kB   non-file kB  peak/file  RssAnon %
+    Qwen3-1.7B  1,081,455  1,415,508-1,492,260  ~410,805    1.380     99.6%
+    Qwen3.5-2B  1,250,816  1,768,596-1,822,804  ~571,988    1.457     99.7%
+    Gemma 4 E2B 3,033,924        3,244,696       210,772    1.070     99.8%
+
+- **At `-lm none`, peak RSS IS the working set** — 99.6-99.8% anonymous, and
+  anonymous pages cannot be dropped, only compressed into zram. Under mmap the
+  same model peaks at 2,230,268 kB, but ~817 MiB of that is dead
+  already-repacked originals and the figure cannot be used to size anything.
+- **Peak RSS is NOT a fixed multiple of the model file.** The multiplier ranges
+  **1.07 to 1.46** across three models and does not move with file size: the
+  largest file has the smallest overhead. Predicting Qwen3.5-2B from
+  Qwen3-1.7B's multiplier was 9.7% low; predicting Gemma from Qwen3.5-2B's
+  would have been 36% high. **llama.cpp's own buffer lines are the method;
+  file size is not.**
+- **The `-p 512` default micro-batch costs 54,208-76,280 kB** over `-p 64`, and
+  it is what pushes Qwen3-1.7B out of P5's band.
+- **Swap on this handset is zram** — compressed in RAM at ~4.25:1, not disk.
+  `/proc/swaps` and every attribute under `/sys/block/zram0` are
+  `Permission denied` to the shell user; `dumpsys meminfo` is readable and is
+  where the ZRAM line comes from.
+
+### THE KILLS, AND THE PROTOCOL POINT THEY FORCED
+
+    starting MemAvailable   rows            kills
+    2,695,176-2,848,012 kB  all 11 of Groups A and B      0
+    2,128,524 kB            B2-R1 (Qwen3-1.7B)            1   adj 985
+    2,561,040 kB            Q1    (Qwen3.5-2B)            1   adj 975
+    2,710,124 kB            Q2    (Qwen3.5-2B)            3   adj 945, 915, 915
+    3,101,624 kB            G1    (Gemma 4 E2B)          34   all adj 905
+
+**Every zero-kill row started 570,000-720,000 kB higher than B2-R1 did, on a
+boot that had been running 17-18 hours, had already shed its cheap processes
+and had spent 97% of its swap getting there.** That headroom was the product of
+earlier kills. The fresh-boot rows are the representative condition and the
+eleven zero-kill rows were flattered. **A kill count is meaningless without the
+row's `MemAvailable` before it**, and that is now a protocol rule.
+
+**No casualty of any row was below `oom_score_adj` 905.** Every one was `cch` —
+cached and empty. Nothing in the foreground bands, no IME, and never the
+benchmark. For contrast, rung 3g-ii's 2GB VM on a phone somebody was using
+reached adj 201.
+
+**Gemma's 34 kills landed in 2.434 seconds, at load**, and the row then
+completed with `rc=0`. `MemFree` went 264,548 -> 3,521,020 kB across it. The
+model did not fit in what the phone had spare; it fit in what the phone was
+prepared to take from everything else. **`MemAvailable` is not a ceiling — it
+is what the kernel hands over WITHOUT killing, and the kernel is willing to
+kill.**
+
+**The vmstat counters separate comfort from starvation by three orders of
+magnitude**, and G1 is the positive control the C7 argument never had:
+
+    row     pgmajfault   pswpin       pswpout
+    B2-R1        +488        +427     +129,239
+    Q1           +379        +353      +51,397
+    Q2           +364        +316      +56,858
+    G1       +355,006   +353,162     +441,236
+
+### THE SIX PREDICTIONS, WRITTEN BEFORE THE FIRST RUN, JUDGED
+
+    P1  tg 8-16 t/s at 2 threads pinned to c0
+        **HOLDS, and it is the most robust of the six** -- it holds on all
+        THREE models, which none of the others was tested against.
+        Qwen3-1.7B 14.11 and 14.91; Qwen3.5-2B 11.21 and 10.94; Gemma 4 E2B
+        9.99. All five figures inside 8-16. It is not safe at the top: C2's
+        14.91 came within 1.09 of the ceiling and a cooled tg16 read 17.96,
+        already outside. A faster model than these would fail P1 upward.
+
+    P2  tg at 4 threads on f0 < 1.3x the 2-thread c0 figure
+        HOLDS, and by far more than predicted -- four threads are SLOWER than
+        two, not merely short of 1.3x: 12.78/14.11 = 0.91x at -p 512,
+        14.23/14.91 = 0.95x at -p 64.
+        **WHY is NOT established, and the earlier judgement line saying the
+        A76 pair gives "no benefit at all" overstated its own body.** On C3
+        and C5 the A76 ceiling was pinned to 910,000 kHz, 40.4% of rated, so
+        what was measured is two X1s plus two heavily-capped A76s. Memory
+        bandwidth and the A76 cap are not separable by any row in this matrix.
+
+    P3  pp512 at 4 threads on f0 >= 2x pp512 at 1 thread on c0
+        HOLDS, on the clean baseline and on both earlier ones.
+        66.19 / 31.45 = 2.10x against B2-R1, the fresh-boot row.
+        66.19 / 32.40 = 2.04x against r1. Prompt processing scales with
+        cores; token generation does not. That contrast is the single
+        clearest result of the day and it held across every comparison.
+
+    P4  unpinned 4 threads no faster than pinned f0
+        HOLDS on three of four comparisons and is a wash on the fourth.
+        pp512 -4.0%, tg128 -8.1%, pp64 -2.8%; tg128 at -p 64 is +1.7%, inside
+        error bars of 12.0% and 12.9%. Never faster by more than its own
+        noise. **Pinning is not a speed win; it is what makes a figure mean
+        something**, and unpinned figures are still never quoted as the
+        chip's speed.
+
+    P5  peak RSS 1.1-1.4 GB, and NO kills on any Qwen3-1.7B run
+        **KILLS HALF: FAILS under the realistic starting condition.** At
+        MemAvailable 2,128,524 kB -- a phone that has not already been
+        cleared by hours of kills -- loading Qwen3-1.7B at -lm none takes one
+        cached process at adj 985. The eleven zero-kill rows started far
+        higher on a boot that had freed that headroom by killing things.
+        **RSS HALF: HOLDS AT -p 64 AND FAILS AT -p 512**, and not on units.
+        -p 64: 1,415,508-1,415,980 kB = 1.350 GiB, inside. -p 512:
+        1,491,144-1,492,260 kB = 1.422 GiB AND 1.492 GB, outside on both
+        readings. The default 512 micro-batch is what puts it over.
+        On the two larger models it fails outright, as expected of a
+        prediction written about Qwen3-1.7B.
+
+    P6  -p 64 returns a LOWER pp t/s than -p 512
+        **MODEL-DEPENDENT, which no one predicted.**
+            Qwen3-1.7B   -p 64 is +11.6% to +29.6% FASTER   P6 FAILS, x3
+            Qwen3.5-2B   -p 64 is  -6.4% SLOWER              P6 HOLDS
+        The 2-thread inversion was first attributed to throttling; gating both
+        rows at rated clock WIDENED it, which rules out the cool start.
+        **It does not rule out throttling** -- every gated row fell to ~1.1 GHz
+        DURING itself and a pp512 repetition is ~8x longer under load, so the
+        earlier line saying the attribution was "refuted" overstated it. The
+        honest reading is **inseparable from throttling on the evidence
+        available**. Against that, Q1 ran with a 500,000 kHz X1 floor and
+        still beat Q2, so on Qwen3.5-2B the thermal conditions favoured the
+        inversion appearing and it did not. **The one cheap test that would
+        separate batch size from micro-batch size -- vary `-ub` independently
+        of `-p` -- has not been run on either model.**
+
+### THE PLAIN ANSWER
+
+**Can this silicon run a 1.7-2B model usefully? YES.**
+
+On a Pixel 6a with Tensor G1, GrapheneOS and a locked bootloader, on AC power
+with the screen on, a 1.7B model quantised to Q4_K_M generates **14.1-14.9
+tokens per second** pinned to the two Cortex-X1 cores, and a 2B model
+**10.9-11.2**. Prompt processing runs at **48-85 t/s** depending on cores and
+batch. Peak resident memory is **1.35-1.42 GiB for the 1.7B and 1.69-1.74 GiB
+for the 2B**, all of it anonymous. Loading the 2B on a phone that has not
+already been cleared costs **one to three cached, empty background processes**,
+none deeper than `oom_score_adj` 915, and nothing a person would notice.
+
+For scale: unhurried speech is about 2.5 words a second, and reading aloud
+about 3. **Both models generate faster than a person reads out loud**, by
+roughly three to five times, and the smaller one has meaningful headroom on top
+of that.
+
+**The constraint that bites is memory, not compute.** The chip is fast enough
+and gets slower as it works — the X1 ceiling falls to between 18% and 46% of
+rated inside every row — but it never fell so far that the models stopped being
+usable. Memory is where the edges are: the `-p 512` default costs 54-76 MB for
+nothing on these models, peak RSS cannot be predicted from file size, and the
+phone buys the headroom by killing background processes.
+
+**And the ceiling was found, higher than expected.** Gemma 4 E2B — a 2.89 GiB
+file, 2.4 times the size of the 2B — **also ran, at 9.99 t/s with a peak of
+3.09 GiB and `rc=0`**, which the morning's prediction allowed might fail to
+load. It cost 34 background processes killed in 2.4 seconds. So the honest
+statement of the limit is not "3 GB does not fit" but **"3 GB fits, and the
+price is the whole cached band."** On a phone somebody is actually using, that
+price is unmeasured and rung 3g-ii says it would be paid deeper.
+
+### WHAT THIS DOES NOT SAY
+
+**It is not a native-versus-VM comparison.** That decision is closed on other
+grounds — crosvm takes ~1.92 GB from the host at VM creation, the guest cannot
+pin cores, and this device cannot make a protected VM. Nothing here reopens it,
+and a good native figure is not an argument about a VM.
+
+**It is not a product measurement, and the shape of the difference is known.**
+Every row here is 52-247 seconds on an idle phone on AC power with the screen
+on and nothing else running. **There is no thermal run, no sustained run,
+nothing on battery, nothing with the screen off, and no measurement of a model
+held resident for hours** — which is the product shape. The clock data says
+plainly that a longer run would be slower: every row was still descending when
+it ended.
+
+**No time-to-first-token, and no figure with a cached prefix.** `llama-bench`
+excludes load time from its t/s, so nothing here says how long a user waits
+before the first word.
+
+**No output was judged.** `llama-simple` returned correct text once, before any
+timing, which is what rules out a broken kernel. No benchmark row produced text
+a person read. **Tokens per second is not quality**, and nothing in this repo
+has looked at whether any of these three models says anything useful.
+
+**n=1 nearly everywhere.** Only `tg128` at 1 thread has been measured twice
+under matched conditions (9.89 and 9.86, 0.30% apart). Error bars on the
+four-thread `tg128` rows run to 18.9%, and B2-R1's agreement with r1 is two
+different thermal states agreeing, not a repetition.
+
+**Q4_0 has never run on this phone**, so llama.cpp's ARM dot-product repack
+path is untested here. `policy0` — four of the eight cores — was never sampled.
+The mechanism behind the clock cap was never identified because no temperature
+is readable. And Gemma's single row ran on a boot with `SwapFree` at 7.8%,
+below the contamination rule's own floor; it is reported with that caveat
+rather than without it.
+
+**Everything above is "on the 6a".** This handset is temporary and goes back to
+Back Market; the 7a that replaces it has more memory. Anything that fits here
+fits there, and anything that failed here must be re-measured there before it
+is called a no.
