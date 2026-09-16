@@ -2177,6 +2177,10 @@ checkable by someone who can only read what you write.
 - **Every measurement carries its conditions in the same line**: uptime
   since boot, what was running, locked or unlocked, pinned or unpinned.
   A number without conditions is not quoted.
+- **A wall-clock time is quoted ONLY when it was read in the same command as
+  the value beside it** — `adb shell 'echo "uptime_s=$(cut -d" " -f1
+  /proc/uptime) wallclock=$(date +%H:%M:%S)"'`, one invocation. Never computed
+  afterwards from another reading. Cost a four-minute error on 16 Sept.
 - **No adjectives on measurements.** "MemAvailable 940,640 kB at 5.8 min"
   — not "the phone is already tight". The reader decides what it means.
 - **A first reading is a reading, not a baseline.** Nothing is called a

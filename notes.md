@@ -8043,3 +8043,303 @@ cold-load time, time-to-first-token with a cached prefix, the `-ub` test that
 would separate batch size from micro-batch size, and a sustained run. Also
 still: Q4_0, `policy0` during a row, anything on battery, and any judgement of
 output quality.
+
+## 2026-09-16 — PREDICTIONS, written before any code and before any run: cold load time and cached-prefix TTFT on the 6a
+
+This entry is written first, deliberately, so the numbers below can be judged
+rather than rationalised. Nothing has been built, nothing has been pushed to the
+phone, and no model is on it. The two questions are the first two of the four
+the closing entry named as "still not done".
+
+    Q-A   cold-load time at `-lm none`: wall time from process start to
+          ready-to-generate, split into file read, repack, and context
+          creation. Cold and warm both measured, and which is which recorded.
+    Q-B   time to first token with a cached prefix: a ~400-token system prompt
+          and a 20-token user turn, on c0 at 2 threads, with the prefix
+          processed fresh, and then with the processed state saved to disk and
+          reloaded in a new process.
+
+Models, in order, and no third: Qwen3-1.7B-Q4_K_M
+(sha256 `b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897`,
+1,107,409,472 B) then Qwen3.5-2B-Q4_K_M
+(`aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223`,
+1,280,835,840 B). **Not Gemma.**
+
+### THE BLOCKER Q-B WAS ASKED TO CHECK FIRST, ANSWERED: `examples/save-load-state` DOES NOT EXIST at commit 38a5b42d9
+
+Checked on the Mac, in the tree every binary in this repo was built from.
+`examples/save-load-state/` is absent, and it is absent from
+`examples/CMakeLists.txt`. It is not an offline-build problem like `llama-cli`'s
+— the directory is simply not in the tree at this commit.
+
+**The API it used IS present and IS linked into the static library already
+built.** `include/llama.h` declares `llama_state_get_size`,
+`llama_state_get_data`, `llama_state_set_data`, `llama_state_save_file`,
+`llama_state_load_file` and the whole `llama_state_seq_*` family, all
+`LLAMA_API`. `src/libllama.a` in `build-android/` carries them. And
+`examples/simple` — which DID build offline, and produced the `llama-simple` now
+on the phone — links `llama` and nothing else: no `common`, no curl, no
+OpenSSL, no server.
+
+**A BUILDLESS ROUTE WAS PROPOSED AND IS REFUTED. `llama-simple` CANNOT MEET A
+SINGLE PINNED CONDITION.** An earlier draft of this entry claimed that
+`llama-simple` — already on the phone, sha256 `3d6b6afa8bf5d914604626b4b75b4aa7
+e0befdd4aae8e8cb4a1ee816ed3d1ac5`, pushed 16 Sept 12:18 — could answer Q-A's
+headline and B1 with nothing built, on the strength of the
+`llama_perf_context_print()` line it emits. **That was asserted from the fact
+that it prints a `load time` at all, without reading what the number covers or
+what the program sets.** Matt required both to be read. Both refute it.
+
+    (a) flags accepted     -m <path>, -n <n_predict>, -ngl <n_gpu_layers>, and
+                           then everything remaining is the prompt.
+                           examples/simple/simple.cpp:29-63. That is all three.
+                           There is NO -t, NO -c and NO -lm.
+    (b) n_threads          NEVER SET. It takes llama_context_default_params(),
+                           i.e. GGML_DEFAULT_N_THREADS = 4
+                           (src/llama-context.cpp:3626, ggml/include/ggml.h:232).
+                           **The protocol pins 2. Unreachable.**
+    (c) n_ctx / n_batch    ctx_params.n_ctx   = n_prompt + n_predict - 1
+                           ctx_params.n_batch = n_prompt
+                           (simple.cpp:108-111) -- both DERIVED FROM THE PROMPT.
+                           **This entry pins n_ctx at 1024. Unreachable.**
+    (d) load_mode          NEVER SET, so LLAMA_LOAD_MODE_AUTO
+                           (src/llama-model.cpp:2767) = mmap.
+                           **Every figure in this repo is `-lm none`.**
+
+**And (e), the one that would have poisoned the answer rather than merely
+limiting it: the printed `load time` is not a load time.**
+`data.t_load_ms = 1e-3 * t_load_us` (src/llama-context.cpp:3344). `t_load_us` is
+first set at `src/llama-context.cpp:95` from the `time_meas` scope that wraps
+model loading (`src/llama.cpp:339-340`) — and is then **OVERWRITTEN at
+`src/llama-context.cpp:742`**:
+
+    // get a more accurate load time, upon first eval
+    if (n_queued_tokens > 0 && !has_evaluated_once) {
+        t_load_us = ggml_time_us() - t_start_us;
+        has_evaluated_once = true;
+    }
+
+with the reason given at `src/llama.cpp:337-338`: *"loading time will be
+recalculated after the first eval, so we take page faults deferred by mmap()
+into consideration"*. **So the number is process start through the end of the
+first decode** — model load, tokenise, context creation and first eval in one
+figure — and it splits into none of the three phases Q-A asks for. Taken at
+face value it would have been reported as a load time and been wrong by the
+whole of the first eval.
+
+**THE ANSWER TO "WHY BUILD ANYTHING" IS THEREFORE: the binary on the phone
+cannot meet the conditions this protocol already pins**, and its one relevant
+number is a composite that cannot be separated. The smallest change is whatever
+adds a thread count, a context size and a load mode, and clocks the phases
+apart. That the same file can also carry `use_extra_bufts` and the state
+save/load is a consequence of it existing, not the justification for it.
+
+**THE REPACK IS NOW OBSERVED ON THE PHONE, NOT READ FROM SOURCE.** The claim
+above that Q4_K and Q6_K take the repack path was made from
+`ggml/src/ggml-cpu/repack.cpp` alone; Matt required it measured. Read back off
+the handset from `/data/local/tmp/out/nommap.err`, written 16 Sept 12:57 by a
+real `llama-bench -v` run of this binary:
+
+    load_tensors:          CPU model buffer size =   243.90 MiB
+    load_tensors:   CPU_REPACK model buffer size =  1049.96 MiB
+    197 `repack tensor` lines: 168 with q4_K_8x4, 29 with q6_K_8x4
+
+Identical counts in all three verbose logs on the phone (`nommap.err`,
+`r3c_c0_t2_p512v.err`, `rssv.err`). **1,049.96 MiB of the 1,293.86 MiB total
+model buffer — 81% of it — is repacked**, against a 1,056.13 MiB file. That is
+larger than the source reading suggested and it raises what A4 is a share of.
+
+**AND THE TWO BUFFER LINES DO NOT SUM TO THE FILE. OBSERVED, UNEXPLAINED, AND
+LEFT UNEXPLAINED HERE.** Raised by Matt on reading the figures above.
+
+    CPU        model buffer size      243.90 MiB
+    CPU_REPACK model buffer size    1,049.96 MiB
+    sum                             1,293.86 MiB
+    Qwen3-1.7B-Q4_K_M on disk       1,056.13 MiB  (1,107,409,472 B)
+    difference                     +  237.73 MiB  resident OVER the file
+
+No explanation is offered and none should be read into the ordering of those
+lines. It is recorded because it bears on two things already written down:
+**A2**, which predicted `llama_model_load_from_file` at 2.5-5.0 s on an
+assumption of ~1,056 MiB moved off disk, and **the peak-RSS-over-file
+multiplier table in the closing entry at notes.md 7662**, which reports 1.07 to
+1.46 across three models and concludes that llama.cpp's own buffer lines are the
+method and file size is not. These two lines are those buffer lines, and they
+already exceed the file before a context exists. Whether the 237.73 MiB is
+accounted for inside that multiplier or sits alongside it is not established
+here.
+
+**The smallest form of the harness is one new C++ source** 
+in THIS repo, `pennyload.cpp`, compiled with the exact NDK command line ninja
+recorded for `llama-simple` and linked against the static libraries already
+sitting in `~/Documents/llama.cpp/build-android/`:
+
+    clang++ --target=aarch64-none-linux-android28 --sysroot=<ndk sysroot>
+            -DGGML_USE_CPU -O3 -DNDEBUG -fPIE
+            -I<llama.cpp>/include -I<llama.cpp>/ggml/include
+      ... link: src/libllama.a ggml/src/libggml.a ggml/src/libggml-cpu.a
+                ggml/src/libggml-base.a -pthread -lm -ldl -latomic
+                -static-libstdc++
+
+No cmake reconfigure, no ninja run, no download, and **not one byte of the
+llama.cpp tree is modified** — it stays at 38a5b42d9 exactly as every existing
+figure was measured against. The ggml kernels are the identical object files
+`llama-bench` and `llama-simple` were linked from, so the same 898 `sdot/udot`,
+the same 0 `smmla`, the same `armv8.2-a+dotprod+fp16`.
+
+### THE SPLIT Q-A ASKS FOR IS OBTAINABLE WITHOUT PATCHING llama.cpp, AND HERE IS HOW
+
+File read and repack are interleaved inside `llama_model_load_from_file`: the
+loader reads each tensor and hands it to the buffer's `set_tensor`, and on an
+extra (repack) buffer that call does the conversion. They cannot be timed apart
+by putting a clock either side of one call.
+
+`llama_model_params` carries **`bool use_extra_bufts`** — a runtime switch that
+turns weight repacking off. So the split is two runs of one binary:
+
+    use_extra_bufts = true    read + repack      (this is the normal path)
+    use_extra_bufts = false   read only
+    difference                = the repack cost
+
+**And repacking IS happening on these runs, which had not been established.**
+`ggml/src/ggml-cpu/repack.cpp:4605` selects `q4_K_8x4_q8_K` for `GGML_TYPE_Q4_K`
+when `ggml_cpu_has_neon() && ggml_cpu_has_dotprod()` and `ne[1] % 8 == 0`, and
+the same for `GGML_TYPE_Q6_K` at line ~4660. This build has NEON and dotprod.
+**This does not contradict "the Q4_0 repack path has never executed on this
+phone"** — that remains true and is about `GGML_TYPE_Q4_0` specifically, a
+different branch of the same function.
+
+The run with `use_extra_bufts=false` is a LOAD-TIME control only. It selects
+different matmul kernels, so no speed figure from it is comparable with
+anything, and none will be quoted.
+
+### THREE DESIGN DECISIONS, RECORDED BEFORE THE RUN BECAUSE A LOG CANNOT TELL YOU AFTERWARDS
+
+**1. COLD MEANS AFTER A REBOOT, AND PUSHING THE MODEL IS WHAT FORCES THAT.**
+There is no root on this device, so `/proc/sys/vm/drop_caches` is unavailable.
+`adb push` writes the file THROUGH the page cache, so the first read after a
+push is warm, not cold — a "cold" row run straight after a push would measure
+nothing and would look exactly like a fast disk. The only way to an empty page
+cache here is a power cycle. So: push, reboot, unlock by hand, take the
+protocol's fresh-boot `MemAvailable` readings, then the first load is cold and
+the second immediately after is warm. One reboot per model, two in total.
+
+**2. `n_ctx` IS PINNED AT 1024 FOR EVERY ROW IN BOTH QUESTIONS.** Context size
+sets the KV allocation and therefore part of both the context-creation time and
+the peak RSS, so leaving it at the model default (40,960 for Qwen3-1.7B,
+262,144 for Qwen3.5-2B) would make the two models incomparable and would change
+the memory figures against every row already measured. 1024 holds the ~400-token
+prefix, the 20-token turn and generation with room to spare.
+
+**3. TTFT IS REPORTED TWICE AND THE TWO MUST NOT BE COLLAPSED.** "Resident"
+means the model is already loaded and only the prefix is in question.
+"Cold process" means a new process that must load the model as well. The second
+is the wake case and it is the one that answers the question this work was set
+to answer; the first is what isolates the prefix cache from the model load.
+
+### THE INSTRUMENT
+
+`pennybench.sh` is hard-coded to run `/data/local/tmp/llama-bench`. It gains one
+change and one only: a `PENNYBIN` environment variable defaulting to that same
+path, so the wrapper can run `pennyload` instead while every other column —
+clock ceilings before/min/after with the uptime each minimum was seen at, VmHWM,
+RssAnon/RssFile maxima, `MemAvailable`/`MemFree`/`SwapFree`/`Cached` either
+side, `pswpin`/`pswpout`/`pgmajfault` either side, and the tag-anchored LMK kill
+grep — is untouched. Its sha256 will change and the new value will be recorded
+with the rows, superseding `484d75d4…`. Every row is gated on BOTH
+`policy6/scaling_max_freq` = 2,802,000 and `policy4/scaling_max_freq` =
+2,253,000 in the same shell invocation, as from 16 Sept.
+
+### THE PREDICTIONS, WITH THE ARITHMETIC THEY COME FROM
+
+**KV cache per token is DERIVED from each file's own GGUF metadata, read on the
+Mac before any run, not guessed:**
+
+    Qwen3-1.7B   arch qwen3    28 blocks, head_count_kv 8, K 128, V 256/2...
+                 28 x 8 x (128+128) x 2 B (f16)  =  114,688 B/token = 112 KiB
+    Qwen3.5-2B   arch qwen35   24 blocks, full_attention_interval 4, so SIX
+                 attention layers and EIGHTEEN SSM layers. head_count_kv 2,
+                 K 256, V 256.
+                 6 x 2 x (256+256) x 2 B  =  12,288 B/token = 12 KiB
+                 PLUS a FIXED recurrent state (ssm.inner_size 2048,
+                 ssm.state_size 128, ssm.group_count 16, conv_kernel 4) that
+                 does NOT grow with the prefix.
+
+**Qwen3.5-2B is a HYBRID and that was not known before this entry.** Its
+`qwen35.ssm.*` keys make eighteen of its twenty-four layers recurrent. Hybrid
+state save and load ARE implemented at this commit
+(`src/llama-memory-hybrid.cpp:190/197` delegating to the attention and recurrent
+memories in turn), so Q-B is askable of it — but it is the one part of this plan
+that could still fail on a code path rather than on a number.
+
+    #   prediction                                          point   band
+    --  --------------------------------------------------  ------  -------------
+    A1  Qwen3-1.7B cold load, start -> ready to generate      4.2 s  3.0 - 6.0 s
+    A2  ... of which read+repack (llama_model_load_from_file) 3.5 s  2.5 - 5.0 s
+    A3  ... of which context creation                         0.4 s  0.2 - 0.8 s
+    A4  repack's share of A2                                   52%   40 - 65%
+    A5  Qwen3-1.7B WARM load, immediately after                3.2 s  2.2 - 4.5 s
+    A6  Qwen3.5-2B cold load                                   4.9 s  3.5 - 7.0 s
+    B1  TTFT fresh, model RESIDENT, 420 tokens processed       7.7 s  6.0 - 9.0 s
+    B2  TTFT cached, model RESIDENT, state loaded + 20 tok     0.5 s  0.35 - 1.5 s
+    B3  TTFT cached, COLD PROCESS (load + state + 20 tok)      4.9 s  3.5 - 8.5 s
+    B4  cost of saving the state to disk                      0.25 s  0.05 - 1.0 s
+    B5  state file size, Qwen3-1.7B, ~420 tokens            45.9 MiB  40 - 60 MiB
+    B6  state file size, Qwen3.5-2B, ~420 tokens            ~25 MiB   10 - 60 MiB
+
+B1 comes from the gated c0/2-thread `pp512` figure of 55.36 t/s (row C1,
+notes.md 7592): 420 / 55.36 = 7.59 s, plus one decode at 14.11 t/s = 0.07 s.
+B5 is 420 x 112 KiB. A2's read half assumes 700-1000 MB/s off UFS for
+1,056.1 MiB, which is the same order as the 598 and 835 MB/s cold reads rungs
+3e-iv and 3e-iii measured through dm-crypt inside a VM.
+
+**B6 carries a prediction that is more interesting than its number: Qwen3.5-2B's
+state file will be SMALLER than Qwen3-1.7B's despite the model being 16% larger,
+because six attention layers at 2 KV heads cost 12 KiB a token against
+Qwen3-1.7B's 112 KiB.** If that holds, prefix caching is nearly an order of
+magnitude cheaper on the hybrid, and the fixed recurrent state means its file
+barely grows with a longer prompt. The band is wide because the recurrent
+state's size is the one figure here not derived from first principles.
+
+### FAILURE CONDITIONS, ONE PER PREDICTION, WRITTEN NOW
+
+- **A1/A6 fail** outside their bands.
+- **A4/A5 are the pair that matters and they fail together.** The claim is that
+  **the repack, not the file read, is the larger half of load time** — so a warm
+  load saves only the read and the model still takes seconds to become ready.
+  **It fails if warm load is >= 90% of cold** (the read was never the cost, so
+  nothing was saved and the split is wrong at the other end) **or <= 40% of
+  cold** (the read dominated and repack is cheap, which kills the claim
+  outright). Either outcome is reported as a failed prediction, not reworded.
+- **B1 fails** outside 6.0-9.0 s. Below 6.0 s would mean llama-bench's `pp`
+  figure does not transfer to a single real prompt and is measuring something
+  narrower; that is a finding about the instrument, not about the chip.
+- **B2 fails above 1.5 s.** A prefix cache that costs more than a second and a
+  half has not bought a wake anything.
+- **B5 fails** outside 40-60 MiB; **B6 fails** if the Qwen3.5-2B file is LARGER
+  than the Qwen3-1.7B one, which is the directional claim and the one worth
+  being wrong about.
+- **B4 fails above 1.0 s.**
+- **The whole of Q-B fails on Qwen3.5-2B** if `llama_state_save_file` or
+  `llama_state_load_file` returns false on a hybrid model. That is reported as
+  the result it is — a hybrid's prefix cannot be cached at this commit — and
+  nothing is patched to get around it.
+
+### THE PREDICTED PLAIN ANSWER, SO IT CAN BE JUDGED TOO
+
+**Predicted: resident wins, and not narrowly.** A model held resident with a
+cached prefix puts the first word in front of the user in **about half a
+second**; a cold process that reloads the model puts it there in **four to seven
+seconds**, and a saved prefix does not help with that because the model load is
+the whole of the cost. The price of resident is 1.35-1.42 GiB of anonymous
+memory held permanently for the 1.7B, which on a fresh boot with ~2.1 GB
+`MemAvailable` is most of the headroom the phone has.
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+Nothing has been measured. Every number above is a prediction and several rest
+on figures taken under other conditions — B1 on a gated c0 row from a different
+boot, A2's read half on cold-read rates measured inside a VM through dm-crypt
+rather than natively. The recurrent-state size in B6 is not derived. No
+judgement of output quality is planned here, no sustained run, no thermal run,
+no `-ub` test, no Q4_0, no VM, and no third model.
