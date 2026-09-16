@@ -6838,3 +6838,234 @@ model was warm in host page cache at the start of every row except possibly
 C7, whose page cache collapsed mid-row. And none of this is a
 native-versus-VM statement: that comparison is closed and this is an absolute
 feasibility measurement of the 6a.
+
+## 2026-09-16 — the boot was the variable: on a fresh one the 1-thread row returns 31.45, C7's 22.68 does not reproduce, and the first LMK kill of the day lands on the row with the most realistic starting memory
+
+**Two corrections to the previous entry's judgement lines first, both raised by
+Matt, both cases of a one-line verdict overstating its own body.**
+
+**P6's line said the cooled re-run "refutes" the throttle attribution. It does
+not, and the corrected reading is "inseparable from throttling".** Gating both
+rows at rated clock widened the inversion, which rules out *the cool start*
+as the explanation — it does not rule out throttling, because the min column in
+that same entry shows every cooled row fell to roughly 1.1 GHz DURING itself,
+and a `pp512` repetition is about eight times longer than a `pp64` one, so the
+512-token row spends far more of its life under a lowered ceiling. The gate
+controls where a row starts and nothing about where it ends. **P6 reads: FAILS,
+and the cause is inseparable from throttling on the evidence available — the
+`-ub` test that would separate batch size from micro-batch size has not been
+run.**
+
+**P2's line said the A76 pair gives "no benefit at all" to token generation.
+Its own C3 body says something weaker and the body is right.** C3 records that
+the four-thread rows ran with `policy4` capped to 910,000 kHz — 40.4% of rated
+— so what was measured is two X1s plus two heavily-capped A76s, not two X1s
+plus two A76s. Memory bandwidth and the deeper A76 cap cannot be separated
+from each other by any row in this matrix. **P2 reads: HOLDS, and by more than
+predicted — four threads are slower than two, not merely short of 1.3x — but
+WHY is not established: the A76 pair ran capped to 40.4% of rated on the rows
+in question, so "bandwidth-bound" and "the A76s were throttled out of
+usefulness" are not separable here.**
+
+Both lines are corrected in this entry rather than in place; notes.md is
+append-only and the previous entry stands as written.
+
+### THE BOOT WAS REPLACED
+
+The previous entry's last row, C7, ran on a boot whose page cache had collapsed
+by the size of the model and whose swap was 97.0% spent. Matt's rule, written
+into CLAUDE.md before this reboot: that boot is contaminated and no further row
+on it counts.
+
+    rebooted        16 Sept, 14:22:50 BST. The old boot had run 66,065 s
+                    (18.35 h). Unlocked by hand -- GrapheneOS keeps the USB
+                    port charging-only while locked, so adb cannot reach the
+                    phone until somebody types the PIN. adb returned at
+                    uptime 191 s.
+    app state       com.pennyspike.probe2a still `disable-user`'d; the
+                    disable survives a reboot, as recorded. `vm list`
+                    returned `Running VMs: []`.
+
+**The protocol's two readings, on the fresh boot, no VM, app disabled, AC
+power, screen on:**
+
+    uptime s   MemFree     MemAvailable   Cached      SwapFree    AnonPages
+    302.94     1,309,740   2,193,244      1,112,604   1,008,636   1,655,920
+    1515.90    1,224,220   2,159,732      1,161,304   1,095,420   1,717,960
+
+    uptime s   pswpin    pswpout   pgmajfault   ZRAM
+    302.94      36,151   573,277      48,862    486,688K phys / 1,908,224K swap
+    1515.90    101,067   617,921     114,054    488,520K phys / 2,019,840K swap
+
+All three policies read their rated ceilings at both samples.
+
+**The SHAPE of the settling curve differs from the boot of 15 Sept and the
+25-minute figures agree anyway.** That earlier boot climbed — 940,640 kB at
+5.8 min to 2,119,020 kB at 25.3 min. This one started high at 2,193,244 kB and
+drifted slightly DOWN to 2,159,732 kB. **The two ~25-minute figures are within
+1.9% of each other**, which is the reading CLAUDE.md calls the idle budget, and
+it is reproduced across two boots eleven days apart in phone-time. The path to
+it is not reproduced, and only the endpoint should be quoted.
+
+`Cached` came back to 1.11-1.16 GB. The contaminated boot was still stuck at
+437,720 kB forty-three minutes after C7 ended.
+
+**Method note, recorded rather than asked about:** the model was NOT pre-warmed
+into page cache before the re-run. Under `-lm none` llama-bench reads the whole
+file at load regardless, and load time is excluded from the reported t/s, so
+page cache is in the same state before the first timed repetition either way.
+
+### Row B2-R1 — the C7 re-run. c0, 1 thread, -p 512, -n 128, -lm none. FRESH BOOT.
+
+    gate         PASSED on the first check, 0 waits, uptime 1537.68,
+                 policy6 = 2,802,000 AND policy4 = 2,253,000
+    conditions   uptime 1,537.77 s (25.6 min) before, 1,702.15 s after,
+                 164.38 s wall. AC power, screen on, no VM, app disabled.
+                 Model COLD in page cache -- first row on this boot.
+    command      pennybench.sh b2r1_c0_t1_p512 c0 -- -t 1 -p 512 -n 128 -lm none
+    model        Qwen3-1.7B-Q4_K_M.gguf, sha256 b139949c5bd74937ad8ed8c8cf3d9
+                 ffb1e99c866c823204dc42c0d91fa181897, verified on the phone
+                 against MANIFEST.txt
+
+    pp512                 31.45 +/- 0.70 t/s      (2.23% error bar)
+    tg128                 10.13 +/- 0.64 t/s
+    ceil X1   before/min/after    2,802,000 / 1,426,000 / 2,630,000 kHz
+              min first seen at uptime 1,623.21 -- 86 s into the row
+    ceil A76  before/min/after    2,253,000 / 2,253,000 / 2,253,000 kHz
+              min_at uptime 1,537.77 -- 0 s in, i.e. it NEVER fell
+    peak RSS (VmHWM)   1,492,260 kB   1457.29 MiB   1.4231 GiB
+    max RssAnon        1,486,176 kB   99.59% of peak
+    max RssFile            5,792 kB
+    rss_samples              413   (2.51 Hz over 164.38 s)
+    MemAvailable       2,128,524 -> 2,585,832 kB   (+457,308)
+    MemFree            1,189,280 -> 1,611,984 kB   (+422,704)
+    SwapFree           1,122,300 ->   648,700 kB   (-473,600)
+    Cached             1,161,500 -> 1,199,624 kB   (+38,124 -- did NOT collapse)
+    pswpin               111,056 ->   111,483      (+427 pages)
+    pswpout              621,181 ->   750,420      (+129,239 pages, ~505 MiB)
+    pgmajfault           124,045 ->   124,533      (+488)
+    ZRAM               548,596K physical for 2,489,344K in swap
+    LMK kills                  1 kill + 1 ActivityManager line   (see below)
+    rc                         0
+
+### THE C7 VERDICT: 32.40 reproduces, the hypothesis STANDS, C7 was the environment
+
+The falsification condition was written into CLAUDE.md and committed (8261aa7,
+plus the reword Matt asked for) BEFORE this row ran: if the re-run reproduces
+~32.40 / 9.89 the memory-starvation hypothesis stands; if it reproduces
+~22.68 / 6.00 it does not.
+
+    row                                pp512            tg128            wall s
+    row 1, throttled, old boot    32.40 +/- 0.78    9.89 +/- 0.38        162.19
+    B2-R1, fresh boot, gated      31.45 +/- 0.70   10.13 +/- 0.64        164.38
+    C7,  contaminated boot, gated 22.68 +/- 5.38    6.00 +/- 0.27        246.73
+
+B2-R1 lands on row 1: **2.93% apart on `pp512`, with error bars that overlap**
+(30.75-32.15 against 31.62-33.18), 2.43% apart on `tg128`, 1.35% on wall time.
+Against C7 it is 38.7% faster on `pp512` and 68.8% faster on `tg128`.
+
+**Three corroborating signals, none of which is the headline number:**
+
+- **The error bar came back.** C7's `pp512` was +/- 5.38 (23.7%); this row's is
+  +/- 0.70 (2.23%), in line with every other row in the matrix. A starved
+  machine is erratic across repetitions; this one was not.
+- **`Cached` rose 38,124 kB instead of falling 1,104,136 kB.** The eviction
+  that defined C7 did not happen here, on a row of the same length running the
+  same model on the same mask.
+- **`pgmajfault` moved 488 across the whole row.** The process was not
+  thrashing. `pswpout` rose 129,239 pages against `pswpin` of 427 — pages went
+  out to zram and did not come back, which is Android making room, not this
+  process fighting for its own working set. Those counters did not exist as a
+  before/after pair until this row; C7 is now unrepeatable in that respect and
+  its mechanism stays inferred from `Cached` alone.
+
+**What the verdict is and is not.** It is: C7's 22.68 / 6.00 is not this
+handset's 1-thread speed, and the contamination rule keeps both its force and
+its explanation. It is not: proof that page-cache eviction is the mechanism.
+The re-run changed the whole boot, not one variable — swap, cache, uptime,
+kill history and process population all moved together. **The hypothesis
+survived a test it could have failed, which is the most this design can give.**
+
+**The X1 ceiling behaved normally rather than collapsing:** min 1,426,000 kHz
+at 86 s in, recovering to 2,630,000 by the end — the highest after-row X1
+reading of any row today. **The A76 pair never moved from rated at any of 413
+samples**, the only row all session where it did not, and the opposite of C1,
+where it fell while `taskset c0` scheduled nothing onto it.
+
+### THE KILL, AND WHY IT REWRITES P5 RATHER THAN BEING AN EXCEPTION TO IT
+
+Four seconds into the row, at model load:
+
+    09-16 14:48:51.160 lowmemorykiller: Kill 'com.shannon.rcsservice:
+      shannonrcsservice' (2800), uid 10151, oom_score_adj 985 to free
+      160808kB rss, 9588kB anon rss, 41776kB swap, 0kB dmabuf_pss,
+      0kB dmabuf_rss; reason: low watermark is breached
+    09-16 14:48:51.232 ActivityManager: Process ... (pid 2800) has died:
+      cch  +85 CEM
+
+One cached, empty process at `oom_score_adj 985` — the disposable band,
+nothing a user would notice, and nowhere near this process or anything on the
+screen. Twelve prior `-lm none` rows produced zero kills between them.
+
+**The first reading of this was that it is "the reverse of expectation" —
+kills on the fresh boot, none on the tired one. Matt's correction, and it is
+this repo's own protocol point turned on its own data:**
+
+    row set                 MemAvailable BEFORE the row        kills
+    C1-C7, old boot         2,695,176 - 2,848,012 kB           0 each
+    B2-R1, fresh boot       2,128,524 kB                       1
+
+**Every zero-kill row on the old boot started with 2.70-2.85 GB available, and
+that headroom was itself the product of earlier kills** — the boot had been
+running 17-18 hours, had already shed its cheap processes, and had spent 97%
+of its swap getting there. **B2-R1 started at 2,128,524 kB on a phone that had
+killed nothing**, which is the ordinary condition a real app would meet.
+**So the fresh-boot row is the representative measurement and the twelve
+zero-kill rows were flattered by prior kills.** They are not wrong; they are
+measurements of a phone that had already paid the price once.
+
+**P5, rewritten. It was: "peak RSS 1.1-1.4 GB, and NO kills on any Qwen3-1.7B
+run."**
+
+    P5 (kills half)  FAILS under the realistic starting condition. With
+                     MemAvailable at 2,128,524 kB -- a phone that has not
+                     already been cleared by hours of kills -- loading
+                     Qwen3-1.7B Q4_K_M at -lm none takes one cached process
+                     at oom_score_adj 985. The twelve zero-kill rows all
+                     started 570,000-720,000 kB higher, on a boot that had
+                     freed that headroom by killing things earlier.
+    P5 (RSS half)    HOLDS AT -p 64 AND FAILS AT -p 512, unchanged and not a
+                     matter of units. -p 64: 1,415,508-1,415,980 kB =
+                     1.350 GiB, inside the band. -p 512: 1,491,144-1,492,260
+                     kB = 1.422 GiB AND 1.492 GB, outside on both readings.
+                     B2-R1's 1,492,260 kB is the largest peak of any -lm none
+                     row and extends the range by 592 kB. The default 512
+                     micro-batch is what puts it over.
+
+The stop rule was applied and Matt's call was to continue: one cached adj-985
+process at load, `rc=0`, figures reproducing row 1 — recorded, counted against
+P5, carry on.
+
+### What this entry does NOT say
+
+**One row.** B2-R1 is a single run on a single boot. It agrees with row 1
+within error bars, which is two figures from two different thermal and memory
+states agreeing — not two repetitions under matched conditions.
+
+**The mechanism behind C7 is still not identified, only supported.** The
+re-run replaced every variable at once. `pswpin`/`pswpout`/`pgmajfault` now
+exist as a before/after pair and would catch the next occurrence directly, but
+they were not recorded during C7 and cannot be recovered.
+
+**The kill is one kill, on one row.** "Loading this model costs one cached
+process from a fresh boot" rests on a single observation, not on a repetition,
+and no row has been run at a deliberately controlled starting `MemAvailable`.
+The claim that the old boot's headroom came from prior kills is read off that
+boot's own kill history and its 97%-spent swap; no experiment isolated it.
+
+**Still nothing on Qwen3.5-2B, nothing on Gemma 4 E2B, nothing at Q4_0** — the
+Q4_0 repack path has still never executed on this phone. No thermal run, no
+sustained run, nothing on battery, nothing with the screen off, no
+time-to-first-token. `policy0` (the A55 cluster) has still never been sampled.
+And none of this is a native-versus-VM statement: that comparison is closed and
+this is an absolute feasibility measurement of the 6a.

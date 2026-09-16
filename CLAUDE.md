@@ -51,15 +51,20 @@ exists because state that only survives in a handover message is state that
 gets lost. Verify each line before relying on it; correct this block in the
 same commit as whatever changes it.
 
-    Phone                      Booted ~19:59 on 15 Sept. **STILL THAT SAME
-                               BOOT as of 16 Sept 12:13 — uptime 58,392 s
-                               (973.2 min, 16.22 h), no reboot overnight.**
-                               AC power. "NOT touched since ~20:04" held for
-                               last night's four memory readings and does NOT
-                               hold now: the phone was out of contact from
-                               ~21:05 to 12:13 and was unlocked at some point
-                               in between (adb requires it), and what was
-                               opened is unknown.
+    Phone                      **REBOOTED 16 Sept at 14:22:50 BST**, ending
+                               the 15 Sept ~19:59 boot at 66,065 s (18.35 h).
+                               The reboot was Matt's call under the
+                               contaminated-boot rule below — that boot's page
+                               cache had collapsed by the size of the model and
+                               its swap was 97.0% spent. Unlocked by hand; adb
+                               returned at uptime 191 s. AC power, screen on.
+                               Protocol readings on the fresh boot: uptime
+                               302.94 s MemAvailable **2,193,244 kB**, uptime
+                               1515.90 s MemAvailable **2,159,732 kB** — this
+                               boot starts high and drifts DOWN, where 15 Sept's
+                               climbed, but the two ~25-minute figures agree
+                               within 1.9%. Benchmark rows have run on it since;
+                               it is not an untouched boot.
     OUR APP IS DISABLED        `adb shell pm disable-user --user 0
                                com.pennyspike.probe2a` at ~19:57. Nothing of
                                ours starts at boot, nothing restarts, and the
@@ -2324,10 +2329,23 @@ not soften it.
   (1,413,100 -> 308,964) and was still only 427,980 kB 34 s later, while
   `SwapFree` reached **93,416 kB of 3,145,724 — 97.0% spent**. The model file
   is 1,081,454 kB, so the figure that left the cache is the size of the model:
-  **the kernel evicted the model mid-row.** C7 returned a `pp512` 30% BELOW its
-  own throttled counterpart with a *tight* `tg128` error bar (±0.27 on 6.00),
-  which is the signature of memory starvation rather than of clock — a clock
-  cap is noisy, a starved machine is consistently slow. Nothing was killed and
+  **most likely the kernel evicted the model mid-row.** C7 returned a `pp512`
+  30% BELOW its own throttled counterpart with a *tight* `tg128` error bar
+  (±0.27 on 6.00), which most likely reads as memory starvation rather than
+  clock — a clock cap is noisy, a starved machine is consistently slow.
+  **BOTH OF THOSE WERE THE LEADING HYPOTHESIS, NOT AN ESTABLISHED FACT, AND THE
+  C7 RE-RUN ON A FRESH BOOT WAS WHAT TESTED THEM.** The condition was written
+  down before that re-run: **if the re-run reproduces ~32.40 / 9.89 the
+  hypothesis stands; if it reproduces ~22.68 / 6.00 it does not, and the
+  contamination rule below stays as a rule but loses its explanation.**
+  **RUN 16 Sept ON THE FRESH BOOT, AND THE HYPOTHESIS STANDS: 31.45 ± 0.70 /
+  10.13 ± 0.64 in 164.38 s**, against row 1's 32.40 ± 0.78 / 9.89 ± 0.38 in
+  162.19 s — 2.93% apart on `pp512` with overlapping error bars — and 38.7% /
+  68.8% faster than C7. The error bar fell from ±5.38 (23.7%) to ±0.70 (2.23%),
+  `Cached` ROSE 38,124 kB instead of collapsing, and `pgmajfault` moved 488
+  across the whole row. **C7's 22.68 / 6.00 is not this handset's 1-thread
+  speed and is never quoted as it.** What the re-run does NOT establish is the
+  mechanism: it replaced the whole boot, not one variable. Nothing was killed and
   `MemAvailable` never fell below 2,695,176 kB, so the ordinary stop conditions
   do not catch this: **swap and `Cached` have to be read as gating conditions
   in their own right.** The rule: if `Cached` drops by roughly the model size
@@ -2336,6 +2354,18 @@ not soften it.
   readings, and re-run. `pennybench.sh` now carries `pswpin` / `pswpout` /
   `pgmajfault` so the next occurrence is measured rather than inferred from
   `Cached` alone.
+- **A KILL COUNT IS MEANINGLESS WITHOUT THE ROW'S `MemAvailable` BEFORE IT, AND
+  A LONG-RUNNING BOOT FLATTERS IT.** Decided 16 Sept by Matt, from row B2-R1.
+  All twelve `-lm none` rows on the 15 Sept boot returned ZERO kills and every
+  one of them started with `MemAvailable` between 2,695,176 and 2,848,012 kB —
+  headroom that boot had freed by killing its own cheap processes over 17-18
+  hours and spending 97% of its swap. B2-R1, the first row on the fresh boot,
+  started at **2,128,524 kB on a phone that had killed nothing** and took one
+  cached process at `oom_score_adj 985` (`cch +85 CEM`) four seconds in, at
+  model load. **The fresh-boot row is the representative condition; the
+  zero-kill rows were flattered by prior kills.** So every row reports its kill
+  count WITH `MemAvailable` before it, and a zero on a tired boot is never
+  quoted as "this model causes no kills".
 - Prediction written in notes.md BEFORE the first run, and judged against
   in the write-up. The standing one: token generation barely improves
   beyond 2 threads (memory-bandwidth bound); prompt processing scales.
