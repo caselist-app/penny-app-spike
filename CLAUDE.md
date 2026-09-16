@@ -2215,8 +2215,14 @@ not soften it.
   the binary still links bionic `libc/libm/libdl`, so it is not a static
   ELF), cmake and ninja as the SDK's copies in `cmake/3.22.1/bin/` by full
   path. The working line, the binary's hashes and the instruction counts
-  are in the 16 Sept notes.md entry. **Still untested on the phone — the
-  binary has never been executed on any device.**
+  are in the 16 Sept notes.md entry. **It HAS been executed on the phone**
+  — `--help` at 12:13 on 16 Sept, exit 0 — which proves it loads and links
+  and nothing more; see the SIGILL note in LIVE DEVICE STATE. No quantised
+  kernel has run.
+  **The wrapper is `pennybench.sh` at the repo root**, and it is the source
+  of every measured column except pp/tg tok/s. Push it to
+  `/data/local/tmp/` alongside the binary; the copy on the phone must hash
+  to the copy in the repo.
 - Prediction written in notes.md BEFORE the first run, and judged against
   in the write-up. The standing one: token generation barely improves
   beyond 2 threads (memory-bandwidth bound); prompt processing scales.
