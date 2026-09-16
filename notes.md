@@ -9135,3 +9135,129 @@ It is one greedy 64-token sample with NO chat template, so it is recorded as
 text produced and settles nothing about output quality in either direction.
 
 Qwen3-1.7B on the 6a, on AC power, screen on, unlocked, idle, once.
+
+### ROW 2 — `q17_r2_warm_fresh_save`. WARM page cache, gated. A5, B4, B5 PASS.
+
+    gate passed  uptime 1771.69 s, wallclock 17:46:49, both clusters at rated
+                 -- 236 s after row 1 ended, so the ~110 s recovery had run
+    started uptime 1771.76 s   ended 1785.85 s   rc=0
+    c0, -t 2, -lm none, n_ctx 1024, n_ubatch 512, greedy, chat_template=NONE
+    sys_tokens 407, user_tokens 20, -n 64 --print, PLUS --save-state
+    WARM: row 1 read the same model file four minutes earlier
+
+    t_backend_ms          3.62
+    t_model_open_ms     364.13
+    t_tensor_band_ms   2431.20
+    t_model_tail_ms       2.23
+    t_model_total_ms   2797.56
+    t_ctx_create_ms      38.75
+    t_ready_ms         2839.93   == A5
+    t_tokenize_ms         3.56
+    t_sys_decode_ms    5940.43   407 tokens
+    t_state_save_ms      17.91   == B4
+    state_bytes    46,685,237    == B5   (44.523 MiB, 407 tokens saved)
+    t_user_decode_ms    360.32   20 tokens, timed from T8
+    t_sample_ms           0.85
+    ttft_fresh_ms      6319.51   NOT a second clean B1 -- see below
+    ttft_cached_ms     6323.06
+    ttft_cold_proc_ms  9163.00   NOT B3
+    gen_tokens 64      gen_ms 4266.65      gen_tps 14.77  (63 decodes)
+    first_token_id 32313     token_fnv1a64 0xcba17a2fcbba49f4
+    peak_rss_kB 1,541,012    max_rssanon_kB 1,535,508 (99.6%)
+    max_rssfile_kB 5,220     rss_samples 35
+
+    MemAvailable   before 2,639,848 kB   after 2,681,152 kB
+    MemFree        before 1,608,244      after 1,643,540
+    SwapFree       before   820,732      after   751,100
+    Cached         before 1,254,932      after 1,260,820
+    pswpin         before    94,541      after    94,559
+    pswpout        before   731,365      after   748,829
+    pgmajfault     before   107,636      after   107,654
+    ceil_x1        before 2,802,000   min 2,048,000 (73.1%) 6 s in   after rated
+    ceil_a76       before 2,253,000   min 2,253,000 (rated)          after rated
+    lmk_kill_lines 0
+
+### THE PREDICTIONS, SCORED
+
+    #   prediction              point     band        measured     verdict
+    A5  warm load -> ready       3.2 s    2.2-4.5     2.8399 s     PASS
+    B4  state save cost         0.25 s    0.05-1.0    0.01791 s    PASS
+    B5  state file size       45.9 MiB    40-60       44.523 MiB   PASS
+
+**A5's REAL TEST IS THE RATIO, NOT THE SECONDS, AND THE DIRECTIONAL CLAIM
+SURVIVES.** The failure condition written before any run: A5 fails if warm is
+**>= 90%** of cold (the read was never the cost, nothing was saved) or **<= 40%**
+(the read dominated and repack is cheap, which kills the claim outright).
+
+    warm ready / cold ready  =  2839.93 / 4021.78  =  **70.61%**
+
+Between the two, so the claim stands: **the repack, not the file read, is the
+larger half of load time, and a warm load still takes 2.84 s to become ready.**
+
+**THE THREE DELTAS ARE THREE DIFFERENT QUANTITIES AND MUST NOT BE SWAPPED.**
+Matt caught one being quoted for another:
+
+    cold - warm, READY (T5-T0)          4021.78 - 2839.93  =  1,181.85 ms
+    cold - warm, MODEL LOAD (T4-T1)     3982.13 - 2797.56  =  1,184.57 ms
+    cold - warm, TENSOR BAND (T3-T2)    3581.59 - 2431.20  =  1,150.39 ms
+
+The ready figure is 4,021.78 **ms**, not seconds. Essentially the whole saving
+sits in the tensor band — 1,150.39 of the 1,181.85 ms — which is where the file
+read lives, and that is consistent with the repack being CPU work that a warm
+cache cannot make cheaper. **It is not yet the A4 measurement**: this is
+cold-against-warm, and A4 is warm-against-warm with the repack switched off.
+Row 4 is the one that separates them.
+
+**B4 AND B5 ARE BOTH FAR INSIDE THEIR BANDS AND ONE OF THEM MEANS LESS THAN IT
+LOOKS.** B4 at 17.91 ms is a fourteenth of its lower bound: writing 44.5 MiB
+took under 20 ms, which is a write into the page cache rather than a write to
+UFS, and no `fsync` is issued by `llama_state_save_file`. **So B4 measures the
+cost of handing the bytes to the kernel, not the cost of them reaching
+storage.** B5 at 46,685,237 B is 114,706 B/token over 407 tokens against the
+114,688 B/token derived from this model's GGUF metadata before any run — 18
+bytes a token of header. It reproduces the smoke pair's byte count exactly,
+which is what a deterministic size should do.
+
+**THE ZERO KILL COUNT IS FLATTERED, AND THE TWO FIGURES SIDE BY SIDE ARE WHY.**
+
+    row 1   MemAvailable before  2,277,952 kB   ->  8 kill lines, 4 processes
+    row 2   MemAvailable before  2,639,848 kB   ->  0 kill lines
+
+Row 2 started with **361,896 kB more** than row 1, and a large part of that is
+exactly what row 1's four cached-process kills freed. This is the B2-R1 rule
+happening inside a single boot rather than across two: **the second row on a
+boot inherits headroom the first row bought, so its zero is not evidence that
+loading this model costs no kills.** Row 1's eight lines are the representative
+figure for a cold start on this handset; row 2's zero is a statement about row
+2's starting conditions.
+
+### WHAT ROW 2 DOES NOT SAY
+
+One sample, no error bar, and the X1 ceiling fell to 2,048,000 kHz (73.1% of
+rated) 6 s in — the identical floor row 1 reached, on a row that started from
+rated after a full recovery.
+
+**`ttft_fresh_ms` 6319.51 IS NOT A SECOND CLEAN B1.** The 17.91 ms state save
+sits between T9a and T9b by design, so it lands inside the T10-T6 window. B1
+stands on row 1 alone. The prompt throughput here works out at 67.77 t/s over
+427 tokens (5940.43 + 360.32 ms), against row 1's 67.05 — two samples that
+agree to 1.1%, which is a consistency check and not an error bar.
+
+**A4 IS STILL UNSCORED.** Row 4's `--extra-bufts 0` control is what gives it,
+warm against warm. Nothing in this row isolates repack from read.
+
+`ttft_cold_proc_ms` 9163.00 is a WARM-process figure and is not B3. B3 is row 5
+on boot 2.
+
+B5 passing on a dense model says nothing about **B6** on Qwen3.5-2B, whose
+eighteen recurrent layers may make `llama_state_save_file` return false
+outright. That is boot 3's question and is untouched.
+
+`q17_state.bin` now exists at 46,685,237 B, phone-written 17:46. **It is
+deliberately NOT hashed yet** — the hash is taken at the end of boot 1, and on
+boot 2 only AFTER row 5 has run, because reading 44.5 MiB to hash it would warm
+the cache row 5 exists to measure cold.
+
+The 64 tokens are again `0xcba17a2fcbba49f4`, identical across a cold load, a
+warm load and two ungated smoke runs. Text recorded as text produced; two of
+its three facts are wrong and quality is out of scope.
