@@ -8638,3 +8638,117 @@ they were; no row has been run at either length.
 produce a different count from the same 95 bytes; that count is unknown until
 that model is on the phone. The count says nothing about whether the question
 is a good one — content is not the variable here, length is.
+
+### THE STATE SMOKE PAIR, 16 Sept 17:06 — the save/load path RUNS, and the 64 tokens are IDENTICAL. STILL NOT ROWS.
+
+`llama_state_save_file` and `llama_state_load_file` had never been called on
+this handset. They have now, both returning true, on the first attempt, with no
+patch to llama.cpp and none to `pennyload`.
+
+Conditions, and they disqualify every timing below from being a row exactly as
+the smoke test's did: phone UNLOCKED and foreground over adb, **NO thermal
+gate**, page cache **WARM** (the model was pushed on this boot), boot 106
+minutes old, AC power, screen on, app disabled, `Running VMs: []`. Both rows
+`c0 -t 2 -lm none -n 64 --print`, `n_ctx` 1024, greedy, no chat template,
+`sys_tokens=407` / `user_tokens=20`.
+
+**Both were run through `pennybench.sh` revision 4, and this is the first
+`.report` file this repo has ever had.** Written by the phone at 17:06 —
+`smoke_state_save.report` 4,545 B and `smoke_state_load.report` 4,338 B, mtime
+`2026-09-16 17:06`, minutes after they were created. That is the check that
+they are phone-written: a file that arrived by `adb push` carries the Mac's
+mtime instead (the model on this phone reads 15 Sept 20:25 for that reason).
+Every figure below is read back from `out/<tag>.report` and `out/<tag>.bench`
+rather than from a terminal.
+
+    tag                     smoke_state_save        smoke_state_load
+    run_type                fresh+save              cached
+    rc                      0                       0
+    state_bytes             46,685,237              46,685,237
+    state_tokens            407 saved               407 restored
+    t_state_save_ms         19.87  (== B4)          --
+    t_state_load_ms         --                      13.88  (T7-T6)
+    t_tokenize_ms           3.36                    0.34   (sys NOT tokenised)
+    t_ready_ms              2528.49                 2526.53
+    t_sys_decode_ms         6030.87                 -- (skipped entirely)
+    t_user_decode_ms        377.98                  362.26
+    TTFT resident           6429.61 ms              377.21 ms
+    TTFT cold process       8961.46 ms              2903.74 ms
+    gen_tokens / gen_tps    64 / 14.83              64 / 14.93
+    peak_rss_kB             1,541,308               1,500,276
+    max_rssanon_kB          1,535,536               1,494,556
+    lmk_kill_lines          0                       0
+    MemAvailable before     3,658,716 kB            3,650,728 kB
+    ceil_x1 min             2,188,000 kHz, 8 s in   2,401,000 kHz, 3 s in
+    ceil_a76 min            2,253,000 (rated)       2,253,000 (rated)
+    uptime before           6306.83 s               6331.34 s
+
+**THE IDENTITY CONTROL PASSES, AND IT IS THE RESULT HERE RATHER THAN ANY
+TIMING.** Both runs generated 64 tokens under a greedy sampler and the two
+sequences are the same sequence:
+
+    token_fnv1a64  0xcba17a2fcbba49f4   on BOTH runs
+    first_token_id 32313                on both
+    all 64 ids     identical, position for position
+
+So the state that came back off disk is the state that went onto it. Had the
+reloaded prefix differed from the decoded one in any way that reached the
+logits, greedy decoding would have diverged and the hash would have said so.
+The four definitions fixed before the run make this comparison mechanical
+rather than a matter of reading two logs side by side.
+
+**The text produced, identical on both runs**, recorded as text produced and
+not as any judgement of output quality:
+
+    Okay, the user is asking about the capital of Australia, the population,
+    and the founding date. I need to answer these directly. The capital is
+    Canberra. The population is around 4 million. The founding date is 1901.
+    I should provide these answers without routing.
+    The capital of Australia is Canberra
+
+Canberra is right; **the other two facts are wrong** (Canberra's population is
+of the order of 450,000, and 1901 is federation rather than anything about
+Canberra). It is one greedy 64-token sample with **no chat template** — the
+model sees instruction text then question text with no role markers and no
+generation prompt — so this is not a basis for a quality claim in either
+direction, and quality remains out of scope for this session.
+
+**WHAT THE PAIR SAYS THAT IS NOT A TIMING.** The save path works on this model;
+the load path works; `state_tokens_restored` comes back as 407, the count that
+went in; the file is 46,685,237 B, i.e. 44.52 MiB for 407 tokens, which is
+114,706 B/token against the 114,688 B/token the predictions entry DERIVED from
+this model's own GGUF metadata — 18 bytes a token of header and bookkeeping.
+**A byte count is not a timing**: unlike a t/s figure it is not sensitive to
+thermal state or to gating, so the gated row is expected to report the same
+46,685,237 B. That expectation is a claim and is checked when the row runs.
+
+**WHAT IT DOES NOT SAY**
+
+**NO TIMING ABOVE IS A ROW AND NONE MAY BE QUOTED AGAINST A PREDICTION.**
+Ungated, warm, unlocked, foreground, once each. B2, B3 and B4 are judged
+against gated rows on a cold boot that have not been run. Two of these figures
+happen to fall inside their predicted bands and one falls below its band; all
+three are noted here as hints and none is scored.
+
+The load run's `t_ready_ms` of 2526.53 is a **WARM** model load. Cold is after
+a reboot and the reboot has not happened, so `ttft_cold_proc_ms` 2903.74 is a
+warm-process figure and is not B3.
+
+**The 17x gap between 6429.61 ms and 377.21 ms is measured under one thermal
+state, not two.** The fresh side also carries the 19.87 ms of the save itself
+inside its own TTFT window, because the save sits between T9a and T9b by
+design.
+
+Peak RSS is 41,032 kB LOWER on the cached run (1,500,276 against 1,541,308 kB).
+No explanation is offered and none should be read into it; it is one sample
+each. Both are at `n_ctx` 1024 and neither is comparable with the `-p 512` rows
+in the closing entry.
+
+The state file was written to `/data/local/tmp/smoke_state.bin` and **deleted
+at 17:07**, verified gone by `ls`. Nothing depends on it; the gated rows write
+their own.
+
+Nothing was gated, nothing was cold, nothing was repeated, and no reboot was
+spent. Qwen3.5-2B is untouched — the hybrid-model question the predictions
+entry flagged as the one thing that could fail on a code path rather than on a
+number is **still open**, because this pair ran on Qwen3-1.7B only.
