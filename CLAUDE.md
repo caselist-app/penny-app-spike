@@ -2122,6 +2122,19 @@ not soften it.
 
 ## Benchmark protocol — native llama.cpp, from 16 Sept
 
+- **Build flags: `-march=armv8.2-a+dotprod+fp16`, NEVER `armv8.7a`.**
+  llama.cpp's `docs/android.md` suggests `armv8.7a`; that turns on i8mm
+  (and more), which Tensor G1's Cortex-X1/A76/A55 do not have, so the
+  compiler emits `smmla`-family instructions and the binary dies with
+  SIGILL on the phone — and it reads as a broken build, not a wrong flag.
+  Verify before pushing: `readelf -A` on the binary must not list `i8mm`
+  or `sve`. Cross-compile with the NDK toolchain file, `ANDROID_ABI=
+  arm64-v8a`, `BUILD_SHARED_LIBS=OFF` (one static binary, no library path
+  games in `/data/local/tmp`), `LLAMA_CURL=OFF`, targets `llama-bench`
+  and `llama-cli` only. cmake and ninja are the SDK's copies in
+  `cmake/3.22.1/bin/`, called by full path — the brew ninja on PATH is a
+  different version. Added 16 Sept by the review session, before the
+  first build; untested until the build runs.
 - Prediction written in notes.md BEFORE the first run, and judged against
   in the write-up. The standing one: token generation barely improves
   beyond 2 threads (memory-bandwidth bound); prompt processing scales.
