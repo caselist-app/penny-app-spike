@@ -2261,6 +2261,34 @@ not soften it.
   ~1372 MiB on BOTH paths. The cost is swap traffic — SwapFree fell
   281,668 kB against 122,284 kB on the mmap run of the same length —
   because anonymous pages can only be compressed, never dropped.
+- **THE X1 PAIR LOWERS ITS OWN CLOCK CEILING UNDER SUSTAINED LOAD, AND EVERY
+  `c0` FIGURE IN THIS REPO IS A THROTTLED FIGURE.** Measured 16 Sept when the
+  matrix stopped at row 4 of 8; see the notes.md entry.
+  `policy6/scaling_max_freq` read **1,426,000 kHz against a `cpuinfo_max_freq`
+  of 2,802,000** immediately after a 65-second two-thread run — the ceiling
+  itself at 50.9% of rated, not the governor picking a low point. It climbed
+  back monotonically to 2,802,000 over **109.8 seconds of idle**. The A55
+  (`policy0`, 1,803,000) and A76 (`policy4`, 2,253,000) clusters never moved
+  from their own rated maxima; **only the X1 pair is capped.**
+  **The consequence for the protocol: rows run back to back measure heat, not
+  cores.** Gaps of 15-28 seconds between rows are a fraction of the ~110 s
+  recovery, so every row after the first starts at an unrecorded clock and
+  falls further during its own runtime. It inverted P6 at 2 threads
+  (`pp64` 49.44 beat `pp512` 45.39), split one `tg128` figure 23% from the
+  identical row before it (10.35 vs 12.75 on the same mask and thread count),
+  and blew the error bars out to 12.7% and 17.8%.
+  **Two things to do before any further pinned row, and the choice between
+  them is Matt's:** either poll `policy6/scaling_max_freq` until it reads
+  2,802,000 before each row, which gives peak-clock figures, or accept the
+  throttled figures as the sustained answer and label them as such. Either
+  way `pennybench.sh` should record the ceiling at start and end, which it
+  does not yet do. **Do not compare a `c0` figure with another `c0` figure
+  unless both carry their thermal state.**
+  What is NOT known: what writes the cap (`/sys/class/thermal/` is
+  `Permission denied` to the shell user on this build, so no temperature was
+  read), and what the clock was during any row — only after.
+  Memory is unaffected: peak RSS is set by `-p` and is indifferent to `-t`
+  (1,491,612 vs 1,491,668 kB at 1 and 2 threads, 0.004% apart).
 - Prediction written in notes.md BEFORE the first run, and judged against
   in the write-up. The standing one: token generation barely improves
   beyond 2 threads (memory-bandwidth bound); prompt processing scales.

@@ -6034,3 +6034,247 @@ with-file assumption rests on a single ratio from a single model.
 `-lm none` changes that. And nothing here is a native-versus-VM statement:
 that comparison is closed and this is an absolute feasibility measurement of
 the 6a.
+
+## 2026-09-16 — the matrix STOPPED at row 4 of 8. The X1 pair halves its own clock ceiling under sustained load: 2.802 -> 1.426 GHz, recovering over ~110 s of idle. Every `c0` figure in this repo is a throttled figure.
+
+Four rows of the eight-row Qwen3-1.7B Q4_K_M matrix ran, all `taskset c0`, all
+`-lm none`, all `rc=0`, all **zero LMK kills**. Row 4 returned a `tg128` figure
+23% away from row 3's on the identical core mask and thread count, which is the
+stop condition Matt set ("a figure that contradicts the previous row by more
+than the 2.6% run-to-run spread"). The matrix was halted there and the cause
+was read off the phone rather than guessed at. **It is not a benchmark
+artefact. It is the handset.**
+
+### The four rows
+
+All four: same boot as every row of the RSS chase (uptime 61,873 -> 62,384 s,
+1031.2 -> 1039.7 min, 17.19 -> 17.33 h). AC power, screen on, no VM
+(`Running VMs: []`), our app `pm disable-user`'d, nothing opened by hand, model
+warm in host page cache. `pennybench.sh` on the phone sha256
+`e5a81104e5accb035001a7fa0b8e23e5e37cf00130c504eb1e418b3c599638e7`, verified
+byte-identical to the repo copy immediately before row 1. Model
+`Qwen3-1.7B-Q4_K_M.gguf`, 1,107,409,472 B, sha256
+`b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897`.
+
+    row  mask  -t   -p    pp t/s          tg128 t/s       wall s   peak RSS kB
+    r1   c0     1   512   32.40 +/- 0.78   9.89 +/- 0.38   162.19    1,491,612
+    r2   c0     1    64   30.54 +/- 0.69   9.86 +/- 0.36    81.04    1,415,860
+    r3   c0     2   512   45.39 +/- 5.78  10.35 +/- 0.13   132.62    1,491,668
+    r4   c0     2    64   49.44 +/- 2.55  12.75 +/- 2.27    64.86    1,415,856
+
+    row  RssAnon kB   RssFile kB  samples  MemAvail before -> after   kills  rc
+    r1    1,486,052       5,268      453   2,814,600 -> 2,819,400       0     0
+    r2    1,410,424       5,152      225   2,846,208 -> 2,801,836       0     0
+    r3    1,486,116       5,264      327   2,837,504 -> 2,827,340       0     0
+    r4    1,410,348       5,228      164   2,841,332 -> 2,827,572       0     0
+
+    row  MemFree before -> after      SwapFree before -> after   Cached before -> after
+    r1   1,556,860 -> 1,585,976       244,972 -> 206,500         1,480,404 -> 1,458,992
+    r2   1,609,204 -> 1,564,340       207,780 -> 208,804         1,461,396 -> 1,461,108
+    r3   1,602,292 -> 1,602,132       209,060 -> 208,692         1,461,112 -> 1,451,088
+    r4   1,612,836 -> 1,599,724       208,948 -> 210,996         1,451,352 -> 1,451,468
+
+Exact uptimes, because the gaps between rows turn out to be the whole story:
+
+    r1  61,873.50 -> 62,035.69      gap to r2  25.67 s
+    r2  62,061.36 -> 62,142.40      gap to r3  15.28 s
+    r3  62,157.68 -> 62,290.30      gap to r4  28.34 s
+    r4  62,318.64 -> 62,383.50
+
+### WHAT STOPPED IT
+
+`tg128` does not depend on `-p`. Rows 3 and 4 differ in nothing else — same
+`c0`, same 2 threads, same model, same `-lm none`, same boot, 28 seconds apart.
+They returned **10.35 +/- 0.13** and **12.75 +/- 2.27**, 23.2% apart. That is
+nine times the 2.6% run-to-run spread established across the four identical
+smoke rows.
+
+The error bars are the tell, and they point the same way. Row 3's `tg128` is
++/- 0.13 (1.3% — tight); row 4's is +/- 2.27 (17.8% — the five repetitions
+inside that one measurement disagreed violently with each other). Row 3's
+`pp512` is +/- 5.78 on 45.39, 12.7%. A figure whose repetitions scatter that
+much inside a single process is not measuring the thing it names.
+
+### THE CAUSE, READ OFF `/sys`, NOT INFERRED FROM THE TIMINGS
+
+Immediately after row 4 exited, with the phone otherwise idle:
+
+    cpu   scaling_cur_freq   scaling_max_freq   cpuinfo_max_freq
+    0     1,328,000          1,803,000          1,803,000        A55
+    4       696,000          2,253,000          2,253,000        A76
+    6       500,000          1,426,000          2,802,000        X1
+    7     1,106,000          1,426,000          2,802,000        X1
+
+**`scaling_max_freq` on the X1 pair is 1,426,000 kHz against a
+`cpuinfo_max_freq` of 2,802,000 — the policy ceiling itself is at 50.9% of the
+cores' rated clock.** That is not the governor choosing a low operating point;
+`scaling_cur_freq` is what the governor chose. It is the *ceiling* that has
+been lowered, by something in the platform, to a value the governor cannot
+exceed.
+
+**The A55 and A76 clusters were untouched.** `policy0` sat at 1,803,000 and
+`policy4` at 2,253,000 — each exactly its own `cpuinfo_max_freq` — for every
+reading taken, throughout. Only the X1 pair is capped.
+
+`policy6`: governor `sched_pixel`, driver `exynos_cpufreq`. Its
+`scaling_available_frequencies` are 500,000 851,000 984,000 1,106,000
+1,277,000 1,426,000 1,582,000 1,745,000 1,826,000 2,048,000 2,188,000
+2,252,000 2,401,000 2,507,000 2,630,000 2,704,000 2,802,000.
+
+### AND IT RECOVERS, WHICH IS THE PROOF IT WAS OUR LOAD
+
+`policy6/scaling_max_freq` polled while the phone did nothing at all. The
+first three readings carry no uptime stamp — they were taken in the window
+between row 4 exiting at 62,383.50 s and the timestamped series starting at
+62,472.79 s, so they are bounded to that 89-second window and ordered, but not
+individually placed. Everything from 62,472.79 on is stamped.
+
+    (within 62,383.50 - 62,472.79)   1,426,000
+    (within 62,383.50 - 62,472.79)   2,048,000
+    (within 62,383.50 - 62,472.79)   2,188,000
+    62,472.79                        2,507,000
+    62,476.86                        2,630,000
+    62,485.13                        2,704,000
+    62,493.32                        2,802,000   <-- full rated clock
+    62,497.40 .. 62,517.97           2,802,000   held, six further readings
+
+**The ceiling climbed monotonically back to the cores' rated 2.802 GHz and
+stayed there, reaching full clock 109.82 seconds after row 4 exited**, with the
+phone idle and nothing of ours running. A cap that lifts itself as the chip
+cools was put there by the load that heated it.
+
+**Stated at its true width: this is an inference, not a direct measurement.**
+`scaling_max_freq` was never read *before* row 1, nor *during* any row. What was
+measured is the ceiling immediately after a run and its recovery curve
+afterwards. The one cheap measurement that would close the gap — poll
+`policy6/scaling_max_freq` at 1 Hz from inside `pennybench.sh` while the child
+runs — has not been made. **What writes that value was not identified either:**
+`/sys/class/thermal/` is `Permission denied` to the shell user on this build, so
+the thermal zones and cooling devices that would name the governor of the cap
+cannot be read from here.
+
+### WHY THIS INVALIDATES THE MATRIX AS DESIGNED, AND IT IS ARITHMETIC
+
+The X1 pair needs on the order of 110 seconds of idle to return to 2.802 GHz.
+The gaps between these rows were **25.67, 15.28 and 28.34 seconds.**
+
+So row 1 is the only row in the matrix that began on a cool chip. Every
+subsequent row started part-way down a recovery curve, at a clock nobody
+recorded, and then drove itself further down over its own 65-163 seconds of
+runtime. **Each row's figure is a function of how long the previous row ran and
+how long ago it stopped** — neither of which is a property of the thing the row
+is supposed to be measuring.
+
+That accounts for all four anomalies without any further hypothesis:
+
+- **`tg128` falls as cumulative load rises.** 17.96 (step 3's `tg16`, an 8.67 s
+  process on a chip that had been idle) -> 12.75 (r4, 64.86 s) -> 10.35 (r3,
+  132.62 s). The ordering is by heat, not by anything else.
+- **Row 3's `tg128` is tight (+/- 0.13) and row 4's is wide (+/- 2.27).** By the
+  time row 3 reached its `tg128` it had already done 5x512 tokens of prompt
+  processing and was pinned at the floor — steady, and steadily slow. Row 4 had
+  done only 5x64 and was still falling *through* its own five repetitions.
+- **`pp64` 49.44 BEATS `pp512` 45.39 at 2 threads, inverting P6.** A `pp512`
+  repetition is eight times as long under load as a `pp64` one, so it throttles
+  harder inside its own measurement. At 1 thread — not enough heat to trip the
+  cap — P6 holds the right way round, 30.54 < 32.40.
+- **The 1-thread rows agree to 0.30%** (`tg128` 9.89 and 9.86). One X1 core
+  working does not trip the cap, so those two rows are the only clean pair here.
+
+### THE PREDICTIONS, JUDGED ON WHAT FOUR ROWS CAN JUDGE
+
+    P1  tg 8-16 t/s at 2 threads on c0
+        HOLDS, twice, on the protocol's own test. tg128 = 10.35 and 12.75,
+        both inside the band. And it holds on a THROTTLED X1 pair, which is
+        the harder case, so the band is not in danger from thermal recovery.
+        The smoke run's tg16 = 18.48 was never this figure and must not be
+        quoted as it.
+    P2  tg at 4 threads on f0 < 1.3x the 2-thread c0 figure
+        UNTESTED. Needs f0, which was not reached.
+    P3  pp512 at 4 threads on f0 >= 2x pp512 at 1 thread on c0
+        UNTESTED. Needs f0. Partial datum only: 1 -> 2 threads on c0 gave
+        32.40 -> 45.39, a 1.40x that is itself thermally contaminated.
+    P4  unpinned 4 threads no faster than pinned f0
+        UNTESTED. Neither leg was reached.
+    P5  peak RSS 1.1-1.4 GB, and NO kills on any Qwen3-1.7B run
+        THE KILLS HALF NOW HOLDS: zero LMK kills across all four rows,
+        against two processes killed on the mmap smoke run. That reversal is
+        `-lm none` doing what the protocol bullet said it would.
+        The RSS half is MARGINAL and depends on reading "GB" as GiB:
+        1,415,856 kB = 1.350 GiB at -p 64, inside the band; 1,491,668 kB =
+        1.423 GiB at -p 512, just outside the top of it. Under mmap it was
+        2.13 GiB and failed outright. NOT settled either way; -p 512 is
+        1.6% over and that is inside no spread anyone has established.
+    P6  -p 64 returns a LOWER pp t/s than -p 512
+        UNSETTLED, and it is the clearest casualty of the throttle. Holds at
+        1 thread (30.54 < 32.40, as predicted). Inverts at 2 threads
+        (49.44 > 45.39). The inversion is explained by the cap rather than
+        by batching, so P6 is neither confirmed nor refuted by these rows.
+
+### THE MEMORY RESULT IS CLEAN AND IS NOT AFFECTED BY ANY OF THIS
+
+Clock has no bearing on footprint, and the four rows say something the RSS
+chase could not.
+
+**Peak RSS is set by `-p` and is indifferent to `-t`.** At `-p 512`, 1,491,612
+kB at 1 thread and 1,491,668 kB at 2 — **56 kB apart, 0.004%**. At `-p 64`,
+1,415,860 and 1,415,856 kB — **4 kB apart**. Thread count costs nothing.
+
+**The batch buffer is the whole of the variation, and it is small.** Against
+step 3's `-p 16` row at 1,410,496 kB:
+
+    -p  16     1,410,496 kB      baseline
+    -p  64     1,415,856 kB      +5,360 kB   (+5.23 MiB)
+    -p 512     1,491,612 kB      +81,116 kB  (+79.22 MiB)
+
+So the ubatch question carried forward from the smoke entry has an answer for
+this model: going from a 16-token micro-batch to the default 512 costs **79.2
+MiB**, not the hundreds of MiB that was one of the two original candidates for
+the 2.13 GiB. It is a real cost and a bounded one.
+
+**The 99.6% anonymous share holds at every batch size**: 99.63, 99.62, 99.63,
+99.62% across the four rows, with `RssFile` never above 5,268 kB — the binary
+and bionic, and nothing else. At `-lm none` the peak is the working set, which
+is what the protocol bullet committed to.
+
+**And zero kills, four times, with `MemAvailable` between 2,814,600 and
+2,846,208 kB before each row.** That headroom is far above the 1,771,920 kB
+read at 973.2 min on this same boot, so these four rows are NOT a test of the
+tight case and must not be quoted as one.
+
+### What this entry does NOT say
+
+**Four rows of eight.** Nothing on `f0`, nothing unpinned, nothing at 4
+threads. P2, P3 and P4 are untested and no statement about thread scaling
+beyond two, about the A76 pair, or about the scheduler is available from this.
+
+**It does not say the X1 pair runs at 1.426 GHz.** It says the ceiling was at
+1.426 GHz at one instant, immediately after 65 seconds of two-thread load at
+the end of a 510-second sequence of four runs. The clock during each row was
+never read; the figure at the start of each row was never read. The recovery
+curve is measured; the descent is not.
+
+**It does not identify what lowers the cap.** Thermal is the obvious candidate
+and the recovery-on-idle shape fits it, but `/sys/class/thermal/` is unreadable
+to the shell user here, no temperature was recorded at any point, and a
+power/current limiter or a platform HAL policy would present identically from
+where this was measured. "Throttle" is used in this entry as a description of
+the behaviour, not as a claim about the mechanism.
+
+**It is not a thermal run.** CLAUDE.md names a thermal run as out of scope for
+today and it remains so. This is the thermal behaviour arriving uninvited in
+the middle of a throughput matrix; nobody set out to characterise it, no
+sustained soak was performed, and 110 seconds of recovery observed once is a
+reading, not a time constant.
+
+**It says nothing about whether the throttled figures or the peak-clock figures
+are the ones that answer the feasibility question.** A phone that has been
+generating tokens for thirty seconds is a throttled phone, so the low numbers
+may well be the honest product figures — but that is a judgement about what to
+measure, it is Matt's to make, and it has not been made.
+
+**No second model, nothing on battery, nothing under load, no cold-load
+figure**; the model was warm in host page cache for all four rows. The Q4_0
+repack path has still never executed on this phone. And none of this is a
+native-versus-VM statement — that comparison is closed and this is an absolute
+feasibility measurement of the 6a.
