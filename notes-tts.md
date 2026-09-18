@@ -138,3 +138,78 @@ is not expected — but it has not run on this CPU yet.
 
 What this entry does not say: that sherpa-onnx builds with this NDK and cmake,
 that the binary runs on the 6a, or anything measured on the phone.
+
+## 2026-09-18 — TTS RUNG 1, BUILD NOT RUN: with ENABLE_BINARY=ON the script fetches ELEVEN archives, not nine — websocketpp and asio are also pulled, and neither is approved
+
+Branch tts-kokoro, after merging main (5d1c4ac) as **8f519a1**. Mac only. The
+phone has not been touched from this branch. Nothing was configured, compiled
+or downloaded; `~/Documents/sherpa-onnx/build-android-arm64-v8a/` does not exist
+and the clone's `git status` is clean.
+
+**Record correction to the first entry's artefact list.**
+~/kokoro-models/penny-kokoro-int8 also holds **lexicon-us-en.txt, 5,956,885 B**,
+which that list left out. It will be pushed with the folder in step 2; the
+runs use lexicon-gb-en.txt only.
+
+**Why the build is held.** The command Matt approved was
+
+    ANDROID_NDK=/opt/homebrew/share/android-commandlinetools/ndk/30.0.16248370 \
+    SHERPA_ONNX_ONNXRUNTIME_ROOT=/Users/mattstevenson/Documents/sherpa-onnx-deps/onnxruntime-android-1.28.2 \
+    SHERPA_ONNX_ENABLE_BINARY=ON ./build-android-arm64-v8a.sh
+
+with nine archives approved and "anything beyond nine is a STOP". Reading the
+cmake path at a5b4a94 before running it:
+
+    CMakeLists.txt:55     option(SHERPA_ONNX_ENABLE_WEBSOCKET ... ON)
+    CMakeLists.txt:562-565  if(SHERPA_ONNX_ENABLE_WEBSOCKET)
+                              include(websocketpp)
+                              include(asio)
+
+build-android-arm64-v8a.sh:172-193 does not pass SHERPA_ONNX_ENABLE_WEBSOCKET
+and reads no environment variable for it, so the option stays ON and configure
+fetches two more:
+
+    websocketpp @b9aeec6e  cmake/websocketpp.cmake:5,7
+      SHA256=1385135ede8191a7fbef9ec8099e3c5a673d48df0c143958216cd1690567f583
+    asio 1-24-0            cmake/asio.cmake:4,6
+      SHA256=cbcaaba0f66722787b1a7c33afe1befb3a012b5af3ad7da7ff0f6b8c9b7a8a5b
+
+Neither exists in ~/Downloads or /tmp (the local fallbacks those cmake files
+check first). **This applies to the script's default build too, not only to
+ENABLE_BINARY=ON** — the include is unconditional on the binary flag — so the
+first entry's list of nine was short by two from the start. The websocket
+executables themselves (sherpa-onnx/csrc/CMakeLists.txt:762) are only built
+with ENABLE_BINARY=ON, and sherpa-onnx-offline-tts (:526) does not link them.
+
+What is NOT fetched on this path, checked in the cmake source: onnxruntime
+(cmake/onnxruntime.cmake:170-184 takes libonnxruntime.so from
+SHERPA_ONNXRUNTIME_LIB_DIR, which the script sets at :98 from
+SHERPA_ONNX_ONNXRUNTIME_ROOT; SHERPA_ONNX_USE_PRE_INSTALLED_ONNXRUNTIME_IF_AVAILABLE
+defaults ON at CMakeLists.txt:74); cargs (only via c-api-examples, and C_API is
+OFF at :160-162); pybind11, googletest, portaudio (PYTHON, TESTS, PORTAUDIO all
+OFF). **Not checked**: whether any of the nine approved archives fetches
+something of its own at configure time — that is only visible in the configure
+log, and will be read there.
+
+**A second thing the approved command would hit first.** `cmake` is not on PATH
+(`which -a cmake`: not found), and the script calls it bare at :172 under
+`set -ex`, so the command as written stops at "cmake: command not found" before
+any download. The build needs
+`PATH=/opt/homebrew/share/android-commandlinetools/cmake/3.22.1/bin:$PATH`
+(cmake 3.22.1-g37088a8; sherpa-onnx requires >= 3.15). The script builds with
+`make -j4` (Unix Makefiles), not ninja, so CLAUDE.md's ninja-shadowing trap
+does not apply to it.
+
+**Standing instruction for the first row, from Matt, recorded before it runs.**
+Before the first row on the phone, read all THREE ceilings — policy0, policy4,
+policy6 `scaling_max_freq` — in ONE wrapped `adb shell` invocation with uptime.
+pennytts.sh gates on policy6 and policy4 only, and the 18 Sept trap says
+policy0 throttles unseen. pennytts.sh is NOT changed for this.
+
+Held for Matt: approve websocketpp + asio, or build with
+SHERPA_ONNX_ENABLE_WEBSOCKET=OFF (which the script cannot pass without an edit
+to it or a hand-run of its cmake line).
+
+What this entry does not say: that sherpa-onnx builds with this NDK and cmake,
+what the nine approved archives weigh or whether they match their pins, that
+nothing further is fetched beyond the eleven, or anything about the phone.
