@@ -51,31 +51,39 @@ exists because state that only survives in a handover message is state that
 gets lost. Verify each line before relying on it; correct this block in the
 same commit as whatever changes it.
 
-    Phone                      **REBOOTED AGAIN 16 Sept at 15:20:52 BST**, to
-                               repeat the Gemma row on a boot that had not been
-                               cleared by earlier rows. adb back at uptime 57 s
-                               after a hand unlock. Fresh-boot readings:
-                               MemAvailable **2,190,520 kB at 308.17 s** and
-                               **2,135,144 kB at 1500.30 s** — within 1.2% of
-                               the 14:22 boot's pair, so **~2.1-2.2 GB is the
-                               idle figure on a fresh boot, read twice**.
-                               `policy0` sampled for the first time in this
-                               repo: 1,803,000 kHz, rated, at both readings.
-                               The earlier reboot that day: **16 Sept 14:22:50
-                               BST**, ending
-                               the 15 Sept ~19:59 boot at 66,065 s (18.35 h).
-                               The reboot was Matt's call under the
-                               contaminated-boot rule below — that boot's page
-                               cache had collapsed by the size of the model and
-                               its swap was 97.0% spent. Unlocked by hand; adb
-                               returned at uptime 191 s. AC power, screen on.
-                               Protocol readings on the fresh boot: uptime
-                               302.94 s MemAvailable **2,193,244 kB**, uptime
-                               1515.90 s MemAvailable **2,159,732 kB** — this
-                               boot starts high and drifts DOWN, where 15 Sept's
-                               climbed, but the two ~25-minute figures agree
-                               within 1.9%. Benchmark rows have run on it since;
-                               it is not an untouched boot.
+    Phone                      **REBOOTED 18 Sept at 13:17:19 for BOOT 4 — the
+                               brief-S boot.** Matt unlocked by hand; adb
+                               answered at uptime 52.95 s, wallclock 13:18:26,
+                               so boot start was ~13:17:33. **STILL UP at the
+                               last read: uptime 7960.07 s, wallclock 15:30:14
+                               on 18 Sept**, with all three clock ceilings back
+                               at rated, `MemAvailable` 2,319,936 kB, `SwapFree`
+                               747,928 kB and battery 317 dC (31.7 C).
+                               **BOTH PROTOCOL READINGS WERE TAKEN ON THIS BOOT**,
+                               each in ONE wrapped invocation:
+                               **MemAvailable 2,218,088 kB at 303.84 s
+                               (13:22:37)** and **2,347,476 kB at 1501.63 s
+                               (13:42:35)**. The 5-minute figure is **1.28 GB
+                               ABOVE** the only other ~5-minute reading in the
+                               repo (940,640 kB at 5.8 min, 15 Sept) — recorded,
+                               not explained, and it is the second reading
+                               behind the standing warning that the 5-minute
+                               mark is not a stable point on this handset.
+                               **THIS BOOT IS SPENT**: S0, S1 (59.16 min) and S2
+                               (26.03 min) have all run on it, plus the
+                               ceiling-recovery reading. **S3 was NOT run** —
+                               Matt's call, not taken.
+                               Earlier boots, kept because the 25-minute curve
+                               is now read on six of them: 18 Sept 10:18:14
+                               (boot 3, Q-A/Q-B rows 6-9), 16 Sept 17:16:57 and
+                               18:06:24, and 16 Sept 15:20:52 and 14:22:50.
+                               MemAvailable at ~25 min across the five earlier
+                               boots runs **2,135,144 to 2,284,200 kB**; boot 4's
+                               2,347,476 kB is 63,276 kB above that range and is
+                               NOT offered as a sixth member of the set, because
+                               a row had already run on it.
+                               **`policy0` HAS NOW BEEN SAMPLED DURING ROWS** —
+                               see the trap below. AC power, screen on, unlocked.
     OUR APP IS DISABLED        `adb shell pm disable-user --user 0
                                com.pennyspike.probe2a` at ~19:57. Nothing of
                                ours starts at boot, nothing restarts, and the
@@ -222,26 +230,37 @@ same commit as whatever changes it.
                                where llama.cpp's ARM dot-product repacking
                                lives. `--help` alone had proved nothing here.
     models on the phone        **ONE — Qwen3-1.7B-Q4_K_M, and this block said
-                               NONE until 16 Sept ~17:05.** All three had been
-                               deleted on 16 Sept with Matt's authorisation
-                               (Qwen3-1.7B at 15:00, Qwen3.5-2B at 15:05,
-                               gemma-4-E2B-it at 15:52) and all three remain
+                               Qwen3.5-2B until 18 Sept 13:11.** Swapped back
+                               for brief S (the sustained run), by Claude over
+                               adb with Matt's authorisation, in this order at
+                               uptime 10279.96-10347.05 on boot 3: hash
+                               `q35_state.bin` (`6f461e45…`, MATCHED the
+                               recorded value), `rm` Qwen3.5-2B-Q4_K_M.gguf and
+                               q35_state.bin, `ls` to confirm both absent,
+                               `adb push` the 1.7B (1,107,409,472 B in 32.810 s,
+                               32.2 MB/s), `sha256sum` it ON THE PHONE:
+                               **b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c8232
+                               04dc42c0d91fa181897**, matching MANIFEST.txt's
+                               HF-LFS-verified value and the Mac copy hashed
+                               the same day. **Qwen3.5-2B-Q4_K_M.gguf and
+                               q35_state.bin are DELETED**, both confirmed
+                               absent by `ls`; /data went 9.2G -> 8.0G used,
+                               102 G free. All ten models remain
                                manifest-verified in ~/Documents/penny-models.
-                               Qwen3-1.7B-Q4_K_M was then pushed BACK for the
-                               Q-A/Q-B work, on the 15:20:52 boot, before the
-                               16:50 smoke test. Verified on the phone 16 Sept
-                               16:55: 1,107,409,472 B, sha256
-                               b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c8232
-                               04dc42c0d91fa181897, matching the MANIFEST.txt
-                               line that reads VERIFIED vs HF LFS oid.
+                               **q35_state.bin is NOT re-creatable without a
+                               row** — it was row 7's output. Its hash is in
+                               notes.md and in the deleted line below; nothing
+                               outstanding depends on it, and the 2B's B3 (the
+                               unspent boot 4) would need it regenerated.
                                **Its mtime reads 2026-09-15 20:25 and that is
                                NOT when it was pushed** — `adb push` preserves
                                the SOURCE file's mtime, so an mtime on this
                                phone dates the Mac's copy, never the transfer.
-                               Cost a wrong read on 16 Sept 17:00 on a
-                               different file. **Because it was pushed on this
-                               boot, its page cache is WARM and every load on
-                               this boot is a warm load.** Cold needs a reboot.
+                               Cost a wrong read on 16 Sept 17:00.
+                               **THE PUSH WARMED THE PAGE CACHE**, so no cold
+                               read is available on boot 3 — which is moot,
+                               because boot 3 is about to be spent and S needs
+                               a fresh one anyway.
                                One model at a time: delete before pushing the
                                next.
     logcat buffer              **RAISED to 64 MiB, 16 Sept 12:22**, after
@@ -249,20 +268,55 @@ same commit as whatever changes it.
                                ~/Documents/logcat-2026-09-16-preraise.txt
                                (6.6 MB, 43,759 lines, oldest 09-15 19:59:34).
                                The resize did NOT clear it. Dies on reboot.
-    /data/local/tmp contents   **Read off the phone 16 Sept 16:55 and 17:01.**
-                               `Qwen3-1.7B-Q4_K_M.gguf` (see above),
-                               `llama-bench` 4,708,216 B `44015c06…`,
-                               `llama-simple` 3,805,208 B `3d6b6afa…`,
-                               `pennyload` 3,817,808 B `be2cab2c…` (= the
-                               repo's `build/pennyload-stripped`),
-                               `pennybench.sh` **revision 4**, 8,402 B,
-                               `c5b9f03a7c5add80196e8ed584c1091cc62390e24fafe
-                               3cda91004c8512ffc99`, `penny_system.txt` 1,911 B
-                               `94969770…`, `penny_user.txt` 74 B `f6d8be90…`,
-                               `out/` (every row's .bench/.err/.kills, and from
-                               rev 4 a `.report` too) and the pre-existing
-                               `microdroid/` from 14 Sept — left alone, nothing
-                               needs it gone. 102 G free on /data.
+    /data/local/tmp contents   **Read off the phone 18 Sept 13:11, after a
+                               `sync`**, at the close of boot 3 and after the
+                               model swap and the brief-S instrument install.
+                               `Qwen3-1.7B-Q4_K_M.gguf` 1,107,409,472 B
+                               `b139949c…` (see above);
+                               **`q17_state.bin` 46,685,237 B, sha256
+                               707e0ea3c1cc490187616a67ba0097747c8b8c58fcd2dcf
+                               38e1870a31a8f6f4d** — REGENERATED by S0 on
+                               18 Sept 13:24 and **byte-for-byte the file
+                               deleted on 16 Sept**, written that time by
+                               `be2cab2c…` and this time by `f52fc604…`. The
+                               prefix-save path is deterministic across
+                               binaries and boots, so this file is always
+                               re-creatable from `penny_system.txt` and never
+                               needs protecting;
+                               `llama-bench` 4,708,216 B `44015c06…`;
+                               `llama-simple` 3,805,208 B `3d6b6afa…`;
+                               **`pennyload` 3,836,992 B
+                               `f52fc60411b55e5ed9eb34e8307f32b45d6bed6f06de85
+                               a5347bc02ec2f4ffe9`** (= the repo's
+                               `build/pennyload-stripped`), which **SUPERSEDES
+                               `be2cab2c…` / 3,817,808 B** — it adds
+                               `--turns`/`--interval-s` and nothing else, and
+                               the single-turn path was verified unchanged on
+                               this phone by an A/B against the old binary
+                               (same 28 lines, same order, same
+                               `token_fnv1a64 0x19d53b5da9186ff6`, all 64 token
+                               ids identical);
+                               **`pennybench.sh` revision 5, 12,790 B,
+                               `96163d047d7a91cd3f937cba71c4bce9270e6f84afcb4d
+                               700fe7a1513e0889af`**, which **SUPERSEDES
+                               revision 4 `c5b9f03a…` / 8,402 B** — it adds a
+                               10 s time series to `<tag>.series` and the
+                               `oom_score_adj_child pre=/post=` line;
+                               `penny_system.txt` 1,911 B (`94969770…`, hashed
+                               16 Sept, size re-confirmed 18 Sept);
+                               `penny_user.txt` **95 B**, replaced 16 Sept
+                               17:05, its current hash not on record;
+                               `out/` (every row's .bench/.err/.kills/.report,
+                               and from rev 5 also .series) and the pre-existing
+                               `microdroid/` from 14 Sept — left alone.
+                               `Qwen3.5-2B-Q4_K_M.gguf` and `q35_state.bin` are
+                               GONE, as are the temporary `pennyload_s` and
+                               `pennybench_s.sh` the smoke tests used — there is
+                               exactly one of each binary on the phone.
+                               **NO `q17_state.bin` EXISTS**, on the phone or on
+                               the Mac (`find ~/Documents` returned nothing,
+                               18 Sept 12:28), so brief S's row S0 must
+                               regenerate it.
     adb                        ALIVE (phone unlocked). GrapheneOS keeps the port
                                charging-only while locked.
     models on the Mac          ~/Documents/penny-models, 10 GGUF files,
@@ -1436,12 +1490,59 @@ PARKED, and the work has moved to measuring a model natively on Android.**
   resident and working.
   **It is an ABSOLUTE feasibility measurement of the handset,
   never a native-versus-VM comparison**, which is closed per the bullet above.
-  **Not done, and these are the NEXT SESSION'S FIRST FOUR ITEMS, in order:
-  cold-load time; time-to-first-token with a cached prefix; the `-ub` test that
-  separates batch size from micro-batch size; a sustained run.** Also not done:
-  Q4_0, anything on battery, `policy0` sampled DURING a row (it has now been
-  read at idle, 1,803,000 kHz), and any judgement of output quality — no
-  benchmark row produced text a person read.
+  **DONE 18 Sept — the first two of those four are ANSWERED.** Cold-load time
+  and time-to-first-token with a cached prefix are both measured: nine gated
+  rows across three boots on two models at **notes.md 8999-10993**, closed by
+  the entry at **notes.md 10995**, with an amendment at 11342. Twelve
+  predictions, **eleven pass and A3 fails low**. The wake figure that matters:
+  a cold process restoring a 407-token prefix has a first token in **4.099 s**
+  on Qwen3-1.7B (row `q17_r5_coldcache_cached`), of which **90.1% is the model
+  load and 1.4% is the prefix**. **B3 on Qwen3.5-2B is NOT MEASURED** and needs
+  the unspent boot 4, which is Matt's call.
+  **Not done, and these are the NEXT THREE ITEMS, in order: (1) the `-ub` test
+  that separates batch size from micro-batch size; (2) a sustained run — the
+  thermal question every row in this repo has deferred; (3) the on-device VOICE
+  bake-off.**
+  **(2) IS DONE — BRIEF S, 18 Sept, and the sustained question is ANSWERED for
+  this handset.** A model held resident with a cached prefix, answering a
+  20-token turn repeatedly, on Qwen3-1.7B, boot 4.
+  **S1 — one turn a minute for an hour (60 turns, 59.16 min, 7.84% duty): NO
+  MEASURABLE DECAY.** Settled `ttft_turn` declined **-0.44%** and settled
+  `gen_tps` **-0.20%** — the last quarter was fractionally FASTER than the
+  first. TTFT median 354.39 ms, `gen_tps` median 14.49. All three clock
+  ceilings read rated in all 355 series samples.
+  **S2 — 200 turns back to back (26.03 min, 100% duty): loses 45% and then
+  holds.** `gen_tps` 15.04 -> 9.21 in the first 40 turns and 260 s, then
+  9.21 -> 8.26 over the remaining 160 turns and 1,291 s. Settled at **54.77% of
+  turn 1**, against a 50% fail floor. X1 ceiling at its 984,000 floor (35.12%)
+  after 129 s and never recovered in-row.
+  **Every fail condition passed; four bands missed** — S-A1/S-A2 low (I
+  predicted decay and measured none) and S-A3/D4 low and high respectively,
+  both because the prediction extrapolated from C-series rows of 52-247 s to a
+  row of 1,561 s and underestimated the throttling.
+  **260 state restores across the two rows produced ONE token checksum**,
+  `0xcba17a2fcbba49f4`, the same value rows 1/2/3/5 and S0 produced.
+  **Nothing was killed above `oom_score_adj 935`** — two cached processes four
+  seconds into S1, none at all in S2 — so "survived at adj 200" means the
+  killer never came near it, not that the process withstood pressure.
+  Commits: predictions and definitions BEFORE any code at `3d0329e` / `6f8e2e4`;
+  instrument at `57c0f18`; smoke tests and the bug they found at `ff009f5`;
+  device prep at `ca46a3b`; boot and readings at `3e85c63` / `170955d` /
+  `013e04a`; S1 at `4940fbd`; S2 at `503da65`.
+  **NOT DONE: S3** (does the conversational shape recover after S2, or is the
+  boot spent) — Matt's call, not taken. **A growing context is untested**: the
+  turn is the same 20 tokens 260 times and the KV cache is restored, never
+  extended. The third is Kokoro-82M `bf_isabella` and `kokoro-onnx` int8
+  under sherpa-onnx (**Matt's decision, 18 Sept**; recorded here from his
+  instruction, with no notes.md entry behind it yet), measured with STT and the
+  LLM **resident at the same time** — which is the first thing in this repo
+  that asks what this handset does with more than one model in memory at once,
+  against a 1.47-1.74 GiB LLM working set and ~2.1-2.3 GB of idle
+  `MemAvailable`. Also not done: Q4_0, anything on battery, `policy0` sampled
+  DURING a row (it has now been read at idle, 1,803,000 kHz, and was not
+  sampled during any of the nine Q-A/Q-B rows either), and **any judgement of
+  output quality** — the Q-A/Q-B rows did print text and it is quoted in
+  notes.md, but no row's text has been judged.
 
 **A rebuild now COSTS something again.** `penny3ev`'s store holds a verified
 64MB file and a reinstall strands it — and worse, `Penny3evService`'s recovery
@@ -1638,6 +1739,92 @@ Do not work ahead of the current rung.
   quote the RECEIVER's figure as the headline because it is bounded by
   receiving rather than by manufacturing. Costs a Java-only rebuild, which
   needs no phone.
+- **`adb shell` RE-JOINS ITS ARGUMENTS, so quoting inside an unwrapped remote
+  command is unsafe — and the failure reads as a bug in the remote tool.**
+  Measured 18 Sept, and it cost boot 3's ~5-minute protocol reading outright,
+  which cannot be retaken without spending another boot. Sent:
+
+      adb shell cut -d' ' -f1 /proc/uptime
+
+  The Mac's shell strips the quotes, adb joins the remaining words with single
+  spaces, and the phone receives `cut -d -f1 /proc/uptime` — so `-d` swallows
+  `-f1` as its delimiter and the phone answers
+  `cut: Needs -CFfcb (see "cut --help")`, exit 1. Inside a poll loop the
+  variable was empty on every pass, the loop spun for twenty minutes and no
+  reading was ever taken. **The rule: wrap the WHOLE remote command in ONE
+  quoted string**, so adb has a single argument and nothing to re-join:
+
+      adb shell 'echo "uptime_s=$(cut -d\  -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"'
+
+  or sidestep the quoting entirely — read the file whole and do the arithmetic
+  on the Mac:
+
+      u=$(adb shell cat /proc/uptime | tr -d '\r' | awk '{print int($1)}')
+
+  Same family as the `--es` extra and `input text` traps below. **A remote
+  command that fails in a way that makes no sense for the tool named is this,
+  not the tool.**
+- **AN UNCLOSED QUOTE INSIDE AN `adb shell` POLL LOOP READS NOTHING AND SPINS
+  SILENTLY.** Cost brief S its swap-recovery trend on 18 Sept. The command was
+  `adb shell 'echo "t=$(…) … wall=$(date +%H:%M:%S)'` — **the double quote was
+  never closed before the closing single quote**. Every pass returned
+  `/system/bin/sh: no closing quote` and the loop ran to completion having
+  measured nothing. This is the same family as the argument-rejoining trap
+  above and it is worse inside a loop, because a single bad invocation is
+  obvious while sixty of them look like a long wait. **Dry-run the exact
+  invocation ONCE in the foreground before arming any loop with it**, which is
+  what recovered the 25-minute reading after this failure.
+- **A 10-SECOND SERIES MISSES SUB-10-SECOND CEILING DIPS, AND WILL TELL YOU THE
+  CLOCK NEVER MOVED.** Measured on S1, 18 Sept: all **355 of 355** series
+  samples read `policy6` at 2,802,000 — 100.00% at rated — while
+  `pennybench.sh`'s own 0.2 s poll caught the same ceiling at **1,826,000 kHz,
+  65.17% of rated**, 1,868 s into the row. Both numbers are in the same report.
+  **NEVER quote a series "fraction at rated" without the poll-loop `min` beside
+  it.** The series is for the shape over time; the `ceil_*_kHz min=` line is for
+  whether the ceiling moved at all. On S2, where the dips were long, the two
+  agreed — so agreement proves nothing about the sampling rate either.
+- **THE FINAL SAMPLE IN A `.series` CAN BE A TEARDOWN SAMPLE. READ `VmRSS`
+  BEFORE QUOTING IT AS END-OF-ROW.** S2's last line, 18 Sept, reads
+  `MemAvailable 2431828` — its maximum for the whole row — beside
+  `VmRSS 156676` against a `VmHWM` of 1,548,952. The process was already
+  releasing its 1.5 GiB when that sample was taken, so the memory figure
+  describes the teardown, not the row. S1's last line was clean
+  (`VmRSS 1548652`) and its 932,128 kB IS the end-of-row figure. **The check is
+  one column: if `VmRSS` is far below `VmHWM` on the last line, use the
+  second-to-last, or the row minimum, and say which.**
+- **A PROCESS LAUNCHED FROM `adb shell` HAS `oom_score_adj` -1000 — see the
+  benchmark-protocol bullet.** Repeated here because it qualifies EVERY kill
+  list in this repo taken before 18 Sept: those rows could not have been killed
+  whatever the pressure, so "our own process was never touched" was not a
+  measurement on any of them. From brief S, `pennybench.sh` writes 200 and reads
+  it back. **Even then, "survived" is weak evidence unless the killer actually
+  came close** — on S1 and S2 it stopped at `oom_score_adj 935` and never
+  approached 200.
+- **`policy0` (the A55 cluster) THROTTLES UNDER SUSTAINED LOAD, and this was
+  unobserved until 18 Sept** because no row had ever sampled it. On S2 —
+  200 turns back to back, 26.03 min — it fell to **738,000 kHz of 1,803,000
+  rated, 40.93%**, and read below rated in **115 of 157** samples, **on a row
+  where `taskset c0` scheduled nothing onto it at all.** That is the same
+  package-wide limiter the 16 Sept cooled matrix found on `policy4`, now
+  confirmed on the third cluster: **the cap is thermal and package-wide, not
+  per-cluster, and pinning away from a cluster does not keep its clock up.**
+  On S1, at 7.84% duty, all three held rated in every sample — so it is
+  sustained load that does it, not load as such.
+- **AN INTERRUPTED SESSION'S TOOL OUTPUT IS NOT GONE — IT IS IN THE
+  TRANSCRIPT, AND "the scrollback is gone" MUST BE CHECKED BEFORE IT IS
+  WRITTEN DOWN.** Cost a wrong statement inside a COMMITTED notes.md entry on
+  18 Sept, which then needed its own amendment commit (`32706a2`). Claude Code
+  keeps every session's tool calls and their full output at
+
+      ~/.claude/projects/<project-path-with-slashes-as-dashes>/<session-uuid>.jsonl
+
+  one JSON object per line. The 16 Sept session's `rm`, `adb push` and
+  `sha256sum` outputs were all still there verbatim two days after that session
+  was interrupted — including the push's `1 file pushed, 0 skipped. 31.4 MB/s
+  (1280835840 bytes in 38.886s)`. **Grep it before claiming anything cannot be
+  quoted.** The failure is not lost data; it is asserting an absence that was
+  never checked, in an entry whose entire purpose is that its figures are
+  quotable.
 - **A `;` inside an `--es` extra is eaten by the device's shell.** `adb shell
   am start ... --es plan "1;2,200,0,"` fails with `/system/bin/sh: 3,200,0,:
   inaccessible or not found` — the double quotes are stripped by the Mac's
@@ -2371,10 +2558,29 @@ not soften it.
   `dumpsys meminfo` answers it and is readable: read 16 Sept at 66,065 s uptime,
   **`ZRAM: 666,716K physical used for 2,830,100K in swap (3,145,724K total
   swap)`** — so swap on this handset IS zram, compressed in RAM at ~4.25:1, and
-  a "SwapFree" figure is not disk. **Wrapper sha256, revision 4, 16 Sept:
-  `c5b9f03a7c5add80196e8ed584c1091cc62390e24fafe3cda91004c8512ffc99`**
-  (supersedes `0f5cb2b5…` rev 3, which added `PENNYBIN`; which superseded
-  `484d75d4…`, `67eefed1…` and `e5a81104…`). **Revision 4 adds one thing and
+  a "SwapFree" figure is not disk. **Wrapper sha256, revision 5, 18 Sept:
+  `96163d047d7a91cd3f937cba71c4bce9270e6f84afcb4d700fe7a1513e0889af`, 12,790 B**
+  (supersedes rev 4 `c5b9f03a7c5add80196e8ed584c1091cc62390e24fafe3cda91004c85
+  12ffc99`; which superseded `0f5cb2b5…` rev 3, which added `PENNYBIN`; which
+  superseded `484d75d4…`, `67eefed1…` and `e5a81104…`).
+  **Revision 5 adds TWO things, for brief S.** A TIME SERIES to `$OUT.series`,
+  one line every 10 s of uptime while the child lives, fourteen columns:
+  `uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB
+  Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level` —
+  before/after readings bound an hour-long row but say nothing about what
+  happened inside it. **`ceil_a55` is `policy0`, which no row in this repo had
+  ever sampled.** And `PENNYBENCH oom_score_adj_child pre=/post=`, which writes
+  200 to the child and READS BOTH VALUES BACK — see the `oom_score_adj` trap
+  above. **Battery temperature is read from
+  `/sys/class/power_supply/battery/temp`, NOT `dumpsys battery`**, and that is a
+  named deviation from brief S: the series samples ~360 times in an hour and
+  `dumpsys` is a binder call into `system_server`, the process most likely to be
+  perturbed by the pressure being measured. `dumpsys` is still read once either
+  side as the cross-check — and the smoke tests showed it LAGS, reading 276 dC
+  at both ends of a row where sysfs went 278 -> 280, because it updates on
+  battery-change broadcasts rather than on demand. **It is BATTERY temperature
+  in tenths of a degree C, never SoC temperature**; `/sys/class/thermal/` is
+  `Permission denied` to the shell user on this build. **Revision 4 adds one thing and
   one only: the whole REPORT section is tee'd to `$OUT.report` as well as to
   stdout.** Until it, every `PENNYBENCH` line — peak RSS, the kill count,
   the clock ceilings, `MemAvailable` either side — existed ONLY in the
@@ -2432,6 +2638,26 @@ not soften it.
   zero-kill rows were flattered by prior kills.** So every row reports its kill
   count WITH `MemAvailable` before it, and a zero on a tired boot is never
   quoted as "this model causes no kills".
+- **A PROCESS LAUNCHED FROM `adb shell` HAS `oom_score_adj` -1000, SO IT CANNOT
+  BE LMK-KILLED — AND EVERY KILL LIST IN THIS REPO WAS TAKEN THAT WAY.** Read on
+  18 Sept, boot 3, before brief S was built:
+  `adb shell 'sh -c "cat /proc/\$\$/oom_score_adj"'` returns **-1000**, the
+  value adbd hands down. Rows 1-9 of the Q-A/Q-B plan all ran through
+  `pennybench.sh` from `adb shell`, so their kill lists — 8 lines / 4 processes
+  on r1, 8/4 on r5, 6/3 on r6, 16/8 on r7 — **could never have named
+  `pennyload`**. The counts stand; the closing entry's "our own process never
+  touched" was not a measurement on any of those rows and must not be read as
+  one. **The fix is one line and it is TESTED, not assumed**: raising
+  `oom_score_adj` is permitted to one's own uid (lowering needs
+  `CAP_SYS_RESOURCE`), and SELinux does not refuse it on this build — a
+  throwaway `sleep` went -1000 -> 200 with `write_rc=0`, empty stderr and a
+  read-back of 200, at uptime 8625.00 / 12:42:20. From brief S, `pennybench.sh`
+  writes **200** to the child and prints `pre=` and `post=` side by side so the
+  line is a reading rather than an intention. **200 is the perceptible /
+  foreground-service band** — the closest imitation of a service started from a
+  boot broadcast. It is NOT cached (900+) and NOT the foreground app (0);
+  3g-ii's killer stopped at **adj 201** under a 2GB VM, so 200 sits one point
+  inside the band it did not enter.
 - Prediction written in notes.md BEFORE the first run, and judged against
   in the write-up. The standing one: token generation barely improves
   beyond 2 threads (memory-bandwidth bound); prompt processing scales.
@@ -2443,11 +2669,23 @@ not soften it.
 - Unpinned runs are never quoted as the chip's speed. Pinned figures are
   labelled by which cores (c0 = X1 pair, f0 = X1+A76).
 - One model on the phone at a time. Push, run, record, delete, next.
-- Nothing VM-hosted, no thermal run, no time-to-first-token with a cached
-  prefix. Those are named as not done in the write-up.
+- Nothing VM-hosted and no thermal run. Those are named as not done in the
+  write-up. **TIME-TO-FIRST-TOKEN WITH A CACHED PREFIX IS NO LONGER ON THIS
+  LIST — IT IS DONE**, 16-18 Sept, together with cold-load time: nine gated
+  rows, three boots, two models, at **notes.md 8999-10993**, closed at
+  **notes.md 10995** (amendment at 11342). A cached prefix costs 9.58-59.16 ms
+  to restore and removes a 6.0-7.7 s system-prompt decode; what it cannot
+  remove is the model load. **B3 on Qwen3.5-2B is NOT MEASURED** — boot 4 is
+  unspent and is Matt's call.
 - Done = a notes.md entry "native llama.cpp feasibility on the 6a" with
   all three models' tables, whether the prediction held, and a plain
-  answer to "can this silicon run a 1.7-2B model usefully".
+  answer to "can this silicon run a 1.7-2B model usefully". **That entry
+  exists at notes.md 7543 and that question is DONE.** For Q-A and Q-B the
+  equivalent is the closing entry at **notes.md 10995**, which carries the
+  twelve-prediction scorecard naming the row each was scored on, the plain
+  answer judged against the plain answer predicted before any run, and what
+  is not measured. **Both are DONE. The standard is that the closing entry
+  exists and says what failed — not that every prediction passed.**
 
 ## Do not
 

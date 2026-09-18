@@ -9871,3 +9871,2996 @@ The 8.55-minute reading is not a 5-minute reading and is not treated as one.
 Whether this boot behaves like 16 Sept boot 1 is not claimed: its `Cached` at
 connect was ~590 MB higher, and the only later reading is at a mark boot 1 has
 no counterpart for.
+
+## 2026-09-18 — AMENDMENT to the entry above, before row 6 runs. The transcript was NOT gone, so the swap's own commands ARE quotable; the cold-read floor was stated with a lower bound it does not have; and MemTotal's 4 kB is not new.
+
+Appended rather than edited into the entry above, per this repo's rule that a
+wrong claim and its correction are both history. Four corrections, three of
+them Matt's and the fourth found while checking the first.
+
+### 1. THE 16 SEPT TRANSCRIPT IS ON DISK. THE ENTRY ABOVE WAS WRONG TO SAY OTHERWISE.
+
+The entry says "the scrollback that held it is gone" and that the `rm`/`rm`/
+`push` "cannot be quoted". **Both statements are false.** Matt asked where the
+879,432 kB at 34.20 s figure had come from if the session was gone, which is
+the question that broke it open: that figure had been pasted into this session
+in Matt's own opening message, i.e. it was second-hand and relayed, not read.
+Checking for its source found the session's full transcript at
+
+    ~/.claude/projects/-Users-mattstevenson-Documents-penny-app-spike/
+      0705355e-8fa1-43e3-a39c-815af692f53c.jsonl
+
+**The correct provenance of 879,432 kB at 34.20 s: it is READ, not remembered.**
+It was relayed through Matt's message, and is now confirmed against the
+transcript's own tool output, which is the 16 Sept boot-3 connect reading and
+is quoted in full below.
+
+**THE DELETION, 16 Sept, boot 2, quoted from the transcript:**
+
+    $ adb shell 'echo "uptime_s=$(cut -d\  -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"; rm -f /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf /data/local/tmp/q17_state.bin; echo "--- after delete ---"; ls -la /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf /data/local/tmp/q17_state.bin 2>&1; echo "--- dir ---"; ls -la /data/local/tmp/; df -h /data | tail -1'
+    uptime_s=1771.76 wallclock=18:36:16
+    --- after delete ---
+    ls: /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf: No such file or directory
+    ls: /data/local/tmp/q17_state.bin: No such file or directory
+    --- dir ---
+    total 12101
+    drwxrwx--x 4 shell shell    3452 2026-09-16 18:36 .
+    drwxr-x--x 5 root  root     3452 2026-09-13 21:07 ..
+    -rwxr-xr-x 1 shell shell 4708216 2026-09-16 12:08 llama-bench
+    -rwxr-xr-x 1 shell shell 3805208 2026-09-16 12:18 llama-simple
+    drwxrwxrwx 4 shell shell    3452 2026-09-14 11:35 microdroid
+    drwxrwxrwx 2 shell shell    8192 2026-09-16 18:32 out
+    -rw-rw-rw- 1 shell shell    1911 2026-09-16 16:48 penny_system.txt
+    -rw-rw-rw- 1 shell shell      95 2026-09-16 17:05 penny_user.txt
+    -rwxr-xr-x 1 shell shell    8402 2026-09-16 16:57 pennybench.sh
+    -rwxr-xr-x 1 shell shell 3817808 2026-09-16 16:29 pennyload
+    /dev/block/dm-15 110G 8.0G  102G   8% /data/user/0
+
+Both files gone, confirmed by `ls` failing on each by name, and 102G free.
+
+**THE PUSH, same session, next command:**
+
+    $ cd ~/Documents/penny-models && ls -la Qwen3.5-2B-Q4_K_M.gguf && grep -i "Qwen3.5-2B-Q4_K_M" MANIFEST.txt && echo "=== push ===" && time adb push Qwen3.5-2B-Q4_K_M.gguf /data/local/tmp/ && echo "=== hash on phone ===" && adb shell 'sha256sum /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf; ls -la /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf'
+    -rw-r--r--@ 1 mattstevenson  staff  1280835840 15 Sep 20:26 Qwen3.5-2B-Q4_K_M.gguf
+    unsloth/Qwen3.5-2B-GGUF                  Qwen3.5-2B-Q4_K_M.gguf                 1280835840  aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223 VERIFIED vs HF LFS oid
+    === push ===
+    Qwen3.5-2B-Q4_K_M.gguf: 1 file pushed, 0 skipped. 31.4 MB/s (1280835840 bytes in 38.886s)
+    adb push Qwen3.5-2B-Q4_K_M.gguf /data/local/tmp/  3.05s user 0.98s system 10% cpu 39.038 total
+    === hash on phone ===
+    aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223  /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf
+    -rw-rw-rw- 1 shell shell 1280835840 2026-09-15 20:26 /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf
+
+**So the file was hashed on the phone on 16 Sept as well as on 18 Sept, and
+both reads return `aaf42c8b…`.** The push ran at 31.4 MB/s over USB, 1.28 GB in
+38.886 s — which is the transfer figure the entry above said did not exist, and
+it is a USB figure, not a storage one.
+
+**THE 16 SEPT BOOT 3 READING, quoted in full rather than relayed:**
+
+    $ adb shell 'echo "uptime_s=$(cut -d\  -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"; grep -E "^(MemTotal|MemAvailable|MemFree|SwapFree|SwapTotal|Cached):" /proc/meminfo; echo "ceil_x1_kHz=..."; ...'
+    uptime_s=34.20 wallclock=18:38:04
+    MemTotal:        5718284 kB
+    MemFree:          144188 kB
+    MemAvailable:     794512 kB
+    Cached:           879432 kB
+    SwapTotal:       3145724 kB
+    SwapFree:        2709244 kB
+    ceil_x1_kHz=2802000 ceil_a76_kHz=2253000 ceil_a55_kHz=1803000
+    --- vm list ---
+    Running VMs: []
+    --- app ---
+    enabled=3
+    --- model, ls only ---
+    -rw-rw-rw- 1 shell shell 1280835840 2026-09-15 20:26 /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf
+
+and the reboot that opened it, one invocation:
+
+    uptime_s=1825.28 wallclock=18:37:10
+    MemAvailable:    2652636 kB
+    Cached:          1839580 kB
+    SwapFree:         759804 kB
+    === reboot ===
+    adb reboot issued, rc=0
+
+**THE METHOD POINT, which is the part worth keeping: an interrupted session's
+tool output survives in `~/.claude/projects/<project>/<session-uuid>.jsonl` and
+is recoverable.** "The scrollback is gone" was assumed, not checked, and it was
+asserted in a committed entry. A figure relayed through a message is
+second-hand until it is matched against that file. Check before writing that
+something cannot be quoted.
+
+### 2. THE COLD-READ FLOOR HAS NO UPPER BOUND, AND THE UNITS WERE WRONG
+
+The entry above says "between 1 and 2 seconds, i.e. 610 MB/s to 1.22 GB/s".
+**Two wall-clock stamps at one-second resolution, `start 10:17:25` and
+`end 10:17:26`, bound the elapsed time at 0 to 2 seconds, not 1 to 2** — the
+two stamps can fall either side of a single tick with almost no time between
+them. The band's upper end was invented by assuming a full second had passed.
+
+Corrected: 1,250,816 kB is 1,221.5 MiB, and over the 2-second worst case that
+is **at least ~610 MiB/s, with NO UPPER BOUND OBTAINABLE FROM THIS METHOD.**
+Also MiB/s, not MB/s: the figure is computed from kB read out of `/proc/meminfo`
+and divided by 1024, so it is binary throughout and was mislabelled decimal.
+
+The comparison to rungs 3e-iii and 3e-iv's 835 and 598 MB/s is withdrawn from
+this entry — those were measured inside a VM by a payload that timed its own
+read, which is a different instrument, and a floor cannot be compared with two
+point figures anyway.
+
+### 3. "NOTHING OF OURS IS IN IT" IS NOT CHECKABLE
+
+Section 3 above says of the 1,461,544 kB of `Cached` at 24.80 s that "nothing
+of ours is in it". **Nothing was run to establish what that cache contains**,
+and there is no per-file page-cache readout in this repo's toolkit.
+
+The claim it should have made, which the evidence in section 6 does support:
+**nothing of ours has RUN on this boot.** No `pennyload`, `llama-bench` or
+`sha256sum` process, no `q35` file in `out/`, and the only hash of the model ran
+before the reboot. What is in that 1.46 GB is unknown and stays unknown.
+
+### 4. MemTotal's 4 kB IS NOT NEW TO THIS REBOOT — found while checking the above
+
+Section 7 says the 4 kB difference "appeared across this reboot". **It did
+not.** The 16 Sept boot-3 reading quoted in section 1 of this amendment already
+reads `MemTotal: 5718284 kB`, two days earlier. Counting every `MemTotal` line
+in this project's transcripts gives **three distinct host values**:
+
+    $ grep -ho "MemTotal:  *[0-9]* kB" *.jsonl | sort | uniq -c | sort -rn
+      136 MemTotal: 5718280 kB
+       56 MemTotal:        5718280 kB
+       39 MemTotal:        5718284 kB
+       22 MemTotal: 5718284 kB
+        4 MemTotal:        5718276 kB
+    (the 2038164 / 2038100 / 239796 / 239732 lines are guest kernels, not the host)
+
+**5,718,276, 5,718,280 and 5,718,284 kB have all been read off this handset** —
+a spread of 8 kB, 0.00014% of total. So CLAUDE.md's 5,718,280 is one of three
+observed values rather than a figure that has since changed, and a reading of
+5,718,284 is neither new nor a transcription error. Nothing here explains why
+it varies between boots and nothing is concluded from it.
+
+### WHAT THIS AMENDMENT DOES NOT SAY
+
+It does not change a single measured figure, because the entry above contains
+none. Row 6 has still not run.
+
+The transcript recovery establishes what the commands were and what they
+printed; it does not make them this session's commands, and the entry above
+stays correct that this session did not run them. The 31.4 MB/s push is one
+USB transfer, once, and is not a storage or a link figure. And the three
+MemTotal values are counted across transcripts of varying age — the count says
+they were all read at some point, not which boot each belongs to.
+
+## 2026-09-18 — ROW 6, `q35_r6_cold_fresh`. Qwen3.5-2B-Q4_K_M's cold load on boot 3. **A6 PASSES at 4.666 s**, and the 2B costs 1.74 GiB and three cached processes.
+
+First row on Qwen3.5-2B. Gated, cold page cache, the first run of the boot —
+nothing had read the `.gguf` since power-on, on the evidence in the boot-3 entry
+above. Every figure below is read from `out/q35_r6_cold_fresh.report` and
+`.bench` on the phone, not from scrollback.
+
+**THE GATE AND THE ROW, one shell invocation**, the same form rows 1-5 used:
+
+    while [ policy6 != 2802000 ] || [ policy4 != 2253000 ]; do sleep 5; done
+    PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh q35_r6_cold_fresh c0 -- \
+      -m /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf -t 2 -lm none -n 64 --print \
+      --sys-file /data/local/tmp/penny_system.txt \
+      --user-file /data/local/tmp/penny_user.txt --tag r6
+
+    rc=0   mask=c0   uptime before 1525.63 s   after 1544.62 s   (18.99 s)
+
+### THE 2B TOKENISES THE SAME TWO FILES DIFFERENTLY, AND IT MATTERS
+
+    PENNYLOAD sys_file=...penny_system.txt sys_bytes=1911 sys_tokens=413 sys_add_special=1 sys_parse_special=1
+    PENNYLOAD user_file=...penny_user.txt  user_bytes=95  user_tokens=21  user_add_special=0 user_parse_special=1
+
+**413 and 21, against Qwen3-1.7B's 407 and 20 on the identical files.** Same
+bytes, different vocabulary, so every per-token figure below is over 434 tokens
+where rows 1-5 were over 427. `chat_template=NONE` on both, so nothing is
+inserted around them.
+
+### EVERY PHASE LINE, AS READ
+
+    PENNYLOAD tag=r6 run_type=fresh rc=0
+    PENNYLOAD model=/data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf model_bytes=1280835840
+    PENNYLOAD threads=2 n_ctx=1024 n_batch=2048 n_ubatch=512 n_gpu_layers=99
+    PENNYLOAD load_mode=none extra_bufts=1 sampler=greedy
+    PENNYLOAD chat_template=NONE
+    PENNYLOAD progress_calls=322
+    PENNYLOAD t_backend_ms      2.62      (T1-T0)
+    PENNYLOAD t_model_open_ms   769.44    (T2-T1,  header+hparams+vocab+alloc)
+    PENNYLOAD t_tensor_band_ms  3863.26   (T3-T2,  tensor data read + repack)
+    PENNYLOAD t_model_tail_ms   5.95      (T4-T3)
+    PENNYLOAD t_model_total_ms  4638.66   (T4-T1)
+    PENNYLOAD t_ctx_create_ms   24.32     (T5-T4)
+    PENNYLOAD t_ready_ms        4665.60   (T5-T0)  == **A6**
+    PENNYLOAD t_tokenize_ms     3.39      (T6-T5)
+    PENNYLOAD t_state_load_ms   n/a       (fresh run)
+    PENNYLOAD t_sys_decode_ms   7713.13   (T9a-T6, 413 tokens, one llama_decode)
+    PENNYLOAD t_state_save_ms   n/a       (no --save-state)
+    PENNYLOAD state_file=(none) state_bytes=-1
+    PENNYLOAD t_user_decode_ms  454.53    (T9b-T9a, 21 tokens)
+    PENNYLOAD t_sample_ms       1.29      (T10-T9b)
+    PENNYLOAD ttft_fresh_ms     8168.95   (T10-T6)
+    PENNYLOAD ttft_cached_ms    8172.34   (T10-T5)
+    PENNYLOAD ttft_cold_proc_ms 12837.94  (T10-T0)
+    PENNYLOAD gen_tokens=64 gen_ms=5108.18 gen_tps=12.33
+    PENNYLOAD first_token_id=3710
+    PENNYLOAD token_fnv1a64=0x19d53b5da9186ff6
+
+**`ttft_cold_proc_ms` IS LABELLED `== B3` BY THE TOOL AND IS NOT B3.** The
+label is printed on every run. B3 is the cached-prefix wake, and this row is
+fresh — it decodes the system prompt rather than restoring it. The hybrid's B3
+would be row 10 on a fourth boot, which is undecided. Row 1 carried the same
+label and the same correction; it is repeated because the line is in the file.
+
+### A6, SCORED
+
+    #   prediction                        point   band        measured    verdict
+    A6  Qwen3.5-2B cold load -> ready      4.9 s  3.5-7.0 s   4.6656 s    **PASS**
+
+234 ms below the point, comfortably inside the band, on the first and only
+sample.
+
+**THE LOAD SCALES WITH THE FILE, ALMOST EXACTLY.** Against row 1's cold load of
+Qwen3-1.7B on 16 Sept boot 1 — a different boot, so this is a comparison and
+not an error bar:
+
+    t_ready_ms        4021.78 -> 4665.60   +643.82 ms   +16.01%
+    model bytes    1,107,409,472 -> 1,280,835,840      +15.66%
+
+**16.01% more time for 15.66% more bytes.** That the two agree to within a
+third of a percentage point is the kind of coincidence one sample cannot
+distinguish from a law, and it is recorded as the former.
+
+**BUT THE SPLIT INSIDE THE LOAD IS NOT PROPORTIONAL, AND THAT IS THE FINDING:**
+
+    phase               row 1 (1.7B)   row 6 (2B)    delta
+    t_model_open_ms          398.49       769.44    +370.95   **+93.09%**
+    t_tensor_band_ms        3581.59      3863.26    +281.67      +7.86%
+    t_ctx_create_ms           36.62        24.32     -12.30     -33.59%
+
+**`t_model_open_ms` nearly DOUBLED while the tensor band grew 7.86%.** That
+phase is header, hparams, vocabulary and allocation — not tensor bytes — so it
+does not scale with file size, and the 2B's vocabulary is the obvious suspect
+given it tokenises the same file to 413 tokens rather than 407. **Suspect, not
+established: nothing here isolates it**, and `progress_calls` moved only
+311->322. It is worth one cheap check on some later row and is not chased now.
+
+`t_ctx_create_ms` FELL, on a 1024-token KV cache — the same phase whose 0.2-0.8 s
+band A3 failed by an order of magnitude on the 1.7B. 24.32 ms here makes that
+failure worse, not better, and on a second model.
+
+### MEMORY, KILLS, AND THE CLOCK
+
+    PENNYBENCH memavail_kB   before 2,270,852   after 2,740,524
+    PENNYBENCH memfree_kB    before 1,536,804   after 1,918,048
+    PENNYBENCH swapfree_kB   before   862,460   after   476,412    (15.14% of total)
+    PENNYBENCH cached_kB     before   954,680   after 1,048,668    (**ROSE** 93,988)
+    PENNYBENCH pswpin        before    34,617   after    35,382    (+765)
+    PENNYBENCH pswpout       before   609,195   after   744,580    (+135,385)
+    PENNYBENCH pgmajfault    before    47,572   after    48,426    (+854)
+    PENNYBENCH ceil_x1_kHz   before 2,802,000   min 2,048,000   after 2,802,000
+    PENNYBENCH ceil_x1_min_at uptime=1532.24    (7 s into the row, 73.09% of rated)
+    PENNYBENCH ceil_a76_kHz  before 2,253,000   min 2,253,000   after 2,253,000
+    PENNYBENCH ceil_a76_min_at uptime=1525.63   (0 s into the row -- never fell)
+    PENNYBENCH peak_rss_kB   1,824,632   (VmHWM, monotonic)
+    PENNYBENCH max_rssanon_kB 1,819,144  (99.70% -- NOT reclaimable)
+    PENNYBENCH max_rssfile_kB     5,216
+    PENNYBENCH rss_samples       46
+    PENNYBENCH lmk_kill_lines     6
+
+**PEAK RSS 1,824,632 kB = 1.740 GiB, 99.70% anonymous**, against the 1.7B's
+1,541,140 kB on row 1 — **+283,492 kB, +18.39%** for +15.66% of file. It sits
+exactly on the 1.69-1.74 GiB the 16 Sept `llama-bench` rows reported for this
+model, which is a different instrument agreeing, and at `-lm none` every byte of
+it is memory the phone has to find.
+
+**SIX KILL LINES, THREE PROCESSES, AND `MemAvailable` IN FRONT OF THEM IS
+2,270,852 kB:**
+
+    com.android.DeviceAsWebcam   oom_score_adj 915   cch +15 CEM
+    com.android.keychain         oom_score_adj 915   cch +15 CEM
+    com.android.deskclock        oom_score_adj 905   cch CEM
+
+All three `reason: low watermark is breached`, all cached, none in the
+foreground band, our own process untouched. **Against row 1's four processes at
+`MemAvailable` 2,277,952 kB — 7,100 kB apart, the closest two starting
+conditions in this plan — the 2B at 1.74 GiB costs THREE where the 1.7B at
+1.47 GiB cost FOUR.** Two of the three are the same processes row 1 took
+(`DeviceAsWebcam`, `keychain`). So on this evidence the larger model did not
+cost more kills; the killer takes what is cheapest and stops when the watermark
+is met.
+
+**THE CONTAMINATION RULE IS NOT MET.** `Cached` ROSE 93,988 kB rather than
+falling by the model's size, and `SwapFree` ended at 476,412 kB — **15.14% of
+`SwapTotal`, above the ~10% floor** but the lowest any row in this plan has
+ended at. `pswpout` moved 135,385 pages. Worth watching on row 7.
+
+**THE X1 PAIR FELL TO 73.09% OF RATED, 7 SECONDS IN, AND THE A76 PAIR NEVER
+MOVED.** `ceil_x1` min 2,048,000 kHz is the same floor and the same timing row 1
+recorded (2,048,000 at 10 s in), so the two models drive the limiter
+comparably at `c0 -t 2`. Both clusters back at rated by the end of the row.
+`policy0` was not sampled.
+
+### BUFFER LINES
+
+The `.report` carries only the tail of the loader's stderr, and this is it
+verbatim:
+
+    sched_reserve:        CPU compute buffer size =   498.02 MiB
+    sched_reserve: graph nodes  = 1411
+    sched_reserve: graph splits = 1
+    sched_reserve: reserve took 11.98 ms, sched copies = 1
+    ~llama_context:        CPU compute buffer size is 498.0196 MiB, matches expectation of 498.0196 MiB
+
+**The per-tensor and model-buffer lines are NOT in the `.report`** — they are in
+`q35_r6_cold_fresh.err`, which was not read, so no accounting of the 1.74 GiB
+against llama.cpp's own buffer figures is attempted here. The 498.02 MiB compute
+buffer is the one number available and it is stated alone.
+
+`ZRAM: 580,400K physical used for 2,397,184K in swap (3,145,724K total swap)` —
+4.13:1, and swap on this handset is zram, as established 16 Sept.
+
+### THE TEXT
+
+64 tokens, `first_token_id=3710`, `token_fnv1a64=0x19d53b5da9186ff6`. The model
+echoes the question and opens a `<think>` block:
+
+    What is the capital of Australia, roughly how many people live there, and
+    when was it founded?
+
+    <think>
+    Thinking Process:
+
+    1.  **Analyze the Request:**
+        *   **Persona:** Penny, a voice assistant running entirely on this phone.
+
+**64 tokens is not enough to reach an answer** — it is still planning when the
+budget runs out. Recorded as text produced and nothing more. **No quality
+judgement**, and note the 1.7B's answer got two of its three facts wrong.
+
+`gen_tps=12.33` is 63 decodes over 5108.18 ms, the same divisor row 1 documented
+(`pennyload.cpp:390`), against the 1.7B's 15.04.
+
+### WHAT ROW 6 DOES NOT SAY
+
+**One sample, no error bar, and the comparisons to row 1 cross two boots.** Row
+1 ran on 16 Sept boot 1; this is 18 Sept boot 3, whose `Cached` at connect was
+~590 MB higher and which has no ~5-minute reading. The 16.01%/15.66% agreement
+and the "three kills against four" are observations across that gap, not
+controlled pairs.
+
+**B6 IS NOT SCORED HERE and the hybrid's state path is still untested.** Row 6
+carries no `--save-state`; whether `llama_state_save_file` succeeds on a model
+with eighteen recurrent layers is row 7's question, and it can still fail
+outright rather than return a number.
+
+Nothing sustained: 18.99 seconds of wall time, the X1 ceiling still at 73.09% of
+rated when the row ended. AC power, screen on, unlocked, foreground, over adb,
+app disabled, no VM. `t_model_open_ms` doubling is attributed to nothing — the
+vocabulary is a suspect and was not tested. And `ttft_cold_proc_ms` 12,837.94 ms
+is a fresh cold process, not a wake figure.
+
+## 2026-09-18 — AMENDMENT to row 6, before row 7. The 25-minute reading was taken and never written down; the two buffer lines do NOT sum to the file; and two sentences are withdrawn.
+
+Appended, not edited in. No model read: everything below comes from
+`q35_r6_cold_fresh.err`, already on the phone, and from a reading taken before
+the row.
+
+### 1. THE 25-MINUTE PROTOCOL READING — TAKEN, AND MISSING FROM THE RECORD UNTIL NOW
+
+**The poll DID fire.** The boot-3 entry was committed at 10:30 and the poll
+fired at 10:43, so the reading existed in the operator's terminal and never
+reached `notes.md` — the exact failure that entry was written to prevent. It
+is the second reading of this boot and it belongs beside the 8.55-minute one:
+
+    $ adb shell 'echo "uptime_s=$(cut -d\  -f1 /proc/uptime)  wallclock=$(date +%H:%M:%S)"; grep -E "^(MemTotal|MemAvailable|MemFree|SwapFree|Cached):" /proc/meminfo; echo "ceil_x1=$(cat .../policy6/scaling_max_freq)  ceil_a76=$(cat .../policy4/scaling_max_freq)  ceil_a55=$(cat .../policy0/scaling_max_freq)"; echo "--- presence, ls only, no read ---"; ls -la /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf; /apex/com.android.virt/bin/vm list'
+    uptime_s=1503.14  wallclock=10:43:38
+    MemTotal:        5718284 kB
+    MemFree:         1550512 kB
+    MemAvailable:    2273652 kB
+    Cached:           946808 kB
+    SwapFree:         862460 kB
+    ceil_x1=2802000  ceil_a76=2253000  ceil_a55=1803000
+    --- presence, ls only, no read ---
+    -rw-rw-rw- 1 shell shell 1280835840 2026-09-15 20:26 /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf
+    Running VMs: []
+
+**So row 6 did NOT gate straight in from nowhere.** The reading is at
+uptime 1503.14 s and the row's own `before` figures are at 1525.63 s, 22.49 s
+later — `MemAvailable` 2,273,652 then 2,270,852 kB, `SwapFree` 862,460 kB in
+both, so the phone did not move between them. All three ceilings rated at the
+reading and the gate therefore passed without blocking.
+
+**Boot 3's protocol readings, complete, both labelled by their real marks:**
+
+    uptime s   wallclock   MemAvailable   MemFree     Cached     SwapFree
+      24.80    10:18:59      1,324,400     86,676   1,461,544   3,118,588   (connect)
+     512.80    10:27:07      2,310,624  1,596,300     940,392     847,612   (8.55 min)
+    1503.14    10:43:38      2,273,652  1,550,512     946,808     862,460   (25.05 min)
+
+The 8.55-minute and 25.05-minute figures are 36,972 kB apart on `MemAvailable`
+— 1.6% — so this boot's curve is flat across that window.
+
+### 2. THE BUFFER LINES, AND THEY DO NOT SUM TO THE FILE
+
+    $ adb shell 'grep -i "model buffer size" .../q35_r6_cold_fresh.err'
+    load_tensors:          CPU model buffer size =   399.94 MiB
+    load_tensors:   CPU_REPACK model buffer size =  1208.95 MiB
+
+    CPU + CPU_REPACK   = 1608.89 MiB
+    the .gguf itself   = 1221.50 MiB   (1,280,835,840 B)
+    difference         = **+387.39 MiB, i.e. the buffers EXCEED the file by 31.7%**
+
+**They do NOT sum to the file, and the excess is the answer to what the repack
+costs in memory rather than in time.** Row 4 measured the repack's TIME on the
+1.7B by subtraction; this is the first figure in this repo for its SPACE, and it
+is 387.39 MiB on a 1,221.5 MiB model. Not explained here beyond the arithmetic.
+
+**THE REPACK, COUNTED BY KERNEL** — 187 tensors, four target formats:
+
+    $ adb shell 'grep "repack tensor" .../q35_r6_cold_fresh.err | sed "s/.*with //" | sort | uniq -c'
+         98 q4_K_8x4
+         36 q5_K_8x4
+         17 q6_K_8x4
+         36 q8_0_4x4
+        187 total
+
+Sample line, verbatim: `repack: repack tensor blk.0.ffn_down.weight with q6_K_8x4`.
+**Four kernels, not one** — a Q4_K_M file is not uniformly Q4_K, and 36 tensors
+repack to `q8_0_4x4`, which is the heaviest of the four per weight. The `8x4`
+and `4x4` suffixes are the ARM dot-product repack layouts this build was
+compiled for.
+
+**AGAINST PEAK RSS, and this does not close either:**
+
+    peak RSS                       1781.87 MiB   (1,824,632 kB)
+    CPU + CPU_REPACK buffers       1608.89 MiB   -> peak is 172.98 MiB ABOVE
+    those plus compute (498.02)    2106.91 MiB   -> peak is 325.04 MiB BELOW
+
+So peak RSS sits between the model buffers and the model buffers plus the
+declared compute buffer. **The 498.02 MiB compute buffer was therefore not
+fully resident at peak** — declared and allocated is not touched. Stated as
+arithmetic; no mechanism is claimed, and nothing here apportions the 172.98 MiB.
+
+### 3. TWO SENTENCES IN THE ROW 6 ENTRY ARE WITHDRAWN
+
+**(a)** "It sits exactly on the 1.69-1.74 GiB the 16 Sept `llama-bench` rows
+reported for this model" — **withdrawn.** "Exactly" is an adjective on a
+measurement and the range is not a point. Replaced by the plain comparison:
+**row 6's peak RSS is 1,824,632 kB = 1.740 GiB; the 16 Sept `llama-bench` rows
+for Qwen3.5-2B reported 1.69-1.74 GiB. The figure falls at the top of that
+range.** The two were produced by different binaries under different flags and
+neither is a check on the other.
+
+**(b)** "the killer takes what is cheapest and stops when the watermark is met"
+— **withdrawn in full.** That is a mechanism, and nothing in row 6 tests it.
+What stays is the observation, unchanged: **three cached processes at
+`MemAvailable` 2,270,852 kB for the 2B at 1.74 GiB, against row 1's four at
+2,277,952 kB for the 1.7B at 1.47 GiB, two of the three being processes row 1
+also took.** Why is not addressed.
+
+### WHAT THIS AMENDMENT DOES NOT SAY
+
+A6's pass is untouched; no measured figure changes. The 387.39 MiB of repack
+excess is one model, one row, and is not compared with the 1.7B — that would
+need the same grep over `q17_r1_cold_fresh.err`, which was not run. The kernel
+counts are line counts from a log, not bytes: **nothing here says how the
+387.39 MiB divides between the four formats**, and the 36 `q8_0_4x4` tensors are
+flagged as the heaviest per weight without their size being measured.
+
+## 2026-09-18 — ROW 7, `q35_r7_warm_fresh_save`. **THE HYBRID'S PREFIX CAN BE CACHED**, and its state file is 24.12 MiB — 45.83% SMALLER than the 1.7B's. B6 PASSES on both its number and its direction. The A5-equivalent FAILS, and the page cache is why.
+
+The row that could have failed on a code path rather than a number. It did not.
+
+    PENNYLOAD tag=r7 run_type=fresh+save rc=0
+    PENNYLOAD state_file=/data/local/tmp/q35_state.bin state_bytes=25288618 state_tokens_saved=413
+    $ adb shell ls -la /data/local/tmp/q35_state.bin
+    -rw-rw-rw- 1 shell shell 25288618 2026-09-18 11:35 /data/local/tmp/q35_state.bin
+
+**`llama_state_save_file` returned TRUE on a model whose eighteen of twenty-four
+layers are recurrent.** No `FAILED state_save=false`, no rc=3. The plan's
+standing "whole of Q-B fails on Qwen3.5-2B" condition is not met, and row 8 is
+live. The loader's own stderr shows the write happening:
+
+    state_write_data: writing state
+    state_write_data: - writing model info
+    state_write_data: - writing memory module
+
+**A DECLARED WARMTH PROBLEM, WRITTEN DOWN BEFORE THE ROW WAS LAUNCHED.** Row 2
+followed row 1 by 236 s; row 7 followed row 6 by **50 minutes**, spent writing
+up two amendments. `Cached` read **1,122,276 kB at uptime 4576.83 s against a
+model of 1,250,816 kB**, so the file could not be fully resident, and the row
+was launched anyway with the warmth to be read off its own tensor band rather
+than assumed. **It was not warm, and the A5-equivalent fails because of it.**
+
+### THE GATE AND THE ROW, one shell invocation
+
+    GATE PASSED uptime_s=4605.32 wallclock=11:35:20
+    PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh q35_r7_warm_fresh_save c0 -- \
+      -m /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf -t 2 -lm none -n 64 --print \
+      --sys-file /data/local/tmp/penny_system.txt \
+      --user-file /data/local/tmp/penny_user.txt \
+      --save-state /data/local/tmp/q35_state.bin --tag r7
+
+    rc=0   mask=c0   uptime before 4605.42 s   after 4624.26 s   (18.84 s)
+    sys_tokens=413  user_tokens=21   (unchanged from row 6)
+
+### EVERY PHASE LINE, AS READ
+
+    PENNYLOAD t_backend_ms      8.30
+    PENNYLOAD t_model_open_ms   758.83
+    PENNYLOAD t_tensor_band_ms  3663.29
+    PENNYLOAD t_model_tail_ms   7.68
+    PENNYLOAD t_model_total_ms  4429.79
+    PENNYLOAD t_ctx_create_ms   30.08
+    PENNYLOAD t_ready_ms        4468.17
+    PENNYLOAD t_tokenize_ms     4.67
+    PENNYLOAD t_sys_decode_ms   7879.20   (413 tokens)
+    PENNYLOAD t_state_save_ms   16.87     (T8-T9a)  == B4-equivalent
+    PENNYLOAD state_bytes=25288618 state_tokens_saved=413
+    PENNYLOAD t_user_decode_ms  498.09    (T9b-T8 -- AFTER the save)
+    PENNYLOAD t_sample_ms       3.54
+    PENNYLOAD ttft_fresh_ms     8397.71
+    PENNYLOAD ttft_cached_ms    8402.38
+    PENNYLOAD ttft_cold_proc_ms 12870.55
+    PENNYLOAD gen_tokens=64 gen_ms=5143.28 gen_tps=12.25
+    PENNYLOAD first_token_id=3710
+    PENNYLOAD token_fnv1a64=0x19d53b5da9186ff6
+
+`ttft_fresh_ms` carries the save inside it and is not a clean TTFT, the same
+note row 2 carries. `ttft_cold_proc_ms` is again labelled `== B3` by the tool
+and is again NOT B3 — this row is fresh.
+
+### B6, SCORED — AND THE DIRECTIONAL CLAIM IS THE RESULT
+
+    #   prediction                              point      band        measured      verdict
+    B6  state file size, Qwen3.5-2B, ~420 tok   ~25 MiB   10-60 MiB   24.117 MiB   **PASS**
+
+    #   B4-equivalent (not a re-score of B4)
+        state save cost                         0.25 s    0.05-1.0 s   0.01687 s    inside
+
+**AND THE FAIL CONDITION WRITTEN BEFORE ANY RUN — "B6 fails if the Qwen3.5-2B
+file is LARGER than the Qwen3-1.7B one, which is the directional claim and the
+one worth being wrong about" — IS NOT MET. IT IS SMALLER:**
+
+    Qwen3-1.7B   46,685,237 B = 44.523 MiB   over 407 tokens = 112.02 KiB/token
+    Qwen3.5-2B   25,288,618 B = 24.117 MiB   over 413 tokens =  59.80 KiB/token
+    the 2B's file is **54.17% of the 1.7B's — smaller by 45.83%** — on a model
+    16% LARGER
+
+**A bigger model with a cheaper prefix.** The prediction's stated reason was six
+attention layers at 2 KV heads costing ~12 KiB a token against the 1.7B's
+112 KiB. Taking that 12 KiB at face value, 413 tokens of attention would be
+4.84 MiB, leaving **19.28 MiB that is not token-proportional** — the fixed
+recurrent state. **That split is arithmetic on an ASSUMED 12 KiB, not a
+measurement**: nothing here reads the file's internal structure, and the 12 KiB
+came from the prediction rather than from the model. The claim it does support,
+because it needs no assumption, is the observed 59.80 against 112.02 KiB/token.
+
+**THE CONSEQUENCE, IF THE FIXED PART IS REALLY FIXED, IS THAT THE HYBRID'S
+PREFIX FILE BARELY GROWS WITH THE PROMPT — AND THAT IS UNTESTED.** It needs one
+run at a different prompt length and has not been done.
+
+### THE A5-EQUIVALENT FAILS HIGH, AND THE CACHE IS MEASURABLY THE REASON
+
+    warm t_ready 4468.17 / cold t_ready 4665.60 = **95.77%**
+    fail condition (written before any run): FAILS if >= 90% or <= 40%
+    -> **FAIL, HIGH**
+
+For comparison the 1.7B's own pair, row 2 against row 1: **70.61%, a pass.**
+
+**The tensor band says plainly that this row was not warm:**
+
+    2B   row 7 3663.29 vs row 6 3863.26  = 94.82%   only  199.97 ms saved
+    1.7B row 2 2431.20 vs row 1 3581.59  = 67.88%        1150.39 ms saved
+
+A genuinely warm load of the 1.7B saved 1.15 seconds off the band. This saved
+0.20 s. **So the A5-equivalent's failure is a statement about the page cache on
+this row, not about the repack-versus-read split**, and it must not be quoted as
+evidence against A5's directional claim. The claim is untested on the 2B, and
+testing it needs row 7 re-run within a minute or two of a cold load — which
+costs a reboot, because this boot's cold read is spent.
+
+**This is the cost of taking 50 minutes between two rows that were designed to
+be seconds apart**, and it was foreseen and recorded before the launch rather
+than discovered afterwards.
+
+### THE CONTROL HOLDS
+
+    row 6   first_token_id=3710   token_fnv1a64=0x19d53b5da9186ff6
+    row 7   first_token_id=3710   token_fnv1a64=0x19d53b5da9186ff6   **MATCH**
+
+Same 64 tokens from a fresh load with a state save bolted on. That is the
+reference rows 8 and 10 must reproduce.
+
+### MEMORY, KILLS AND THE CLOCK
+
+    PENNYBENCH memavail_kB   before 2,636,476   after 3,106,172
+    PENNYBENCH memfree_kB    before 1,738,304   after 1,936,628
+    PENNYBENCH swapfree_kB   before   666,364   after   612,692   (19.48% of total)
+    PENNYBENCH cached_kB     before 1,122,352   after 1,394,936   (**ROSE** 272,584)
+    PENNYBENCH pswpin        before   128,227   after   128,675   (+448)
+    PENNYBENCH pswpout       before   793,604   after   905,248   (+111,644)
+    PENNYBENCH pgmajfault    before   141,836   after   142,445   (+609)
+    PENNYBENCH ceil_x1_kHz   before 2,802,000   min 1,826,000   after 2,802,000
+    PENNYBENCH ceil_x1_min_at uptime=4611.88    (6 s into the row, **65.17%** of rated)
+    PENNYBENCH ceil_a76_kHz  before 2,253,000   min 2,253,000   after 2,253,000
+    PENNYBENCH peak_rss_kB   1,824,196
+    PENNYBENCH max_rssanon_kB 1,819,144
+    PENNYBENCH max_rssfile_kB     4,796
+    PENNYBENCH lmk_kill_lines    16
+
+**PEAK RSS 1,824,196 kB against row 6's 1,824,632 — 436 kB apart, 0.024%.**
+`max_rssanon_kB` is 1,819,144 in BOTH rows, to the kilobyte. The 24.12 MiB state
+buffer does not show up in peak RSS, which is consistent with the save streaming
+out rather than being assembled in memory, and is not proof of it.
+
+**SIXTEEN KILL LINES, EIGHT PROCESSES, WITH `MemAvailable` BEFORE AT
+2,636,476 kB — MORE MEMORY AND MORE KILLS THAN ROW 6, AND THAT COMPLICATES THE
+RULE:**
+
+    row 6   MemAvailable before 2,270,852 kB   ->  3 processes,  6 lines
+    row 7   MemAvailable before 2,636,476 kB   ->  8 processes, 16 lines
+
+    euiccpixel, traceur, carrierconfig2, .adservices, imsserviceentitlement,
+    localtransport, backup.contacts, seedvault -- all oom_score_adj 905, all cch
+
+**And the reason strings are more severe**: row 6's were all `low watermark is
+breached`; row 7's include `min watermark is breached` and four of
+`min watermark is breached even after kill`. **So `MemAvailable` before a row
+did NOT predict its kills here, and the B2-R1 rule needs the caveat.** What
+differed: this row started with `pswpin` at 128,227 against row 6's 34,617 and
+`pgmajfault` at 141,836 against 47,572 — the phone had been swapping heavily in
+the fifty minutes between them, on a boot now 77 minutes old. **That is a
+correlation across two rows and nothing here establishes it as the cause.**
+
+**Not contaminated:** `Cached` ROSE 272,584 kB, `SwapFree` ended at 19.48% of
+`SwapTotal` — above the ~10% floor, and higher than row 6's 15.14%.
+
+**The X1 ceiling fell further than row 6's** — 1,826,000 kHz, 65.17% of rated,
+6 s in, against row 6's 2,048,000 (73.09%) at 7 s. The A76 pair never moved in
+either. Both back at rated by the end. `policy0` not sampled.
+
+`ZRAM: 560,168K physical used for 2,432,936K in swap` — 4.34:1.
+
+### WHAT ROW 7 DOES NOT SAY
+
+**It does not say a hybrid's prefix can be LOADED.** `llama_state_save_file`
+succeeded; `llama_state_load_file` has not been called on this file, and it can
+still return false. That is row 8, and until it runs, "the hybrid's prefix can be
+cached" means only that a file was written.
+
+**The A5-equivalent's failure is not a finding about the model.** It is a failure
+on a row whose page cache did not hold the model, established by its own tensor
+band, and the underlying repack-versus-read claim stays untested on the 2B.
+
+B6 passes on one file at one prompt length. The 19.28 MiB "fixed" remainder rests
+on a 12 KiB/token assumption taken from the prediction, not measured, and the
+claim that the file barely grows with prompt length is untested.
+
+One sample, 18.84 seconds, X1 at 65% of rated when it ended. AC power, screen
+on, unlocked, foreground, over adb, app disabled, no VM. The kill comparison
+crosses fifty minutes of a boot that was swapping throughout, and the text is
+again 64 tokens that stop inside a `<think>` block, with no quality judgement
+made.
+
+## 2026-09-18 — ROW 8, `q35_r8_warm_cached`. **THE HYBRID'S PREFIX LOADS**: 413 tokens restored in 9.58 ms, and the B2-equivalent is 392.28 ms. Q-B is now answered on both models. Also corrects two phrases in row 7.
+
+### CORRECTION TO ROW 7, first, because row 7 overstated what it had
+
+**Row 7's heading says "THE HYBRID'S PREFIX CAN BE CACHED" and it had established
+SAVE only — it should read "can be SAVED; load untested until row 8".**
+`llama_state_save_file` returning true says a file was written, not that anything
+can read it back, and row 8 is where that was settled. Second: row 7 says the
+A5-equivalent's failure is because of the page cache — "the page cache is
+measurably the reason" and "the page cache is why". **Both are withdrawn and
+replaced by: the failure is CONSISTENT WITH a partially evicted model file, on
+two pieces of evidence — the tensor band saved only 199.97 ms against the 1.7B
+pair's 1150.39 ms, and `Cached` read 1,122,276 kB against a 1,250,816 kB model —
+and is NOT ESTABLISHED.** Nothing isolated the cache as the cause. **The
+A5-equivalent is not a boot-3 score** — the plan at notes.md 8938 scores A6, B6
+and row 8's B2 on this boot and nothing else — **so no boot is spent chasing it.
+It is left as untested on the 2B.**
+
+### THE GATE AND THE ROW, one shell invocation, no write-up in between
+
+    GATE PASSED uptime_s=5174.04 wallclock=11:44:49
+    PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh q35_r8_warm_cached c0 -- \
+      -m /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf -t 2 -lm none -n 64 --print \
+      --user-file /data/local/tmp/penny_user.txt \
+      --load-state /data/local/tmp/q35_state.bin --tag r8
+
+    rc=0   mask=c0   uptime before 5174.13 s   after 5184.01 s   (9.88 s)
+    PENNYLOAD sys_file=(none) sys_bytes=-1 sys_tokens=-1
+    PENNYLOAD user_file=...penny_user.txt user_bytes=95 user_tokens=21
+
+No `--sys-file`: the 413-token prefix comes from the file, and the row proves it
+by restoring exactly that many.
+
+### THE LOAD SUCCEEDED
+
+    PENNYLOAD tag=r8 run_type=cached rc=0
+    PENNYLOAD t_state_load_ms   9.58   (T7-T6)
+    PENNYLOAD state_file=/data/local/tmp/q35_state.bin state_bytes=25288618 state_tokens_restored=413
+
+**`state_tokens_restored=413`, the figure row 7 saved.** No
+`FAILED state_load=false`, no rc=3. From the loader's own stderr:
+
+    state_read_data: reading state
+    state_read_data: - reading model info
+    state_read_data: - reading memory module
+
+**24.117 MiB in 9.58 ms is ~2.46 GiB/s, warm** — the file was written nine
+minutes earlier and was in the page cache. Against the 1.7B's row 3, also warm:
+44.523 MiB in 19.17 ms, ~2.27 GiB/s. **Same order, so the hybrid's smaller state
+is cheaper in wall time in proportion to its size and not otherwise.**
+
+### EVERY PHASE LINE, AS READ
+
+    PENNYLOAD t_backend_ms      2.65
+    PENNYLOAD t_model_open_ms   758.47
+    PENNYLOAD t_tensor_band_ms  2725.80
+    PENNYLOAD t_model_tail_ms   6.61
+    PENNYLOAD t_model_total_ms  3490.87
+    PENNYLOAD t_ctx_create_ms   19.97
+    PENNYLOAD t_ready_ms        3513.49
+    PENNYLOAD t_tokenize_ms     0.32
+    PENNYLOAD t_state_load_ms   9.58
+    PENNYLOAD t_user_decode_ms  381.30   (21 tokens)
+    PENNYLOAD t_sample_ms       1.08
+    PENNYLOAD ttft_fresh_ms     391.96   (T10-T6)
+    PENNYLOAD ttft_cached_ms    392.28   (T10-T5)  == **B2-equivalent**
+    PENNYLOAD ttft_cold_proc_ms 3905.77  (T10-T0)
+    PENNYLOAD gen_tokens=64 gen_ms=4979.73 gen_tps=12.65
+    PENNYLOAD first_token_id=3710
+    PENNYLOAD token_fnv1a64=0x19d53b5da9186ff6
+
+### B2-EQUIVALENT, SCORED
+
+    #   prediction                                     point    band         measured     verdict
+    B2  TTFT cached, model resident, state + 20 tok     0.5 s   0.35-1.5 s   0.39228 s   **PASS**
+
+    for comparison, Qwen3-1.7B:  row 3 (warm state file) 422.31 ms
+                                 row 5 (cold state file) 406.21 ms
+
+**392.28 ms on the 2B against 422.31 and 406.21 ms on the 1.7B — the bigger
+model's cached first token is the fastest of the three.** The 413-token prefix
+costs 9.58 ms to restore; the 21-token user turn costs 381.30 ms, which is 97.2%
+of the whole figure. **The prefix is not where the time goes, on either model.**
+
+**AGAINST THE SAME MODEL'S FRESH FIGURE ON THE PREVIOUS ROW: 8397.71 ms fresh
+against 391.96 ms cached, 21.42x.** What the cache removes is row 7's 7879.20 ms
+system-prompt decode.
+
+**`ttft_cold_proc_ms` 3905.77 IS NOT B3 ON THIS BOOT AND MUST NOT BE QUOTED AS
+ONE.** B3 is the cached wake from a COLD process — first run after a power cycle,
+model unread. This row ran ninth-of-the-boot with the model already in cache
+(see the tensor band below) and the state file nine minutes old. The hybrid's
+true B3 is row 10 on a fourth boot, which is undecided; if that boot is never
+spent, B3 for Qwen3.5-2B is reported NOT MEASURED, exactly as the plan says.
+
+### THE LOAD WAS WARMER THAN ROW 7's, WHICH IS THE REVERSE OF THE INTENDED ORDER
+
+    t_tensor_band_ms   row 6 (cold) 3863.26   row 7 3663.29   row 8 2725.80
+    t_ready_ms         row 6 (cold) 4665.60   row 7 4468.17   row 8 3513.49
+
+Row 8's band is **74.41% of row 7's and 70.56% of row 6's cold**; its `t_ready`
+is **78.63% of row 7's and 75.31% of row 6's**. `Cached` before row 8 read
+1,436,804 kB against the model's 1,250,816 kB — enough to hold it, where row 7's
+1,122,352 kB was not. **So the warmest load of this boot is the third row, not
+the second**, and row 8's `t_ready` is the closest thing this boot has to a
+genuinely warm load. **It is NOT scored as the A5-equivalent**: A5 is defined as
+a warm load immediately after a cold one, this is two rows later, and rescoring a
+prediction against a row it was not defined on is exactly what the frozen-
+prediction rule forbids.
+
+### THE CONTROL HOLDS ON THE THIRD ROW RUNNING
+
+    row 6 (fresh)         first_token_id=3710   token_fnv1a64=0x19d53b5da9186ff6
+    row 7 (fresh + save)  first_token_id=3710   token_fnv1a64=0x19d53b5da9186ff6
+    row 8 (state loaded)  first_token_id=3710   token_fnv1a64=0x19d53b5da9186ff6
+
+**Identical 64 tokens from a decoded prefix and from a restored one.** That is
+the result that makes the state file worth anything: what came back off disk
+produces the same output as computing it. Same `token_ids` string in all three.
+
+### MEMORY, KILLS AND THE CLOCK
+
+    PENNYBENCH memavail_kB   before 3,061,764   after 3,037,604
+    PENNYBENCH memfree_kB    before 1,849,364   after 1,890,232
+    PENNYBENCH swapfree_kB   before   687,700   after   656,980   (**20.88%** of total)
+    PENNYBENCH cached_kB     before 1,436,804   after 1,383,168   (FELL 53,636)
+    PENNYBENCH pswpin        before   157,179   after   157,205   (+26)
+    PENNYBENCH pswpout       before   915,380   after   923,084   (+7,704)
+    PENNYBENCH pgmajfault    before   171,301   after   171,328   (+27)
+    PENNYBENCH ceil_x1_kHz   before 2,802,000   min 2,252,000   after 2,802,000
+    PENNYBENCH ceil_x1_min_at uptime=5181.07    (7 s into the row, **80.37%** of rated)
+    PENNYBENCH ceil_a76_kHz  before 2,253,000   min 2,253,000   after 2,253,000
+    PENNYBENCH peak_rss_kB   1,786,192   (1.703 GiB)
+    PENNYBENCH max_rssanon_kB 1,781,044
+    PENNYBENCH max_rssfile_kB     4,852
+    PENNYBENCH rss_samples       24
+    PENNYBENCH lmk_kill_lines     0
+
+**ZERO KILLS — AND `MemAvailable` BEFORE IT IS 3,061,764 kB, THE HIGHEST OF ANY
+ROW IN THIS PLAN. THE ZERO IS FLATTERED AND IS REPORTED AS SUCH.** This boot had
+already killed eleven processes across rows 6 and 7, which is precisely the
+condition the B2-R1 rule names: a boot that has bought itself headroom by killing
+its own cheap processes. **"The cached path causes no kills" is NOT a claim this
+row supports.**
+
+**PEAK RSS 1,786,192 kB = 1.703 GiB, 38,004 kB BELOW row 7's** — the cached row
+is the cheaper of the two in peak memory despite holding a restored 413-token
+state, which is consistent with it never running the 413-token system-prompt
+decode. Consistent with, not established: nothing here measures the decode's
+transient separately.
+
+**Not contaminated.** `Cached` fell 53,636 kB — not by anything near the model's
+size — and `SwapFree` ended at 20.88% of `SwapTotal`, the highest of the three
+rows on this boot (row 6 15.14%, row 7 19.48%), well above the ~10% floor.
+`pgmajfault` moved 27 across the whole row, against row 6's 854.
+
+**The X1 ceiling fell least of the three rows** — 2,252,000 kHz, 80.37% of rated,
+7 s in, against row 7's 65.17% and row 6's 73.09%. The row is also the shortest,
+at 9.88 s. The A76 pair never moved on any of the three. `policy0` not sampled.
+
+`ZRAM: 559,572K physical used for 2,450,856K in swap` — 4.38:1.
+
+### WHAT ROW 8 DOES NOT SAY
+
+**It is not B3 and it is not a wake measurement.** Warm model, warm state file,
+ninth row of a 86-minute boot. The hybrid's wake figure needs boot 4 and has not
+been taken.
+
+**The zero kills are flattered by eleven earlier kills on this boot** and say
+nothing about what the cached path costs on a fresh one.
+
+B2-equivalent is one sample at one prompt length, and the 21-token user turn is
+97.2% of it — so the figure is mostly a measurement of decoding 21 tokens, and a
+longer user turn moves it directly. The 21.42x against row 7's fresh TTFT is one
+pair on one boot.
+
+**Row 8 says nothing about whether the state file survives a reboot.** Rows 3 and
+5 established that for the 1.7B; for the 2B the file has only been written and
+read back nine minutes apart on the same boot, with no `sync` taken and no hash
+recorded either side.
+
+Nothing sustained: 9.88 seconds, AC power, screen on, unlocked, foreground, over
+adb, app disabled, no VM. The text is again 64 tokens stopping inside a `<think>`
+block, and no quality judgement is made of it.
+
+## 2026-09-18 — ROW 9, `q35_r9_warm_nobufts`. The `--extra-bufts 0` CONTROL on Qwen3.5-2B. **Zero repack lines, one buffer, and the repack is 45.47% or 65.68% of the cold load depending which warm row you subtract — which is the honest answer, not a number.**
+
+**Label fix, carried forward to any closing entry:** row 8's B2 table is headed
+"TTFT cached, model resident, state + 20 tok". **It is 21 tokens on Qwen3.5-2B**,
+not 20 — the 1.7B's figure. The prediction's own wording said 20 because it was
+written for the 1.7B; the 2B's `user_tokens=21` is what row 8 measured.
+
+**A DEVIATION FROM THE PLAN, STATED UP FRONT.** Row 4, the same control on the
+1.7B, ran `-n 1` because only the load matters. Row 9 kept row 6's `-n 64
+--print`. **The two controls are therefore not identical in shape.** It changes
+nothing in the subtraction — `t_model_total_ms` is measured before any token is
+generated and is indifferent to `-n` — but it made the row 25.68 s long instead
+of a few seconds, and the clock paid for it (see below).
+
+### THE CONTROL IS CLEAN — THIS IS THE POINT OF THE ROW
+
+    $ adb shell 'grep -i "model buffer size" .../q35_r9_warm_nobufts.err'
+    load_tensors:          CPU model buffer size =  1211.05 MiB
+    $ adb shell 'grep -c "repack tensor" .../q35_r9_warm_nobufts.err'
+    0
+
+**ONE buffer line, NO `CPU_REPACK` line, ZERO repack tensor lines** — against
+row 6's two lines and 187 repacked tensors across four kernels. `extra_bufts=0`
+is echoed in the run's own header. The control did what it was for.
+
+    row 6   CPU 399.94 + CPU_REPACK 1208.95 = 1608.89 MiB   187 repack lines
+    row 9   CPU 1211.05                     = 1211.05 MiB     0 repack lines
+    difference                                  397.84 MiB
+
+And `1211.05 MiB against the .gguf's 1221.50 MiB` — **10.45 MiB less than the
+file**, so the un-repacked buffer is very slightly smaller than the file on disk
+rather than equal to it. Not explained here.
+
+### THE TIME: A4-EQUIVALENT, AND IT HAS TWO ANSWERS
+
+    t_tensor_band_ms    row 6 (cold) 3863.26   row 7 3663.29   row 8 2725.80   **row 9 616.72**
+    t_model_total_ms    row 6        4638.66   row 7 4429.79   row 8 3490.87   **row 9 1395.09**
+
+Row 9's band is **22.63% of row 8's, 16.84% of row 7's and 15.96% of row 6's
+cold load.**
+
+**A4 is defined as the repack's share of A2 (the COLD `t_model_total`), obtained
+by warm-against-warm subtraction of the bands. Both available warm references
+give a different answer:**
+
+    reference          repack = band - 616.72    share of A2 (4638.66)   share of that row's band
+    row 8 (warmest)         2109.08 ms                **45.47%**              77.37%
+    row 7                   3046.57 ms                **65.68%**              83.16%
+
+    for comparison, Qwen3-1.7B row 4:  2019.76 ms      50.72%                  83.07%
+
+**A4's band was 40-65%. One reference lands inside it and the other lands on its
+edge, so no A4-equivalent verdict is recorded.** The spread is 20 percentage
+points and it is entirely an artefact of which row is treated as warm.
+
+**NEITHER REFERENCE ROW WAS WARM THE WAY ROW 2 WAS, AND THAT IS THE CAVEAT THAT
+MATTERS.** Row 2 followed row 1 by 236 s with the model fully in cache. On this
+boot: row 7 ran 50 minutes after its cold partner with `Cached` at 1,122,352 kB
+against a 1,250,816 kB model, and row 8 — the warmest band of the boot — ran
+with `Cached` at 1,436,804 kB, enough to hold it. **So row 8 is the better
+reference and 45.47% is the better figure, but "better" here is a judgement
+about cache states read from `Cached`, not a controlled pair**, and the 1.7B's
+50.72% was.
+
+The `share of that row's band` column is the one figure that is stable across
+references — **77.37% and 83.16%, against the 1.7B's 83.07%** — because it does
+not divide by a cold row measured on a different thermal and cache state.
+
+### THE SPACE: THE CHECK MATTERS MORE THAN THE FIGURE
+
+**Row 9's peak RSS is quoted ONLY as a difference. It is not this model's RSS**
+— `--extra-bufts 0` selects different matmul kernels and the process is not the
+one any other row measured.
+
+    row 8   peak_rss_kB 1,786,192
+    row 9   peak_rss_kB 1,416,884
+    difference            369,308 kB = **360.65 MiB**
+
+    against the buffer-line difference                 397.84 MiB
+    gap                                                 37.19 MiB
+
+**So the repack's cost in space, measured two independent ways, agrees to within
+37.19 MiB — 9.3% of the figure.** The 387.39 MiB the row-6 amendment derived
+from buffer lines alone now has a second, process-level witness at 360.65 MiB.
+Neither is exact and the gap is not accounted for.
+
+### MEMORY, KILLS AND THE CLOCK
+
+    PENNYBENCH memavail_kB   before 3,031,840   after 3,011,292
+    PENNYBENCH memfree_kB    before 1,869,512   after 1,588,552
+    PENNYBENCH swapfree_kB   before   709,972   after   709,972   (**unchanged**, 22.57%)
+    PENNYBENCH cached_kB     before 1,384,860   after 1,646,192   (ROSE 261,332)
+    PENNYBENCH pswpin        before   170,391   after   170,421   (+30)
+    PENNYBENCH pswpout       before   923,084   after   923,084   (**unchanged**)
+    PENNYBENCH pgmajfault    before   184,524   after   184,555   (+31)
+    PENNYBENCH ceil_x1_kHz   before 2,802,000   min 1,426,000   after 2,802,000
+    PENNYBENCH ceil_x1_min_at uptime=5461.69    (25 s into the row, **50.89%** of rated)
+    PENNYBENCH ceil_a76_kHz  before 2,253,000   min 2,253,000   after 2,253,000
+    PENNYBENCH max_rssanon_kB 1,411,664
+    PENNYBENCH rss_samples       62
+    PENNYBENCH lmk_kill_lines     0
+
+**ZERO KILLS, `MemAvailable` BEFORE 3,031,840 kB — AND FLATTERED AGAIN.** This
+boot had killed eleven processes across rows 6 and 7 before this row started.
+Same caveat as row 8: it says nothing about a fresh boot.
+
+**NOT ONE PAGE WAS SWAPPED IN EITHER DIRECTION.** `swapfree_kB` and `pswpout`
+are byte-identical either side — the only row in this plan where that is true.
+The un-repacked process is ~360 MiB smaller and the phone simply had the room.
+
+**THE X1 CEILING FELL TO 1,426,000 kHz, 50.89% of rated, 25 s in — the deepest
+of the four rows on this boot** (row 6 73.09%, row 7 65.17%, row 8 80.37%), and
+it is the direct cost of the `-n 64` deviation: this row ran 25.68 s against
+row 8's 9.88 s, and the minimum was recorded at the very end of it. 1,426,000 is
+the same figure the 16 Sept matrix recorded after a 65-second two-thread run.
+Both clusters back at rated afterwards. `policy0` not sampled.
+
+### WHAT ROW 9 DOES NOT SAY
+
+**No speed figure from this row is quoted anywhere** — no tok/s, no TTFT, no
+generation figure. `--extra-bufts 0` selects different matmul kernels, so every
+throughput number it produced describes a configuration nothing would ship.
+
+**There is no A4-equivalent verdict**, and that is the finding rather than a gap
+in the work: the subtraction needs a warm reference and this boot has two, 20
+percentage points apart. A clean A4-equivalent needs a cold row and a warm row
+minutes apart on one boot, which is a boot this plan did not budget.
+
+The space agreement (360.65 against 397.84 MiB) is two measurements of one row
+pair, and the 37.19 MiB gap is unexplained. The 1211.05 MiB buffer being
+10.45 MiB smaller than the file is observed and not accounted for.
+
+Zero kills and zero swap on a boot 91 minutes old that had already killed eleven
+processes. AC power, screen on, unlocked, foreground, over adb, app disabled, no
+VM. One sample.
+
+## 2026-09-18 — END OF BOOT 3. Four rows, A6 and B6 and the B2-equivalent all pass, the hybrid saves AND loads a prefix, and **B3 for Qwen3.5-2B is NOT MEASURED**. Boot 4 is Matt's and the default is not to spend it.
+
+### THE STATE FILE, `sync`ed AND HASHED — one invocation
+
+Same discipline as the end of boot 1: **`sync` first**, because
+`llama_state_save_file` issues no `fsync` and the bytes may exist only in the
+page cache, then hash. Safe to read it here because boot 3's own cold reads are
+spent.
+
+    $ adb shell 'sync; echo "uptime_s=... wallclock=..."; ...; sha256sum /data/local/tmp/q35_state.bin; ls -la ...; ls -l /data/local/tmp; vm list'
+    uptime_s=5575.98  wallclock=11:51:31  date=2026-09-18
+    MemTotal:        5718284 kB
+    MemFree:         1586140 kB
+    MemAvailable:    3010084 kB
+    Cached:          1649788 kB
+    SwapTotal:       3145724 kB
+    SwapFree:         739156 kB
+    ceil_x1=2802000  ceil_a76=2253000  ceil_a55=1803000
+    --- state file ---
+    6f461e459f2ef0e61a6e6f7579250e115f92f5c3cb43cba18d9600a15f432a8f  /data/local/tmp/q35_state.bin
+    -rw-rw-rw- 1 shell shell 25288618 2026-09-18 11:35 /data/local/tmp/q35_state.bin
+    --- ls -l /data/local/tmp ---
+    total 1288875
+    -rw-rw-rw- 1 shell shell 1280835840 2026-09-15 20:26 Qwen3.5-2B-Q4_K_M.gguf
+    -rwxr-xr-x 1 shell shell    4708216 2026-09-16 12:08 llama-bench
+    -rwxr-xr-x 1 shell shell    3805208 2026-09-16 12:18 llama-simple
+    drwxrwxrwx 4 shell shell       3452 2026-09-14 11:35 microdroid
+    drwxrwxrwx 2 shell shell      12288 2026-09-18 11:49 out
+    -rw-rw-rw- 1 shell shell       1911 2026-09-16 16:48 penny_system.txt
+    -rw-rw-rw- 1 shell shell         95 2026-09-16 17:05 penny_user.txt
+    -rwxr-xr-x 1 shell shell       8402 2026-09-16 16:57 pennybench.sh
+    -rwxr-xr-x 1 shell shell    3817808 2026-09-16 16:29 pennyload
+    -rw-rw-rw- 1 shell shell   25288618 2026-09-18 11:35 q35_state.bin
+    --- vm ---
+    Running VMs: []
+
+**`6f461e459f2ef0e61a6e6f7579250e115f92f5c3cb43cba18d9600a15f432a8f`,
+25,288,618 bytes.** That hash exists so that IF boot 4 is ever spent, the file
+row 10 reads can be proved to be the file row 7 wrote — the same control the
+1.7B's `707e0ea3…` provided across boots 1 and 2. **It is recorded whether or
+not boot 4 happens**, because it costs nothing now and cannot be obtained later.
+
+### THE BOOT, END TO END
+
+    reboot issued          10:18:14 (last pre-reboot reading, same invocation)
+    adb back               uptime   24.80 s   10:18:59
+    reading                uptime  512.80 s   10:27:07   (8.55 min, NOT the ~5 min mark)
+    reading                uptime 1503.14 s   10:43:38   (25.05 min)
+    row 6 q35_r6_cold_fresh      1525.63 -> 1544.62 s    rc=0
+    row 7 q35_r7_warm_fresh_save 4605.42 -> 4624.26 s    rc=0
+    row 8 q35_r8_warm_cached     5174.13 -> 5184.01 s    rc=0
+    row 9 q35_r9_warm_nobufts    5436.68 -> 5462.36 s    rc=0
+    close                  uptime 5575.98 s   11:51:31
+
+Four rows, all gated on both clusters at rated in the launching invocation, all
+`rc=0`. `MemAvailable` ended at 3,010,084 kB, `SwapFree` at 739,156 kB — 23.50%
+of total, above the ~10% floor. **No row on this boot met the contamination
+condition.** Nineteen processes killed across the boot, all cached, all at
+`oom_score_adj` 905-915, none in the foreground band, our process never touched.
+
+### WHAT BOOT 3 SCORED
+
+    #   prediction                                   point      band          measured       verdict
+    A6  Qwen3.5-2B cold load -> ready                 4.9 s   3.5-7.0 s      4.6656 s       **PASS**
+    B6  state file size, Qwen3.5-2B, ~420 tokens    ~25 MiB   10-60 MiB     24.117 MiB      **PASS**
+    B2  TTFT cached, resident, state + 21 tokens      0.5 s   0.35-1.5 s     0.39228 s      **PASS**
+        (B2-equivalent; the prediction says 20 tokens, which is the 1.7B's count)
+
+**And the one that was not a number at all: `llama_state_save_file` AND
+`llama_state_load_file` both return true on a model with eighteen of
+twenty-four layers recurrent.** The plan's standing branch — "the whole of Q-B
+fails on Qwen3.5-2B … a hybrid's prefix cannot be cached at this commit" — is
+not taken. **The hybrid's prefix file is 45.83% SMALLER than the dense 1.7B's**
+(59.80 against 112.02 KiB/token) on a model 16% larger, which is the directional
+claim B6 was written to risk being wrong about.
+
+Not scored, and recorded as not scored: **the A5-equivalent** (fails high at
+95.77%, consistent with a partially evicted model file and not established; the
+plan does not score A5 on boot 3) and **the A4-equivalent** (two warm references
+20 percentage points apart — 45.47% against row 8, 65.68% against row 7 — so no
+verdict).
+
+### B3 FOR Qwen3.5-2B — **NOT MEASURED**
+
+**This is a blank, not an oversight, and the plan named it in advance:** B3 is
+the cached wake from a COLD process — the first run after a power cycle, with
+neither the model nor the state file read on that boot. Only a row 10 on a
+fourth boot can supply one. Boot 4 was written into the plan as OPTIONAL and
+**Matt's to spend, and the default is not to spend it.** So B3 for the hybrid is
+reported NOT MEASURED, and row 8's `ttft_cold_proc_ms` of 3905.77 ms is reported
+under its own name — a warm-model, warm-state-file, ninth-row-of-the-boot figure
+— and is never quoted as B3.
+
+**A PREDICTION, MARKED AS A PREDICTION AND NOT A MEASUREMENT.** Built the same
+way B3's own was, from this boot's measured parts:
+
+    cold t_ready (row 6, MEASURED)                              4665.60 ms
+    cold state load (PREDICTED: row 5's 59.16 ms scaled
+      24.117/44.523 MiB)                                          ~32    ms
+    user turn (row 8's cached-path t_user_decode, MEASURED)      381.30 ms
+    ----------------------------------------------------------------------
+    **predicted B3, Qwen3.5-2B  ~5.08 s**   against the 1.7B's MEASURED 4.099 s
+
+**Nothing has been run that produces this number.** The cold state-load term is
+a scaling of a different model's figure and the user-turn term comes from a row
+whose model was already in cache. If boot 4 is ever spent, this prediction is
+what it is judged against, and it is frozen here so it cannot be revised to fit.
+
+### WHAT THE END OF BOOT 3 DOES NOT SAY
+
+**The 2B's state file has never survived a power cycle.** It was written and
+read back nine minutes apart on one boot. The `sync` and the hash above are the
+preparation for testing that and are not the test. The 1.7B's equivalent
+question was answered on boot 2; the hybrid's is open.
+
+**Boot 3 has no ~5-minute protocol reading**, and its 8.55-minute substitute is
+not compared with boot 1's 303.33 s figures anywhere.
+
+Every row here is one sample. No row ran longer than 25.68 s, the X1 ceiling was
+below rated inside every one of them and reached 50.89% in row 9, and nothing on
+this boot is a sustained or thermal figure. AC power, screen on, unlocked,
+foreground, over adb, app disabled, no VM throughout. Two of the four rows
+returned zero kills and both are flattered by the nineteen this boot had already
+taken. And no output text was judged for quality on any row — all four stopped
+inside a `<think>` block at 64 tokens.
+
+## 2026-09-18 — Q-A AND Q-B, CLOSED. Twelve predictions, ELEVEN PASS and A3 fails low. A cached prefix takes the wake from 10.39 s to 4.10 s on Qwen3-1.7B, and 90% of what is left is the model load. The hybrid caches its prefix for less than half the bytes, and its B3 is NOT MEASURED.
+
+The closing entry for the row plan written 16 Sept at notes.md 8772. **Nine
+measured rows, three boots spent, one optional boot unspent.** Every figure
+below is quoted from a row entry by its tag and every one of those was read
+from `out/<tag>.report` and `out/<tag>.bench` on the phone. Nothing here is a
+new measurement and nothing is re-derived: where a row entry recorded a caveat,
+the caveat travels with the number.
+
+    boot 1  16 Sept, Qwen3-1.7B-Q4_K_M   q17_r1_cold_fresh, q17_r2_warm_fresh_save,
+                                         q17_r3_warm_cached, q17_r4_warm_nobufts
+    boot 2  16 Sept, Qwen3-1.7B          q17_r5_coldcache_cached
+    boot 3  18 Sept, Qwen3.5-2B-Q4_K_M   q35_r6_cold_fresh, q35_r7_warm_fresh_save,
+                                         q35_r8_warm_cached, q35_r9_warm_nobufts
+    boot 4  NOT SPENT                    q35_r10_coldcache_cached -- Matt's call,
+                                         default is not to spend it
+
+All nine rows `rc=0`, all nine gated on `policy6` = 2,802,000 AND `policy4` =
+2,253,000 in the launching shell invocation, all `c0`, `-t 2`, `-lm none`,
+`n_ctx` 1024, greedy, `chat_template=NONE`. **No row on any of the three boots
+met the contamination condition.**
+
+### THE SCORECARD — TWELVE PREDICTIONS, EACH AGAINST THE ROW IT WAS DEFINED ON
+
+    #   prediction                       point     band        measured      row    verdict
+    --  -------------------------------  --------  ----------  ------------  -----  --------
+    A1  1.7B cold load -> ready           4.2 s    3.0-6.0 s   4.0218 s      r1     PASS
+    A2  ... read + repack (T4-T1)         3.5 s    2.5-5.0 s   3.9821 s      r1     PASS
+    A3  ... context creation (T5-T4)      0.4 s    0.2-0.8 s   0.03662 s     r1     **FAIL, LOW**
+    A4  repack's share of A2               52%     40-65%      50.72%        r4/r2  PASS
+    A5  1.7B warm load, ratio to cold      3.2 s   fail >=90%  70.61%        r2     PASS
+                                                   or <=40%
+    A6  2B cold load -> ready             4.9 s    3.5-7.0 s   4.6656 s      r6     PASS
+    B1  TTFT fresh, resident, 427 tok     7.7 s    6.0-9.0 s   6.3691 s      r1     PASS
+    B2  TTFT cached, resident,            0.5 s    0.35-1.5 s  0.42231 s     r3     PASS
+        state + 20 tok
+    B3  TTFT cached, COLD PROCESS         4.9 s    3.5-8.5 s   4.0987 s      r5     PASS
+    B4  cost of saving state to disk     0.25 s    0.05-1.0 s  0.01791 s     r2     PASS
+    B5  state file size, 1.7B          45.9 MiB    40-60 MiB   44.523 MiB    r2     PASS
+    B6  state file size, 2B             ~25 MiB    10-60 MiB   24.117 MiB    r7     PASS
+
+**ELEVEN PASS, ONE FAILS.** A3 fails low by an order of magnitude and was
+already known to be failing before row 1 ran — the 16:50 smoke test read
+35.83 ms on the same `n_ctx` — and **it was deliberately left frozen rather
+than revised**, on the rule that a prediction written before the work is judged
+and not edited to fit. Creating a 1024-token KV cache on these models is tens of
+milliseconds, not hundreds.
+
+**A1's pass is partly arithmetic luck and the entry for r1 says so**: A2 came in
+482 ms above its point and A3 363 ms below its own, and the two nearly cancel
+inside the sum A1 is.
+
+**LABEL FIX, CARRIED IN FROM THE r9 ENTRY.** B2's row above reads "state +
+20 tok" because that is the prediction's own wording, written for Qwen3-1.7B.
+**On Qwen3.5-2B the same `penny_user.txt` is 21 tokens** (`user_tokens=21`, r6),
+so the 2B's B2-equivalent at r8 is a 21-token turn. The two files are byte-
+identical across both models; the vocabularies are not.
+
+**THE 2B's OWN THREE SCORES**, per the plan, which scores A6, B6 and r8's B2 on
+boot 3 and re-scores nothing from the 1.7B:
+
+    A6  r6  4.6656 s      PASS
+    B6  r7  24.117 MiB    PASS, and the directional claim held -- see below
+    B2  r8  0.39228 s     PASS  (B2-equivalent, 21-token turn)
+
+    B4-equivalent  r7  16.87 ms   inside B4's band, not a re-score of B4
+    A5-equivalent  r7  95.77%     FAILS HIGH -- and is NOT a boot-3 score
+    A4-equivalent  r9  45.47% or 65.68% -- NO VERDICT RECORDED
+
+**The last two are deliberately unscored and the reasons are in their own
+entries.** The A5-equivalent fails high on a row whose model file was not
+resident (`Cached` 1,122,352 kB against a 1,250,816 kB model, r7), which is
+consistent with a partially evicted file and is not established; the plan does
+not score A5 on boot 3 and no boot was spent chasing it. The A4-equivalent has
+two warm references twenty percentage points apart and r9 records the absence of
+a verdict as the finding rather than picking one.
+
+### THE ONE THAT WAS NOT A NUMBER: THE HYBRID'S STATE PATH
+
+The plan carried a standing branch — "**the whole of Q-B fails on Qwen3.5-2B**
+if `llama_state_save_file` or `llama_state_load_file` returns false on a hybrid
+model … reported as a hybrid's prefix cannot be cached at this commit, and
+nothing is patched to get around it." Eighteen of Qwen3.5-2B's twenty-four
+layers are recurrent.
+
+**BOTH RETURN TRUE. THE BRANCH IS NOT TAKEN.**
+
+    r7   state_bytes=25288618  state_tokens_saved=413      t_state_save_ms 16.87
+    r8   state_tokens_restored=413                         t_state_load_ms  9.58
+
+and the tokens prove the round trip rather than the return value doing it:
+
+    r6 (fresh)          first_token_id=3710  token_fnv1a64=0x19d53b5da9186ff6
+    r7 (fresh + save)   first_token_id=3710  token_fnv1a64=0x19d53b5da9186ff6
+    r8 (state loaded)   first_token_id=3710  token_fnv1a64=0x19d53b5da9186ff6
+
+**A restored hybrid prefix produces the same 64 tokens as a decoded one.** The
+same control holds on the dense model across four rows and two boots —
+`0xcba17a2fcbba49f4` on r1, r2, r3 and r5.
+
+### Q-A, ANSWERED: THE LOAD IS THE TENSOR BAND, AND THE TENSOR BAND IS MOSTLY REPACK
+
+    phase (ms)            1.7B cold   1.7B warm   2B cold   2B warm(r8)
+                             r1          r2         r6          r8
+    t_backend_ms              3.04        3.62       2.62        2.65
+    t_model_open_ms         398.49      364.13     769.44      758.47
+    t_tensor_band_ms       3581.59     2431.20    3863.26     2725.80
+    t_model_tail_ms           2.04        2.23       5.95        6.61
+    t_model_total_ms       3982.13     2797.56    4638.66     3490.87
+    t_ctx_create_ms          36.62       38.75      24.32       19.97
+    t_ready_ms             4021.78     2839.93    4665.60     3513.49
+
+**The tensor band is 89.0% of the cold load on the 1.7B (r1) and 82.8% on the
+2B (r6).** Context creation is 0.9% and 0.5% of them. `t_model_open_ms` nearly
+doubled between the two models — 398.49 (r1) to 769.44 (r6) — while the band
+grew 7.86%; r6 names the 2B's vocabulary as a suspect and records that nothing
+isolates it.
+
+**THE REPACK IS THE LARGER HALF OF THE BAND, MEASURED BY SWITCHING IT OFF:**
+
+    1.7B   r2 band (repack on, warm)   2431.20
+           r4 band (repack off, warm)   411.44
+           repack                      2019.76 ms  = **50.72% of A2** = A4, PASS
+                                                   = 83.08% of the warm band
+                                                   = 72.20% of the warm load
+
+    2B     r8 band (repack on, warm)   2725.80    r7 band  3663.29
+           r9 band (repack off)         616.72
+           repack                      2109.08 ms (vs r8) or 3046.57 (vs r7)
+                                       = 45.47%      or 65.68% of A2 -- NO VERDICT
+
+**And the file read, which is what a warm cache removes**, taken from the 1.7B
+only and resting on the plan's own premise that repack is CPU work and
+cache-independent:
+
+    r1 cold band 3581.59 - repack 2019.76  =  ~1561.83 ms for 1,056.13 MiB
+                                           =  ~676 MiB/s off UFS
+
+That subtraction crosses a cold row and a warm one, which is the direction the
+plan warns against for A4 and the reverse of it here; **it is an inference under
+a stated premise, not a measurement, and no prediction is scored on it.** The
+equivalent figure for the 2B cannot be given at all, because its repack term has
+two values.
+
+**THE STRUCTURAL HALF AGREES WITH THE TIME HALF, ON BOTH MODELS.** From the
+loaders' own buffer lines:
+
+    1.7B   r2  CPU 243.90 + CPU_REPACK 1049.96 = 1293.86 MiB   197 repack tensors
+           r4  CPU 1050.43, no CPU_REPACK                        0 repack tensors
+           file on disk                          1056.13 MiB
+           buffer excess over file               +237.73 MiB
+           peak RSS r2 - r4 = 1,541,012 - 1,289,416 kB = 245.70 MiB
+
+    2B     r6  CPU 399.94 + CPU_REPACK 1208.95 = 1608.89 MiB   187 repack tensors
+           r9  CPU 1211.05, no CPU_REPACK                        0 repack tensors
+           file on disk                          1221.50 MiB
+           buffer excess over file               +387.39 MiB
+           peak RSS r8 - r9 = 1,786,192 - 1,416,884 kB = 360.65 MiB
+
+**On both models the repack's cost in space shows up twice and the two witnesses
+agree** — 243.43 against 245.70 MiB on the 1.7B (2.27 MiB apart), 397.84 against
+360.65 MiB on the 2B (37.19 MiB apart, 9.3%). r9's peak RSS is quoted here only
+as that difference, per the rule the plan set for control rows, and neither
+model's gap is accounted for.
+
+### Q-B, ANSWERED: THE PREFIX CACHE REMOVES SIX SECONDS, AND WHAT IS LEFT IS THE MODEL LOAD
+
+**Every TTFT figure in the plan, by row, with what each one actually is:**
+
+    case                                        1.7B                2B
+    ----------------------------------------    ---------------     ---------------
+    fresh, model resident (T10-T6)              6369.12  r1 = B1     8168.95  r6
+    fresh + save, resident                      6319.51  r2          8397.71  r7
+    cached, resident, state file WARM (T10-T5)   422.31  r3 = B2      392.28  r8 = B2-eq
+    cached, resident, state file COLD            406.21  r5
+    cold process, fresh (T10-T0)               10394.46  r1
+                                                9163.00  r2
+    warm process, cached (T10-T0)               3382.26  r3          3905.77  r8
+    COLD process, cached (T10-T0)               4098.74  r5 = **B3**  **NOT MEASURED**
+
+    speedups, each within one model
+      r1 ttft_cached 6372.68 -> r3 422.31                        15.09x
+      r7 ttft_fresh  8397.71 -> r8 391.96                                21.42x
+      r1 cold process 10394.46 -> r5 4098.74                      2.54x
+      r2 cold process  9163.00 -> r5 4098.74                      2.24x
+
+**WHERE THE WAKE TIME GOES — r5, the only true B3 in the plan:**
+
+    t_ready_ms        3692.53   90.1%   loading the model
+    t_state_load_ms     59.16    1.4%   restoring the 407-token prefix
+    t_user_decode_ms   345.96    8.4%   the 20-token user turn
+
+**And where the RESIDENT cached figure goes, on both models:**
+
+    r3  t_user_decode 401.99 of 422.31 ms  = 95.2%
+    r8  t_user_decode 381.30 of 392.28 ms  = 97.2%
+
+**So on both models and in both cases the prefix is not where the time is.**
+Restoring it costs 19.17 ms warm and 59.16 ms cold on the 1.7B (r3, r5) and
+9.58 ms on the 2B (r8). What the cache removes is the system-prompt decode —
+5996.47 ms on r1, 7713.13 ms on r6. What it cannot remove is the load.
+
+**THE STATE FILES, AND B6's DIRECTIONAL CLAIM IS THE RESULT WORTH KEEPING:**
+
+    Qwen3-1.7B   r2   46,685,237 B = 44.523 MiB   over 407 tok = 112.02 KiB/token
+    Qwen3.5-2B   r7   25,288,618 B = 24.117 MiB   over 413 tok =  59.80 KiB/token
+
+**The hybrid's file is 54.17% of the dense model's — smaller by 45.83% — on a
+model 16% larger.** B6's failure condition was written as "fails if the
+Qwen3.5-2B file is LARGER", and it is not. r7 records that the split between the
+token-proportional and fixed parts rests on an assumed 12 KiB/token taken from
+the prediction rather than measured, and that the claim the file barely grows
+with prompt length is untested.
+
+**SURVIVING A POWER CYCLE: ANSWERED FOR THE DENSE MODEL, OPEN FOR THE HYBRID.**
+
+    1.7B  q17_state.bin  707e0ea3c1cc490187616a67ba0097747c8b8c58fcd2dcf38e1870a31a8f6f4d
+          hashed after `sync` at end of boot 1, and again on boot 2 AFTER r5 ran
+          -> MATCH, 46,685,237 B both times
+    2B    q35_state.bin  6f461e459f2ef0e61a6e6f7579250e115f92f5c3cb43cba18d9600a15f432a8f
+          hashed after `sync` at end of boot 3, 25,288,618 B
+          -> **never read back across a reboot; the hash exists so that it could be**
+
+### THE PREDICTED PLAIN ANSWER, JUDGED
+
+Written 16 Sept before any run: *"Predicted: resident wins, and not narrowly. A
+model held resident with a cached prefix puts the first word in front of the
+user in about half a second; a cold process that reloads the model puts it there
+in four to seven seconds, and a saved prefix does not help with that because the
+model load is the whole of the cost."*
+
+**Half a second: RIGHT, three times.** 422.31 ms (r3), 406.21 ms (r5),
+392.28 ms (r8).
+
+**Four to seven seconds: RIGHT on the one model where it was measured.**
+4098.74 ms (r5). The 2B's equivalent is not measured.
+
+**"A saved prefix does not help with that": WRONG AS WRITTEN, and this is the
+one substantive miss in the plain answer.** The saved prefix takes the cold
+process from 10,394.46 ms (r1) to 4098.74 ms (r5) — **2.54x** — because it
+removes the ~6.0 s system-prompt decode. What is right is the reason attached
+to it: the model load is 90.1% of what remains (r5), so the prefix cache cannot
+bring a cold process anywhere near the resident figure. **It helps a great deal
+and it does not close the gap**, and those are two different statements that the
+predicted sentence collapsed into one.
+
+**The price of resident, restated rather than predicted, is higher than the
+sentence quoted.** It said 1.35-1.42 GiB for the 1.7B, taken from the 16 Sept
+`llama-bench` rows. `pennyload`'s own gated rows read:
+
+    1.7B   r1  peak_rss_kB 1,541,140  = 1.470 GiB   (99.6% anonymous)
+    2B     r6  peak_rss_kB 1,824,632  = 1.740 GiB   (99.70% anonymous)
+           r8  peak_rss_kB 1,786,192  = 1.703 GiB   -- the cached path is cheaper
+                                                       than the fresh one by
+                                                       38,004 kB
+
+Different binary, different flags, so neither is a check on the other; the
+`pennyload` figure is the one measured under the conditions of this plan.
+
+### THE CONDITIONS THE ROWS RAN UNDER, COLLECTED
+
+**KILLS.** The first row of a boot is the representative condition and every
+later row on that boot is flattered by it:
+
+    row  MemAvailable before   lines/processes
+    r1        2,277,952 kB      8 / 4     first row of boot 1
+    r2        2,639,848         0 / 0
+    r3        2,679,200         2 / 1
+    r4        2,887,072         0 / 0
+    r5        2,191,292         8 / 4     first row of boot 2
+    r6        2,270,852         6 / 3     first row of boot 3
+    r7        2,636,476        16 / 8     **more memory AND more kills**
+    r8        3,061,764         0 / 0
+    r9        3,031,840         0 / 0
+
+**The first row of a boot costs about four cached processes on this handset
+whether it decodes a system prompt (r1) or restores one (r5)**, and the 2B at
+1.74 GiB cost three where the 1.7B at 1.47 GiB cost four, at starting conditions
+7,100 kB apart (r6 against r1). **r7 breaks the pattern and complicates the
+B2-R1 rule**: it started with 365,624 kB more than r6 and took eight processes
+rather than three, on a boot that had been swapping for fifty minutes. r7
+records that as a correlation across two rows and not a cause. Nothing in the
+foreground band on any of the nine rows; our own process never touched.
+
+**THE CLOCK.** The X1 ceiling fell below rated inside every one of the nine
+rows and no row ended below rated:
+
+    r1 73.1%   r2 73.1%   r3 85.7%   r4 65.2%   r5 89.5%
+    r6 73.09%  r7 65.17%  r8 80.37%  r9 50.89%
+
+**The A76 pair never moved on any of the nine rows** — `policy4` read 2,253,000
+before, min and after on all of them — where the 16 Sept cooled matrix saw it
+fall on six of seven rows. Observed, not explained; those rows were longer and
+differently shaped. **`policy0` was not sampled during any row in this plan**,
+which is the same gap the 16 Sept entry left open.
+
+**SWAP AND CACHE.** No row met the contamination condition. The lowest any row
+ended at was r6's `SwapFree` 476,412 kB, 15.14% of `SwapTotal`, against the ~10%
+floor. r9 is the only row in the plan where `swapfree_kB` and `pswpout` were
+byte-identical either side.
+
+### WHAT Q-A AND Q-B DO NOT SAY
+
+**B3 FOR Qwen3.5-2B IS NOT MEASURED, AND IT IS A BLANK RATHER THAN AN
+OVERSIGHT.** Boot 4 was written into the plan as optional and is Matt's to
+spend, and the default is not to spend it. The frozen prediction stands at
+**~5.08 s** in the end-of-boot-3 entry, built from r6's measured cold ready plus
+a *scaled* ~32 ms cold state load plus r8's measured user turn, and it is marked
+there as a prediction that nothing has been run to produce. **r8's
+`ttft_cold_proc_ms` of 3905.77 ms is a warm-model, warm-state-file, ninth-row
+figure and is never quoted as B3.**
+
+**THE A4-EQUIVALENT AND THE A5-EQUIVALENT ARE UNSCORED ON THE 2B** for the
+reasons in r9 and r8 respectively, and the 2B's warm pair is not the controlled
+pair the 1.7B had: r2 followed r1 by 236 s, r7 followed r6 by fifty minutes.
+
+**EVERY ROW IS ONE SAMPLE.** There are no error bars anywhere in this plan. The
+cross-model comparisons (r1 against r6, r2 against r7) cross two boots and two
+days, and the two boots did not start identically.
+
+**NOTHING HERE IS A WAKE MEASURED AT BOOT.** r5 is the first run of a boot with
+nothing having read either file, which is the cold-process case B3 is defined
+as — but it was launched by hand over adb on an unlocked phone. **The unattended
+boot path proven in rungs 3, 3b and 3d and this cold-process figure have never
+been run together**, and nothing in this plan starts a model from a boot
+broadcast.
+
+**NOTHING SUSTAINED AND NOTHING THERMAL.** The longest row in the plan is r9 at
+25.68 s and the shortest is r8 at 9.88 s. **A model held resident and working
+for hours — which is the actual product shape — is untested**, and the X1
+ceiling was still descending at the end of several rows.
+
+Not done, and named as not done: the `-ub` test that separates batch size from
+micro-batch size; a sustained run; Q4_0; anything on battery; `policy0` sampled
+during a row; anything VM-hosted; any third model; and **any judgement of output
+quality** — all nine rows' text stops inside a `<think>` block at 64 tokens,
+and the 1.7B's sample gets two of its three facts about Canberra wrong.
+
+Boot 3 has no ~5-minute protocol reading; its 8.55-minute substitute is recorded
+under its own label and is compared with nothing.
+
+All of it on AC power, screen on, unlocked, foreground, over adb, with the app
+`pm disable-user`'d and `Running VMs: []` throughout, on a Pixel 6a running
+GrapheneOS 2026091001 / Android 17 CP2A.260705.006, against llama.cpp at commit
+38a5b42d9 built `armv8.2-a+dotprod+fp16`. **It is an absolute feasibility
+measurement of this handset and never a native-versus-VM comparison**, which is
+closed.
+
+## 2026-09-18 — AMENDMENT to the Q-A/Q-B closing entry. "All nine rows' text stops inside a `<think>` block" is FALSE — only the 2B's rows do, and the 1.7B's rows reached an answer. And row 9's page cache ROSE during the row, so 45.47% is a FLOOR, not a figure.
+
+Appended, not edited in. Both corrections come from row entries already in this
+file; nothing was re-run and nothing new was read off the phone.
+
+### 1. THE TEXT CLAIM IS WRONG, AND ITS OWN SENTENCE CONTRADICTED ITSELF
+
+The closing entry's "does NOT say" section reads: *"all nine rows' text stops
+inside a `<think>` block at 64 tokens, and the 1.7B's sample gets two of its
+three facts about Canberra wrong."* **The two halves cannot both be true — a
+run that stops inside a reasoning block has not stated three facts about
+Canberra — and it is the first half that is wrong.** Corrected:
+
+    rows                model        what the row entry records
+    ----------------    ----------   --------------------------------------------
+    r1, r2, r3, r5      1.7B         an ANSWER, no `<think>` block: Canberra, a
+                                     population of ~4 million and a founding date
+                                     of 1901. r1: "both are wrong". r3: "Canberra
+                                     right, the other two facts wrong."
+    r4                  1.7B         NOTHING. `-n 1`, and r4 says "there is no
+                                     generation here at all".
+    r6, r7, r8          2B           stops INSIDE a `<think>` block at 64 tokens.
+                                     r6 quotes the opening verbatim: the model
+                                     echoes the question, then "<think> Thinking
+                                     Process:".
+    r9                  2B           `-n 64 --print`, but r9 quotes no text and no
+                                     figure from it, per the control rule. The
+                                     end-of-boot-3 entry records all four boot-3
+                                     rows as stopping inside a `<think>` block.
+
+**So the two models behave differently at a 64-token budget and the closing
+entry flattened that into one sentence.** Qwen3-1.7B reaches an answer inside 64
+greedy tokens with no chat template; Qwen3.5-2B opens a reasoning block and is
+still planning when the budget runs out.
+
+**What this still does NOT say.** Whether the 1.7B's answer completed on its own
+or merely fitted inside 64 tokens is not established — no row recorded an
+end-of-generation reason. **No quality judgement is made or reversed by this
+correction**: the 1.7B's three facts are recorded as two wrong because its own
+row entries record them that way, and the 2B's text is recorded as text produced
+and nothing more. 64 tokens was a budget chosen for the rows, not either model's
+own stopping point, and neither model saw a chat template.
+
+### 2. ROW 9's `Cached` ROSE DURING THE ROW, SO THE A4-EQUIVALENT IS A FLOOR
+
+From r9's own table, unchanged:
+
+    PENNYBENCH cached_kB   before 1,384,860   after 1,646,192   (**ROSE 261,332**)
+
+**A row whose page cache grows by 255 MiB while it runs is not established as a
+fully warm read.** At `-lm none` the model is read with `read()` rather than
+mapped, so a file read grows `Cached` without producing major faults — which is
+one reading of the 261,332 kB rise sitting beside `pgmajfault` +31 and `pswpin`
++30 in the same table. **That is a reading of two figures against each other and
+not a measurement**, and nothing here establishes how much of r9's 616.72 ms
+band was disk.
+
+**THE DIRECTION IS UNAMBIGUOUS EVEN THOUGH THE SIZE IS NOT.** r9's band is the
+subtrahend in every A4-equivalent figure. If any part of it is file read rather
+than the read-only floor, the band is INFLATED, the difference is too SMALL, and
+the repack is UNDERSTATED:
+
+    repack vs r8  =  2725.80 - 616.72  =  2109.08 ms  ->  45.47% of A2   **a floor**
+    repack vs r7  =  3663.29 - 616.72  =  3046.57 ms  ->  65.68% of A2   **a floor**
+    share of that row's own band          77.37% and 83.16%             **floors**
+
+**So 45.47% is best read as a floor on the repack's share of A2, not as a
+figure**, and the twenty-point spread between the two references is unaffected —
+both move the same way. **No A4-equivalent verdict is recorded and this does not
+create one.**
+
+For contrast, and it is why r9's rise is worth flagging rather than shrugging
+at: **r8, the warm reference, is the only row on boot 3 whose `Cached` FELL**
+(1,436,804 -> 1,383,168, down 53,636 kB), where r6 rose 93,988, r7 rose 272,584
+and r9 rose 261,332. The row treated as warm did not need to pull the file in;
+the control row did. **Stated, not resolved.** Resolving it needs a `--extra-bufts 0`
+row run within a minute or two of a warm one on the same boot, which is a boot
+this plan did not budget and which nothing here proposes spending.
+
+Nothing else in the closing entry changes: the twelve-prediction scorecard, A4's
+own 50.72% PASS on the 1.7B (r4 against r2, where r4's `Cached` moved 2,816 kB
+and `pswpout` did not move at all), Q-B's figures and B3's NOT MEASURED status
+are all untouched.
+
+## 2026-09-18 — BRIEF S AMENDMENTS and PREDICTIONS, written before any code, any build and any row: the sustained run
+
+Brief S asks the question every row in this repo has deferred: a model held
+resident, a cached prefix, a user turn arriving repeatedly, for an hour. The
+longest row in the Q-A/Q-B plan was r9 at 25.68 s and the shortest r8 at 9.88 s.
+Nothing here has run for more than half a minute.
+
+This entry is written before `pennyload` gains a line, before `pennybench.sh`
+gains a line, before anything is deleted from the phone and before anything is
+pushed to it. Three corrections to the brief come first, because two of them
+change what a row measures and the third changes what a sentence in the
+write-up may say.
+
+### CORRECTION 1 — `oom_score_adj` IS -1000 FROM `adb shell`, SO S-B1 AS BRIEFED COULD NOT FAIL
+
+Read on boot 3 before any of this was built:
+
+    adb shell 'sh -c "cat /proc/\$\$/oom_score_adj"'   ->   -1000
+
+**-1000 is the value adbd hands down, and it means the low-memory killer will
+not take the process at any pressure.** "Our process survived an hour holding
+1.43 GiB" is not a finding if the process was never a candidate. The brief had
+already asked for `oom_score_adj_child` to be printed "so 'our process was not
+killed' has a number beside it"; the number turns out to be the one that empties
+the claim.
+
+**DECIDED BY MATT, 18 Sept: raise it to 200**, and the write is tested before
+any reboot rather than assumed. Tested on boot 3, one invocation, a throwaway
+`sleep` launched from `adb shell`:
+
+    pid=9181  pre_oom_score_adj=-1000
+              write_stderr=[]  write_rc=0
+              post_oom_score_adj=200
+              uptime_s=8625.00  wallclock=12:42:20
+
+**SELinux does not refuse it**, the write returns 0 with empty stderr, and the
+read-back is 200. Raising `oom_score_adj` is permitted to one's own uid;
+lowering it needs `CAP_SYS_RESOURCE`, which is why -1000 -> 200 works and 200 ->
+-1000 would not.
+
+**200 IS THE PERCEPTIBLE / FOREGROUND-SERVICE BAND. It is NOT the cached band
+and it is NOT the foreground-app band.** Android's bands, as this repo has
+already measured them in 3g-ii and 3e-i: 0 is the foreground app, 100/200 are
+the visible and perceptible bands, 900+ is cached and empty. 3g-ii's killer
+cleared the whole cached band and then took `com.android.inputmethod.latin` at
+**adj 201** (`prcp IMPB`), twice, and stopped there without entering 200/100/0.
+200 is therefore the closest available imitation of **a foreground service
+started from a boot broadcast**, which is the shape rungs 3, 3b and 3d proved
+and the shape any real Penny would use. It is one point below the deepest adj
+the LMK has ever been observed to reach on this handset.
+
+`pennybench.sh` prints the pre-write value and the value read back AFTER the
+write, side by side, so the line is a reading rather than an intention:
+
+    PENNYBENCH oom_score_adj_child pre=<v> post=<v>   (written by the wrapper)
+
+**AND THE CONSEQUENCE FOR THE RECORD: rows 1-9 of the Q-A/Q-B plan ALL RAN AT
+-1000.** Every one was launched from `adb shell` through this same wrapper.
+Their kill lists — 8 lines / 4 processes on r1, 8/4 on r5, 6/3 on r6, 16/8 on
+r7 — **could never have named `pennyload`**, whatever the pressure. Those kill
+counts stay exactly as reported; what changes is that "our own process was never
+touched" (the closing entry's phrase) was not a measurement on any of the nine
+rows and must not be read as one. It is a measurement from S1 onwards.
+
+### CORRECTION 2 — THE BRIEF'S REASON FOR `state_set_data` OVER `seq_rm` IS NARROWER THAN IT SAYS
+
+The brief says "`seq_rm` on a partial range is not supported on recurrent
+memory, so it would silently make a 2B row a different experiment". Read at
+`src/llama-memory-recurrent.cpp:161-216`, commit 38a5b42d9, that is not quite
+right and the correct version is still a good reason.
+
+Partial `seq_rm` on recurrent memory **is** implemented at this commit, by a
+per-token snapshot index — but it is **bounded** (`rollback <= n_rs_seq`),
+**single-use** (it refuses while a rollback is already pending: `const bool
+pending = rs_idx[seq_id] != 0`), and it **returns `false`** rather than
+throwing when either condition fails. Rolling back one of these turns means
+discarding 85 tokens (20 user + 64 generated + 1), so it would need
+`n_rs_seq >= 85` and a clean pending flag on every one of 60 or 200 turns.
+
+**So the accurate reason is: a `false` return part-way through a row would turn
+a sustained row into a differently-shaped one with no exception raised**,
+whereas `llama_state_set_data` is unconditional and is the exact path Q-B
+measured at rows 3, 5 and 8. The per-turn figures then compare directly with
+B2's 422.31 ms (r3) and 406.21 ms (r5). None of this bites on Qwen3-1.7B, which
+is dense and has no recurrent layers; it is recorded so that the 2B can be run
+later on the same instrument without the reason having to be re-derived.
+
+API signatures verified by reading `include/llama.h:814-835` at 38a5b42d9, not
+recalled:
+
+    size_t llama_state_get_size(struct llama_context * ctx);
+    size_t llama_state_get_data(struct llama_context * ctx, uint8_t * dst, size_t size);
+    size_t llama_state_set_data(struct llama_context * ctx, const uint8_t * src, size_t size);
+
+`get_size`'s own comment — "Only use when saving the state, not when restoring
+it" — is about restoring; the snapshot is a save, so it is the right call.
+
+### CORRECTION 3 — BATTERY TEMPERATURE IS READ FROM sysfs IN THE SERIES, NOT FROM `dumpsys`. NAMED AS A DEVIATION.
+
+The brief specifies `dumpsys battery`. The series samples every 10 s for an
+hour, i.e. ~360 times, and `dumpsys` is a binder call into `system_server` —
+the process most likely to be perturbed by exactly the memory pressure the row
+is measuring. `/sys/class/power_supply/battery/temp` is a direct read of the
+same value.
+
+**They agree, read in ONE invocation so the comparison is not across time:**
+
+    sysfs_temp_dC=280  dumpsys_temp_dC=279  uptime_s=8865.42  wallclock=12:46:20
+
+1 dC apart. The series uses sysfs; `dumpsys battery` is still read once before
+and once after each row as the cross-check, so the deviation is bounded by a
+check at both ends. **It is BATTERY temperature in tenths of a degree C, not SoC
+temperature, and it is labelled that way everywhere.** `/sys/class/thermal/` is
+`Permission denied` to the shell user on this build, so no SoC temperature can
+be read at all.
+
+### THE DEFINITIONS, FIXED BEFORE ANY ROW
+
+Verbatim from brief S, with the one extension the `oom_score_adj` correction
+above forces on `survived`:
+
+    ttft_turn_k  = restore + user decode + first sample, turn k
+                   (== ttft_cached per turn)
+    gen_tps_k    = (n-1) decodes / gen_ms, the same divisor as today
+                   (pennyload.cpp:390)
+    settled      = median of the turns in the LAST quarter of the row
+    decline      = settled against the median of the FIRST quarter,
+                   as a percentage
+    survived     = pennyload rc=0 AND turns_done == --turns AND no kill line
+                   naming pennyload AND oom_score_adj_child post=200 printed
+    duty         = busy_ms / interval_ms, reported per row from the turn lines
+
+**EVERY S-A FIGURE IS COMPUTED ON THOSE TWO MEDIANS AND NOTHING ELSE.** Not on
+turn 1 against turn n, not on a mean, not on a line fitted through the row, and
+not on any turn chosen after the fact. S-A1 and S-A2 are the `decline` of
+`ttft_turn` and of `gen_tps` on S1; S-A3 is `settled` `gen_tps` on S2 expressed
+as a percentage of **turn 1**, which is the one place the brief names turn 1
+rather than a median and is written that way because its fail condition is.
+
+**The quarters, so the arithmetic is not chosen later.** S1 has 60 turns: first
+quarter = turns 1-15, last quarter = turns 46-60. S2 has 200: first quarter =
+turns 1-50, last quarter = turns 151-200. **A median over an even-sized set is
+the mean of the two middle values** — so S2's medians are the mean of the 25th
+and 26th, and of the 175th and 176th, of each sorted quarter. S1's quarters have
+15 turns each, so each median is a single value, the 8th of the sorted quarter.
+
+**A row that stops early is scored on the turns it produced and is reported as
+not having survived**, since `turns_done == --turns` is part of `survived`; its
+quarters are then taken over `turns_done`, and the entry says so in the row.
+
+### WHAT THE PREDICTIONS ARE BUILT FROM — the four Qwen3-1.7B rows, quoted by tag
+
+All four ran `c0`, `-t 2`, `-lm none`, `n_ctx` 1024, `n_ubatch` 512, greedy,
+`chat_template=NONE`, `-n 64`, gated at rated on both ceilings. Every figure
+below was read from `out/<tag>.report` and `out/<tag>.bench` at the time and is
+quoted from its row entry, not re-measured:
+
+    row  t_state_load  t_user_decode  t_sample  ttft_cached  gen_tps  gen_ms   peak_rss_kB
+    r1   n/a (fresh)      371.75        0.89      6372.68     15.04   4188.65   1,541,140
+    r2   n/a (fresh)      360.32        0.85      6323.06     14.77   4266.65   1,541,012
+    r3     19.17 warm     401.99        0.81       422.31     15.35   4104.77   1,500,212
+    r5     59.16 cold     345.96        0.76       406.21     15.08   4177.14   1,500,196
+
+    user decode   mean of four   370.005 ms      spread 345.96 - 401.99  (+/- 7.6%)
+    sample        mean of four     0.8275 ms
+    gen_tps       mean of four    15.06 t/s      spread 14.77 - 15.35    (+/- 1.9%)
+    gen_ms        mean of four  4184.30 ms
+    peak RSS on the CACHED path (r3, r5)  1,500,212 kB = 1.4307 GiB, 99.6% anonymous
+
+**The cached path is the one S1 runs**, so 1,500,212 kB is the resident figure
+these predictions use — not r1's 1,541,140 kB, which is the fresh path.
+
+### THE ARITHMETIC, PREDICTION BY PREDICTION
+
+**The turn, decomposed.** `ttft_turn` = restore + user decode + first sample.
+
+*Restore.* r3's `t_state_load_ms` of 19.17 ms read 46,685,237 B from a warm page
+cache, parsed the session header and copied into the KV cache.
+`llama_state_set_data` from an in-memory snapshot does strictly less: no file
+read, no header. So 19.17 ms is an upper reference, not a target.
+**Point 15 ms, band 8-25 ms.** The brief's own "~10-20 ms already measured" sits
+inside that.
+
+*User decode.* 370.005 ms, the mean of all four rows, spread 345.96-401.99. The
+same 20-token `penny_user.txt` every turn — this is prompt processing, which the
+16 Sept matrix showed DOES scale with cores (P3, 2.10x from 1 to 4 threads), so
+it is the clock-sensitive half of a turn.
+
+*Sample.* 0.8275 ms. Negligible and carried only so the sum is honest.
+
+    ttft_turn (turn 1)   15 + 370.005 + 0.83  =  385.8 ms
+                         POINT 0.39 s   BAND 0.33 - 0.50 s
+
+That sits just below B2's measured 422.31 ms (r3) and 406.21 ms (r5), which is
+the direction the file read being removed predicts.
+
+    turn wall time (busy)   0.386 + 4.184  =  4.57 s     BAND 4.0 - 5.5 s
+    S1 duty                 4.57 / 60      =  7.6%
+    S1 duration             60 x 60 s      =  60.1 min
+    S2 duration at turn-1 speed   200 x 4.57  =  914 s = 15.2 min
+    S2 duration at the predicted settled speed  200 x 5.62 = 1124 s = 18.7 min
+                                                POINT 17 min   BAND 15 - 19 min
+
+**S-A1 — S1 `ttft_turn` settled. PREDICT decline 3%, band 0-8%. FAILS above 25%.**
+Each turn is ~4.6 s of work followed by ~55 s of idle. The measured ceiling
+recovery on this handset is 109.8 s of idle after a **65 s** two-thread load
+(16 Sept); the closer anchor is the Q-A/Q-B rows themselves, which were 9.9-25.7
+s long, dipped the X1 ceiling to 73.1-89.5% of rated, and **every one of the nine
+ended back AT rated**. An S1 turn is shorter than the shortest of those rows and
+has twelve times its own length to recover in. There is no mechanism in the
+record by which this row declines much.
+
+**S-A2 — S1 `gen_tps` settled. PREDICT decline 3%, band 0-8%; settled ~14.6 t/s,
+band 13.8-15.3. FAILS above 25% decline (below ~11.3 t/s).** Same reasoning, and
+generation is the *less* clock-sensitive half — see S-A3.
+
+**S-A3 — S2 `gen_tps` settled. PREDICT settled at 80% of turn 1, i.e. ~12.0 t/s
+from ~15.0; band 70-92% (10.5-13.8 t/s). FAILS below 50% of turn 1 (7.5 t/s).**
+
+The arithmetic is the cooled C-series of 16 Sept, which is the only place in
+this repo where the same configuration was run at two different row lengths and
+the clock floor recorded for both.
+
+    matched pair, UNPINNED, 4 threads -- the deepest clock floor in the record
+      C6   -p  64   52.93 s   X1 ceiling floor  984,000 kHz = 35.1% of rated   tg128 14.47
+      C5   -p 512  106.03 s   X1 ceiling floor  851,000 kHz = 30.4% of rated   tg128 11.74
+      2.00x the row length, a 13.4% lower floor
+      11.74 / 14.47 = 0.8113   ->   tg DOWN 18.87%
+
+    matched pair, c0, 2 threads -- S2's own configuration
+      C2   -p  64   52.57 s   X1 ceiling floor 1,277,000 kHz = 45.6%   tg128 14.91
+      C1   -p 512  103.32 s   X1 ceiling floor 1,106,000 kHz = 39.5%   tg128 14.11
+      14.11 / 14.91 = 0.9463   ->   tg DOWN 5.37%
+
+**Across all seven cooled rows the X1 floor spanned 851,000 to 1,277,000 kHz — a
+1.50x clock range, and 30.4% to 45.6% of rated — while `tg128` spanned 11.74 to
+14.91, a 1.27x range.** Token generation is memory-bandwidth bound on this
+handset: P2 held on 16 Sept, four threads are SLOWER than two. **If generation
+scaled with clock, a fall to 30% of rated would give 15.06 x 0.30 = 4.5 t/s and
+S-A3 would fail outright. The prediction is that it will not, and the C-series
+is the whole reason.**
+
+S2 is C1's configuration run roughly ten times as long, so it should reach a
+floor below C1's 39.5% — the unpinned pair's 18.87% tg loss at 30.4% is taken as
+the point rather than C1's own 5.37%, which is why the point is 80% and not 95%.
+
+**S-A4 — `fnv_all_equal = 1` on every row. PREDICT 1.**
+Greedy sampling on a restored prefix has already produced the identical 64
+tokens across four rows and two boots on this model —
+`token_fnv1a64 0xcba17a2fcbba49f4` on r1, r2, r3 and r5, with
+`first_token_id 32313` on all four — and across three rows on the 2B. **What is
+new is that the restore is from an in-memory snapshot rather than a file, and
+that it happens 60 or 200 times inside ONE process.** After turn k the context
+holds prefix + 20 + 64 tokens; `state_set_data` must return it to exactly the
+407-token prefix. If any residue survives, turn 2 differs from turn 1 and the
+fnv breaks at turn 2, not at turn 60. **That is the thing S-A4 actually tests,
+and a mismatch is the more important finding.**
+
+**S-B1 — S1 survives. PREDICT SURVIVES, at adj 200, and by one point.**
+3g-ii measured the LMK on a loaded phone clearing the entire cached band and
+then taking the IME at **adj 201**, twice, and stopping — never entering
+200/100/0 — under a 2048MB VM, which 3e-ii measured as taking **~1.92 GB** from
+the host at creation. S1 holds **1,500,212 kB = 1.43 GiB**, which is less. So
+the prediction is survival at one point below the deepest adj the killer has
+been seen to reach, under a smaller allocation than the one that took it there.
+**If it dies, it dies at exactly the band 3g-ii said the killer stops at, and
+that would be the headline.**
+
+**S-B2 — MemAvailable at the end of S1. PREDICT the SERIES settles at ~900,000
+kB, band 600,000 - 1,400,000 kB. FAILS if kill lines continue past the first
+five minutes of the row.**
+
+    native baseline, NO model, app disabled, one boot (CLAUDE.md):
+        2,119,020 kB at 25.3 min   2,012,348 at 60.5 min   1,929,032 at 120.6 min
+        decline between the last two ~2.0 MB/min
+    S1's last turn lands at roughly 25 min (protocol reading) + 60 min = ~88 min
+        2,012,348 - (88 - 60.5) x 2000  =  ~1,957,000 kB   with no model
+    model held (r3/r5 cached path)                          -1,500,212 kB
+    naive difference                                        =   456,788 kB
+    but the LMK gives memory back: every 1.7B row that killed RAISED MemAvailable
+        r1  2,277,952 -> 2,669,292   +391,340    (8 lines / 4 processes)
+        r5  2,191,292 -> 2,713,172   +521,880    (8 lines / 4 processes)
+        mean of the two                +456,610
+    456,788 + ~450,000  =  ~907,000 kB           POINT ~900,000 kB
+
+**THIS MUST BE READ FROM THE SERIES WHILE THE MODEL IS RESIDENT, NOT FROM
+`PENNYBENCH memavail_kB after`.** The wrapper's after-reading is taken once the
+child has exited and the 1.43 GiB has gone back, so it will read high — r3's was
+2,878,632 kB and r5's 2,713,172 kB. **Predicted `PENNYBENCH memavail_kB after`
+for S1: 2.6 - 2.9 GB, and it says nothing about the hour.** That is precisely
+why the brief added a series.
+
+On the kill half: the first row of a boot costs about four cached processes on
+this handset — r1 8 lines / 4 processes, r5 8/4, r6 6/3 — and every one of them
+happened at model load. **Predict 3-8 kill lines on S1, all inside the first
+60 s, NONE after minute 5.** A steady kill rate under a resident model is the
+finding that changes the design, and it is what the fail condition is written
+to catch.
+
+**S-B3 — SwapFree stays above 10% of SwapTotal (314,572 kB of 3,145,724)
+through S1. PREDICT PASS, settled ~650,000 kB, band 400,000 - 1,000,000
+(13 - 32%). The margin is not large and the prediction is specifically that it
+FLATTENS.**
+
+Loading this model costs swap, measured three times:
+
+    r5   997,372 -> 651,260   -346,112 kB   in one ~13 s row
+    r3   767,996 -> 530,940   -237,056 kB   in one ~9 s row
+    r2   820,732 -> 751,100    -69,632 kB
+
+Those are the cost of making room for 1.43-1.47 GiB of anonymous memory by
+compressing other processes into zram. **In S1 the model is loaded ONCE and held
+for an hour; the turns allocate nothing new after the KV cache exists.** So the
+prediction is a fall of 300,000-500,000 kB inside the first two minutes and then
+a flat line. **If it instead keeps draining at the loading rate it crosses the
+10% floor inside the hour, the row is void under the standing contamination rule
+and the boot is spent.** Starting SwapFree on a fresh boot at ~25 min is
+predicted at 1,000,000-1,400,000 kB; the record has no fresh-boot figure at that
+uptime, only r5's 997,372 kB as the first row of boot 2 and boot 3's close at
+739,156 kB, so this one number is the weakest in the entry.
+
+**S-C1 — ceilings between S1 turns. PREDICT the X1 pair IS at 2,802,000 at the
+start of every turn after the first, and >= 95% of series samples read rated;
+point 97%.**
+
+    measured recovery   109.8 s of idle from 1,426,000 kHz after a 65 s 2-thread run (16 Sept)
+    closer anchor       the nine Q-A/Q-B rows, 9.88 - 25.68 s long:
+                          X1 floor 73.1% (r1) to 89.5% (r5) of rated
+                          r3 min 2,401,000 (85.7%) at 7 s in, ended AT rated
+                          r5 min 2,507,000 (89.5%) at 7 s in, ended AT rated
+                          EVERY one of the nine ended at rated
+    an S1 turn is 4.57 s -- shorter than the shortest of those rows -- with 55 s after it
+
+Sampling arithmetic: duty is 7.6%, so ~8% of 10 s samples land inside a turn;
+and the Q-A/Q-B minima were first seen **7 s into** their rows, which is later
+than a whole S1 turn lasts. So the fraction of samples below rated is predicted
+to be *smaller* than the duty, hence 97%.
+
+Two more, carried in the same prediction: **`policy4` (A76, rated 2,253,000)
+never moves on S1** — it did not move on any of the nine Q-A/Q-B rows, before,
+min or after. And **`policy0` (A55, rated 1,803,000) is sampled during a row for
+the first time in this repo**; CLAUDE.md has named that gap twice and the series
+closes it. **No prediction is made for `policy0`** — nothing in the record
+supports one.
+
+For S2: **predict the X1 ceiling spends most of the row below rated with a floor
+below C1's 1,106,000 kHz (39.5%), point 900,000 - 1,000,000, band 851,000 -
+1,277,000** — the C-series envelope — because S2 is C1's configuration at ten
+times the length.
+
+**S-C2 — battery temperature. NO PREDICTION, per the brief; nothing in this repo
+has ever read it.** Recorded as a first reading, not a baseline: on boot 3,
+idle, AC power, screen on, level 100, `dumpsys battery` temperature **267 =
+26.7 C** at uptime 7725.22 / 12:27:20, and **280 / 279 dC = 28.0 / 27.9 C** at
+uptime 8865.42 / 12:46:20. The phone warmed ~1.2 C in 19 minutes doing nothing,
+which sets the resolution any S1 slope has to beat to mean anything.
+
+**The instrument's own two new figures, predicted so they can be judged:**
+
+    prefix_snapshot_bytes   POINT ~46,684,000 B   BAND 46.0 - 47.0 MB
+        r2's state FILE was 46,685,237 B for 407 tokens = 112.02 KiB/token,
+        against 114,688 B/token derived from the GGUF metadata -- so the state
+        is sized by used cells, not by n_ctx. The in-memory snapshot drops the
+        session-file header, so it is predicted slightly SMALLER than the file.
+    t_snapshot_ms           POINT 12 ms   BAND 5 - 25 ms
+        B4 measured 17.91 ms to build the state AND write it to disk (r2);
+        get_data does no write.
+
+### THE PREDICTED PLAIN ANSWER, SO IT CAN BE JUDGED TOO
+
+**Predicted: the conversational hour is uneventful and the back-to-back
+quarter-hour is where the chip shows.** One turn a minute for sixty minutes
+costs this handset a 1.43 GiB resident set, about four cached processes killed
+once at the start, and roughly 7.6% of its time; the turns at the end look like
+the turns at the beginning to within a few percent, because 55 seconds of idle
+is ten times what the X1 pair needs to come back to rated. Run the same turns
+with no gap and generation slows by about a fifth — not by the two-thirds the
+clock falls by — because generation on this phone is bound by memory bandwidth
+and not by clock. **The thing most likely to be wrong here is the memory half,
+not the timing half**: S-B2's ~900 MB and S-B3's flat swap line are both
+inferences from rows that lasted seconds, applied to an hour.
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+Nothing has been measured. Every number above is a prediction and all of them
+rest on rows of 9.88 to 25.68 s, or on the 16 Sept cooled matrix whose rows were
+52.57 to 246.73 s — **none of them on anything that ran for an hour, which is
+the entire point of the row being predicted.** The C-series pairs used for S-A3
+differ in `-p` as well as in length, so "row length" and "prompt size" are not
+separated in them. S-B2's baseline interpolation assumes the ~2.0 MB/min decline
+measured between 60.5 and 120.6 min continues to ~88 min, and CLAUDE.md
+separately records that the decline decelerates sharply beyond 120 min, so the
+extrapolation is only defensible inside the interval it came from. S-B3's
+starting figure is the weakest number in the entry. The Qwen3.5-2B is not
+predicted at all and is not being run. Nothing here is at boot, nothing is on
+battery, nothing has a second model in memory, and **an hour is not a day.**
+
+## 2026-09-18 — BRIEF S SMOKE TESTS on boot 3. **NOT A RESULT ROW — NEITHER OF THEM.** The single-turn path is unchanged on the phone, the loop runs, and one bug was found and fixed before any row.
+
+Two tests, both on the Qwen3.5-2B still resident from boot 3, both through
+`pennybench.sh` rev 5 with the new binary pushed as `/data/local/tmp/pennyload_s`
+so that `/data/local/tmp/pennyload` was **not** overwritten until both passed.
+**NOTHING HERE IS A MEASUREMENT OF THE HANDSET.** Boot 3 has had nine rows and
+four smoke runs on it, its swap is two-thirds spent, and no figure below is
+quoted anywhere as a result. They exist to test the instrument.
+
+    pennyload_s    8363d84e…  first build, used for smoke A
+                   f52fc604…  after the fix below, used for smoke A2 and B2
+    pennybench_s.sh 96163d04…  rev 5, unchanged throughout
+
+### SMOKE A — THE SINGLE-TURN PATH IS UNCHANGED, AND THE PROOF IS AN A/B ON THE PHONE
+
+Row 8's exact invocation, `--tag r8` included so the tag line matches, run on
+the NEW binary and then on the OLD one forty-six seconds apart on the same boot:
+
+    GATE x1=2802000 a76=2253000 uptime_s=9889.77  wallclock=13:03:24   new binary
+    GATE x1=2802000 a76=2253000 uptime_s=9935.48  wallclock=13:04:10   old binary
+
+    PENNYBIN=/data/local/tmp/pennyload_s sh pennybench_s.sh smoke_a_identity c0 -- \
+      -m /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf -t 2 -lm none -n 64 --print \
+      --user-file /data/local/tmp/penny_user.txt \
+      --load-state /data/local/tmp/q35_state.bin --tag r8
+
+**28 output lines from each, and after blanking every number the line set and
+order are IDENTICAL.** So is the generation, three ways:
+
+    old binary   first_token_id=3710   token_fnv1a64=0x19d53b5da9186ff6
+    new binary   first_token_id=3710   token_fnv1a64=0x19d53b5da9186ff6
+    all 64 token_ids identical: True
+
+**`0x19d53b5da9186ff6` is the figure row 7, row 8 and row 6 all recorded**, so
+the new binary reproduces the hybrid's restored-prefix generation exactly.
+Repeated on the FIXED binary afterwards (`smoke_a_identity2`, uptime 10183.22,
+13:08:18) with the same three results — the fix touched only loop-mode output,
+but that was verified rather than reasoned.
+
+**The timings differ.** `t_state_load_ms` read 41.08 ms against row 8's 9.58 ms,
+and `t_tensor_band_ms` 2914.17 against 2725.80. **The conditions, and NO CAUSE
+IS CLAIMED for either gap.** Row 8 ran at uptime 5174.13 on this same boot and
+read `q35_state.bin` nine minutes after row 7 wrote it. Smoke A ran at uptime
+9889.77, wallclock 13:03:24; the state file's mtime read 2026-09-18 11:35 — it
+was written on the phone by row 7, not pushed, so that mtime is the real write
+time and the file was **about 1 h 28 min old**. By then the boot carried **nine
+rows and four smoke runs**, and `SwapFree` was **682,300 kB of 3,145,724 —
+two-thirds spent** (read in the smoke B report either side). **These are two
+runs at different moments on a tired boot and neither is comparable with row 8's
+figures.** The fnv is the part that carries.
+
+### SMOKE B — THE LOOP RUNS, AND SO DOES THE OVERRUN PATH
+
+    PENNYBIN=/data/local/tmp/pennyload_s sh pennybench_s.sh smoke_b_loop2 c0 -- \
+      -m …Qwen3.5-2B-Q4_K_M.gguf -t 2 -lm none -n 64 \
+      --user-file …penny_user.txt --load-state …q35_state.bin \
+      --turns 3 --interval-s 5 --tag s_loop2
+    GATE x1=2802000 a76=2253000 uptime_s=10128.03 wallclock=13:07:23
+
+    PENNYLOAD prefix_snapshot_bytes=25286954 got=25286954 t_snapshot_ms=10.56
+    TURN k=1 uptime_s=10132.48 t_restore_ms=4.00 ttft_turn_ms=387.81 gen_tps=12.62 fnv=0x19d53b5da9186ff6 busy_ms=5379.57 overrun=1
+    TURN k=2 uptime_s=10137.86 t_restore_ms=4.57 ttft_turn_ms=454.77 gen_tps=12.25 fnv=0x19d53b5da9186ff6 busy_ms=5597.04 overrun=1
+    TURN k=3 uptime_s=10143.45 t_restore_ms=3.80 ttft_turn_ms=466.69 gen_tps=11.90 fnv=0x19d53b5da9186ff6 busy_ms=5761.23 overrun=1
+    turns_done=3 turns_requested=3 turns_overrun=3 fnv_all_equal=1
+    DUTY busy_median_ms=5597.04 interval_ms=5000 duty_pct=111.94
+
+**`fnv_all_equal=1`, and the value is the same one the FILE restore produces.**
+That is the mechanism S-A4 tests: `llama_state_set_data` from an in-memory
+snapshot returns the context to the 413-token prefix well enough that turn 3
+generates the identical 64 tokens as turn 1 and as row 8. A residue left behind
+by the restore would have broken it at turn 2.
+
+**The snapshot is 25,286,954 B against the state FILE's 25,288,618 — smaller by
+1,664 B**, which is the session-file header the in-memory form does not carry.
+That was predicted before the build ("predicted slightly SMALLER than the file")
+and is confirmed here on the 2B; the 1.7B's own figure is still unmeasured.
+
+**`overrun=1` on all three turns is correct behaviour, not a fault.** A 2B turn
+is ~5.4-5.8 s of work and the interval was set to 5 s deliberately, so the
+overrun path and `duty_pct` above 100 are exercised. S1's interval is 60 s.
+
+**`t_restore_ms` is 3.80-4.57 ms.** No prediction is scored on that — the
+predictions are for Qwen3-1.7B, whose snapshot is 46.7 MB against this 25.3 MB,
+and the frozen band stays as written.
+
+### THE BUG, FOUND BY THE FIRST RUN OF SMOKE B AND FIXED BEFORE ANY ROW
+
+With `turns_done=3`, `q = turns_done / 4 = 0`, so both quarters were empty and
+`median_of` returned its -1.0 sentinel. The report printed:
+
+    PENNYLOAD quarters       n_per_quarter=0  q1=turns 1-0  q4=turns 4-3
+    PENNYLOAD SETTLED ttft_turn_ms q1_median=-1.00 q4_median=-1.00 decline_pct=0.00
+    PENNYLOAD SETTLED gen_tps_turn1=12.73 settled_pct_of_turn1=-7.86
+
+**`-7.86` is a real-looking number computed from a sentinel, and `decline_pct`
+read 0.00 — which is exactly the figure S-A1 and S-A2 are scored on.** The guard
+stopped a crash and produced something worse than a crash. **S1 and S2 never
+reach this** (q is 15 and 50), **but a row that stops early does — and S-B1
+explicitly allows a row to stop early, scored on `turns_done`.** Fixed to print
+`n/a` in words. Verified on the re-run above.
+
+### THE INSTRUMENT ALSO ANSWERED THREE THINGS IT WAS NOT ASKED
+
+- **`oom_score_adj_child pre=-1000 post=200` on every run**, including the one
+  that failed at argument parsing. The write works through the wrapper, not only
+  in the hand test.
+- **`ceil_a55` is readable during a row and did not move**: 1,803,000 at every
+  series sample on both loop runs. That is the first time `policy0` has been
+  sampled during a row in this repo, and it closes the gap CLAUDE.md names
+  twice — **at the 10 s resolution of the series, and on a 22 s row, which is
+  not the same as saying it never moves.**
+- **`dumpsys battery` LAGS sysfs.** Read at both ends of smoke B: sysfs 278 ->
+  280 dC while dumpsys read 276 at both. Earlier in the day, idle, they agreed
+  to 1 dC. `dumpsys` updates on battery-change broadcasts rather than on demand.
+  **The deviation to sysfs was decided for a different reason — 360 binder calls
+  into `system_server` — and this is a second, better one.**
+
+### ONE FAILURE, AND IT WAS THE OPERATOR'S
+
+The first smoke B invocation omitted `--user-file` and returned rc=2 with
+`pennyload: -m and --user-file are required`. That is Claude's command being
+wrong, not the instrument. Recorded because the wrapper's behaviour under it is
+useful: `rc=2` reached the report, the oom and battery lines were still written,
+and `series_file … (0 samples)` was correct — the child exited in 0.43 s, before
+the poll loop ran once.
+
+### WHAT THE SMOKE TESTS DO NOT SAY
+
+**Neither is a result and neither is gated as one would be** — the gate was read
+and both ceilings were at rated, but these ran back to back on a boot with nine
+rows and four runs already on it. No figure here is this handset's speed, and
+the `gen_tps` of 11.90-12.73 must never be quoted against row 8's 12.65. Three
+turns is not sixty, five seconds is not sixty seconds, and nothing here ran long
+enough to throttle, swap or be killed — `lmk_kill_lines 0` on a row that lasted
+22 seconds says nothing. The series produced three samples; S1 will produce
+~360, and nothing here tests the sampler over an hour. The 1.7B has not been
+touched: every figure above is Qwen3.5-2B.
+
+## 2026-09-18 — AMENDMENT to the brief S smoke-test entry. A false sentence replaced, and the three-count disassembly check run on the binary that is actually on the phone.
+
+Both raised by Matt on reading the entry above, before the reboot for brief S's
+boot. Nothing was re-run on the phone for either; the first is a correction of
+words, the second is a check on a local file.
+
+### 1. "THIS RAN TWO DAYS LATER" WAS FALSE
+
+The smoke A paragraph read: *"because row 8 ran nine minutes after the state
+file was written and this ran two days later with the file no longer as warm."*
+**`q35_state.bin` was written by row 7 on the morning of 18 Sept, on this same
+boot — about an hour and a half before the smoke test, not two days.** Its mtime
+read 2026-09-18 11:35 when the file was listed at 13:09:55, and because row 7
+wrote it on the phone rather than it being pushed, that mtime is the genuine
+write time and not the `adb push` mtime trap.
+
+**The sentence also asserted a cause — "with the file no longer as warm" — that
+nothing measured.** It has been replaced above with the conditions and no cause:
+state file ~1 h 28 min old, a boot carrying nine rows and four smoke runs,
+`SwapFree` 682,300 kB of 3,145,724 (two-thirds spent). Why `t_state_load_ms`
+read 41.08 ms rather than 9.58 ms is **not established here and nothing is
+offered.**
+
+The replacement is an edit rather than an append, at Matt's instruction; the
+sentence it replaced is quoted in full above so the error stays in the history.
+
+### 2. THE THREE-COUNT CHECK ON `f52fc604…`, THE BINARY ON THE PHONE
+
+The check was run at build time on 18 Sept 13:07 and its result is in the
+`ff009f5` commit message, but it was never shown in a message to Matt with the
+binary's own hash beside it, which is the form the protocol asks for. Re-run on
+the local copy, one invocation, hash first:
+
+    f52fc60411b55e5ed9eb34e8307f32b45d6bed6f06de85a5347bc02ec2f4ffe9  build/pennyload-stripped
+    3,836,992 B
+
+    disassembly lines                              735,079
+    i8mm    (smmla|ummla|usmmla)                          0
+    SVE/SME (ptrue|whilelo|smstart|smstop|z<n>. operand)  0
+    dotprod (sdot|udot)                                 898
+
+**0 / 0 / 898**, the same three counts as the 16 Sept `llama-bench` build and as
+`be2cab2c…`. And the file on the phone is the same file:
+
+    f52fc60411b55e5ed9eb34e8307f32b45d6bed6f06de85a5347bc02ec2f4ffe9  /data/local/tmp/pennyload
+
+**What this does NOT say.** The counts are of a disassembly of the whole binary,
+so 898 `sdot|udot` says the dot-product kernels are compiled in, not that any of
+them executed. `llvm-objdump` is the check because `readelf -A` returns an empty
+`BuildAttributes` block for every aarch64 binary and would pass a build full of
+`smmla`. Nothing here re-verifies the static libraries, which are the same
+object files at 38a5b42d9 that every figure in this repo was measured against.
+
+## 2026-09-18 — BRIEF S, THE BOOT AND ITS PROTOCOL READINGS. Boot 4 of the handset's row work, the first boot dedicated to the sustained run.
+
+Boot 3 was spent: nine Q-A/Q-B rows, four brief-S smoke runs, and the model
+swap. `adb reboot` issued 13:17:19 Mac time, last reading before it
+`uptime_s=10719.15 wallclock=13:17:14` in one invocation. Matt unlocked by hand;
+the USB port is charging-only while locked on GrapheneOS, so adb cannot answer
+before that.
+
+    ADB UP   uptime_s=52.95   wallclock=13:18:26
+             -> boot start ~13:17:33
+
+**CONDITIONS, read at `uptime_s=85.41 wallclock=13:18:59`, before any row:**
+
+    AC powered: true   status: 2 (charging)   level: 100
+    battery temperature 330 dC = 33.0 C
+    screen_off_timeout=30000   stay_on_while_plugged_in=15   mWakefulness=Awake
+    com.pennyspike.probe2a     still disabled -- the disable survived the reboot
+    Running VMs: []
+    policy0=1803000  policy4=2253000  policy6=2802000   -- all three at rated
+    /data/local/tmp: Qwen3-1.7B-Q4_K_M.gguf, pennyload (f52fc604...),
+                     pennybench.sh rev 5 (96163d04...), penny_system.txt,
+                     penny_user.txt, llama-bench, llama-simple, out/, microdroid/
+                     NO q17_state.bin -- so S0 must regenerate it
+
+**`pm disable-user` SURVIVING A REBOOT IS NOW OBSERVED RATHER THAN ASSUMED.**
+CLAUDE.md has said it survives since 15 Sept; this is the reading. Whether the
+two `pm grant`s and the four assistant preconditions survived a
+disable/enable cycle is still UNTESTED and nothing here tests it.
+
+**THIS BOOT STARTS WARM, AND THAT IS A CONDITION ON EVERYTHING BELOW.** Battery
+temperature read 33.0 C at 85 s, against 26.7 C at idle on boot 3 this morning
+and 27.9-29.1 C across the smoke tests. The reboot followed a 32.8 s model push
+and four model loads. **S-C2's start figure is therefore not a cold start**, and
+no slope computed from it may be quoted as though the phone began at rest.
+
+### THE ~5 MINUTE READING — one invocation, value and wallclock together
+
+    MemTotal     5,718,280 kB
+    MemFree      1,323,484 kB
+    MemAvailable 2,218,088 kB
+    Cached       1,123,100 kB
+    SwapTotal    3,145,724 kB
+    SwapFree       996,604 kB   (31.68% of SwapTotal)
+    AnonPages    1,647,332 kB
+    uptime_s=303.84   wallclock=13:22:37   batt_temp_dC=318 (31.8 C)
+
+**`MemAvailable` 2,218,088 kB at 5.06 min, and that is 1.28 GB ABOVE the only
+other ~5-minute reading in the repo.** The native baseline of 15 Sept read
+**940,640 kB at 5.8 min** on an untouched boot with the app disabled, and
+CLAUDE.md warns in terms that it "was a phone still settling and must not be
+used as a budget". This reading is far closer to boot 3's 8.55-minute substitute
+of 2,310,624 kB and to the 25-minute figures of 2,135,144-2,284,200 kB across
+five boots.
+
+**NO CAUSE IS OFFERED AND NONE SHOULD BE READ IN.** Two boots' 5-minute readings
+1.28 GB apart is an observation about the spread of early-boot readings on this
+handset, from a sample of two, taken three days apart under conditions that were
+not controlled to match. What it does bear on is the standing warning: **the
+5-minute mark is not a stable point on this phone**, and that warning now has a
+second reading behind it rather than one.
+
+Battery temperature fell 330 -> 318 dC over the same 218 s, so the phone was
+shedding the heat of the push and the reboot while this was taken.
+
+### S0 — `q17_s0_regen`. NOT A RESULT ROW; it exists to regenerate `q17_state.bin`. Figures only, no write-up.
+
+Gate and launch in one invocation:
+`GATE PASSED x1=2802000 a76=2253000 uptime_s=377.78 wallclock=13:23:51`.
+`c0`, `-t 2`, `-lm none`, `n_ctx` 1024, `-n 64 --print`, `--sys-file`,
+`--save-state`, greedy, `chat_template=NONE`. **COLD** — the reboot cleared the
+page cache the 13:11 push had warmed, so nothing had read the .gguf since
+power-on.
+
+    t_backend_ms          2.90
+    t_model_open_ms     475.40
+    t_tensor_band_ms   3371.09
+    t_model_tail_ms       2.73
+    t_model_total_ms   3849.22
+    t_ctx_create_ms      36.70
+    t_ready_ms         3888.82   COLD
+    t_tokenize_ms         4.35
+    t_sys_decode_ms    6301.49   407 tokens
+    t_state_save_ms      21.90
+    state_bytes    46,685,237    407 tokens saved
+    t_user_decode_ms    401.15   20 tokens
+    t_sample_ms           0.81
+    ttft_fresh_ms      6725.34
+    ttft_cached_ms     6729.69
+    ttft_cold_proc_ms 10618.51
+    gen_tokens 64      gen_ms 4346.77      gen_tps 14.49  (63 decodes)
+    first_token_id 32313     token_fnv1a64 0xcba17a2fcbba49f4
+    sys_tokens 407   user_tokens 20   progress_calls 312
+    peak_rss_kB 1,540,948    max_rssanon_kB 1,535,544
+
+    uptime_s       before   377.89   after   393.61
+    MemAvailable   before 2,210,640  after 2,609,868
+    MemFree        before 1,311,544  after 1,672,136
+    SwapFree       before   997,116  after   487,932   (15.51% of SwapTotal)
+    Cached         before 1,126,228  after 1,164,132
+    pswpout        before   567,983  after   695,302
+    pgmajfault     before    42,013  after    42,134
+    ceil_x1        before 2,802,000  min 2,048,000 (73.1%) 7 s in   after rated
+    ceil_a76       before 2,253,000  min 2,253,000 (rated)          after rated
+    oom_score_adj_child  pre=-1000  post=200
+    batt_temp_dC   before 316   after 317
+    lmk_kill_lines 0   **with MemAvailable before the row 2,210,640 kB**
+    series         2 samples
+
+**THE REGENERATED STATE FILE IS BYTE-FOR-BYTE THE ONE DELETED ON 16 SEPT.**
+Hashed on the phone after `sync`:
+
+    /data/local/tmp/q17_state.bin   46,685,237 B
+    707e0ea3c1cc490187616a67ba0097747c8b8c58fcd2dcf38e1870a31a8f6f4d
+
+CLAUDE.md records the original as `707e0ea3…`, 46,685,237 B, hashed at the end
+of boot 1 and again on boot 2 after r5. **The original was written by
+`be2cab2c…` and this by `f52fc604…`, on a different boot two days later.**
+
+**S-B3's committed start-of-row prediction (1.0-1.4 GB) is already false before
+S1 starts: 487,932 kB = 15.51%. Recorded, not revised.**
+
+### THE 60-SECOND SAMPLER TOOK ZERO READINGS. THERE IS NO TREND TABLE.
+
+A sampler was armed at ~13:26 to read `MemAvailable`, `SwapFree`, `Cached`,
+`pswpin`, `pswpout` and battery temperature every 60 s until the 25-minute mark,
+so that the swap question had a trend behind it. **It produced nothing.** Its
+entire output, four passes:
+
+    /system/bin/sh: no closing quote
+    /system/bin/sh: no closing quote
+    /system/bin/sh: no closing quote
+    /system/bin/sh: no closing quote
+
+The command was `adb shell 'echo "t=$(…) … wall=$(date +%H:%M:%S)'` — **the
+double quote was never closed before the closing single quote.** This is the
+same family as the `adb shell` argument-rejoining trap recorded earlier today,
+and it was walked into **inside a poll loop**, which is the precise failure that
+entry describes: "Inside a poll loop the variable was empty on every pass, the
+loop spun for twenty minutes and no reading was ever taken." It cost the trend
+and nothing else — S0 and both protocol readings are unaffected.
+
+Killed before the gate; `ps -ax | grep "adb shell"` returns nothing.
+
+**ONE valid reading exists**, from a correctly-formed command, and it is one
+reading and not a trend:
+
+    uptime_s   wallclock   MemAvailable      SwapFree     source
+    393.61     --          2,609,868 kB      487,932 kB   S0's after-block
+    717.00     13:29:31    2,586,968 kB      628,476 kB   single read
+
+**`SwapFree` rose 140,544 kB in the 323 s between them**, so swap was recovering
+rather than flat — but that is two points, one of which came from a row's
+after-block rather than from an idle sample, and **no rate is claimed from it.**
+
+### THE ~25 MINUTE READING — one invocation, every value and the wallclock together
+
+    uptime_s=1501.63 wallclock=13:42:35 MemAvailable=2347476 SwapFree=666876
+    Cached=1226340 MemFree=1277764 AnonPages=1297800 batt_temp_dC=312
+    ceil_x1=2802000 ceil_a76=2253000 ceil_a55=1803000
+
+Quoted from the command's own output, unedited. 25.03 minutes after power-on.
+
+    MemAvailable   2,347,476 kB
+    SwapFree         666,876 kB   (21.20% of SwapTotal 3,145,724)
+    Cached         1,226,340 kB
+    MemFree        1,277,764 kB
+    AnonPages      1,297,800 kB
+    battery        312 dC = 31.2 C
+    ceilings       X1 2,802,000 / A76 2,253,000 / A55 1,803,000 -- ALL AT RATED
+
+**`MemAvailable` 2,347,476 kB is ABOVE the five-boot ~25-minute range**, which
+CLAUDE.md records as 2,135,144 to 2,284,200 kB — higher than the top of it by
+63,276 kB. **This boot has had a row run on it and those five had not**, so it
+is not a like-for-like sixth member of that set and is not offered as one.
+
+**`SwapFree` RECOVERED between S0 and here: 487,932 -> 666,876 kB, +178,944 kB
+over 1,108 s.** S0 ended at 15.51% of `SwapTotal` and S1 starts at 21.20%.
+**S-B3's floor is 10% (314,572 kB), so the margin at the start of S1 is
+352,304 kB.** The recovery is recorded because the sampler that was supposed to
+measure it took no readings; these are two points either side of an 18-minute
+gap and no rate is claimed.
+
+**Battery: 330 dC at 85 s -> 318 at 303.84 s -> 316/317 across S0 -> 312 at
+1501.63 s.** The phone shed heat throughout the idle period. **S1 therefore
+starts at 31.2 C, not at rest**, and S-C2's slope must be read against that.
+
+### S1 — `q17_s1_conv_60m`. THE CONVERSATIONAL HOUR. Figures only, no write-up; the write-up comes after S2.
+
+    GATE PASSED x1=2802000 a76=2253000 uptime_s=1572.88 wallclock=13:43:46
+
+Conditions read in the SAME invocation as the gate and the launch: `AC powered:
+true`, `status: 4`, `level: 100`, `temperature: 308`, `mWakefulness=Awake`,
+`screen_off_timeout=30000`, `stay_on_while_plugged_in=15` — and the phone
+UNLOCKED, which adb answering at all demonstrates, since GrapheneOS keeps the
+port charging-only while locked.
+
+`c0`, `-t 2`, `-c 1024`, `-lm none`, `-n 64`, `--load-state q17_state.bin`,
+`--turns 60 --interval-s 60`, greedy, `chat_template=NONE`.
+Ran uptime 1572.98 -> 5122.48, i.e. **3,549.50 s = 59.16 min**.
+
+    rc                       0
+    turns_done               60 of 60 requested, turns_overrun=0
+    oom_score_adj_child      pre=-1000  post=200
+    lmk_kill_lines           4  (= 2 processes, 2 ActivityManager lines)
+    SwapFree min             623,100 kB at uptime 1593.32  (19.81% of SwapTotal)
+    contamination rule       DID NOT TRIP
+    survived                 YES -- rc=0, turns_done==60, no kill naming
+                             pennyload, oom post=200 printed
+
+**Contamination, both limbs.** `Cached` 1,230,620 -> 1,040,276, a fall of
+**190,344 kB against a model of 1,081,454 kB** — 17.6% of the model, not
+"roughly the model size". `SwapFree` never below 623,100 kB = 19.81%, against
+the 10% floor of 314,572 kB. Neither limb met.
+
+    PENNYLOAD prefix_snapshot_bytes=46683597 got=46683597 t_snapshot_ms=19.61
+    PENNYLOAD turns=60 interval_s=60 n_gen_per_turn=64
+    PENNYLOAD turns_done=60 turns_requested=60 turns_overrun=0 fnv_all_equal=1
+    PENNYLOAD first_token_id=32313 token_fnv1a64=0xcba17a2fcbba49f4   (turn 1)
+    PENNYLOAD ttft_turn_ms   min=345.04 median=354.39 max=391.12
+    PENNYLOAD gen_tps        min=14.09 median=14.49 max=15.17
+    PENNYLOAD quarters       n_per_quarter=15  q1=turns 1-15  q4=turns 46-60
+    PENNYLOAD SETTLED ttft_turn_ms q1_median=355.16 q4_median=353.61 decline_pct=-0.44
+    PENNYLOAD SETTLED gen_tps      q1_median=14.49  q4_median=14.52  decline_pct=-0.20
+    PENNYLOAD SETTLED gen_tps_turn1=15.17 settled_pct_of_turn1=95.66
+    PENNYLOAD DUTY busy_median_ms=4704.44 interval_ms=60000 duty_pct=7.84
+
+`decline_pct` positive means SLOWER. **Both are negative: the last quarter was
+fractionally faster than the first.** The snapshot is 1,640 B smaller than the
+46,685,237 B state file — the session header, the same shape the 2B smoke test
+showed at 1,664 B.
+
+**PER-TURN TABLE — first five, every tenth, last five.**
+
+      k  uptime_s  t_restore  t_user_dec  ttft_turn    gen_ms  gen_tps   busy_ms ovr
+      1   1576.99      13.38      366.20     380.40   4151.59    15.17   4532.06 0
+      2   1636.99      13.31      351.37     364.87   4350.53    14.48   4715.44 0
+      3   1696.99      19.96      328.29     348.42   4275.89    14.73   4624.48 0
+      4   1756.99      15.09      339.85     355.16   4352.37    14.47   4707.64 0
+      5   1816.99      18.31      327.95     346.44   4289.58    14.69   4636.16 0
+     10   2117.00      15.66      330.02     345.86   4374.81    14.40   4720.77 0
+     20   2717.00      17.78      331.84     349.80   4325.98    14.56   4675.91 0
+     30   3317.01      13.73      334.98     348.90   4358.79    14.45   4707.86 0
+     40   3917.01      13.27      341.22     354.67   4358.21    14.46   4712.99 0
+     50   4517.02      19.88      334.93     354.99   4332.82    14.54   4688.00 0
+     56   4877.02      13.64      333.47     347.30   4386.54    14.36   4733.92 0
+     57   4937.02      19.87      348.14     368.23   4329.45    14.55   4697.82 0
+     58   4997.02      11.48      339.02     350.69   4379.99    14.38   4730.74 0
+     59   5057.02      16.47      344.68     361.33   4409.45    14.29   4770.94 0
+     60   5117.02      17.77      345.38     363.34   4416.91    14.26   4780.56 0
+
+    t_restore_ms    min  11.48   median  15.86   max  23.81
+    t_user_decode   min 327.95   median 338.92   max 370.34
+    busy_ms         min 4532.06  median 4704.43  max 4846.66
+    gen_tokens      64 on every one of the 60 turns
+
+**ONE distinct `fnv` across all sixty turns: `0xcba17a2fcbba49f4`** — the value
+r1, r2, r3, r5 and S0 all produced. Sixty in-memory state restores in one
+process leave no residue.
+
+**THE TWO KILLS, with `MemAvailable` before the row.**
+
+    MemAvailable before the row   2,332,040 kB   (first series sample 2,269,872)
+
+    13:43:50.664 lowmemorykiller Kill '.ShannonImsService' (2426), uid 10154,
+                 oom_score_adj 945 to free 142640kB rss, 0kB anon rss,
+                 51380kB swap; reason: min watermark is breached
+    13:43:50.715 lowmemorykiller Kill 'com.shannon.rcsservice:shannonrcsservice'
+                 (2428), uid 10151, oom_score_adj 935 to free 148460kB rss,
+                 9628kB anon rss, 41724kB swap; reason: min watermark is
+                 breached even after kill
+    13:43:50.750 ActivityManager .ShannonImsService (pid 2426) has died: cch +45 CEM
+    13:43:50.763 ActivityManager com.shannon.rcsservice (pid 2428) has died: cch +35 CEM
+
+Against the series: sample 1 at uptime 1573.63 reads `MemAvailable 2,269,872`,
+sample 2 at 1583.17 reads `963,264`. **Both kills fall between those two
+samples — inside the model load, ~4 s into a 3,550 s row. ZERO kills in the
+remaining 59 minutes.**
+
+**SERIES SUMMARY — 355 samples, uptime 1573.63 -> 5113.08.**
+
+    column            min                 at uptime      max                 at uptime
+    ceil_x1           2,802,000            1573.63       2,802,000            1573.63
+    ceil_a76          2,253,000            1573.63       2,253,000            1573.63
+    ceil_a55          1,803,000            1573.63       1,803,000            1573.63
+    MemAvailable_kB     911,212            4523.19       2,269,872            1573.63
+    MemFree_kB           79,060            4023.36       1,197,464            1573.63
+    SwapFree_kB         623,100            1593.32         667,132            1573.63
+    Cached_kB         1,028,524            4043.38       1,236,320            1573.63
+    VmRSS_kB              9,844            1573.63       1,548,652            5063.25
+    VmHWM_kB              9,844            1573.63       1,548,660            5063.25
+    pswpout             733,248            1573.63         778,774            4043.38
+    pgmajfault          123,500            1573.63         144,684            5113.08
+    batt_temp_dC            301            1703.28             328            5113.08
+    batt_level              100            1573.63             100            1573.63
+
+**THE LAST LINE OF THE SERIES, VERBATIM — S-B2 IS SCORED ON THE END OF THE ROW,
+NOT ON THE MINIMUM:**
+
+    uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level
+    5113.08 2802000 2253000 1803000 932128 111844 662268 1040272 1548652 1548660 778774 144684 328 100
+
+**`MemAvailable` at the END of the row is 932,128 kB.** The committed prediction
+was a point of ~900,000 kB with a 600,000-1,400,000 band; 932,128 is **3.57%
+above the point**. The minimum of 911,212 kB at uptime 4523.19 is 2.24% below
+the end figure, so the two do not disagree.
+
+**`VmRSS` moved 2,756 kB across the hour** — 1,545,896 at the second sample to
+1,548,652 at the second-to-last. Sixty restores and sixty generations, and the
+resident set is flat.
+
+**THE CEILINGS, AND THE TWO SOURCES DO NOT AGREE.**
+
+    PENNYBENCH ceil_x1_kHz     before 2,802,000  min 1,826,000  after 2,802,000
+    PENNYBENCH ceil_x1_min_at  uptime=3440.91   (1868 s into the row)
+    PENNYBENCH ceil_a76_kHz    before 2,253,000  min 2,253,000  after 2,253,000
+    series at rated:  X1 355/355 = 100.00%   A76 100.00%   A55 100.00%
+
+**The wrapper's 0.2 s poll caught the X1 ceiling at 1,826,000 kHz = 65.17% of
+rated, 31 minutes into the row. The 10-second series never sampled it.** So
+"100.00% of series samples at rated" is a fact about the SAMPLING RATE, not
+about the clock, and the two figures must always be quoted together. A 4.7 s
+turn does dip the ceiling; 55 s of idle restores it long before the next turn.
+**`policy0` held 1,803,000 at all 355 samples — the first time the A55 cluster
+has been watched through a row in this repo.**
+
+**BATTERY TEMPERATURE — BATTERY, NOT SoC.** `/sys/class/thermal/` is
+`Permission denied` to the shell user on this build.
+
+    start (first series sample, uptime 1573.63)   306 dC = 30.6 C
+    min                                           301 dC at uptime 1703.28
+    max                                           328 dC at uptime 5113.08
+    end (wrapper after-reading)                   328 dC = 32.8 C
+    dumpsys cross-check                           308 before, 327 after
+    slope start -> end   +22 dC over 3539.45 s  =  +0.0373 C/min
+
+It FELL for the first two minutes (306 -> 301) while the phone shed the
+reboot's heat, then climbed. 2.2 C over an hour at 7.84% duty.
+
+**PEAK RSS.**
+
+    peak_rss_kB      1,548,672  = 1.4771 GiB
+    max_vmrss_kB     1,548,664
+    max_rssanon_kB   1,543,040  = 99.64% anonymous
+    max_rssfile_kB       5,336
+    rss_samples          6,592
+
+48,460 kB above r3's 1,500,212 kB on the same cached path. The in-memory prefix
+snapshot is 46,683,597 B = 45,589 kB, which accounts for 94% of the difference.
+**Consistent, not established** — nothing here isolates it.
+
+**OTHER CONDITIONS.**
+
+    uptime_s     before 1572.98   after 5122.48
+    memavail_kB  before 2,332,040 after 2,477,280   (after = child exited)
+    memfree_kB   before 1,260,944 after 1,658,484
+    swapfree_kB  before   667,132 after   662,268
+    cached_kB    before 1,230,620 after 1,040,276
+    pswpin       before   110,201 after   130,969
+    pswpout      before   733,248 after   778,774
+    pgmajfault   before   123,500 after   144,692
+    ZRAM         544,888K physical for 2,283,776K in swap (3,145,724K total)
+
+### WHAT S1 DOES NOT SAY
+
+**One row, once.** Sixty turns, one boot, one handset, no error bars, nothing
+reproduced. **The hour was 7.84% busy** — 4.7 s of work then 55 s of idle, sixty
+times — so it says nothing about continuous use, which is what S2 asks. The X1
+ceiling dipped to 65.17% inside it and recovered every time; that recovery is
+what the gap buys, and S2 removes it.
+
+**`survived` is at `oom_score_adj 200`, which is an imitation and the margin was
+never tested.** This was a shell process launched over adb with its adj raised
+by the wrapper, not a foreground service started from a boot broadcast. The two
+processes the killer took were at 945 and 935 — the cached band — so **the
+killer never came near 200.** S-B1 passed without the question being pressed.
+
+**The prefix is the same 20 tokens every turn and the model never sees its own
+output.** Every turn begins from an identical 407-token state, so nothing tests
+a growing conversation, a longer prompt, or a context that fills. The KV cache
+is restored, never extended.
+
+**Nothing was judged for quality, and sixty identical answers are not sixty
+answers.** All sixty generations are byte-identical by construction — that is
+what `fnv_all_equal=1` means. The only text sample on this model, from S0, gets
+two of its three facts about Canberra wrong.
+
+**Battery temperature is not SoC temperature**, and an hour at 100% on AC says
+nothing about a phone on battery. On the 6a; the 7a re-measures anything that
+fails here. **No prediction is scored in this entry** — the scorecard belongs to
+the closing entry, after S2.
+
+### S2 — `q17_s2_b2b_15m`. TWO HUNDRED TURNS BACK TO BACK. Figures only.
+
+    GATE PASSED x1=2802000 a76=2253000 uptime_s=5445.44 wallclock=14:48:19
+
+Conditions read in the SAME invocation as the gate and the launch: `AC powered:
+true`, `status: 2`, `level: 100`, `temperature: 330`, `mWakefulness=Awake`,
+`screen_off_timeout=30000`, `stay_on_while_plugged_in=15`, phone UNLOCKED.
+`c0`, `-t 2`, `-c 1024`, `-lm none`, `-n 64`, `--load-state q17_state.bin`,
+`--turns 200 --interval-s 0`.
+Ran uptime 5445.52 -> 7007.03 = **1,561.51 s = 26.03 min.**
+
+    rc                       0
+    turns_done               200 of 200 requested, turns_overrun=0
+    oom_score_adj_child      pre=-1000  post=200
+    lmk_kill_lines           0
+    SwapFree min             708,248 kB at uptime 6166.45  (22.51% of SwapTotal)
+    contamination rule       DID NOT TRIP
+    survived                 YES -- rc=0, turns_done==200, zero kills, oom
+                             post=200 printed
+
+**Contamination.** `Cached` 1,046,980 -> 1,015,764, a fall of **31,216 kB
+against a model of 1,081,454 kB** — 2.9%. `SwapFree` never below 708,248 kB =
+22.51%, floor 314,572 kB. Neither limb met. **ZERO kills, with `MemAvailable`
+before the row 2,313,308 kB.**
+
+    PENNYLOAD prefix_snapshot_bytes=46683597 got=46683597 t_snapshot_ms=17.40
+    PENNYLOAD turns=200 interval_s=0 n_gen_per_turn=64
+    PENNYLOAD turns_done=200 turns_requested=200 turns_overrun=0 fnv_all_equal=1
+    PENNYLOAD first_token_id=32313 token_fnv1a64=0xcba17a2fcbba49f4   (turn 1)
+    PENNYLOAD ttft_turn_ms   min=404.58 median=876.49 max=933.30
+    PENNYLOAD gen_tps        min=8.06 median=9.09 max=15.04
+    PENNYLOAD quarters       n_per_quarter=50  q1=turns 1-50  q4=turns 151-200
+    PENNYLOAD SETTLED ttft_turn_ms q1_median=870.88 q4_median=897.01 decline_pct=3.00
+    PENNYLOAD SETTLED gen_tps      q1_median=9.22  q4_median=8.24  decline_pct=10.64
+    PENNYLOAD SETTLED gen_tps_turn1=15.04 settled_pct_of_turn1=54.77
+    PENNYLOAD DUTY busy_median_ms=7806.34 interval_ms=0 duty_pct=-1.00
+
+`duty_pct=-1.00` is the sentinel for `interval_ms=0`; duty is 100% by
+construction on this row. `turns_overrun=0` is likewise definitional with no
+interval and carries no information here.
+
+**PER-TURN TABLE — first five, every twentieth, last five.**
+
+       k  uptime_s  t_restore  t_user_dec  ttft_turn    gen_ms  gen_tps   busy_ms
+       1   5449.65      11.62      392.22     404.58   4188.53    15.04   4593.16
+       2   5454.25       7.99      406.29     414.49   4402.00    14.31   4816.54
+       3   5459.06      10.00      438.72     448.93   4432.03    14.21   4881.00
+       4   5463.94       8.06      449.75     458.02   4504.75    13.99   4962.82
+       5   5468.91       8.79      465.70     474.70   4615.48    13.65   5090.23
+      20   5554.03      12.25      614.70     627.22   5231.76    12.04   5859.03
+      40   5705.91      11.84      857.38     869.67   6837.69     9.21   7707.41
+      60   5860.74      13.36      860.55     874.36   6887.42     9.15   7761.85
+      80   6016.05      17.05      857.45     874.89   6936.91     9.08   7811.87
+     100   6171.62      14.35      864.82     879.62   7005.76     8.99   7885.43
+     120   6329.01      15.00      864.94     880.39   7209.31     8.74   8089.76
+     140   6490.44      15.24      862.54     878.22   7172.81     8.78   8051.10
+     160   6654.48      16.67      893.62     910.71   7480.93     8.42   8391.71
+     180   6824.96      21.40      884.98     906.83   7615.39     8.27   8522.27
+     196   6962.35      17.37      905.04     922.85   7740.06     8.14   8662.97
+     197   6971.02      20.03      896.16     916.59   7679.54     8.20   8596.21
+     198   6979.61      15.64      883.41     899.51   7818.63     8.06   8718.23
+     199   6988.33      17.39      902.17     919.99   7750.82     8.13   8670.88
+     200   6997.00      19.63      899.73     919.81   7623.53     8.26   8543.41
+
+    ttft_turn_ms  min 404.58  median 876.49  max 933.30
+    gen_tps       min   8.06  median   9.09  max  15.04
+    t_restore_ms  min   7.99  median  15.00  max  21.41
+    busy_ms       min 4593.16 median 7806.34 max 8718.23
+
+**ONE distinct `fnv` across all two hundred turns: `0xcba17a2fcbba49f4`.**
+Two hundred restores, `fnv_all_equal=1`, identical to S1, S0 and rows 1/2/3/5.
+
+**THE DECAY IS FRONT-LOADED AND THEN NEARLY FLAT.** `gen_tps` falls 15.04 ->
+9.21 over the first forty turns (turn 40 at uptime 5705.91, 260 s in), then
+9.21 -> 8.26 over the remaining 160 turns and 1,291 s. **Most of the loss
+happens in the first four minutes.**
+
+**S-A3, SCORED, WITH THE ARITHMETIC.**
+
+    settled = median of the LAST QUARTER = median of turns 151-200 = 8.24 t/s
+    turn 1                                                        = 15.04 t/s
+    8.24 / 15.04 = 0.5477   ->   54.77% of turn 1
+    FAIL CONDITION: settled BELOW 50% of turn 1
+    54.77% > 50%   ->   **PASS, by 4.77 percentage points**
+
+**The committed POINT was 80% of turn 1 with a band of 70-92%. Measured 54.77%
+is OUTSIDE that band, low.** The prediction was built from the cooled C-series,
+whose deepest matched pair (C5 against C6, unpinned, 4 threads) showed tg down
+18.87% at an X1 floor of 30.4% of rated — and from that a ~20% decline was
+predicted. **The measured decline against turn 1 is 45.2%.** The C-series rows
+were 52-247 s; this row was 1,561 s. **The arithmetic underestimated, and it
+underestimated because it extrapolated from rows an order of magnitude shorter.**
+Recorded as a band miss with the fail condition passed.
+
+**SERIES SUMMARY — 157 samples, uptime 5446.15 -> 7006.20.**
+
+    column            min                 at uptime      max                 at uptime
+    ceil_x1             984,000            5576.16       2,802,000            5446.15
+    ceil_a76            696,000            6946.47       2,253,000            5446.15
+    ceil_a55            738,000            5576.16       1,803,000            5446.15
+    MemAvailable_kB     865,388            5466.17       2,431,828            7006.20
+    MemFree_kB           86,488            6946.47       1,638,504            7006.20
+    SwapFree_kB         708,248            6166.45         853,500            5446.15
+    Cached_kB           999,776            5456.28       1,052,688            5446.15
+    VmRSS_kB              9,948            5446.15       1,548,932            6936.48
+    VmHWM_kB              9,948            5446.15       1,548,952            7006.20
+    pswpout             782,312            5446.15         823,319            6166.45
+    pgmajfault          195,923            5446.15         203,465            7006.20
+    batt_temp_dC            326            5476.34             407            6696.07
+    batt_level              100            5446.15             100            5446.15
+
+**LAST LINE OF THE SERIES, VERBATIM — AND IT IS A TEARDOWN SAMPLE, NOT AN
+END-OF-ROW SAMPLE:**
+
+    uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level
+    7006.20 984000 799000 738000 2431828 1638504 722584 1015764 156676 1548952 823319 203465 407 100
+
+`VmRSS` reads **156,676 kB** against a `VmHWM` of 1,548,952 — the process was
+already releasing memory when this sample was taken, which is why
+`MemAvailable` reads its maximum here. **The resident-state figure is the
+minimum, 865,388 kB at uptime 5466.17**, and S-B2 is not scored on this row.
+
+**THE CEILINGS, FROM BOTH SOURCES, AND THIS TIME THEY AGREE.**
+
+    PENNYBENCH ceil_x1_kHz     before 2,802,000  min 984,000  after 984,000
+    PENNYBENCH ceil_x1_min_at  uptime=5574.61   (129 s into the row)
+    PENNYBENCH ceil_a76_kHz    before 2,253,000  min 696,000  after 799,000
+    PENNYBENCH ceil_a76_min_at uptime=6943.69   (1498 s into the row)
+
+    series at rated:  X1    1 of 157 =  0.64%   series min   984,000 = 35.12%
+                      A76  96 of 157 = 61.15%   series min   696,000 = 30.89%
+                      A55  42 of 157 = 26.75%   series min   738,000 = 40.93%
+
+**The X1 ceiling reached its floor 129 seconds in and NEVER RECOVERED — the
+`after` reading is still 984,000.** S1's after-reading was 2,802,000. Only ONE
+of 157 samples read rated, and that was the first, taken before the model had
+loaded.
+
+**THE A55 CLUSTER THROTTLES. THIS IS THE FIRST TIME `policy0` HAS BEEN SEEN TO
+MOVE IN THIS REPO.** It fell to 738,000 kHz = 40.93% of its 1,803,000 rated
+clock, and spent 115 of 157 samples below rated — on a row where `taskset c0`
+scheduled nothing onto it. That is the same package-wide behaviour the 16 Sept
+cooled matrix found for `policy4`, now observed on the third cluster. S1, at
+7.84% duty, held all three at rated in every one of its 355 samples.
+
+**BATTERY TEMPERATURE — BATTERY, NOT SoC.**
+
+    start (first series sample, uptime 5446.15)   328 dC = 32.8 C
+    min                                           326 dC at uptime 5476.34
+    max                                           407 dC at uptime 6696.07
+    end (wrapper after-reading)                   407 dC = 40.7 C
+    dumpsys cross-check                           330 before, 406 after
+    slope start -> end   +79 dC over 1560.05 s  =  +0.304 C/min
+
+**Against S1's +0.0373 C/min: 8.2x the rate.** It reached its maximum at uptime
+6696.07, 1,250 s in, and held 407 for the last 310 s — so it was levelling off,
+not still climbing, by the end.
+
+**PEAK RSS AND OTHER CONDITIONS.**
+
+    peak_rss_kB      1,548,952   = 1.4772 GiB   (S1: 1,548,672 -- 280 kB apart)
+    max_rssanon_kB   1,544,036   = 99.68% anonymous
+    max_rssfile_kB       4,804
+    rss_samples          2,785
+    uptime_s     before 5445.52   after 7007.03
+    memavail_kB  before 2,313,308 after 2,438,028   (after = child exited)
+    swapfree_kB  before   853,500 after   722,584
+    cached_kB    before 1,046,980 after 1,015,764
+    pswpin       before   182,186 after   189,535
+    pswpout      before   782,312 after   823,319
+    pgmajfault   before   195,922 after   203,465
+    ZRAM         536,136K physical for 2,404,708K in swap (3,145,724K total)
+
+**THE ROW TOOK 26.03 MINUTES AGAINST A PREDICTED 15-19.** The prediction was
+200 turns at a predicted settled 5.62 s each = 1,124 s; measured median
+`busy_ms` is 7,806.34 and the row ran 1,561.51 s. **Outside the band, high**,
+and for the same reason S-A3 missed low: the throttling is deeper than the
+C-series extrapolation allowed for.
+
+### WHAT S2 DOES NOT SAY
+
+**One row, once**, on one boot, one handset, no error bars, nothing reproduced.
+**It is the opposite extreme from S1, not a midpoint** — 100% duty for 26
+minutes is as unrealistic a conversation as 7.84% duty is undemanding, and the
+product shape is somewhere between them and is untested.
+
+**Zero kills does not mean a resident model is free.** The row started with
+`MemAvailable` 2,313,308 kB on a boot that had already killed two processes
+during S1, so the cheap victims were partly spent — CLAUDE.md's own rule says a
+kill count is meaningless without that context, and this one is flattered by it.
+
+**`survived` is again at `oom_score_adj 200` and again untested**, because
+nothing was killed at all.
+
+**The thermal figure is a battery figure.** `/sys/class/thermal/` is unreadable
+to the shell user, so what the SoC did is unknown, and 40.7 C on the battery
+after 26 minutes at 100% duty on AC with the screen on says nothing about the
+same work on battery with the screen off.
+
+**Every generation is byte-identical by construction** and no output was judged.
+The prefix is the same 407 tokens and the turn the same 20 tokens, two hundred
+times; nothing tests a growing context. On the 6a.
+
+### CEILING RECOVERY AFTER A 1,561 s LOAD — A READING, ONE BOOT, NOT A BASELINE. And it is a weak one.
+
+Sampling was armed immediately after S2 to read both ceilings and battery
+temperature every 10 s until `policy6` read 2,802,000 AND `policy4` read
+2,253,000. **It produced exactly ONE sample, and all three clusters were
+already at rated in it:**
+
+    uptime_s=7906.21 wallclock=15:29:20 x1=2802000 a76=2253000 a55=1803000 batt_temp_dC=321
+
+    S2's AFTER reading   uptime 7019.81   wallclock 15:14:33
+    first sample         uptime 7906.21   wallclock 15:29:20
+    elapsed                886.40 s = 14.77 min
+
+**THIS IS AN UPPER BOUND AND NOTHING MORE.** Both clusters had already
+recovered when the first sample was taken, so the only true statement is that
+recovery took **at most 886.40 s**. Neither the time each cluster returned nor
+the shape of the curve was observed.
+
+**AND THE 886.40 s IS ITSELF UNRELIABLE AS A BOUND.** The loop was armed at
+about 15:17 and its first sample is stamped 15:29:20 — a gap of roughly twelve
+minutes that is **not explained here and should not be guessed at.** Had the
+loop run when it was armed, the bound would have been ~150-180 s instead, and
+whether both clusters were already rated at that point is unknown. **So the
+figure to carry forward is: recovery from a 1,561 s row completed within
+886.40 s, and the repo's only other datum remains 16 Sept's 109.8 s from a 65 s
+load.** Nothing here refines it.
+
+Battery over the same window: **407 dC at S2's close -> 321 dC at 15:29:20 ->
+317 dC at 15:30:14**, i.e. 40.7 C to 31.7 C in about 16 minutes at idle on AC.
+
+## 2026-09-18 — BRIEF S, CLOSED. A resident model with a cached prefix answers once a minute for an hour with NO measurable decay; run back to back it loses 45% of its speed in the first four minutes and then holds. Every row survived; nothing was ever killed above adj 935.
+
+The closing entry for brief S. **Two measured rows, one boot, one model.**
+Everything below is quoted from a row entry by its tag, and every figure in
+those came from `out/<tag>.report`, `.bench` and `.series` on the phone.
+Nothing here is a new measurement.
+
+    boot 4   18 Sept, Qwen3-1.7B-Q4_K_M    q17_s0_regen (not a result row),
+                                           q17_s1_conv_60m, q17_s2_b2b_15m
+    S3       NOT RUN -- Matt's call, not taken
+
+Both rows `rc=0`, both gated on `policy6` = 2,802,000 AND `policy4` = 2,253,000
+in the launching invocation, both `c0`, `-t 2`, `-c 1024`, `-lm none`, `n_ctx`
+1024, `-n 64`, greedy, `chat_template=NONE`, `--load-state q17_state.bin`.
+AC power, screen on, unlocked, app `pm disable-user`'d, `Running VMs: []`.
+**Neither row met the contamination condition on either limb.**
+
+### THE SCORECARD
+
+**The brief named NINE conditions; I committed SEVEN further point estimates
+alongside them. Sixteen in all, not twelve.** All sixteen are below; none has
+been moved, and the three that miss their band are marked as misses even where
+the fail condition passes.
+
+    #     prediction                        point    band          fail if        measured        verdict      band
+    ----  --------------------------------  -------  ------------  -------------  --------------  -----------  ------
+    S-A1  S1 ttft_turn settled decline       3%      0-8%          > 25%          -0.44%          PASS         MISS
+    S-A2  S1 gen_tps settled decline         3%      0-8%          > 25%          -0.20%          PASS         MISS
+    S-A3  S2 gen_tps settled / turn 1       80%      70-92%        < 50%          54.77%          PASS         MISS
+    S-A4  fnv_all_equal on every row          1      --            any 0          1 and 1         PASS         n/a
+    S-B1  S1 survives                       yes      --            otherwise      YES             PASS         n/a
+    S-B2  MemAvailable, end of S1      ~900,000 kB   0.6-1.4 GB    kills past     932,128 kB      PASS         HIT
+                                                                   minute 5       none past 4 s   PASS
+    S-B3  SwapFree through S1          ~650,000 kB   0.4-1.0 GB    < 314,572      623,100 kB      PASS         HIT
+    S-C1  X1 at rated, S1 series           97%       >= 95%        --             100.00%         PASS         HIT
+    S-C2  battery temperature          no prediction --            --             reported        n/a          n/a
+    ----  derived point estimates, committed in the same entry
+    D1    ttft_turn, S1 turn 1             0.39 s    0.33-0.50 s   --             380.40 ms       --           HIT
+    D2    turn busy time, S1               4.57 s    4.0-5.5 s     --             4704.43 ms      --           HIT
+    D3    S1 duty                           7.6%     --            --             7.84%           --           HIT
+    D4    S2 duration                        17 min  15-19 min     --             26.03 min       --           **MISS**
+    D5    prefix_snapshot_bytes      ~46,684,000 B   46.0-47.0 MB  --             46,683,597 B    --           HIT
+    D6    t_snapshot_ms                      12 ms   5-25 ms       --             19.61 / 17.40   --           HIT
+    D7    t_restore per turn                 15 ms   8-25 ms       --             15.86 / 15.00   --           HIT
+
+**EVERY FAIL CONDITION PASSED. FOUR BANDS MISSED: S-A1, S-A2, S-A3 and D4.**
+
+S-A1 and S-A2 miss **below** their bands — I predicted a 3% decline over the
+hour and measured a slight improvement, so the band was wrong in the direction
+of pessimism and the fail condition was never in danger.
+
+**S-A3 and D4 miss for the same reason and it is the substantive error in this
+brief.** S-A3's 80% point came from the cooled C-series' deepest matched pair
+(C5 against C6: tg down 18.87% at an X1 floor of 30.4% of rated), and D4's 17
+minutes came from assuming that decline. **Those C rows were 52-247 s; S2 ran
+1,561 s.** Extrapolating across an order of magnitude in duration underestimated
+the throttling: measured decline against turn 1 is **45.2%**, not ~20%, and the
+row took **26.03 min**, not 17. S-A3 still passes because 54.77% clears the 50%
+floor — **by 4.77 percentage points.**
+
+**S-A4 is the one I would most have wanted to fail and it did not.** `gen_tps`
+and TTFT are timings and could drift for a dozen reasons; the fnv is a
+correctness check. `0xcba17a2fcbba49f4` on all 60 of S1's turns and all 200 of
+S2's — **260 in-memory state restores in two processes, no residue** — and the
+same value r1, r2, r3, r5 and S0 produced, on two binaries and three boots.
+
+### S-A, ANSWERED: "does the per-turn TTFT and tok/s settle at a floor or keep falling"
+
+**At one turn a minute: they do not fall at all.** Over 60 turns and 59.16
+minutes at 7.84% duty:
+
+    SETTLED ttft_turn_ms  q1_median 355.16   q4_median 353.61   decline -0.44%
+    SETTLED gen_tps       q1_median  14.49   q4_median  14.52   decline -0.20%
+    ttft_turn_ms  min 345.04  median 354.39  max 391.12
+    gen_tps       min  14.09  median  14.49  max  15.17
+
+The last quarter of the hour was **fractionally faster** than the first.
+Turn 60 ran at 14.26 t/s against turn 1's 15.17.
+
+**Back to back they fall hard, fast, and then very nearly settle.** Over 200
+turns and 26.03 minutes at 100% duty:
+
+    turn   1   gen_tps 15.04      turn  40   9.21   (260 s in)
+    turn  60         9.15         turn 100   8.99
+    turn 140         8.78         turn 200   8.26
+    SETTLED gen_tps  q1_median 9.22  q4_median 8.24  decline 10.64%
+    settled / turn 1 = 8.24 / 15.04 = 54.77%
+
+**15.04 -> 9.21 over the first 40 turns and 260 seconds; 9.21 -> 8.26 over the
+remaining 160 turns and 1,291 seconds.** 87% of the total loss happens in the
+first 17% of the row. So the answer is **"falls, then settles"** — it does reach
+a floor, and the floor is a little over half the cool figure.
+
+TTFT tracks it: 404.58 ms on turn 1, 876.49 ms median, 933.30 ms max.
+
+### S-B, ANSWERED: "what does the phone do to memory over that hour"
+
+**S1, the hour.** `MemAvailable` 2,269,872 kB at the first series sample (model
+not yet loaded) -> **932,128 kB at the last**, minimum 911,212 kB at uptime
+4523.19. `SwapFree` 667,132 -> minimum 623,100 (19.81% of `SwapTotal`) ->
+662,268. `Cached` fell 190,344 kB against a 1,081,454 kB model — 17.6%, nowhere
+near the contamination threshold. **`VmRSS` moved 2,756 kB across the whole
+hour**, 1,545,896 to 1,548,652. Peak RSS 1,548,672 kB = 1.4771 GiB, 99.64%
+anonymous.
+
+**Kills: two processes, both in the first four seconds, both at model load.**
+`.ShannonImsService` at `oom_score_adj 945` and `com.shannon.rcsservice` at
+`935`, reason `min watermark is breached`, with `MemAvailable` before the row
+2,332,040 kB. **Zero kills in the remaining 59 minutes.**
+
+**S2, the quarter-hour at full duty: ZERO kills**, `SwapFree` minimum 708,248
+(22.51%), `MemAvailable` minimum 865,388, `Cached` down 31,216 kB (2.9% of the
+model). Peak RSS 1,548,952 kB — **280 kB from S1's**, across a completely
+different duty cycle.
+
+**WHAT "SURVIVED AT adj 200" ESTABLISHES, AND WHAT IT DOES NOT.** Both rows met
+the committed definition in full: `rc=0`, `turns_done == --turns`, no kill line
+naming `pennyload`, and `oom_score_adj_child post=200` printed and read back
+off `/proc`. **That establishes that the wrapper's raise works, that the process
+ran to completion at a foreground-service-band adj, and that nothing in 86
+minutes of resident 1.47 GiB caused the killer to reach it.**
+
+**It does NOT establish that the process would survive pressure.** The deepest
+the killer went on either row was **adj 935**, and it stopped after two cached
+processes four seconds into S1. **It never came within seven hundred points of
+200.** S-B1 passed without the question being pressed, and the honest statement
+is "the phone never tried", not "our process withstood it". 3g-ii's 2 GB VM
+drove the killer to adj 201; a 1.47 GiB resident model on this boot drove it to
+935.
+
+### S-C, ANSWERED: the ceilings and the battery
+
+**BETWEEN TURNS, at one a minute, the clock is at rated — with one figure that
+must always travel beside it.**
+
+    S1  series:     X1 355 of 355 samples at 2,802,000 = 100.00%
+                    A76 100.00%   A55 100.00%
+        poll loop:  X1 min 1,826,000 = 65.17% of rated, at uptime 3440.91,
+                    1868 s into the row; after-reading 2,802,000
+
+**The 10-second series says the X1 pair never left rated; the 0.2-second poll
+caught it at 65.17% half an hour in.** The dip is real and shorter than ten
+seconds. **"100.00% at rated" is a fact about the sampling rate, not about the
+clock**, and this repo must not quote it alone. What it does show is that 55
+seconds of idle fully restores the ceiling before the next turn — which is the
+thing S-C1 asked.
+
+**BACK TO BACK, THE FLOOR IS REACHED IN TWO MINUTES AND NEVER LEFT, AND THE A55
+CLUSTER THROTTLES.**
+
+    S2  poll loop:  X1  min 984,000 = 35.12%, at 129 s in; AFTER still 984,000
+                    A76 min 696,000 = 30.89%, at 1498 s in; after 799,000
+        series:     X1    1 of 157 at rated =  0.64%   (that one was sample 1)
+                    A76  96 of 157          = 61.15%
+                    A55  42 of 157          = 26.75%, min 738,000 = 40.93%
+
+**`policy0` throttles. This is the first time it has been observed to move in
+this repo** — CLAUDE.md has twice named it as never sampled during a row. It
+fell to 40.93% of its 1,803,000 rated clock and spent 115 of 157 samples below
+rated **on a row where `taskset c0` scheduled nothing onto it at all.** That is
+the package-wide limiter the 16 Sept cooled matrix found on `policy4`, now seen
+on the third cluster, and it is the direct evidence for "the limiter acts across
+the package, not per cluster".
+
+**S2's X1 ceiling never recovered inside the row**: its `after` reading is
+984,000 where S1's was 2,802,000.
+
+**BATTERY TEMPERATURE — BATTERY, NOT SoC.** `/sys/class/thermal/` is
+`Permission denied` to the shell user on this build, so no SoC temperature
+exists anywhere in this brief.
+
+    row   start      min              max              end     slope
+    S1    306 dC     301 at 1703.28   328 at 5113.08   328 dC  +0.0373 C/min
+    S2    328 dC     326 at 5476.34   407 at 6696.07   407 dC  +0.304 C/min
+
+**S2 heats 8.2x faster than S1**, and reached 40.7 C at 1,250 s in and held
+there for the final 310 s — levelling off, not still climbing. S1 *fell* for its
+first two minutes, still shedding the reboot's heat. `dumpsys battery` agreed
+within 1-3 dC at every check and **lagged sysfs**, updating on broadcasts.
+
+### WHAT BRIEF S DOES NOT SAY
+
+**One boot, one handset, one model, one row each.** No error bars, nothing
+reproduced, and S1 and S2 ran consecutively on the same boot so S2 inherited
+whatever S1 left.
+
+**The two rows are the extremes, and the product is between them.** 7.84% duty
+and 100% duty. A real assistant is neither. **Nothing here measures the shape in
+between**, and S-A3's answer — settles at 54.77% — is a fact about back-to-back
+work, not about a phone someone talks to.
+
+**The user turn is the same 20 tokens, 260 times, and the context never grows.**
+Every turn restores an identical 407-token prefix; the model never sees its own
+output, never continues a conversation, and the KV cache is never extended.
+**A growing context is untested and is the obvious next thing.**
+
+**No output was judged, and 260 identical answers are not 260 answers.**
+`fnv_all_equal=1` means every generation was byte-identical by construction. The
+only text on this model in this brief, from S0, gets two of its three facts
+about Canberra wrong.
+
+**No STT and no TTS, and no second model in memory.** The bake-off — Kokoro-82M
+and `kokoro-onnx` int8 under sherpa-onnx, with STT and the LLM resident
+together — is the next item and nothing here touches it. This measured ONE model
+holding 1.47 GiB.
+
+**Battery temperature is not SoC temperature. AC power is not battery.** Both
+rows ran at 100% charge on mains with the screen on. What this silicon does on
+battery, with the screen off, is unmeasured.
+
+**`oom_score_adj 200` is an imitation of a foreground service, not one.** These
+were shell processes launched over adb with their adj raised by the wrapper, not
+services started from a boot broadcast. **And the killer never approached 200**
+— it stopped at 935.
+
+**Nothing ran at boot.** The unattended wake path of rungs 3, 3b and 3d and
+these sustained figures have still never been run together.
+
+**Zero kills on S2 is flattered by S1.** S2 began on a boot that had already
+killed two processes, so the cheap victims were partly spent — the repo's own
+rule says a kill count means nothing without `MemAvailable` before it, and S2's
+2,313,308 kB came partly from S1's casualties.
+
+**A day is not an hour, and S3 was not run.** Whether the conversational shape
+recovers after S2, or whether the boot is spent, is untested and was Matt's call
+not to spend.
+
+On the 6a; the 7a re-measures anything that fails here.

@@ -47,6 +47,33 @@
 // inside the TTFT-resident-cached window and a real cached path would not do
 // that work. The restored token count comes from the state file instead.
 //
+// LOOP MODE, added 18 Sept for brief S (the sustained run). --turns <n> with
+// n > 1 changes nothing above the point where the prefix is in place. From
+// there the prefix is snapshotted ONCE into memory
+// (llama_state_get_size / llama_state_get_data) and every turn is restored
+// from that snapshot, so turn 60 begins from the same state as turn 1.
+//
+//   ttft_turn_k = restore + user decode (tokenize included) + first sample
+//   gen_tps_k   = (n-1) decodes / gen_ms -- the SAME divisor as the
+//                 single-turn path below, see the gen_tps printf
+//
+// WITH --turns UNSET (or 1) THE SINGLE-TURN PATH IS UNCHANGED. The loop is a
+// branch taken before T9b; nothing on the single-turn path was rewritten, and
+// the report it prints is byte-for-byte what it printed before -- the common
+// half is now a lambda called by both modes with rc=0 from the single-turn
+// caller, which is the only value it ever passed.
+//
+// WHY state_set_data AND NOT llama_memory_seq_rm. Partial seq_rm IS
+// implemented on recurrent memory at 38a5b42d9
+// (src/llama-memory-recurrent.cpp:161-216), but it is bounded by n_rs_seq,
+// single-use, and returns false rather than throwing -- so a row could change
+// shape part-way with nothing raised. A whole-context restore calls
+// clear(true) first (src/llama-kv-cache.cpp:2157-2160), so the cache is
+// emptied before the snapshot is written back, and it is the exact path Q-B
+// measured at rows 3, 5 and 8. llama_state_set_data does NOT wrap its callee
+// in try/catch the way llama_state_load_file does, so every call here is
+// wrapped.
+//
 // NO CHAT TEMPLATE IS APPLIED. Both prompt files are tokenised verbatim. The
 // tokenize flags used for each are printed in every row.
 
@@ -59,12 +86,52 @@
 #include <string>
 #include <vector>
 #include <ctime>
+#include <cerrno>
+#include <algorithm>
 #include <sys/stat.h>
 
 static double now_ms(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (double) ts.tv_sec * 1000.0 + (double) ts.tv_nsec / 1e6;
+}
+
+// Seconds since boot, so every turn line can be placed against pennybench.sh's
+// time series and against the kill timeline without arithmetic on wall clock.
+static double uptime_s(void) {
+    FILE * f = fopen("/proc/uptime", "r");
+    if (f == NULL) { return -1.0; }
+    double u = -1.0;
+    if (fscanf(f, "%lf", &u) != 1) { u = -1.0; }
+    fclose(f);
+    return u;
+}
+
+static void sleep_ms(double ms) {
+    if (ms <= 0.0) { return; }
+    struct timespec ts;
+    ts.tv_sec  = (time_t) (ms / 1000.0);
+    ts.tv_nsec = (long) ((ms - (double) ts.tv_sec * 1000.0) * 1e6);
+    while (nanosleep(&ts, &ts) == -1 && errno == EINTR) { }
+}
+
+// Median over an even-sized set is the mean of the two middle values. Fixed in
+// notes.md before any row so the arithmetic cannot be chosen afterwards.
+static double median_of(std::vector<double> v) {
+    if (v.empty()) { return -1.0; }
+    std::sort(v.begin(), v.end());
+    const size_t n = v.size();
+    return (n % 2) ? v[n / 2] : 0.5 * (v[n / 2 - 1] + v[n / 2]);
+}
+
+static double min_of(const std::vector<double> & v) {
+    if (v.empty()) { return -1.0; }
+    return *std::min_element(v.begin(), v.end());
+}
+
+static double max_of(const std::vector<double> & v) {
+    if (v.empty()) { return -1.0; }
+    return *std::max_element(v.begin(), v.end());
 }
 
 struct load_marks {
@@ -146,6 +213,8 @@ static void usage(const char * argv0) {
         "  -lm <mode>          auto|none|mmap|mlock|mmap+mlock|dio (default none)\n"
         "  --extra-bufts <0|1> use_extra_bufts (weight repack)  (default 1)\n"
         "  -n <n>              TOTAL tokens to generate        (default 1)\n"
+        "  --turns <n>         turns off one in-memory prefix snapshot (default 1)\n"
+        "  --interval-s <s>    seconds between TURN STARTS     (default 0)\n"
         "  --sys-file <path>   system prompt, read verbatim\n"
         "  --user-file <path>  user turn, read verbatim\n"
         "  --save-state <path> write state after the system prompt is decoded\n"
@@ -170,6 +239,8 @@ int main(int argc, char ** argv) {
     int  n_batch      = 2048;
     int  n_ubatch     = 512;
     int  n_gen        = 1;
+    int  n_turns      = 1;
+    int  interval_s   = 0;
     int  extra_bufts  = 1;
     bool do_print     = false;
 
@@ -182,6 +253,8 @@ int main(int argc, char ** argv) {
         else if (strcmp(a, "-ub") == 0 && i + 1 < argc) { n_ubatch   = atoi(argv[++i]); }
         else if (strcmp(a, "-n")  == 0 && i + 1 < argc) { n_gen      = atoi(argv[++i]); }
         else if (strcmp(a, "-lm") == 0 && i + 1 < argc) { lm_str     = argv[++i]; }
+        else if (strcmp(a, "--turns")      == 0 && i + 1 < argc) { n_turns    = atoi(argv[++i]); }
+        else if (strcmp(a, "--interval-s") == 0 && i + 1 < argc) { interval_s = atoi(argv[++i]); }
         else if (strcmp(a, "--extra-bufts") == 0 && i + 1 < argc) { extra_bufts = atoi(argv[++i]); }
         else if (strcmp(a, "--sys-file")    == 0 && i + 1 < argc) { sys_path    = argv[++i]; }
         else if (strcmp(a, "--user-file")   == 0 && i + 1 < argc) { user_path   = argv[++i]; }
@@ -202,6 +275,8 @@ int main(int argc, char ** argv) {
         return 2;
     }
     if (n_gen < 1) { n_gen = 1; }
+    if (n_turns < 1) { n_turns = 1; }
+    if (interval_s < 0) { interval_s = 0; }
 
     // Tokenize flags, fixed here and printed with every row so a later reader
     // does not have to guess which prompt got a BOS.
@@ -304,6 +379,261 @@ int main(int argc, char ** argv) {
         }
     }
 
+    // The half of the report that both modes print, identical in both. Moved
+    // into a lambda on 18 Sept; `rc` is the only thing added and the
+    // single-turn caller below passes 0, which is the only value the old code
+    // could ever have printed.
+    auto print_common = [&](int rc) {
+        const long model_bytes = file_bytes(model_path);
+        printf("PENNYLOAD tag=%s run_type=%s rc=%d\n", tag,
+               load_path != NULL ? "cached" : (save_path != NULL ? "fresh+save" : "fresh"), rc);
+        printf("PENNYLOAD model=%s model_bytes=%ld\n", model_path, model_bytes);
+        printf("PENNYLOAD threads=%d n_ctx=%d n_batch=%d n_ubatch=%d n_gpu_layers=99\n",
+               n_threads, n_ctx, n_batch, n_ubatch);
+        printf("PENNYLOAD load_mode=%s extra_bufts=%d sampler=greedy\n",
+               llama_load_mode_name(mparams.load_mode), extra_bufts);
+        printf("PENNYLOAD chat_template=NONE   (both prompt files tokenised verbatim; no template applied)\n");
+        printf("PENNYLOAD sys_file=%s sys_bytes=%ld sys_tokens=%d sys_add_special=%d sys_parse_special=%d\n",
+               sys_path != NULL ? sys_path : "(none)",
+               sys_path != NULL ? file_bytes(sys_path) : -1,
+               load_path != NULL ? -1 : (int) sys_tokens.size(),
+               SYS_ADD_SPECIAL ? 1 : 0, SYS_PARSE_SPECIAL ? 1 : 0);
+        printf("PENNYLOAD user_file=%s user_bytes=%ld user_tokens=%d user_add_special=%d user_parse_special=%d\n",
+               user_path, file_bytes(user_path), (int) user_tokens.size(),
+               USR_ADD_SPECIAL ? 1 : 0, USR_PARSE_SPECIAL ? 1 : 0);
+        printf("PENNYLOAD progress_calls=%d\n", marks.calls);
+
+        printf("PENNYLOAD t_backend_ms      %.2f   (T1-T0,  ggml_backend_load_all)\n",        T1  - T0);
+        printf("PENNYLOAD t_model_open_ms   %.2f   (T2-T1,  header+hparams+vocab+alloc)\n",   T2  - T1);
+        printf("PENNYLOAD t_tensor_band_ms  %.2f   (T3-T2,  tensor data read + repack)\n",    T3  - T2);
+        printf("PENNYLOAD t_model_tail_ms   %.2f   (T4-T3)\n",                                T4  - T3);
+        printf("PENNYLOAD t_model_total_ms  %.2f   (T4-T1,  llama_model_load_from_file)\n",   T4  - T1);
+        printf("PENNYLOAD t_ctx_create_ms   %.2f   (T5-T4,  llama_init_from_model)\n",        T5  - T4);
+        printf("PENNYLOAD t_ready_ms        %.2f   (T5-T0,  READY TO GENERATE)\n",            T5  - T0);
+        printf("PENNYLOAD t_tokenize_ms     %.2f   (T6-T5)\n",                                T6  - T5);
+        if (load_path != NULL) {
+            printf("PENNYLOAD t_state_load_ms   %.2f   (T7-T6)\n", T7 - T6);
+            printf("PENNYLOAD state_file=%s state_bytes=%ld state_tokens_restored=%d\n",
+                   load_path, state_bytes, (int) state_tokens_read);
+        } else {
+            printf("PENNYLOAD t_state_load_ms   n/a    (fresh run)\n");
+            printf("PENNYLOAD t_sys_decode_ms   %.2f   (T9a-T6, system-prompt llama_decode)\n", T9a - T6);
+        }
+        if (save_path != NULL) {
+            printf("PENNYLOAD t_state_save_ms   %.2f   (T8-T9a) == B4\n", T8 - T9a);
+            printf("PENNYLOAD state_file=%s state_bytes=%ld state_tokens_saved=%d\n",
+                   save_path, state_bytes, (int) sys_tokens.size());
+        } else if (load_path == NULL) {
+            printf("PENNYLOAD t_state_save_ms   n/a    (no --save-state)\n");
+            printf("PENNYLOAD state_file=(none) state_bytes=-1\n");
+        }
+    };
+
+    // ---------------- LOOP MODE (--turns > 1) ----------------
+    // Taken AFTER the prefix is in place and BEFORE T9b, so every line above is
+    // shared with the single-turn path and every line below it is untouched.
+    if (n_turns > 1) {
+        const double s0 = now_ms();
+        const size_t snap_size = llama_state_get_size(ctx);
+        std::vector<uint8_t> snapshot(snap_size);
+        size_t snap_got = 0;
+        try {
+            snap_got = llama_state_get_data(ctx, snapshot.data(), snapshot.size());
+        } catch (const std::exception & e) {
+            fprintf(stderr, "pennyload: llama_state_get_data threw: %s\n", e.what());
+            printf("PENNYLOAD tag=%s FAILED state_get_data\n", tag);
+            fflush(stdout);
+            return 3;
+        }
+        const double s1 = now_ms();
+        printf("PENNYLOAD prefix_snapshot_bytes=%zu got=%zu t_snapshot_ms=%.2f\n",
+               snap_size, snap_got, s1 - s0);
+        printf("PENNYLOAD turns=%d interval_s=%d n_gen_per_turn=%d\n",
+               n_turns, interval_s, n_gen);
+        fflush(stdout);
+        if (snap_got == 0) {
+            printf("PENNYLOAD tag=%s FAILED state_get_data_returned_0\n", tag);
+            fflush(stdout);
+            return 3;
+        }
+
+        const double interval_ms = (double) interval_s * 1000.0;
+        std::vector<double> ttft_all;
+        std::vector<double> tps_all;
+        std::vector<double> busy_all;
+        int      turns_done    = 0;
+        int      turns_overrun = 0;
+        bool     fnv_all_equal = true;
+        uint64_t fnv_first     = 0;
+        int      first_id_1    = 0;
+        std::string turn1_text;
+
+        // Every turn line is printed and FLUSHED as it is produced. A row that
+        // is killed at minute 40 still leaves forty minutes of turns in
+        // <tag>.bench -- which is the whole of the evidence if being killed IS
+        // the result.
+        for (int k = 1; k <= n_turns; k++) {
+            const double turn_start = now_ms();
+            const double up         = uptime_s();
+
+            const double r0 = now_ms();
+            size_t rd = 0;
+            try {
+                rd = llama_state_set_data(ctx, snapshot.data(), snapshot.size());
+            } catch (const std::exception & e) {
+                fprintf(stderr, "pennyload: llama_state_set_data threw on turn %d: %s\n", k, e.what());
+                printf("PENNYLOAD tag=%s FAILED state_set_data turn=%d\n", tag, k);
+                fflush(stdout);
+                break;
+            }
+            const double r1 = now_ms();
+            if (rd == 0) {
+                printf("PENNYLOAD tag=%s FAILED state_set_data_returned_0 turn=%d\n", tag, k);
+                fflush(stdout);
+                break;
+            }
+
+            // Tokenised every turn, inside the timed window, because a real
+            // per-turn path would. It is ~0.33 ms (r3's t_tokenize_ms) and it
+            // is what B2's 422.31 ms also contained, so the two compare.
+            std::vector<llama_token> ut = tokenize(vocab, user_text, USR_ADD_SPECIAL, USR_PARSE_SPECIAL);
+            if (ut.empty()) {
+                printf("PENNYLOAD tag=%s FAILED user_tokenize turn=%d\n", tag, k);
+                fflush(stdout);
+                break;
+            }
+            llama_batch ub = llama_batch_get_one(ut.data(), (int32_t) ut.size());
+            if (llama_decode(ctx, ub) != 0) {
+                printf("PENNYLOAD tag=%s FAILED user_decode turn=%d\n", tag, k);
+                fflush(stdout);
+                break;
+            }
+            const double r2 = now_ms();
+
+            llama_token cur = llama_sampler_sample(smpl, ctx, -1);
+            const double r3 = now_ms();
+
+            std::vector<llama_token> ids;
+            std::string txt;
+            char pc[256];
+            for (int i = 0; i < n_gen; i++) {
+                ids.push_back(cur);
+                if (k == 1 && do_print) {
+                    const int np = llama_token_to_piece(vocab, cur, pc, sizeof(pc), 0, true);
+                    if (np > 0) { txt.append(pc, (size_t) np); }
+                }
+                if (llama_vocab_is_eog(vocab, cur)) { break; }
+                if (i + 1 >= n_gen) { break; }
+                llama_batch nb = llama_batch_get_one(&cur, 1);
+                if (llama_decode(ctx, nb) != 0) {
+                    fprintf(stderr, "pennyload: generation decode failed on turn %d\n", k);
+                    break;
+                }
+                cur = llama_sampler_sample(smpl, ctx, -1);
+            }
+            const double r4 = now_ms();
+
+            const double   t_restore = r1 - r0;
+            const double   t_udec    = r2 - r1;   // tokenize + decode
+            const double   ttft      = r3 - r0;   // restore + user decode + first sample
+            const double   gen_ms    = r4 - r3;
+            const double   gen_tps   = (ids.size() > 1 && gen_ms > 0)
+                                     ? (double) (ids.size() - 1) * 1000.0 / gen_ms : 0.0;
+            const uint64_t fnv       = fnv1a_tokens(ids);
+
+            if (k == 1) {
+                fnv_first  = fnv;
+                first_id_1 = (int) ids[0];
+                turn1_text = txt;
+            } else if (fnv != fnv_first) {
+                fnv_all_equal = false;
+            }
+
+            const double busy_ms = now_ms() - turn_start;
+            const int    overrun = (interval_ms > 0.0 && busy_ms >= interval_ms) ? 1 : 0;
+            if (overrun) { turns_overrun++; }
+
+            printf("PENNYLOAD TURN k=%d uptime_s=%.2f t_restore_ms=%.2f t_user_decode_ms=%.2f "
+                   "ttft_turn_ms=%.2f gen_tokens=%d gen_ms=%.2f gen_tps=%.2f fnv=0x%016llx "
+                   "busy_ms=%.2f overrun=%d\n",
+                   k, up, t_restore, t_udec, ttft, (int) ids.size(), gen_ms, gen_tps,
+                   (unsigned long long) fnv, busy_ms, overrun);
+            fflush(stdout);
+
+            ttft_all.push_back(ttft);
+            tps_all.push_back(gen_tps);
+            busy_all.push_back(busy_ms);
+            turns_done = k;
+
+            if (k < n_turns) { sleep_ms(interval_ms - (now_ms() - turn_start)); }
+        }
+
+        // ---------------- REPORT ----------------
+        const int loop_rc = (turns_done == n_turns) ? 0 : 4;
+        print_common(loop_rc);
+
+        // Quarters and the even-set median convention are fixed in notes.md
+        // before any row ran; q is floor(turns_done / 4).
+        const int q = turns_done / 4;
+        std::vector<double> t_q1, t_q4, p_q1, p_q4;
+        if (q >= 1) {
+            t_q1.assign(ttft_all.begin(), ttft_all.begin() + q);
+            t_q4.assign(ttft_all.end()   - q, ttft_all.end());
+            p_q1.assign(tps_all.begin(),  tps_all.begin()  + q);
+            p_q4.assign(tps_all.end()    - q, tps_all.end());
+        }
+        const double t_m1 = median_of(t_q1), t_m4 = median_of(t_q4);
+        const double p_m1 = median_of(p_q1), p_m4 = median_of(p_q4);
+        const double tps1 = tps_all.empty() ? 0.0 : tps_all[0];
+
+        printf("PENNYLOAD turns_done=%d turns_requested=%d turns_overrun=%d fnv_all_equal=%d\n",
+               turns_done, n_turns, turns_overrun, fnv_all_equal ? 1 : 0);
+        printf("PENNYLOAD first_token_id=%d token_fnv1a64=0x%016llx   (turn 1)\n",
+               first_id_1, (unsigned long long) fnv_first);
+        printf("PENNYLOAD ttft_turn_ms   min=%.2f median=%.2f max=%.2f\n",
+               min_of(ttft_all), median_of(ttft_all), max_of(ttft_all));
+        printf("PENNYLOAD gen_tps        min=%.2f median=%.2f max=%.2f\n",
+               min_of(tps_all), median_of(tps_all), max_of(tps_all));
+        // A row that stops early can leave fewer than four turns, and then no
+        // quarter exists. Print that in words rather than printing median_of's
+        // -1.0 sentinel as though it were a figure -- which the 3-turn smoke
+        // test on 18 Sept did, alongside a settled_pct_of_turn1 of -7.86
+        // computed from it. S1 and S2 never reach here; a killed row can.
+        if (q >= 1) {
+            printf("PENNYLOAD quarters       n_per_quarter=%d  q1=turns 1-%d  q4=turns %d-%d\n",
+                   q, q, turns_done - q + 1, turns_done);
+            printf("PENNYLOAD SETTLED ttft_turn_ms q1_median=%.2f q4_median=%.2f decline_pct=%.2f   (positive = SLOWER)\n",
+                   t_m1, t_m4, t_m1 > 0.0 ? (t_m4 - t_m1) / t_m1 * 100.0 : 0.0);
+            printf("PENNYLOAD SETTLED gen_tps      q1_median=%.2f q4_median=%.2f decline_pct=%.2f   (positive = SLOWER)\n",
+                   p_m1, p_m4, p_m1 > 0.0 ? (p_m1 - p_m4) / p_m1 * 100.0 : 0.0);
+            printf("PENNYLOAD SETTLED gen_tps_turn1=%.2f settled_pct_of_turn1=%.2f\n",
+                   tps1, tps1 > 0.0 ? p_m4 / tps1 * 100.0 : 0.0);
+        } else {
+            printf("PENNYLOAD quarters       n/a   turns_done=%d is fewer than 4, so no quarter exists\n",
+                   turns_done);
+            printf("PENNYLOAD SETTLED ttft_turn_ms q1_median=n/a q4_median=n/a decline_pct=n/a   (turns_done=%d)\n",
+                   turns_done);
+            printf("PENNYLOAD SETTLED gen_tps      q1_median=n/a q4_median=n/a decline_pct=n/a   (turns_done=%d)\n",
+                   turns_done);
+            printf("PENNYLOAD SETTLED gen_tps_turn1=%.2f settled_pct_of_turn1=n/a   (turns_done=%d)\n",
+                   tps1, turns_done);
+        }
+        printf("PENNYLOAD DUTY busy_median_ms=%.2f interval_ms=%.0f duty_pct=%.2f\n",
+               median_of(busy_all), interval_ms,
+               interval_ms > 0.0 ? median_of(busy_all) / interval_ms * 100.0 : -1.0);
+
+        if (do_print) {
+            printf("--- text (turn 1) ---\n");
+            printf("%s\n", turn1_text.c_str());
+        }
+        fflush(stdout);
+
+        llama_sampler_free(smpl);
+        llama_free(ctx);
+        llama_model_free(model);
+        return loop_rc;
+    }
+
     // --- T9b: the user turn. Position needs no arithmetic: llama_batch_get_one
     //     leaves batch.pos null (llama-batch.cpp:931-943) and llama-batch.cpp:100
     //     then sets p0 = memory->seq_pos_max(s) + 1 from the restored memory.
@@ -333,50 +663,7 @@ int main(int argc, char ** argv) {
     const double T_gen_end = now_ms();
 
     // ---------------- REPORT ----------------
-    const long model_bytes = file_bytes(model_path);
-
-    printf("PENNYLOAD tag=%s run_type=%s rc=0\n", tag,
-           load_path != NULL ? "cached" : (save_path != NULL ? "fresh+save" : "fresh"));
-    printf("PENNYLOAD model=%s model_bytes=%ld\n", model_path, model_bytes);
-    printf("PENNYLOAD threads=%d n_ctx=%d n_batch=%d n_ubatch=%d n_gpu_layers=99\n",
-           n_threads, n_ctx, n_batch, n_ubatch);
-    printf("PENNYLOAD load_mode=%s extra_bufts=%d sampler=greedy\n",
-           llama_load_mode_name(mparams.load_mode), extra_bufts);
-    printf("PENNYLOAD chat_template=NONE   (both prompt files tokenised verbatim; no template applied)\n");
-    printf("PENNYLOAD sys_file=%s sys_bytes=%ld sys_tokens=%d sys_add_special=%d sys_parse_special=%d\n",
-           sys_path != NULL ? sys_path : "(none)",
-           sys_path != NULL ? file_bytes(sys_path) : -1,
-           load_path != NULL ? -1 : (int) sys_tokens.size(),
-           SYS_ADD_SPECIAL ? 1 : 0, SYS_PARSE_SPECIAL ? 1 : 0);
-    printf("PENNYLOAD user_file=%s user_bytes=%ld user_tokens=%d user_add_special=%d user_parse_special=%d\n",
-           user_path, file_bytes(user_path), (int) user_tokens.size(),
-           USR_ADD_SPECIAL ? 1 : 0, USR_PARSE_SPECIAL ? 1 : 0);
-    printf("PENNYLOAD progress_calls=%d\n", marks.calls);
-
-    printf("PENNYLOAD t_backend_ms      %.2f   (T1-T0,  ggml_backend_load_all)\n",        T1  - T0);
-    printf("PENNYLOAD t_model_open_ms   %.2f   (T2-T1,  header+hparams+vocab+alloc)\n",   T2  - T1);
-    printf("PENNYLOAD t_tensor_band_ms  %.2f   (T3-T2,  tensor data read + repack)\n",    T3  - T2);
-    printf("PENNYLOAD t_model_tail_ms   %.2f   (T4-T3)\n",                                T4  - T3);
-    printf("PENNYLOAD t_model_total_ms  %.2f   (T4-T1,  llama_model_load_from_file)\n",   T4  - T1);
-    printf("PENNYLOAD t_ctx_create_ms   %.2f   (T5-T4,  llama_init_from_model)\n",        T5  - T4);
-    printf("PENNYLOAD t_ready_ms        %.2f   (T5-T0,  READY TO GENERATE)\n",            T5  - T0);
-    printf("PENNYLOAD t_tokenize_ms     %.2f   (T6-T5)\n",                                T6  - T5);
-    if (load_path != NULL) {
-        printf("PENNYLOAD t_state_load_ms   %.2f   (T7-T6)\n", T7 - T6);
-        printf("PENNYLOAD state_file=%s state_bytes=%ld state_tokens_restored=%d\n",
-               load_path, state_bytes, (int) state_tokens_read);
-    } else {
-        printf("PENNYLOAD t_state_load_ms   n/a    (fresh run)\n");
-        printf("PENNYLOAD t_sys_decode_ms   %.2f   (T9a-T6, system-prompt llama_decode)\n", T9a - T6);
-    }
-    if (save_path != NULL) {
-        printf("PENNYLOAD t_state_save_ms   %.2f   (T8-T9a) == B4\n", T8 - T9a);
-        printf("PENNYLOAD state_file=%s state_bytes=%ld state_tokens_saved=%d\n",
-               save_path, state_bytes, (int) sys_tokens.size());
-    } else if (load_path == NULL) {
-        printf("PENNYLOAD t_state_save_ms   n/a    (no --save-state)\n");
-        printf("PENNYLOAD state_file=(none) state_bytes=-1\n");
-    }
+    print_common(0);
     printf("PENNYLOAD t_user_decode_ms  %.2f   (T9b-%s, user-turn llama_decode)\n",
            T9b - (T8 > 0 ? T8 : T9a), T8 > 0 ? "T8" : "T9a");
     printf("PENNYLOAD t_sample_ms       %.2f   (T10-T9b, llama_sampler_sample)\n",        T10 - T9b);
