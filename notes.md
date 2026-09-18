@@ -10991,3 +10991,351 @@ foreground, over adb, app disabled, no VM throughout. Two of the four rows
 returned zero kills and both are flattered by the nineteen this boot had already
 taken. And no output text was judged for quality on any row — all four stopped
 inside a `<think>` block at 64 tokens.
+
+## 2026-09-18 — Q-A AND Q-B, CLOSED. Twelve predictions, ELEVEN PASS and A3 fails low. A cached prefix takes the wake from 10.39 s to 4.10 s on Qwen3-1.7B, and 90% of what is left is the model load. The hybrid caches its prefix for less than half the bytes, and its B3 is NOT MEASURED.
+
+The closing entry for the row plan written 16 Sept at notes.md 8772. **Nine
+measured rows, three boots spent, one optional boot unspent.** Every figure
+below is quoted from a row entry by its tag and every one of those was read
+from `out/<tag>.report` and `out/<tag>.bench` on the phone. Nothing here is a
+new measurement and nothing is re-derived: where a row entry recorded a caveat,
+the caveat travels with the number.
+
+    boot 1  16 Sept, Qwen3-1.7B-Q4_K_M   q17_r1_cold_fresh, q17_r2_warm_fresh_save,
+                                         q17_r3_warm_cached, q17_r4_warm_nobufts
+    boot 2  16 Sept, Qwen3-1.7B          q17_r5_coldcache_cached
+    boot 3  18 Sept, Qwen3.5-2B-Q4_K_M   q35_r6_cold_fresh, q35_r7_warm_fresh_save,
+                                         q35_r8_warm_cached, q35_r9_warm_nobufts
+    boot 4  NOT SPENT                    q35_r10_coldcache_cached -- Matt's call,
+                                         default is not to spend it
+
+All nine rows `rc=0`, all nine gated on `policy6` = 2,802,000 AND `policy4` =
+2,253,000 in the launching shell invocation, all `c0`, `-t 2`, `-lm none`,
+`n_ctx` 1024, greedy, `chat_template=NONE`. **No row on any of the three boots
+met the contamination condition.**
+
+### THE SCORECARD — TWELVE PREDICTIONS, EACH AGAINST THE ROW IT WAS DEFINED ON
+
+    #   prediction                       point     band        measured      row    verdict
+    --  -------------------------------  --------  ----------  ------------  -----  --------
+    A1  1.7B cold load -> ready           4.2 s    3.0-6.0 s   4.0218 s      r1     PASS
+    A2  ... read + repack (T4-T1)         3.5 s    2.5-5.0 s   3.9821 s      r1     PASS
+    A3  ... context creation (T5-T4)      0.4 s    0.2-0.8 s   0.03662 s     r1     **FAIL, LOW**
+    A4  repack's share of A2               52%     40-65%      50.72%        r4/r2  PASS
+    A5  1.7B warm load, ratio to cold      3.2 s   fail >=90%  70.61%        r2     PASS
+                                                   or <=40%
+    A6  2B cold load -> ready             4.9 s    3.5-7.0 s   4.6656 s      r6     PASS
+    B1  TTFT fresh, resident, 427 tok     7.7 s    6.0-9.0 s   6.3691 s      r1     PASS
+    B2  TTFT cached, resident,            0.5 s    0.35-1.5 s  0.42231 s     r3     PASS
+        state + 20 tok
+    B3  TTFT cached, COLD PROCESS         4.9 s    3.5-8.5 s   4.0987 s      r5     PASS
+    B4  cost of saving state to disk     0.25 s    0.05-1.0 s  0.01791 s     r2     PASS
+    B5  state file size, 1.7B          45.9 MiB    40-60 MiB   44.523 MiB    r2     PASS
+    B6  state file size, 2B             ~25 MiB    10-60 MiB   24.117 MiB    r7     PASS
+
+**ELEVEN PASS, ONE FAILS.** A3 fails low by an order of magnitude and was
+already known to be failing before row 1 ran — the 16:50 smoke test read
+35.83 ms on the same `n_ctx` — and **it was deliberately left frozen rather
+than revised**, on the rule that a prediction written before the work is judged
+and not edited to fit. Creating a 1024-token KV cache on these models is tens of
+milliseconds, not hundreds.
+
+**A1's pass is partly arithmetic luck and the entry for r1 says so**: A2 came in
+482 ms above its point and A3 363 ms below its own, and the two nearly cancel
+inside the sum A1 is.
+
+**LABEL FIX, CARRIED IN FROM THE r9 ENTRY.** B2's row above reads "state +
+20 tok" because that is the prediction's own wording, written for Qwen3-1.7B.
+**On Qwen3.5-2B the same `penny_user.txt` is 21 tokens** (`user_tokens=21`, r6),
+so the 2B's B2-equivalent at r8 is a 21-token turn. The two files are byte-
+identical across both models; the vocabularies are not.
+
+**THE 2B's OWN THREE SCORES**, per the plan, which scores A6, B6 and r8's B2 on
+boot 3 and re-scores nothing from the 1.7B:
+
+    A6  r6  4.6656 s      PASS
+    B6  r7  24.117 MiB    PASS, and the directional claim held -- see below
+    B2  r8  0.39228 s     PASS  (B2-equivalent, 21-token turn)
+
+    B4-equivalent  r7  16.87 ms   inside B4's band, not a re-score of B4
+    A5-equivalent  r7  95.77%     FAILS HIGH -- and is NOT a boot-3 score
+    A4-equivalent  r9  45.47% or 65.68% -- NO VERDICT RECORDED
+
+**The last two are deliberately unscored and the reasons are in their own
+entries.** The A5-equivalent fails high on a row whose model file was not
+resident (`Cached` 1,122,352 kB against a 1,250,816 kB model, r7), which is
+consistent with a partially evicted file and is not established; the plan does
+not score A5 on boot 3 and no boot was spent chasing it. The A4-equivalent has
+two warm references twenty percentage points apart and r9 records the absence of
+a verdict as the finding rather than picking one.
+
+### THE ONE THAT WAS NOT A NUMBER: THE HYBRID'S STATE PATH
+
+The plan carried a standing branch — "**the whole of Q-B fails on Qwen3.5-2B**
+if `llama_state_save_file` or `llama_state_load_file` returns false on a hybrid
+model … reported as a hybrid's prefix cannot be cached at this commit, and
+nothing is patched to get around it." Eighteen of Qwen3.5-2B's twenty-four
+layers are recurrent.
+
+**BOTH RETURN TRUE. THE BRANCH IS NOT TAKEN.**
+
+    r7   state_bytes=25288618  state_tokens_saved=413      t_state_save_ms 16.87
+    r8   state_tokens_restored=413                         t_state_load_ms  9.58
+
+and the tokens prove the round trip rather than the return value doing it:
+
+    r6 (fresh)          first_token_id=3710  token_fnv1a64=0x19d53b5da9186ff6
+    r7 (fresh + save)   first_token_id=3710  token_fnv1a64=0x19d53b5da9186ff6
+    r8 (state loaded)   first_token_id=3710  token_fnv1a64=0x19d53b5da9186ff6
+
+**A restored hybrid prefix produces the same 64 tokens as a decoded one.** The
+same control holds on the dense model across four rows and two boots —
+`0xcba17a2fcbba49f4` on r1, r2, r3 and r5.
+
+### Q-A, ANSWERED: THE LOAD IS THE TENSOR BAND, AND THE TENSOR BAND IS MOSTLY REPACK
+
+    phase (ms)            1.7B cold   1.7B warm   2B cold   2B warm(r8)
+                             r1          r2         r6          r8
+    t_backend_ms              3.04        3.62       2.62        2.65
+    t_model_open_ms         398.49      364.13     769.44      758.47
+    t_tensor_band_ms       3581.59     2431.20    3863.26     2725.80
+    t_model_tail_ms           2.04        2.23       5.95        6.61
+    t_model_total_ms       3982.13     2797.56    4638.66     3490.87
+    t_ctx_create_ms          36.62       38.75      24.32       19.97
+    t_ready_ms             4021.78     2839.93    4665.60     3513.49
+
+**The tensor band is 89.0% of the cold load on the 1.7B (r1) and 82.8% on the
+2B (r6).** Context creation is 0.9% and 0.5% of them. `t_model_open_ms` nearly
+doubled between the two models — 398.49 (r1) to 769.44 (r6) — while the band
+grew 7.86%; r6 names the 2B's vocabulary as a suspect and records that nothing
+isolates it.
+
+**THE REPACK IS THE LARGER HALF OF THE BAND, MEASURED BY SWITCHING IT OFF:**
+
+    1.7B   r2 band (repack on, warm)   2431.20
+           r4 band (repack off, warm)   411.44
+           repack                      2019.76 ms  = **50.72% of A2** = A4, PASS
+                                                   = 83.08% of the warm band
+                                                   = 72.20% of the warm load
+
+    2B     r8 band (repack on, warm)   2725.80    r7 band  3663.29
+           r9 band (repack off)         616.72
+           repack                      2109.08 ms (vs r8) or 3046.57 (vs r7)
+                                       = 45.47%      or 65.68% of A2 -- NO VERDICT
+
+**And the file read, which is what a warm cache removes**, taken from the 1.7B
+only and resting on the plan's own premise that repack is CPU work and
+cache-independent:
+
+    r1 cold band 3581.59 - repack 2019.76  =  ~1561.83 ms for 1,056.13 MiB
+                                           =  ~676 MiB/s off UFS
+
+That subtraction crosses a cold row and a warm one, which is the direction the
+plan warns against for A4 and the reverse of it here; **it is an inference under
+a stated premise, not a measurement, and no prediction is scored on it.** The
+equivalent figure for the 2B cannot be given at all, because its repack term has
+two values.
+
+**THE STRUCTURAL HALF AGREES WITH THE TIME HALF, ON BOTH MODELS.** From the
+loaders' own buffer lines:
+
+    1.7B   r2  CPU 243.90 + CPU_REPACK 1049.96 = 1293.86 MiB   197 repack tensors
+           r4  CPU 1050.43, no CPU_REPACK                        0 repack tensors
+           file on disk                          1056.13 MiB
+           buffer excess over file               +237.73 MiB
+           peak RSS r2 - r4 = 1,541,012 - 1,289,416 kB = 245.70 MiB
+
+    2B     r6  CPU 399.94 + CPU_REPACK 1208.95 = 1608.89 MiB   187 repack tensors
+           r9  CPU 1211.05, no CPU_REPACK                        0 repack tensors
+           file on disk                          1221.50 MiB
+           buffer excess over file               +387.39 MiB
+           peak RSS r8 - r9 = 1,786,192 - 1,416,884 kB = 360.65 MiB
+
+**On both models the repack's cost in space shows up twice and the two witnesses
+agree** — 243.43 against 245.70 MiB on the 1.7B (2.27 MiB apart), 397.84 against
+360.65 MiB on the 2B (37.19 MiB apart, 9.3%). r9's peak RSS is quoted here only
+as that difference, per the rule the plan set for control rows, and neither
+model's gap is accounted for.
+
+### Q-B, ANSWERED: THE PREFIX CACHE REMOVES SIX SECONDS, AND WHAT IS LEFT IS THE MODEL LOAD
+
+**Every TTFT figure in the plan, by row, with what each one actually is:**
+
+    case                                        1.7B                2B
+    ----------------------------------------    ---------------     ---------------
+    fresh, model resident (T10-T6)              6369.12  r1 = B1     8168.95  r6
+    fresh + save, resident                      6319.51  r2          8397.71  r7
+    cached, resident, state file WARM (T10-T5)   422.31  r3 = B2      392.28  r8 = B2-eq
+    cached, resident, state file COLD            406.21  r5
+    cold process, fresh (T10-T0)               10394.46  r1
+                                                9163.00  r2
+    warm process, cached (T10-T0)               3382.26  r3          3905.77  r8
+    COLD process, cached (T10-T0)               4098.74  r5 = **B3**  **NOT MEASURED**
+
+    speedups, each within one model
+      r1 ttft_cached 6372.68 -> r3 422.31                        15.09x
+      r7 ttft_fresh  8397.71 -> r8 391.96                                21.42x
+      r1 cold process 10394.46 -> r5 4098.74                      2.54x
+      r2 cold process  9163.00 -> r5 4098.74                      2.24x
+
+**WHERE THE WAKE TIME GOES — r5, the only true B3 in the plan:**
+
+    t_ready_ms        3692.53   90.1%   loading the model
+    t_state_load_ms     59.16    1.4%   restoring the 407-token prefix
+    t_user_decode_ms   345.96    8.4%   the 20-token user turn
+
+**And where the RESIDENT cached figure goes, on both models:**
+
+    r3  t_user_decode 401.99 of 422.31 ms  = 95.2%
+    r8  t_user_decode 381.30 of 392.28 ms  = 97.2%
+
+**So on both models and in both cases the prefix is not where the time is.**
+Restoring it costs 19.17 ms warm and 59.16 ms cold on the 1.7B (r3, r5) and
+9.58 ms on the 2B (r8). What the cache removes is the system-prompt decode —
+5996.47 ms on r1, 7713.13 ms on r6. What it cannot remove is the load.
+
+**THE STATE FILES, AND B6's DIRECTIONAL CLAIM IS THE RESULT WORTH KEEPING:**
+
+    Qwen3-1.7B   r2   46,685,237 B = 44.523 MiB   over 407 tok = 112.02 KiB/token
+    Qwen3.5-2B   r7   25,288,618 B = 24.117 MiB   over 413 tok =  59.80 KiB/token
+
+**The hybrid's file is 54.17% of the dense model's — smaller by 45.83% — on a
+model 16% larger.** B6's failure condition was written as "fails if the
+Qwen3.5-2B file is LARGER", and it is not. r7 records that the split between the
+token-proportional and fixed parts rests on an assumed 12 KiB/token taken from
+the prediction rather than measured, and that the claim the file barely grows
+with prompt length is untested.
+
+**SURVIVING A POWER CYCLE: ANSWERED FOR THE DENSE MODEL, OPEN FOR THE HYBRID.**
+
+    1.7B  q17_state.bin  707e0ea3c1cc490187616a67ba0097747c8b8c58fcd2dcf38e1870a31a8f6f4d
+          hashed after `sync` at end of boot 1, and again on boot 2 AFTER r5 ran
+          -> MATCH, 46,685,237 B both times
+    2B    q35_state.bin  6f461e459f2ef0e61a6e6f7579250e115f92f5c3cb43cba18d9600a15f432a8f
+          hashed after `sync` at end of boot 3, 25,288,618 B
+          -> **never read back across a reboot; the hash exists so that it could be**
+
+### THE PREDICTED PLAIN ANSWER, JUDGED
+
+Written 16 Sept before any run: *"Predicted: resident wins, and not narrowly. A
+model held resident with a cached prefix puts the first word in front of the
+user in about half a second; a cold process that reloads the model puts it there
+in four to seven seconds, and a saved prefix does not help with that because the
+model load is the whole of the cost."*
+
+**Half a second: RIGHT, three times.** 422.31 ms (r3), 406.21 ms (r5),
+392.28 ms (r8).
+
+**Four to seven seconds: RIGHT on the one model where it was measured.**
+4098.74 ms (r5). The 2B's equivalent is not measured.
+
+**"A saved prefix does not help with that": WRONG AS WRITTEN, and this is the
+one substantive miss in the plain answer.** The saved prefix takes the cold
+process from 10,394.46 ms (r1) to 4098.74 ms (r5) — **2.54x** — because it
+removes the ~6.0 s system-prompt decode. What is right is the reason attached
+to it: the model load is 90.1% of what remains (r5), so the prefix cache cannot
+bring a cold process anywhere near the resident figure. **It helps a great deal
+and it does not close the gap**, and those are two different statements that the
+predicted sentence collapsed into one.
+
+**The price of resident, restated rather than predicted, is higher than the
+sentence quoted.** It said 1.35-1.42 GiB for the 1.7B, taken from the 16 Sept
+`llama-bench` rows. `pennyload`'s own gated rows read:
+
+    1.7B   r1  peak_rss_kB 1,541,140  = 1.470 GiB   (99.6% anonymous)
+    2B     r6  peak_rss_kB 1,824,632  = 1.740 GiB   (99.70% anonymous)
+           r8  peak_rss_kB 1,786,192  = 1.703 GiB   -- the cached path is cheaper
+                                                       than the fresh one by
+                                                       38,004 kB
+
+Different binary, different flags, so neither is a check on the other; the
+`pennyload` figure is the one measured under the conditions of this plan.
+
+### THE CONDITIONS THE ROWS RAN UNDER, COLLECTED
+
+**KILLS.** The first row of a boot is the representative condition and every
+later row on that boot is flattered by it:
+
+    row  MemAvailable before   lines/processes
+    r1        2,277,952 kB      8 / 4     first row of boot 1
+    r2        2,639,848         0 / 0
+    r3        2,679,200         2 / 1
+    r4        2,887,072         0 / 0
+    r5        2,191,292         8 / 4     first row of boot 2
+    r6        2,270,852         6 / 3     first row of boot 3
+    r7        2,636,476        16 / 8     **more memory AND more kills**
+    r8        3,061,764         0 / 0
+    r9        3,031,840         0 / 0
+
+**The first row of a boot costs about four cached processes on this handset
+whether it decodes a system prompt (r1) or restores one (r5)**, and the 2B at
+1.74 GiB cost three where the 1.7B at 1.47 GiB cost four, at starting conditions
+7,100 kB apart (r6 against r1). **r7 breaks the pattern and complicates the
+B2-R1 rule**: it started with 365,624 kB more than r6 and took eight processes
+rather than three, on a boot that had been swapping for fifty minutes. r7
+records that as a correlation across two rows and not a cause. Nothing in the
+foreground band on any of the nine rows; our own process never touched.
+
+**THE CLOCK.** The X1 ceiling fell below rated inside every one of the nine
+rows and no row ended below rated:
+
+    r1 73.1%   r2 73.1%   r3 85.7%   r4 65.2%   r5 89.5%
+    r6 73.09%  r7 65.17%  r8 80.37%  r9 50.89%
+
+**The A76 pair never moved on any of the nine rows** — `policy4` read 2,253,000
+before, min and after on all of them — where the 16 Sept cooled matrix saw it
+fall on six of seven rows. Observed, not explained; those rows were longer and
+differently shaped. **`policy0` was not sampled during any row in this plan**,
+which is the same gap the 16 Sept entry left open.
+
+**SWAP AND CACHE.** No row met the contamination condition. The lowest any row
+ended at was r6's `SwapFree` 476,412 kB, 15.14% of `SwapTotal`, against the ~10%
+floor. r9 is the only row in the plan where `swapfree_kB` and `pswpout` were
+byte-identical either side.
+
+### WHAT Q-A AND Q-B DO NOT SAY
+
+**B3 FOR Qwen3.5-2B IS NOT MEASURED, AND IT IS A BLANK RATHER THAN AN
+OVERSIGHT.** Boot 4 was written into the plan as optional and is Matt's to
+spend, and the default is not to spend it. The frozen prediction stands at
+**~5.08 s** in the end-of-boot-3 entry, built from r6's measured cold ready plus
+a *scaled* ~32 ms cold state load plus r8's measured user turn, and it is marked
+there as a prediction that nothing has been run to produce. **r8's
+`ttft_cold_proc_ms` of 3905.77 ms is a warm-model, warm-state-file, ninth-row
+figure and is never quoted as B3.**
+
+**THE A4-EQUIVALENT AND THE A5-EQUIVALENT ARE UNSCORED ON THE 2B** for the
+reasons in r9 and r8 respectively, and the 2B's warm pair is not the controlled
+pair the 1.7B had: r2 followed r1 by 236 s, r7 followed r6 by fifty minutes.
+
+**EVERY ROW IS ONE SAMPLE.** There are no error bars anywhere in this plan. The
+cross-model comparisons (r1 against r6, r2 against r7) cross two boots and two
+days, and the two boots did not start identically.
+
+**NOTHING HERE IS A WAKE MEASURED AT BOOT.** r5 is the first run of a boot with
+nothing having read either file, which is the cold-process case B3 is defined
+as — but it was launched by hand over adb on an unlocked phone. **The unattended
+boot path proven in rungs 3, 3b and 3d and this cold-process figure have never
+been run together**, and nothing in this plan starts a model from a boot
+broadcast.
+
+**NOTHING SUSTAINED AND NOTHING THERMAL.** The longest row in the plan is r9 at
+25.68 s and the shortest is r8 at 9.88 s. **A model held resident and working
+for hours — which is the actual product shape — is untested**, and the X1
+ceiling was still descending at the end of several rows.
+
+Not done, and named as not done: the `-ub` test that separates batch size from
+micro-batch size; a sustained run; Q4_0; anything on battery; `policy0` sampled
+during a row; anything VM-hosted; any third model; and **any judgement of output
+quality** — all nine rows' text stops inside a `<think>` block at 64 tokens,
+and the 1.7B's sample gets two of its three facts about Canberra wrong.
+
+Boot 3 has no ~5-minute protocol reading; its 8.55-minute substitute is recorded
+under its own label and is compared with nothing.
+
+All of it on AC power, screen on, unlocked, foreground, over adb, with the app
+`pm disable-user`'d and `Running VMs: []` throughout, on a Pixel 6a running
+GrapheneOS 2026091001 / Android 17 CP2A.260705.006, against llama.cpp at commit
+38a5b42d9 built `armv8.2-a+dotprod+fp16`. **It is an absolute feasibility
+measurement of this handset and never a native-versus-VM comparison**, which is
+closed.
