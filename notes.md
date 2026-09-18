@@ -11540,6 +11540,40 @@ temperature, and it is labelled that way everywhere.** `/sys/class/thermal/` is
 `Permission denied` to the shell user on this build, so no SoC temperature can
 be read at all.
 
+### THE DEFINITIONS, FIXED BEFORE ANY ROW
+
+Verbatim from brief S, with the one extension the `oom_score_adj` correction
+above forces on `survived`:
+
+    ttft_turn_k  = restore + user decode + first sample, turn k
+                   (== ttft_cached per turn)
+    gen_tps_k    = (n-1) decodes / gen_ms, the same divisor as today
+                   (pennyload.cpp:390)
+    settled      = median of the turns in the LAST quarter of the row
+    decline      = settled against the median of the FIRST quarter,
+                   as a percentage
+    survived     = pennyload rc=0 AND turns_done == --turns AND no kill line
+                   naming pennyload AND oom_score_adj_child post=200 printed
+    duty         = busy_ms / interval_ms, reported per row from the turn lines
+
+**EVERY S-A FIGURE IS COMPUTED ON THOSE TWO MEDIANS AND NOTHING ELSE.** Not on
+turn 1 against turn n, not on a mean, not on a line fitted through the row, and
+not on any turn chosen after the fact. S-A1 and S-A2 are the `decline` of
+`ttft_turn` and of `gen_tps` on S1; S-A3 is `settled` `gen_tps` on S2 expressed
+as a percentage of **turn 1**, which is the one place the brief names turn 1
+rather than a median and is written that way because its fail condition is.
+
+**The quarters, so the arithmetic is not chosen later.** S1 has 60 turns: first
+quarter = turns 1-15, last quarter = turns 46-60. S2 has 200: first quarter =
+turns 1-50, last quarter = turns 151-200. **A median over an even-sized set is
+the mean of the two middle values** — so S2's medians are the mean of the 25th
+and 26th, and of the 175th and 176th, of each sorted quarter. S1's quarters have
+15 turns each, so each median is a single value, the 8th of the sorted quarter.
+
+**A row that stops early is scored on the turns it produced and is reported as
+not having survived**, since `turns_done == --turns` is part of `survived`; its
+quarters are then taken over `turns_done`, and the entry says so in the row.
+
 ### WHAT THE PREDICTIONS ARE BUILT FROM — the four Qwen3-1.7B rows, quoted by tag
 
 All four ran `c0`, `-t 2`, `-lm none`, `n_ctx` 1024, `n_ubatch` 512, greedy,
