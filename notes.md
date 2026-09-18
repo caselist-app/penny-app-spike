@@ -12605,3 +12605,262 @@ same work on battery with the screen off.
 **Every generation is byte-identical by construction** and no output was judged.
 The prefix is the same 407 tokens and the turn the same 20 tokens, two hundred
 times; nothing tests a growing context. On the 6a.
+
+### CEILING RECOVERY AFTER A 1,561 s LOAD — A READING, ONE BOOT, NOT A BASELINE. And it is a weak one.
+
+Sampling was armed immediately after S2 to read both ceilings and battery
+temperature every 10 s until `policy6` read 2,802,000 AND `policy4` read
+2,253,000. **It produced exactly ONE sample, and all three clusters were
+already at rated in it:**
+
+    uptime_s=7906.21 wallclock=15:29:20 x1=2802000 a76=2253000 a55=1803000 batt_temp_dC=321
+
+    S2's AFTER reading   uptime 7019.81   wallclock 15:14:33
+    first sample         uptime 7906.21   wallclock 15:29:20
+    elapsed                886.40 s = 14.77 min
+
+**THIS IS AN UPPER BOUND AND NOTHING MORE.** Both clusters had already
+recovered when the first sample was taken, so the only true statement is that
+recovery took **at most 886.40 s**. Neither the time each cluster returned nor
+the shape of the curve was observed.
+
+**AND THE 886.40 s IS ITSELF UNRELIABLE AS A BOUND.** The loop was armed at
+about 15:17 and its first sample is stamped 15:29:20 — a gap of roughly twelve
+minutes that is **not explained here and should not be guessed at.** Had the
+loop run when it was armed, the bound would have been ~150-180 s instead, and
+whether both clusters were already rated at that point is unknown. **So the
+figure to carry forward is: recovery from a 1,561 s row completed within
+886.40 s, and the repo's only other datum remains 16 Sept's 109.8 s from a 65 s
+load.** Nothing here refines it.
+
+Battery over the same window: **407 dC at S2's close -> 321 dC at 15:29:20 ->
+317 dC at 15:30:14**, i.e. 40.7 C to 31.7 C in about 16 minutes at idle on AC.
+
+## 2026-09-18 — BRIEF S, CLOSED. A resident model with a cached prefix answers once a minute for an hour with NO measurable decay; run back to back it loses 45% of its speed in the first four minutes and then holds. Every row survived; nothing was ever killed above adj 935.
+
+The closing entry for brief S. **Two measured rows, one boot, one model.**
+Everything below is quoted from a row entry by its tag, and every figure in
+those came from `out/<tag>.report`, `.bench` and `.series` on the phone.
+Nothing here is a new measurement.
+
+    boot 4   18 Sept, Qwen3-1.7B-Q4_K_M    q17_s0_regen (not a result row),
+                                           q17_s1_conv_60m, q17_s2_b2b_15m
+    S3       NOT RUN -- Matt's call, not taken
+
+Both rows `rc=0`, both gated on `policy6` = 2,802,000 AND `policy4` = 2,253,000
+in the launching invocation, both `c0`, `-t 2`, `-c 1024`, `-lm none`, `n_ctx`
+1024, `-n 64`, greedy, `chat_template=NONE`, `--load-state q17_state.bin`.
+AC power, screen on, unlocked, app `pm disable-user`'d, `Running VMs: []`.
+**Neither row met the contamination condition on either limb.**
+
+### THE SCORECARD
+
+**The brief named NINE conditions; I committed SEVEN further point estimates
+alongside them. Sixteen in all, not twelve.** All sixteen are below; none has
+been moved, and the three that miss their band are marked as misses even where
+the fail condition passes.
+
+    #     prediction                        point    band          fail if        measured        verdict      band
+    ----  --------------------------------  -------  ------------  -------------  --------------  -----------  ------
+    S-A1  S1 ttft_turn settled decline       3%      0-8%          > 25%          -0.44%          PASS         MISS
+    S-A2  S1 gen_tps settled decline         3%      0-8%          > 25%          -0.20%          PASS         MISS
+    S-A3  S2 gen_tps settled / turn 1       80%      70-92%        < 50%          54.77%          PASS         MISS
+    S-A4  fnv_all_equal on every row          1      --            any 0          1 and 1         PASS         n/a
+    S-B1  S1 survives                       yes      --            otherwise      YES             PASS         n/a
+    S-B2  MemAvailable, end of S1      ~900,000 kB   0.6-1.4 GB    kills past     932,128 kB      PASS         HIT
+                                                                   minute 5       none past 4 s   PASS
+    S-B3  SwapFree through S1          ~650,000 kB   0.4-1.0 GB    < 314,572      623,100 kB      PASS         HIT
+    S-C1  X1 at rated, S1 series           97%       >= 95%        --             100.00%         PASS         HIT
+    S-C2  battery temperature          no prediction --            --             reported        n/a          n/a
+    ----  derived point estimates, committed in the same entry
+    D1    ttft_turn, S1 turn 1             0.39 s    0.33-0.50 s   --             380.40 ms       --           HIT
+    D2    turn busy time, S1               4.57 s    4.0-5.5 s     --             4704.43 ms      --           HIT
+    D3    S1 duty                           7.6%     --            --             7.84%           --           HIT
+    D4    S2 duration                        17 min  15-19 min     --             26.03 min       --           **MISS**
+    D5    prefix_snapshot_bytes      ~46,684,000 B   46.0-47.0 MB  --             46,683,597 B    --           HIT
+    D6    t_snapshot_ms                      12 ms   5-25 ms       --             19.61 / 17.40   --           HIT
+    D7    t_restore per turn                 15 ms   8-25 ms       --             15.86 / 15.00   --           HIT
+
+**EVERY FAIL CONDITION PASSED. FOUR BANDS MISSED: S-A1, S-A2, S-A3 and D4.**
+
+S-A1 and S-A2 miss **below** their bands — I predicted a 3% decline over the
+hour and measured a slight improvement, so the band was wrong in the direction
+of pessimism and the fail condition was never in danger.
+
+**S-A3 and D4 miss for the same reason and it is the substantive error in this
+brief.** S-A3's 80% point came from the cooled C-series' deepest matched pair
+(C5 against C6: tg down 18.87% at an X1 floor of 30.4% of rated), and D4's 17
+minutes came from assuming that decline. **Those C rows were 52-247 s; S2 ran
+1,561 s.** Extrapolating across an order of magnitude in duration underestimated
+the throttling: measured decline against turn 1 is **45.2%**, not ~20%, and the
+row took **26.03 min**, not 17. S-A3 still passes because 54.77% clears the 50%
+floor — **by 4.77 percentage points.**
+
+**S-A4 is the one I would most have wanted to fail and it did not.** `gen_tps`
+and TTFT are timings and could drift for a dozen reasons; the fnv is a
+correctness check. `0xcba17a2fcbba49f4` on all 60 of S1's turns and all 200 of
+S2's — **260 in-memory state restores in two processes, no residue** — and the
+same value r1, r2, r3, r5 and S0 produced, on two binaries and three boots.
+
+### S-A, ANSWERED: "does the per-turn TTFT and tok/s settle at a floor or keep falling"
+
+**At one turn a minute: they do not fall at all.** Over 60 turns and 59.16
+minutes at 7.84% duty:
+
+    SETTLED ttft_turn_ms  q1_median 355.16   q4_median 353.61   decline -0.44%
+    SETTLED gen_tps       q1_median  14.49   q4_median  14.52   decline -0.20%
+    ttft_turn_ms  min 345.04  median 354.39  max 391.12
+    gen_tps       min  14.09  median  14.49  max  15.17
+
+The last quarter of the hour was **fractionally faster** than the first.
+Turn 60 ran at 14.26 t/s against turn 1's 15.17.
+
+**Back to back they fall hard, fast, and then very nearly settle.** Over 200
+turns and 26.03 minutes at 100% duty:
+
+    turn   1   gen_tps 15.04      turn  40   9.21   (260 s in)
+    turn  60         9.15         turn 100   8.99
+    turn 140         8.78         turn 200   8.26
+    SETTLED gen_tps  q1_median 9.22  q4_median 8.24  decline 10.64%
+    settled / turn 1 = 8.24 / 15.04 = 54.77%
+
+**15.04 -> 9.21 over the first 40 turns and 260 seconds; 9.21 -> 8.26 over the
+remaining 160 turns and 1,291 seconds.** 87% of the total loss happens in the
+first 17% of the row. So the answer is **"falls, then settles"** — it does reach
+a floor, and the floor is a little over half the cool figure.
+
+TTFT tracks it: 404.58 ms on turn 1, 876.49 ms median, 933.30 ms max.
+
+### S-B, ANSWERED: "what does the phone do to memory over that hour"
+
+**S1, the hour.** `MemAvailable` 2,269,872 kB at the first series sample (model
+not yet loaded) -> **932,128 kB at the last**, minimum 911,212 kB at uptime
+4523.19. `SwapFree` 667,132 -> minimum 623,100 (19.81% of `SwapTotal`) ->
+662,268. `Cached` fell 190,344 kB against a 1,081,454 kB model — 17.6%, nowhere
+near the contamination threshold. **`VmRSS` moved 2,756 kB across the whole
+hour**, 1,545,896 to 1,548,652. Peak RSS 1,548,672 kB = 1.4771 GiB, 99.64%
+anonymous.
+
+**Kills: two processes, both in the first four seconds, both at model load.**
+`.ShannonImsService` at `oom_score_adj 945` and `com.shannon.rcsservice` at
+`935`, reason `min watermark is breached`, with `MemAvailable` before the row
+2,332,040 kB. **Zero kills in the remaining 59 minutes.**
+
+**S2, the quarter-hour at full duty: ZERO kills**, `SwapFree` minimum 708,248
+(22.51%), `MemAvailable` minimum 865,388, `Cached` down 31,216 kB (2.9% of the
+model). Peak RSS 1,548,952 kB — **280 kB from S1's**, across a completely
+different duty cycle.
+
+**WHAT "SURVIVED AT adj 200" ESTABLISHES, AND WHAT IT DOES NOT.** Both rows met
+the committed definition in full: `rc=0`, `turns_done == --turns`, no kill line
+naming `pennyload`, and `oom_score_adj_child post=200` printed and read back
+off `/proc`. **That establishes that the wrapper's raise works, that the process
+ran to completion at a foreground-service-band adj, and that nothing in 86
+minutes of resident 1.47 GiB caused the killer to reach it.**
+
+**It does NOT establish that the process would survive pressure.** The deepest
+the killer went on either row was **adj 935**, and it stopped after two cached
+processes four seconds into S1. **It never came within seven hundred points of
+200.** S-B1 passed without the question being pressed, and the honest statement
+is "the phone never tried", not "our process withstood it". 3g-ii's 2 GB VM
+drove the killer to adj 201; a 1.47 GiB resident model on this boot drove it to
+935.
+
+### S-C, ANSWERED: the ceilings and the battery
+
+**BETWEEN TURNS, at one a minute, the clock is at rated — with one figure that
+must always travel beside it.**
+
+    S1  series:     X1 355 of 355 samples at 2,802,000 = 100.00%
+                    A76 100.00%   A55 100.00%
+        poll loop:  X1 min 1,826,000 = 65.17% of rated, at uptime 3440.91,
+                    1868 s into the row; after-reading 2,802,000
+
+**The 10-second series says the X1 pair never left rated; the 0.2-second poll
+caught it at 65.17% half an hour in.** The dip is real and shorter than ten
+seconds. **"100.00% at rated" is a fact about the sampling rate, not about the
+clock**, and this repo must not quote it alone. What it does show is that 55
+seconds of idle fully restores the ceiling before the next turn — which is the
+thing S-C1 asked.
+
+**BACK TO BACK, THE FLOOR IS REACHED IN TWO MINUTES AND NEVER LEFT, AND THE A55
+CLUSTER THROTTLES.**
+
+    S2  poll loop:  X1  min 984,000 = 35.12%, at 129 s in; AFTER still 984,000
+                    A76 min 696,000 = 30.89%, at 1498 s in; after 799,000
+        series:     X1    1 of 157 at rated =  0.64%   (that one was sample 1)
+                    A76  96 of 157          = 61.15%
+                    A55  42 of 157          = 26.75%, min 738,000 = 40.93%
+
+**`policy0` throttles. This is the first time it has been observed to move in
+this repo** — CLAUDE.md has twice named it as never sampled during a row. It
+fell to 40.93% of its 1,803,000 rated clock and spent 115 of 157 samples below
+rated **on a row where `taskset c0` scheduled nothing onto it at all.** That is
+the package-wide limiter the 16 Sept cooled matrix found on `policy4`, now seen
+on the third cluster, and it is the direct evidence for "the limiter acts across
+the package, not per cluster".
+
+**S2's X1 ceiling never recovered inside the row**: its `after` reading is
+984,000 where S1's was 2,802,000.
+
+**BATTERY TEMPERATURE — BATTERY, NOT SoC.** `/sys/class/thermal/` is
+`Permission denied` to the shell user on this build, so no SoC temperature
+exists anywhere in this brief.
+
+    row   start      min              max              end     slope
+    S1    306 dC     301 at 1703.28   328 at 5113.08   328 dC  +0.0373 C/min
+    S2    328 dC     326 at 5476.34   407 at 6696.07   407 dC  +0.304 C/min
+
+**S2 heats 8.2x faster than S1**, and reached 40.7 C at 1,250 s in and held
+there for the final 310 s — levelling off, not still climbing. S1 *fell* for its
+first two minutes, still shedding the reboot's heat. `dumpsys battery` agreed
+within 1-3 dC at every check and **lagged sysfs**, updating on broadcasts.
+
+### WHAT BRIEF S DOES NOT SAY
+
+**One boot, one handset, one model, one row each.** No error bars, nothing
+reproduced, and S1 and S2 ran consecutively on the same boot so S2 inherited
+whatever S1 left.
+
+**The two rows are the extremes, and the product is between them.** 7.84% duty
+and 100% duty. A real assistant is neither. **Nothing here measures the shape in
+between**, and S-A3's answer — settles at 54.77% — is a fact about back-to-back
+work, not about a phone someone talks to.
+
+**The user turn is the same 20 tokens, 260 times, and the context never grows.**
+Every turn restores an identical 407-token prefix; the model never sees its own
+output, never continues a conversation, and the KV cache is never extended.
+**A growing context is untested and is the obvious next thing.**
+
+**No output was judged, and 260 identical answers are not 260 answers.**
+`fnv_all_equal=1` means every generation was byte-identical by construction. The
+only text on this model in this brief, from S0, gets two of its three facts
+about Canberra wrong.
+
+**No STT and no TTS, and no second model in memory.** The bake-off — Kokoro-82M
+and `kokoro-onnx` int8 under sherpa-onnx, with STT and the LLM resident
+together — is the next item and nothing here touches it. This measured ONE model
+holding 1.47 GiB.
+
+**Battery temperature is not SoC temperature. AC power is not battery.** Both
+rows ran at 100% charge on mains with the screen on. What this silicon does on
+battery, with the screen off, is unmeasured.
+
+**`oom_score_adj 200` is an imitation of a foreground service, not one.** These
+were shell processes launched over adb with their adj raised by the wrapper, not
+services started from a boot broadcast. **And the killer never approached 200**
+— it stopped at 935.
+
+**Nothing ran at boot.** The unattended wake path of rungs 3, 3b and 3d and
+these sustained figures have still never been run together.
+
+**Zero kills on S2 is flattered by S1.** S2 began on a boot that had already
+killed two processes, so the cheap victims were partly spent — the repo's own
+rule says a kill count means nothing without `MemAvailable` before it, and S2's
+2,313,308 kB came partly from S1's casualties.
+
+**A day is not an hour, and S3 was not run.** Whether the conversational shape
+recovers after S2, or whether the boot is spent, is untested and was Matt's call
+not to spend.
+
+On the 6a; the 7a re-measures anything that fails here.
