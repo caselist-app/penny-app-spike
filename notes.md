@@ -9871,3 +9871,162 @@ The 8.55-minute reading is not a 5-minute reading and is not treated as one.
 Whether this boot behaves like 16 Sept boot 1 is not claimed: its `Cached` at
 connect was ~590 MB higher, and the only later reading is at a mark boot 1 has
 no counterpart for.
+
+## 2026-09-18 — AMENDMENT to the entry above, before row 6 runs. The transcript was NOT gone, so the swap's own commands ARE quotable; the cold-read floor was stated with a lower bound it does not have; and MemTotal's 4 kB is not new.
+
+Appended rather than edited into the entry above, per this repo's rule that a
+wrong claim and its correction are both history. Four corrections, three of
+them Matt's and the fourth found while checking the first.
+
+### 1. THE 16 SEPT TRANSCRIPT IS ON DISK. THE ENTRY ABOVE WAS WRONG TO SAY OTHERWISE.
+
+The entry says "the scrollback that held it is gone" and that the `rm`/`rm`/
+`push` "cannot be quoted". **Both statements are false.** Matt asked where the
+879,432 kB at 34.20 s figure had come from if the session was gone, which is
+the question that broke it open: that figure had been pasted into this session
+in Matt's own opening message, i.e. it was second-hand and relayed, not read.
+Checking for its source found the session's full transcript at
+
+    ~/.claude/projects/-Users-mattstevenson-Documents-penny-app-spike/
+      0705355e-8fa1-43e3-a39c-815af692f53c.jsonl
+
+**The correct provenance of 879,432 kB at 34.20 s: it is READ, not remembered.**
+It was relayed through Matt's message, and is now confirmed against the
+transcript's own tool output, which is the 16 Sept boot-3 connect reading and
+is quoted in full below.
+
+**THE DELETION, 16 Sept, boot 2, quoted from the transcript:**
+
+    $ adb shell 'echo "uptime_s=$(cut -d\  -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"; rm -f /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf /data/local/tmp/q17_state.bin; echo "--- after delete ---"; ls -la /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf /data/local/tmp/q17_state.bin 2>&1; echo "--- dir ---"; ls -la /data/local/tmp/; df -h /data | tail -1'
+    uptime_s=1771.76 wallclock=18:36:16
+    --- after delete ---
+    ls: /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf: No such file or directory
+    ls: /data/local/tmp/q17_state.bin: No such file or directory
+    --- dir ---
+    total 12101
+    drwxrwx--x 4 shell shell    3452 2026-09-16 18:36 .
+    drwxr-x--x 5 root  root     3452 2026-09-13 21:07 ..
+    -rwxr-xr-x 1 shell shell 4708216 2026-09-16 12:08 llama-bench
+    -rwxr-xr-x 1 shell shell 3805208 2026-09-16 12:18 llama-simple
+    drwxrwxrwx 4 shell shell    3452 2026-09-14 11:35 microdroid
+    drwxrwxrwx 2 shell shell    8192 2026-09-16 18:32 out
+    -rw-rw-rw- 1 shell shell    1911 2026-09-16 16:48 penny_system.txt
+    -rw-rw-rw- 1 shell shell      95 2026-09-16 17:05 penny_user.txt
+    -rwxr-xr-x 1 shell shell    8402 2026-09-16 16:57 pennybench.sh
+    -rwxr-xr-x 1 shell shell 3817808 2026-09-16 16:29 pennyload
+    /dev/block/dm-15 110G 8.0G  102G   8% /data/user/0
+
+Both files gone, confirmed by `ls` failing on each by name, and 102G free.
+
+**THE PUSH, same session, next command:**
+
+    $ cd ~/Documents/penny-models && ls -la Qwen3.5-2B-Q4_K_M.gguf && grep -i "Qwen3.5-2B-Q4_K_M" MANIFEST.txt && echo "=== push ===" && time adb push Qwen3.5-2B-Q4_K_M.gguf /data/local/tmp/ && echo "=== hash on phone ===" && adb shell 'sha256sum /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf; ls -la /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf'
+    -rw-r--r--@ 1 mattstevenson  staff  1280835840 15 Sep 20:26 Qwen3.5-2B-Q4_K_M.gguf
+    unsloth/Qwen3.5-2B-GGUF                  Qwen3.5-2B-Q4_K_M.gguf                 1280835840  aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223 VERIFIED vs HF LFS oid
+    === push ===
+    Qwen3.5-2B-Q4_K_M.gguf: 1 file pushed, 0 skipped. 31.4 MB/s (1280835840 bytes in 38.886s)
+    adb push Qwen3.5-2B-Q4_K_M.gguf /data/local/tmp/  3.05s user 0.98s system 10% cpu 39.038 total
+    === hash on phone ===
+    aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223  /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf
+    -rw-rw-rw- 1 shell shell 1280835840 2026-09-15 20:26 /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf
+
+**So the file was hashed on the phone on 16 Sept as well as on 18 Sept, and
+both reads return `aaf42c8b…`.** The push ran at 31.4 MB/s over USB, 1.28 GB in
+38.886 s — which is the transfer figure the entry above said did not exist, and
+it is a USB figure, not a storage one.
+
+**THE 16 SEPT BOOT 3 READING, quoted in full rather than relayed:**
+
+    $ adb shell 'echo "uptime_s=$(cut -d\  -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"; grep -E "^(MemTotal|MemAvailable|MemFree|SwapFree|SwapTotal|Cached):" /proc/meminfo; echo "ceil_x1_kHz=..."; ...'
+    uptime_s=34.20 wallclock=18:38:04
+    MemTotal:        5718284 kB
+    MemFree:          144188 kB
+    MemAvailable:     794512 kB
+    Cached:           879432 kB
+    SwapTotal:       3145724 kB
+    SwapFree:        2709244 kB
+    ceil_x1_kHz=2802000 ceil_a76_kHz=2253000 ceil_a55_kHz=1803000
+    --- vm list ---
+    Running VMs: []
+    --- app ---
+    enabled=3
+    --- model, ls only ---
+    -rw-rw-rw- 1 shell shell 1280835840 2026-09-15 20:26 /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf
+
+and the reboot that opened it, one invocation:
+
+    uptime_s=1825.28 wallclock=18:37:10
+    MemAvailable:    2652636 kB
+    Cached:          1839580 kB
+    SwapFree:         759804 kB
+    === reboot ===
+    adb reboot issued, rc=0
+
+**THE METHOD POINT, which is the part worth keeping: an interrupted session's
+tool output survives in `~/.claude/projects/<project>/<session-uuid>.jsonl` and
+is recoverable.** "The scrollback is gone" was assumed, not checked, and it was
+asserted in a committed entry. A figure relayed through a message is
+second-hand until it is matched against that file. Check before writing that
+something cannot be quoted.
+
+### 2. THE COLD-READ FLOOR HAS NO UPPER BOUND, AND THE UNITS WERE WRONG
+
+The entry above says "between 1 and 2 seconds, i.e. 610 MB/s to 1.22 GB/s".
+**Two wall-clock stamps at one-second resolution, `start 10:17:25` and
+`end 10:17:26`, bound the elapsed time at 0 to 2 seconds, not 1 to 2** — the
+two stamps can fall either side of a single tick with almost no time between
+them. The band's upper end was invented by assuming a full second had passed.
+
+Corrected: 1,250,816 kB is 1,221.5 MiB, and over the 2-second worst case that
+is **at least ~610 MiB/s, with NO UPPER BOUND OBTAINABLE FROM THIS METHOD.**
+Also MiB/s, not MB/s: the figure is computed from kB read out of `/proc/meminfo`
+and divided by 1024, so it is binary throughout and was mislabelled decimal.
+
+The comparison to rungs 3e-iii and 3e-iv's 835 and 598 MB/s is withdrawn from
+this entry — those were measured inside a VM by a payload that timed its own
+read, which is a different instrument, and a floor cannot be compared with two
+point figures anyway.
+
+### 3. "NOTHING OF OURS IS IN IT" IS NOT CHECKABLE
+
+Section 3 above says of the 1,461,544 kB of `Cached` at 24.80 s that "nothing
+of ours is in it". **Nothing was run to establish what that cache contains**,
+and there is no per-file page-cache readout in this repo's toolkit.
+
+The claim it should have made, which the evidence in section 6 does support:
+**nothing of ours has RUN on this boot.** No `pennyload`, `llama-bench` or
+`sha256sum` process, no `q35` file in `out/`, and the only hash of the model ran
+before the reboot. What is in that 1.46 GB is unknown and stays unknown.
+
+### 4. MemTotal's 4 kB IS NOT NEW TO THIS REBOOT — found while checking the above
+
+Section 7 says the 4 kB difference "appeared across this reboot". **It did
+not.** The 16 Sept boot-3 reading quoted in section 1 of this amendment already
+reads `MemTotal: 5718284 kB`, two days earlier. Counting every `MemTotal` line
+in this project's transcripts gives **three distinct host values**:
+
+    $ grep -ho "MemTotal:  *[0-9]* kB" *.jsonl | sort | uniq -c | sort -rn
+      136 MemTotal: 5718280 kB
+       56 MemTotal:        5718280 kB
+       39 MemTotal:        5718284 kB
+       22 MemTotal: 5718284 kB
+        4 MemTotal:        5718276 kB
+    (the 2038164 / 2038100 / 239796 / 239732 lines are guest kernels, not the host)
+
+**5,718,276, 5,718,280 and 5,718,284 kB have all been read off this handset** —
+a spread of 8 kB, 0.00014% of total. So CLAUDE.md's 5,718,280 is one of three
+observed values rather than a figure that has since changed, and a reading of
+5,718,284 is neither new nor a transcription error. Nothing here explains why
+it varies between boots and nothing is concluded from it.
+
+### WHAT THIS AMENDMENT DOES NOT SAY
+
+It does not change a single measured figure, because the entry above contains
+none. Row 6 has still not run.
+
+The transcript recovery establishes what the commands were and what they
+printed; it does not make them this session's commands, and the entry above
+stays correct that this session did not run them. The 31.4 MB/s push is one
+USB transfer, once, and is not a storage or a link figure. And the three
+MemTotal values are counted across transcripts of varying age — the count says
+they were all read at some point, not which boot each belongs to.
