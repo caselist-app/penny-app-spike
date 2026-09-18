@@ -10544,3 +10544,188 @@ on, unlocked, foreground, over adb, app disabled, no VM. The kill comparison
 crosses fifty minutes of a boot that was swapping throughout, and the text is
 again 64 tokens that stop inside a `<think>` block, with no quality judgement
 made.
+
+## 2026-09-18 — ROW 8, `q35_r8_warm_cached`. **THE HYBRID'S PREFIX LOADS**: 413 tokens restored in 9.58 ms, and the B2-equivalent is 392.28 ms. Q-B is now answered on both models. Also corrects two phrases in row 7.
+
+### CORRECTION TO ROW 7, first, because row 7 overstated what it had
+
+**Row 7's heading says "THE HYBRID'S PREFIX CAN BE CACHED" and it had established
+SAVE only — it should read "can be SAVED; load untested until row 8".**
+`llama_state_save_file` returning true says a file was written, not that anything
+can read it back, and row 8 is where that was settled. Second: row 7 says the
+A5-equivalent's failure is because of the page cache — "the page cache is
+measurably the reason" and "the page cache is why". **Both are withdrawn and
+replaced by: the failure is CONSISTENT WITH a partially evicted model file, on
+two pieces of evidence — the tensor band saved only 199.97 ms against the 1.7B
+pair's 1150.39 ms, and `Cached` read 1,122,276 kB against a 1,250,816 kB model —
+and is NOT ESTABLISHED.** Nothing isolated the cache as the cause. **The
+A5-equivalent is not a boot-3 score** — the plan at notes.md 8938 scores A6, B6
+and row 8's B2 on this boot and nothing else — **so no boot is spent chasing it.
+It is left as untested on the 2B.**
+
+### THE GATE AND THE ROW, one shell invocation, no write-up in between
+
+    GATE PASSED uptime_s=5174.04 wallclock=11:44:49
+    PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh q35_r8_warm_cached c0 -- \
+      -m /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf -t 2 -lm none -n 64 --print \
+      --user-file /data/local/tmp/penny_user.txt \
+      --load-state /data/local/tmp/q35_state.bin --tag r8
+
+    rc=0   mask=c0   uptime before 5174.13 s   after 5184.01 s   (9.88 s)
+    PENNYLOAD sys_file=(none) sys_bytes=-1 sys_tokens=-1
+    PENNYLOAD user_file=...penny_user.txt user_bytes=95 user_tokens=21
+
+No `--sys-file`: the 413-token prefix comes from the file, and the row proves it
+by restoring exactly that many.
+
+### THE LOAD SUCCEEDED
+
+    PENNYLOAD tag=r8 run_type=cached rc=0
+    PENNYLOAD t_state_load_ms   9.58   (T7-T6)
+    PENNYLOAD state_file=/data/local/tmp/q35_state.bin state_bytes=25288618 state_tokens_restored=413
+
+**`state_tokens_restored=413`, the figure row 7 saved.** No
+`FAILED state_load=false`, no rc=3. From the loader's own stderr:
+
+    state_read_data: reading state
+    state_read_data: - reading model info
+    state_read_data: - reading memory module
+
+**24.117 MiB in 9.58 ms is ~2.46 GiB/s, warm** — the file was written nine
+minutes earlier and was in the page cache. Against the 1.7B's row 3, also warm:
+44.523 MiB in 19.17 ms, ~2.27 GiB/s. **Same order, so the hybrid's smaller state
+is cheaper in wall time in proportion to its size and not otherwise.**
+
+### EVERY PHASE LINE, AS READ
+
+    PENNYLOAD t_backend_ms      2.65
+    PENNYLOAD t_model_open_ms   758.47
+    PENNYLOAD t_tensor_band_ms  2725.80
+    PENNYLOAD t_model_tail_ms   6.61
+    PENNYLOAD t_model_total_ms  3490.87
+    PENNYLOAD t_ctx_create_ms   19.97
+    PENNYLOAD t_ready_ms        3513.49
+    PENNYLOAD t_tokenize_ms     0.32
+    PENNYLOAD t_state_load_ms   9.58
+    PENNYLOAD t_user_decode_ms  381.30   (21 tokens)
+    PENNYLOAD t_sample_ms       1.08
+    PENNYLOAD ttft_fresh_ms     391.96   (T10-T6)
+    PENNYLOAD ttft_cached_ms    392.28   (T10-T5)  == **B2-equivalent**
+    PENNYLOAD ttft_cold_proc_ms 3905.77  (T10-T0)
+    PENNYLOAD gen_tokens=64 gen_ms=4979.73 gen_tps=12.65
+    PENNYLOAD first_token_id=3710
+    PENNYLOAD token_fnv1a64=0x19d53b5da9186ff6
+
+### B2-EQUIVALENT, SCORED
+
+    #   prediction                                     point    band         measured     verdict
+    B2  TTFT cached, model resident, state + 20 tok     0.5 s   0.35-1.5 s   0.39228 s   **PASS**
+
+    for comparison, Qwen3-1.7B:  row 3 (warm state file) 422.31 ms
+                                 row 5 (cold state file) 406.21 ms
+
+**392.28 ms on the 2B against 422.31 and 406.21 ms on the 1.7B — the bigger
+model's cached first token is the fastest of the three.** The 413-token prefix
+costs 9.58 ms to restore; the 21-token user turn costs 381.30 ms, which is 97.2%
+of the whole figure. **The prefix is not where the time goes, on either model.**
+
+**AGAINST THE SAME MODEL'S FRESH FIGURE ON THE PREVIOUS ROW: 8397.71 ms fresh
+against 391.96 ms cached, 21.42x.** What the cache removes is row 7's 7879.20 ms
+system-prompt decode.
+
+**`ttft_cold_proc_ms` 3905.77 IS NOT B3 ON THIS BOOT AND MUST NOT BE QUOTED AS
+ONE.** B3 is the cached wake from a COLD process — first run after a power cycle,
+model unread. This row ran ninth-of-the-boot with the model already in cache
+(see the tensor band below) and the state file nine minutes old. The hybrid's
+true B3 is row 10 on a fourth boot, which is undecided; if that boot is never
+spent, B3 for Qwen3.5-2B is reported NOT MEASURED, exactly as the plan says.
+
+### THE LOAD WAS WARMER THAN ROW 7's, WHICH IS THE REVERSE OF THE INTENDED ORDER
+
+    t_tensor_band_ms   row 6 (cold) 3863.26   row 7 3663.29   row 8 2725.80
+    t_ready_ms         row 6 (cold) 4665.60   row 7 4468.17   row 8 3513.49
+
+Row 8's band is **74.41% of row 7's and 70.56% of row 6's cold**; its `t_ready`
+is **78.63% of row 7's and 75.31% of row 6's**. `Cached` before row 8 read
+1,436,804 kB against the model's 1,250,816 kB — enough to hold it, where row 7's
+1,122,352 kB was not. **So the warmest load of this boot is the third row, not
+the second**, and row 8's `t_ready` is the closest thing this boot has to a
+genuinely warm load. **It is NOT scored as the A5-equivalent**: A5 is defined as
+a warm load immediately after a cold one, this is two rows later, and rescoring a
+prediction against a row it was not defined on is exactly what the frozen-
+prediction rule forbids.
+
+### THE CONTROL HOLDS ON THE THIRD ROW RUNNING
+
+    row 6 (fresh)         first_token_id=3710   token_fnv1a64=0x19d53b5da9186ff6
+    row 7 (fresh + save)  first_token_id=3710   token_fnv1a64=0x19d53b5da9186ff6
+    row 8 (state loaded)  first_token_id=3710   token_fnv1a64=0x19d53b5da9186ff6
+
+**Identical 64 tokens from a decoded prefix and from a restored one.** That is
+the result that makes the state file worth anything: what came back off disk
+produces the same output as computing it. Same `token_ids` string in all three.
+
+### MEMORY, KILLS AND THE CLOCK
+
+    PENNYBENCH memavail_kB   before 3,061,764   after 3,037,604
+    PENNYBENCH memfree_kB    before 1,849,364   after 1,890,232
+    PENNYBENCH swapfree_kB   before   687,700   after   656,980   (**20.88%** of total)
+    PENNYBENCH cached_kB     before 1,436,804   after 1,383,168   (FELL 53,636)
+    PENNYBENCH pswpin        before   157,179   after   157,205   (+26)
+    PENNYBENCH pswpout       before   915,380   after   923,084   (+7,704)
+    PENNYBENCH pgmajfault    before   171,301   after   171,328   (+27)
+    PENNYBENCH ceil_x1_kHz   before 2,802,000   min 2,252,000   after 2,802,000
+    PENNYBENCH ceil_x1_min_at uptime=5181.07    (7 s into the row, **80.37%** of rated)
+    PENNYBENCH ceil_a76_kHz  before 2,253,000   min 2,253,000   after 2,253,000
+    PENNYBENCH peak_rss_kB   1,786,192   (1.703 GiB)
+    PENNYBENCH max_rssanon_kB 1,781,044
+    PENNYBENCH max_rssfile_kB     4,852
+    PENNYBENCH rss_samples       24
+    PENNYBENCH lmk_kill_lines     0
+
+**ZERO KILLS — AND `MemAvailable` BEFORE IT IS 3,061,764 kB, THE HIGHEST OF ANY
+ROW IN THIS PLAN. THE ZERO IS FLATTERED AND IS REPORTED AS SUCH.** This boot had
+already killed eleven processes across rows 6 and 7, which is precisely the
+condition the B2-R1 rule names: a boot that has bought itself headroom by killing
+its own cheap processes. **"The cached path causes no kills" is NOT a claim this
+row supports.**
+
+**PEAK RSS 1,786,192 kB = 1.703 GiB, 38,004 kB BELOW row 7's** — the cached row
+is the cheaper of the two in peak memory despite holding a restored 413-token
+state, which is consistent with it never running the 413-token system-prompt
+decode. Consistent with, not established: nothing here measures the decode's
+transient separately.
+
+**Not contaminated.** `Cached` fell 53,636 kB — not by anything near the model's
+size — and `SwapFree` ended at 20.88% of `SwapTotal`, the highest of the three
+rows on this boot (row 6 15.14%, row 7 19.48%), well above the ~10% floor.
+`pgmajfault` moved 27 across the whole row, against row 6's 854.
+
+**The X1 ceiling fell least of the three rows** — 2,252,000 kHz, 80.37% of rated,
+7 s in, against row 7's 65.17% and row 6's 73.09%. The row is also the shortest,
+at 9.88 s. The A76 pair never moved on any of the three. `policy0` not sampled.
+
+`ZRAM: 559,572K physical used for 2,450,856K in swap` — 4.38:1.
+
+### WHAT ROW 8 DOES NOT SAY
+
+**It is not B3 and it is not a wake measurement.** Warm model, warm state file,
+ninth row of a 86-minute boot. The hybrid's wake figure needs boot 4 and has not
+been taken.
+
+**The zero kills are flattered by eleven earlier kills on this boot** and say
+nothing about what the cached path costs on a fresh one.
+
+B2-equivalent is one sample at one prompt length, and the 21-token user turn is
+97.2% of it — so the figure is mostly a measurement of decoding 21 tokens, and a
+longer user turn moves it directly. The 21.42x against row 7's fresh TTFT is one
+pair on one boot.
+
+**Row 8 says nothing about whether the state file survives a reboot.** Rows 3 and
+5 established that for the 1.7B; for the 2B the file has only been written and
+read back nine minutes apart on the same boot, with no `sync` taken and no hash
+recorded either side.
+
+Nothing sustained: 9.88 seconds, AC power, screen on, unlocked, foreground, over
+adb, app disabled, no VM. The text is again 64 tokens stopping inside a `<think>`
+block, and no quality judgement is made of it.
