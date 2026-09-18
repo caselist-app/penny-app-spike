@@ -890,3 +890,90 @@ used; how long 4c's 500,000 kHz reading lasted; MemAvailable between the
 before/after reads of any line (the low-water figures are over those reads
 only); anything about pronunciation (not listened to); anything on a fresh
 boot. Nothing here is a baseline.
+
+## 2026-09-18 — TTS RUNG 1, WRITE-UP: it runs on the 6a, and it is slower than predicted — RTF 1.067-1.570 on every one of 41 rows, none under 1.0. P-T5 HELD; P-T2, P-T3 and P-T4 MISSED; P-T1 NOT JUDGED. Product assumption: 2 threads pinned to the X1 pair.
+
+Branch tts-kokoro. All rung 1 rows ran on **boot 4**, which had already carried
+S0, S1, S2 and eight model loads. Every figure is "on the 6a". Binary
+sherpa-onnx-offline-tts bd7d26e8… (sherpa-onnx a5b4a94 + the WEBSOCKET=OFF line,
+android-24, NDK r30), libonnxruntime.so 33847ad4…, model.int8.onnx a089794d…,
+sid 22, lang en, lexicon-gb-en.txt.
+
+**(1) The tables, as committed; not re-pasted.**
+- Row 4a, "On it." ×5, c0, 2 threads, cool-gated: notes-tts.md:685-690.
+- Row 4b, the 18 lines, c0, 2 threads, back to back: notes-tts.md:766-785.
+- Row 4c, the 18 lines, unpinned, 4 threads, back to back: notes-tts.md:791-810.
+
+**(2) The predictions (notes-tts.md:32-47), each judged against the figure named.**
+
+- **P-T1, derived load 0.8-2.0 s from flash: NOT JUDGED.** The model was
+  page-cached on every row (pushed at 17:42, before the first row), so no load
+  from flash was measured.
+- **P-T2, generate RTF 0.3-0.8 on the X1 pair at 2 threads: MISSED.**
+  4a 1.324-1.401; 4b 1.067 (line 05) to 1.373 (line 16); 4c 1.174 (line 05)
+  to 1.570 (line 00). **Lines under 1.0: 0 of 5, 0 of 18, 0 of 18.** Lines
+  inside 0.3-0.8: none.
+  (The sub-claim "short lines worse": 4b lines 00-03 read 1.266-1.365, against
+  1.067-1.143 on the single-sentence lines of 4.5 s or more. Line 16, at 3.1 s
+  of audio, read 1.373, and line 14, multi-sentence, read 1.331.)
+- **P-T3, peak RSS 250-450 MB: MISSED.** The range across all 41 rows was
+  283,656 kB (p2-01, 277.0 MiB) to 577,488 kB (p4-15, 564.0 MiB). kB here is
+  /proc's KiB, and "MB" is read as MiB (450 MiB = 460,800 kB), as the repo
+  does elsewhere. On that reading, the band is left **only by line 15, at
+  10.416 s of audio** (577,228 kB on 4b and 577,488 on 4c). The largest
+  in-band row is line 05, at 6.907 s (441,496 kB). If "MB" is read as 10^6
+  bytes, line 05 (439,460 / 441,496 kB = 450.0 / 452.1 MB) also leaves it.
+  MISSED either way.
+- **P-T4, no clock descent within one 18-line pass: MISSED.** The 4b X1
+  ceiling (policy6) fell to **2,048,000 kHz (73.09% of 2,802,000) at uptime
+  16481.31** (line 09), and again on line 15 (16536.06). It first moved on
+  line 02. policy4 held at 2,253,000 throughout. (4c: X1 to 500,000 in one
+  sample at 16616.33, then 1,582,000 from line 10.)
+- **P-T5, sample counts within 5 ms of the Mac: HELD.** Line 00 +3.625 ms
+  (+87), line 05 +1.292 ms (+31), line 15 -0.958 ms (-23).
+
+**(3) The product assumption: 2 threads pinned to the X1 pair (c0).** Elapsed
+on 4c (unpinned, 4 threads) exceeded 4b on **18 of 18 lines**, so 4 threads
+unpinned is not "clearly faster". **Caveat, stated:** 4c ran after 4b on the
+same package, and its X1 ceiling sat lower (1,582,000 from line 10, against
+2,048,000-2,188,000 on 4b), so the comparison is not controlled for heat.
+It does not show that 4 threads is slower on a cool chip.
+
+**(4) Derived load with the model cached is 1,875-2,139 ms across 41 rows**
+(wall minus elapsed, which includes process start and WAV write). That bears
+on rung 2's reload-on-wake threshold (cold start ≤ 1.5 s), and does not
+answer it: rung 2 is resident vs reload, and none of these rows is a load
+from flash.
+
+**(5) For Matt to listen to** (pronunciation is out of scope for this brief;
+unchanged from the 4b/4c entry). The WAVs on the Mac are
+~/kokoro-models/phone-6a-rung1/p2-00.wav, p2-05.wav, p2-15.wav and ack-1.wav.
+- 04 "3:45 pm", "24th"
+- 05 "£12,480.50", "17.5%"
+- 07 "API", "502", "GitHub"
+- 08 "OAuth", "MCP"
+- 09 "CI"
+- 12 read/read and record/record (heteronyms)
+- 14 "2 o'clock"
+- 11 speaks the word "Penny"
+
+**The phone as left**, one wrapped invocation: uptime_s=17039.79,
+2026-09-18 18:01:33 BST, MemAvailable 2,078,096 kB, SwapFree 811,612 kB,
+policy0 1,803,000, policy4 2,253,000, policy6 2,802,000 (all rated), battery
+temp 301 dC. /data/local/tmp/tts/ holds 47 entries: the binary,
+libonnxruntime.so, penny-kokoro-int8/, pennytts.sh, help.txt, out/ (246 files)
+and 41 *.sherr files (all 0 B). It is left exactly as it is.
+**Nothing outside /data/local/tmp/tts/ was created, changed or deleted from this
+branch.** The /data/local/tmp listing is the one read at 17:06, plus tts/.
+
+**(6) What rung 1 does NOT say.**
+- Nothing about load from flash: the model was page-cached on every row.
+- Nothing about resident RSS: every row is a fresh process (rung 2).
+- Nothing about TTS beside the LLM (rung 3).
+- Nothing about the app, AudioTrack or time-to-first-audio (rung 4).
+- Nothing about a fresh boot: all of it ran on spent boot 4.
+- Nothing about policy0 during a row: it was read by hand before and after
+  each pass only, and read rated every time.
+- Nothing about which cores 4c's threads used.
+- Nothing about pronunciation: not listened to.
+- Nothing about the 7a.
