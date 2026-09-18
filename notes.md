@@ -11860,12 +11860,17 @@ Repeated on the FIXED binary afterwards (`smoke_a_identity2`, uptime 10183.22,
 13:08:18) with the same three results — the fix touched only loop-mode output,
 but that was verified rather than reasoned.
 
-**The timings differ and that is expected, not a regression.** `t_state_load_ms`
-read 41.08 ms against row 8's 9.58 ms, because row 8 ran nine minutes after the
-state file was written and this ran two days later with the file no longer as
-warm. `t_tensor_band_ms` 2914.17 against 2725.80, on a boot with four more hours
-on it. **These are two runs at different moments on a tired boot and neither is
-comparable with row 8's figures.** The fnv is the part that carries.
+**The timings differ.** `t_state_load_ms` read 41.08 ms against row 8's 9.58 ms,
+and `t_tensor_band_ms` 2914.17 against 2725.80. **The conditions, and NO CAUSE
+IS CLAIMED for either gap.** Row 8 ran at uptime 5174.13 on this same boot and
+read `q35_state.bin` nine minutes after row 7 wrote it. Smoke A ran at uptime
+9889.77, wallclock 13:03:24; the state file's mtime read 2026-09-18 11:35 — it
+was written on the phone by row 7, not pushed, so that mtime is the real write
+time and the file was **about 1 h 28 min old**. By then the boot carried **nine
+rows and four smoke runs**, and `SwapFree` was **682,300 kB of 3,145,724 —
+two-thirds spent** (read in the smoke B report either side). **These are two
+runs at different moments on a tired boot and neither is comparable with row 8's
+figures.** The fnv is the part that carries.
 
 ### SMOKE B — THE LOOP RUNS, AND SO DOES THE OVERRUN PATH
 
@@ -11953,3 +11958,56 @@ enough to throttle, swap or be killed — `lmk_kill_lines 0` on a row that laste
 22 seconds says nothing. The series produced three samples; S1 will produce
 ~360, and nothing here tests the sampler over an hour. The 1.7B has not been
 touched: every figure above is Qwen3.5-2B.
+
+## 2026-09-18 — AMENDMENT to the brief S smoke-test entry. A false sentence replaced, and the three-count disassembly check run on the binary that is actually on the phone.
+
+Both raised by Matt on reading the entry above, before the reboot for brief S's
+boot. Nothing was re-run on the phone for either; the first is a correction of
+words, the second is a check on a local file.
+
+### 1. "THIS RAN TWO DAYS LATER" WAS FALSE
+
+The smoke A paragraph read: *"because row 8 ran nine minutes after the state
+file was written and this ran two days later with the file no longer as warm."*
+**`q35_state.bin` was written by row 7 on the morning of 18 Sept, on this same
+boot — about an hour and a half before the smoke test, not two days.** Its mtime
+read 2026-09-18 11:35 when the file was listed at 13:09:55, and because row 7
+wrote it on the phone rather than it being pushed, that mtime is the genuine
+write time and not the `adb push` mtime trap.
+
+**The sentence also asserted a cause — "with the file no longer as warm" — that
+nothing measured.** It has been replaced above with the conditions and no cause:
+state file ~1 h 28 min old, a boot carrying nine rows and four smoke runs,
+`SwapFree` 682,300 kB of 3,145,724 (two-thirds spent). Why `t_state_load_ms`
+read 41.08 ms rather than 9.58 ms is **not established here and nothing is
+offered.**
+
+The replacement is an edit rather than an append, at Matt's instruction; the
+sentence it replaced is quoted in full above so the error stays in the history.
+
+### 2. THE THREE-COUNT CHECK ON `f52fc604…`, THE BINARY ON THE PHONE
+
+The check was run at build time on 18 Sept 13:07 and its result is in the
+`ff009f5` commit message, but it was never shown in a message to Matt with the
+binary's own hash beside it, which is the form the protocol asks for. Re-run on
+the local copy, one invocation, hash first:
+
+    f52fc60411b55e5ed9eb34e8307f32b45d6bed6f06de85a5347bc02ec2f4ffe9  build/pennyload-stripped
+    3,836,992 B
+
+    disassembly lines                              735,079
+    i8mm    (smmla|ummla|usmmla)                          0
+    SVE/SME (ptrue|whilelo|smstart|smstop|z<n>. operand)  0
+    dotprod (sdot|udot)                                 898
+
+**0 / 0 / 898**, the same three counts as the 16 Sept `llama-bench` build and as
+`be2cab2c…`. And the file on the phone is the same file:
+
+    f52fc60411b55e5ed9eb34e8307f32b45d6bed6f06de85a5347bc02ec2f4ffe9  /data/local/tmp/pennyload
+
+**What this does NOT say.** The counts are of a disassembly of the whole binary,
+so 898 `sdot|udot` says the dot-product kernels are compiled in, not that any of
+them executed. `llvm-objdump` is the check because `readelf -A` returns an empty
+`BuildAttributes` block for every aarch64 binary and would pass a build full of
+`smmla`. Nothing here re-verifies the static libraries, which are the same
+object files at 38a5b42d9 that every figure in this repo was measured against.
