@@ -213,3 +213,103 @@ to it or a hand-run of its cmake line).
 What this entry does not say: that sherpa-onnx builds with this NDK and cmake,
 what the nine approved archives weigh or whether they match their pins, that
 nothing further is fetched beyond the eleven, or anything about the phone.
+
+## 2026-09-18 — TTS RUNG 1, BUILD STOPPED IN CONFIGURE: two UNAPPROVED archives were fetched (kissfft, kaldifst — pulled by approved archives' own cmake) before the stop fired. No binary exists.
+
+Branch tts-kokoro. Mac only; the phone has not been touched from this branch.
+
+**The edit to the clone (Matt's option 2).** sherpa-onnx clone = a5b4a94 + this one uncommitted line:
+
+    diff --git a/build-android-arm64-v8a.sh b/build-android-arm64-v8a.sh
+    index 8e05154..5b592a7 100755
+    --- a/build-android-arm64-v8a.sh
+    +++ b/build-android-arm64-v8a.sh
+    @@ -183,6 +183,7 @@ cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake"
+         -DSHERPA_ONNX_ENABLE_TESTS=OFF \
+         -DSHERPA_ONNX_ENABLE_CHECK=OFF \
+         -DSHERPA_ONNX_ENABLE_PORTAUDIO=OFF \
+    +    -DSHERPA_ONNX_ENABLE_WEBSOCKET=OFF \
+         -DSHERPA_ONNX_ENABLE_JNI=$SHERPA_ONNX_ENABLE_JNI \
+         -DSHERPA_ONNX_LINK_LIBSTDCPP_STATICALLY=OFF \
+         -DSHERPA_ONNX_ENABLE_C_API=$SHERPA_ONNX_ENABLE_C_API \
+
+`bash -n` passes. Configure log line 71 reads `-- SHERPA_ONNX_ENABLE_WEBSOCKET OFF`,
+and websocketpp and asio were not fetched.
+
+**Command, run from ~/Documents/sherpa-onnx, stdout+stderr to a log:**
+
+    PATH=/opt/homebrew/share/android-commandlinetools/cmake/3.22.1/bin:$PATH \
+    ANDROID_NDK=/opt/homebrew/share/android-commandlinetools/ndk/30.0.16248370 \
+    SHERPA_ONNX_ONNXRUNTIME_ROOT=/Users/mattstevenson/Documents/sherpa-onnx-deps/onnxruntime-android-1.28.2 \
+    SHERPA_ONNX_ENABLE_BINARY=ON ./build-android-arm64-v8a.sh
+
+cmake 3.22.1-g37088a8. Started 17:17:35 BST (read in the launching command). It
+never reached `make`: no install/ directory exists. No build wall time is
+quoted, because the build did not complete.
+
+**What went wrong, in order.** The nine approved archives were named from
+sherpa-onnx's own cmake/*.cmake. Two of them fetch dependencies of their own at
+configure time, which the earlier entries did not look for (their cmake files
+only exist once the archive is unpacked):
+
+    kaldi-native-fbank v1.22.3 -> its CMakeLists.txt:136 include(kissfft)
+      kissfft @febd4cae  pinned _deps/kaldi_native_fbank-src/cmake/kissfft.cmake:9,11
+    kaldi-decoder v0.3.0 -> its CMakeLists.txt:56 include(kaldifst)
+      kaldifst v1.8.0    pinned _deps/kaldi_decoder-src/cmake/kaldifst.cmake:4-5
+
+Configure log lines 141 and 152 name them: `Downloading kissfft from
+https://github.com/mborgerding/kissfft/archive/febd4cae….zip` and `Downloading
+kaldifst from https://github.com/k2-fsa/kaldifst/archive/refs/tags/v1.8.0.tar.gz`.
+
+**The stop was mine and it was wrong.** The watcher I ran beside the build
+counted `_deps/*-subbuild` directories and killed at more than nine. It should
+have matched names against the approved list. So it let kissfft (the 3rd fetch)
+and kaldifst (the 4th) through, and fired only at the 10th subbuild,
+piper-phonemize, at ~17:24. Its `pkill` stopped the script but not the cmake
+children; the ps listing showed cmake still downloading piper-phonemize, and I
+killed those four PIDs by hand. `pgrep` then returned none running (17:24:17). **Two
+archives outside the approval are on disk, and hclust-cpp (approved) was never
+reached.**
+
+**Every archive on disk.** Bytes are from `stat -f %z` on the file in
+`_deps/<name>-subbuild/<name>-populate-prefix/src/`. The sha256 was COMPUTED by
+me and compared with the pin line named. **No cmake log line shows the hash
+check**: FetchContent runs quiet by default and prints download output only on
+failure. The only evidence from cmake itself is that each completed archive has
+its `-populate-download` stamp, which ExternalProject writes only after its
+hash check passes.
+
+    archive                 approved  bytes        sha256 vs pin   pin line
+    kaldi-native-fbank      yes           71,144   MATCH           cmake/kaldi-native-fbank.cmake:6
+    kaldi-decoder           yes           51,199   MATCH           cmake/kaldi-decoder.cmake:5
+    eigen 5.0.1             yes        2,967,272   MATCH           cmake/eigen.cmake:5
+    openfst 1.8.5-2026-07-09 yes       1,501,685   MATCH           cmake/openfst.cmake:7
+    simple-sentencepiece    yes          355,335   MATCH           cmake/simple-sentencepiece.cmake:6
+    nlohmann json 3.12.0    yes        9,678,593   MATCH           cmake/json.cmake:6
+    espeak-ng @ed530aa      yes       18,011,501   MATCH           cmake/espeak-ng-for-piper.cmake:5
+    piper-phonemize @f3ff95a yes       1,916,928   PARTIAL         cmake/piper-phonemize.cmake:5
+                                                   (killed mid-transfer; the size grew
+                                                   1,032,192 -> 1,916,928 between two
+                                                   reads; its sha256 is of a truncated
+                                                   file and means nothing)
+    hclust-cpp              yes       not fetched  --              cmake/hclust-cpp.cmake
+    kissfft @febd4cae       NO            74,252   MATCH           _deps/kaldi_native_fbank-src/cmake/kissfft.cmake:11
+    kaldifst v1.8.0         NO           172,147   MATCH           _deps/kaldi_decoder-src/cmake/kaldifst.cmake:5
+
+    complete approved archives on disk: 7, 32,636,729 B
+    unapproved on disk: 2, 246,399 B
+
+**Left as it is, for Matt:** `~/Documents/sherpa-onnx/build-android-arm64-v8a/`
+with all of the above, including the partial piper-phonemize zip. Nothing was
+deleted. The clone's `git status` is ` M build-android-arm64-v8a.sh` only.
+
+**What the full fetch list now looks like, as far as it has been read.**
+The nine, plus kissfft and kaldifst, is eleven. **Unread**: whether
+simple-sentencepiece, json, espeak-ng, piper-phonemize (which never finished
+unpacking) or hclust-cpp fetch anything of their own. The configure log up to
+the kill shows none from the first seven. piper-phonemize and hclust-cpp are the
+two still unread.
+
+What this entry does not say: that sherpa-onnx builds with this NDK, anything
+about a binary, its libraries or its hashes, that the fetch list is complete at
+eleven, or anything about the phone.
