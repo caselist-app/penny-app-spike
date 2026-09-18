@@ -490,3 +490,102 @@ it should not download again, and a full compile was ~3 min in run 2.
 What this entry does not say: that the binary runs on the 6a; that the mixed
 build behaves differently from a clean one (untested either way); that the five
 system libs resolve on the phone; or anything measured.
+
+## 2026-09-18 — TTS RUNG 1, CLEAN android-24 BUILD AND PUSH: 356 objects compiled from scratch, nothing downloaded, new binary bd7d26e8…; every pushed file hashes identically on the phone; --help exits 0 on the 6a. No row run.
+
+Branch tts-kokoro. Boot 4 (up since 13:17:34, a spent boot: S0/S1/S2 and
+eight model loads ran on it).
+
+**Deleted, with Matt's approval, from ~/Documents/sherpa-onnx/build-android-arm64-v8a/.**
+Top level: `bin`, `cmake_install.cmake`, `CMakeCache.txt`, `CMakeFiles`,
+`CPackConfig.cmake`, `CPackSourceConfig.cmake`, `install`,
+`install_manifest.txt`, `lib`, `Makefile`, `sherpa-onnx`, `sherpa-onnx.pc`.
+In _deps: all eleven `*-build` directories. **Kept: `_deps/*-subbuild` (11) AND
+`_deps/*-src` (11).** The approval named only -subbuild. Before deleting,
+I found that each subbuild's `<name>-populate-download` stamp also covers
+extraction (kissfft-subbuild build.make:96-101: download, verify and extract
+all run in one step, whose stamp depends only on urlinfo.txt and the mkdir
+stamp). With the stamps present, cmake would not re-extract, and configure
+would have met eleven empty source dirs. Matt chose to keep -src. It holds
+extracted sources only; `find . -name '*.o'` outside the subbuilds returned 0
+before the run.
+
+**Run 4** (same command as run 3, SHERPA_ONNX_ANDROID_PLATFORM=android-24;
+clone = a5b4a94 + the one WEBSOCKET=OFF line):
+
+    START 2026-09-18 17:40:48 BST   END 17:42:08 BST   rc=0   wall_s=80
+    "Building C/CXX object": 356   (run 2: 318, run 3: 44)   "Linking": 30
+    log line 47 -DANDROID_PLATFORM=android-24; CMakeCache.txt:21 android-24
+    no "linux-android21" in any build.make; "linux-android24" 999 times
+
+**Nothing downloaded.** All eleven archives keep their sizes and mtimes
+(17:17:40-17:29:58, the same eleven values as in the previous entry). There are
+still exactly eleven subbuilds.
+
+**The artefact:**
+
+    install/bin/sherpa-onnx-offline-tts   2,432,496 B
+      ELF 64-bit LSB pie executable, ARM aarch64, dynamically linked,
+      interpreter /system/bin/linker64, BuildID[sha1]=a0028df3343558e8e5ea599edbe74a411906214a, stripped
+      sha256 bd7d26e8f1cca82da2596fce2fe1957b2a2ed139f772a7655ec5983cb83c4f2d
+      DIFFERS from the mixed build's cd23a509… (2,426,304 B), as expected
+      needed: libonnxruntime.so (install/lib) + libandroid libc libdl liblog libm (system)
+    install/lib/libonnxruntime.so        22,249,560 B
+      sha256 33847ad43bffe204699fd4a27f7f3603452a8cdaf2f9a44983a0bc31ffcf2da1 (unchanged)
+
+**Before the push, one wrapped invocation:** uptime_s=15908.91,
+wallclock 2026-09-18 17:42:42 BST, MemAvailable 2,115,568 kB, SwapFree
+802,404 kB, scaling_max_freq/cpuinfo_max_freq policy0 1803000/1803000, policy4
+2253000/2253000, policy6 2802000/2802000. `/data/local/tmp/tts` did not exist.
+AC power, screen on, unlocked; nothing of ours running.
+
+**Push** (adb push; `mkdir /data/local/tmp/tts` first; chmod 755 on the binary
+and pennytts.sh; nothing outside /data/local/tmp/tts touched):
+
+    sherpa-onnx-offline-tts   2,432,496 B in 0.005 s
+    libonnxruntime.so        22,249,560 B in 0.219 s
+    penny-kokoro-int8/       360 files, 150,880,597 B in 3.093 s (46.5 MB/s)
+    pennytts.sh                  12,363 B
+
+**sha256, phone (sha256sum) against the Mac (shasum -a 256), all MATCH:**
+
+    sherpa-onnx-offline-tts  bd7d26e8f1cca82da2596fce2fe1957b2a2ed139f772a7655ec5983cb83c4f2d
+    libonnxruntime.so        33847ad43bffe204699fd4a27f7f3603452a8cdaf2f9a44983a0bc31ffcf2da1
+    model.int8.onnx          a089794d1293b91e82f3f2b8bed5417d04ac64447d6ada5f21045cde0799bf99
+    voices.bin               1c5a5b983d3d50d8586d437a51f3faa2da7919ce76a013c081e65671a3447c29
+    lexicon-gb-en.txt        c4cbb37316f62210dff52718a7afcaae24f50c032cc75ab47ae67b831d1049e7
+    lexicon-us-en.txt        7daaab53a181be9885b853a8582bf1838186317e5dadacbcef9c426d6fa0da14
+    tokens.txt               6ebb6bb288f20f3ae8d004d3c2ca27697da27c037d75e81a60e2a6a663f95425
+    pennytts.sh              79ec84160a73d3aafb11e808a73b9ad733fc49f0b50b2973e06a7f698dc604b2
+                             (= the copy committed at 25b6ed3)
+
+espeak-ng-data: 355 files, 37 dirs on the phone; 355 files, 37 dirs on the
+Mac (17,991,651 B). Files were counted, not hashed individually.
+
+**After the push, one wrapped invocation:** uptime_s=15932.39, 17:43:06,
+MemAvailable 2,097,528 kB, SwapFree 802,660 kB.
+
+**Smoke (--help only, no model, no taskset), run from /data/local/tmp/tts with
+LD_LIBRARY_PATH=/data/local/tmp/tts:** exit **rc=0** at uptime 15942.84,
+17:43:16. The output (156 lines, 12,646 B) was written to
+/data/local/tmp/tts/help.txt, the one file created beyond the push. First two
+lines, verbatim:
+
+    /Users/mattstevenson/Documents/sherpa-onnx/sherpa-onnx/csrc/parse-options.cc:PrintUsage:415
+    (empty)
+
+Line 3 is "Offline/Non-streaming text-to-speech with sherpa-onnx". The usage
+lists every flag pennytts.sh passes: --kokoro-model --kokoro-voices
+--kokoro-tokens --kokoro-lang --kokoro-lexicon --kokoro-data-dir --num-threads
+--sid --speed --output-filename. It also lists --kokoro-dict-dir and
+--kokoro-length-scale, which pennytts.sh does not pass.
+
+This proves the binary and libonnxruntime.so load, link and run on this CPU
+against bionic at API 37. It proves nothing about the model path: no ONNX
+session was created and no onnxruntime kernel ran, so the SIGILL risk named in
+the second entry is still untested.
+
+What this entry does not say: that the model loads or generates audio on the
+6a; that pennytts.sh runs under the phone's shell (its `date +%N` guard is
+still unexercised); anything measured; or that any of it is a baseline. Boot
+4 is spent.
