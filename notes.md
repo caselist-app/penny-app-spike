@@ -12011,3 +12011,67 @@ them executed. `llvm-objdump` is the check because `readelf -A` returns an empty
 `BuildAttributes` block for every aarch64 binary and would pass a build full of
 `smmla`. Nothing here re-verifies the static libraries, which are the same
 object files at 38a5b42d9 that every figure in this repo was measured against.
+
+## 2026-09-18 — BRIEF S, THE BOOT AND ITS PROTOCOL READINGS. Boot 4 of the handset's row work, the first boot dedicated to the sustained run.
+
+Boot 3 was spent: nine Q-A/Q-B rows, four brief-S smoke runs, and the model
+swap. `adb reboot` issued 13:17:19 Mac time, last reading before it
+`uptime_s=10719.15 wallclock=13:17:14` in one invocation. Matt unlocked by hand;
+the USB port is charging-only while locked on GrapheneOS, so adb cannot answer
+before that.
+
+    ADB UP   uptime_s=52.95   wallclock=13:18:26
+             -> boot start ~13:17:33
+
+**CONDITIONS, read at `uptime_s=85.41 wallclock=13:18:59`, before any row:**
+
+    AC powered: true   status: 2 (charging)   level: 100
+    battery temperature 330 dC = 33.0 C
+    screen_off_timeout=30000   stay_on_while_plugged_in=15   mWakefulness=Awake
+    com.pennyspike.probe2a     still disabled -- the disable survived the reboot
+    Running VMs: []
+    policy0=1803000  policy4=2253000  policy6=2802000   -- all three at rated
+    /data/local/tmp: Qwen3-1.7B-Q4_K_M.gguf, pennyload (f52fc604...),
+                     pennybench.sh rev 5 (96163d04...), penny_system.txt,
+                     penny_user.txt, llama-bench, llama-simple, out/, microdroid/
+                     NO q17_state.bin -- so S0 must regenerate it
+
+**`pm disable-user` SURVIVING A REBOOT IS NOW OBSERVED RATHER THAN ASSUMED.**
+CLAUDE.md has said it survives since 15 Sept; this is the reading. Whether the
+two `pm grant`s and the four assistant preconditions survived a
+disable/enable cycle is still UNTESTED and nothing here tests it.
+
+**THIS BOOT STARTS WARM, AND THAT IS A CONDITION ON EVERYTHING BELOW.** Battery
+temperature read 33.0 C at 85 s, against 26.7 C at idle on boot 3 this morning
+and 27.9-29.1 C across the smoke tests. The reboot followed a 32.8 s model push
+and four model loads. **S-C2's start figure is therefore not a cold start**, and
+no slope computed from it may be quoted as though the phone began at rest.
+
+### THE ~5 MINUTE READING — one invocation, value and wallclock together
+
+    MemTotal     5,718,280 kB
+    MemFree      1,323,484 kB
+    MemAvailable 2,218,088 kB
+    Cached       1,123,100 kB
+    SwapTotal    3,145,724 kB
+    SwapFree       996,604 kB   (31.68% of SwapTotal)
+    AnonPages    1,647,332 kB
+    uptime_s=303.84   wallclock=13:22:37   batt_temp_dC=318 (31.8 C)
+
+**`MemAvailable` 2,218,088 kB at 5.06 min, and that is 1.28 GB ABOVE the only
+other ~5-minute reading in the repo.** The native baseline of 15 Sept read
+**940,640 kB at 5.8 min** on an untouched boot with the app disabled, and
+CLAUDE.md warns in terms that it "was a phone still settling and must not be
+used as a budget". This reading is far closer to boot 3's 8.55-minute substitute
+of 2,310,624 kB and to the 25-minute figures of 2,135,144-2,284,200 kB across
+five boots.
+
+**NO CAUSE IS OFFERED AND NONE SHOULD BE READ IN.** Two boots' 5-minute readings
+1.28 GB apart is an observation about the spread of early-boot readings on this
+handset, from a sample of two, taken three days apart under conditions that were
+not controlled to match. What it does bear on is the standing warning: **the
+5-minute mark is not a stable point on this phone**, and that warning now has a
+second reading behind it rather than one.
+
+Battery temperature fell 330 -> 318 dC over the same 218 s, so the phone was
+shedding the heat of the push and the reboot while this was taken.
