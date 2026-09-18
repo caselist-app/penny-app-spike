@@ -589,3 +589,157 @@ What this entry does not say: that the model loads or generates audio on the
 6a; that pennytts.sh runs under the phone's shell (its `date +%N` guard is
 still unexercised); anything measured; or that any of it is a baseline. Boot
 4 is spent.
+
+## 2026-09-18 — TTS RUNG 1, ROW 4a: "On it." ×5, X1 pair, 2 threads, cool-gated — all rc=0; wall 3,021-3,082 ms, elapsed 1,098-1,162 ms, RTF 1.324-1.401, peak RSS 286,280-287,112 kB; WAV 19,899 samples vs the Mac's 19,812. Boot 4, spent; nothing here is a baseline.
+
+Branch tts-kokoro. **Boot 4** (up since 13:17:34). It had already carried S0, S1
+(59.16 min) and S2 (26.03 min) and eight model loads, so every figure below is
+from a spent boot. **No figure here is a baseline**, and each is "on the 6a".
+
+**Correction: the line at notes-tts.md:540 ("AC power, screen on, unlocked;
+nothing of ours running") was not read when it was written.** Read at 17:46:11,
+in one wrapped invocation (uptime 16117.09 -> 16117.52):
+
+    battery/status   Charging     capacity 100    battery/temp 278 (dC, battery not SoC)
+    online           main-charger 1, usb 1, tcpm-source-psy-i2c-max77759tcpc 1, dc 0
+    dumpsys power    mWakefulness=Awake, mWakefulnessChanging=false
+                     "Display Power:" printed only an object reference
+                     (com.android.server.power.PowerManagerService$1@ec9ada9), not a state
+    pgrep -l         pennyload: nothing; llama: nothing
+    pm list packages -d   package:com.pennyspike.probe2a  (disabled)
+    ceilings         policy0 1803000, policy4 2253000, policy6 2802000
+
+So: USB/mains charging at 100%, the device awake, none of our processes, the
+app disabled. "Unlocked" was not read directly; adb answered, and CLAUDE.md
+says the port is charging-only while locked.
+
+**A void first attempt, recorded.** At 17:46:22 (uptime 16128.52) the first
+ack-1 invocation redirected the script's stderr to
+/data/local/tmp/tts/out/ack-1.sherr before out/ existed (the script creates it).
+The phone's shell refused the redirect ("can't create … No such file or
+directory", rc=1) and **pennytts.sh never ran**. That was confirmed afterwards:
+no out/, no sherpa process, and 0.11 s between the hand reads either side.
+My error. The row below is the second invocation, with stderr to
+/data/local/tmp/tts/ack-1.sherr, which ended up empty (0 B) on all five rows.
+
+**Command, per row, one adb shell invocation each, hand-read ceilings either side:**
+
+    COOL=1 sh /data/local/tmp/tts/pennytts.sh ack-N c0 2 0
+
+c0 = cpus 6-7 (X1 pair). 2 threads, sid 22, lang en, lexicon-gb-en.txt,
+speed 1.0. Binary bd7d26e8…, libonnxruntime.so 33847ad4…
+
+**ack-1's .report, verbatim** (from /data/local/tmp/tts/out/ack-1.report):
+
+    PENNYTTS tag=ack-1 rc=0 mask=c0 threads=2 cool_gate=1
+    PENNYTTS text=On it.
+    PENNYTTS bin=/data/local/tmp/tts/sherpa-onnx-offline-tts
+    PENNYTTS cool_wait_s     uptime 16146.57 -> 16146.65
+    PENNYTTS uptime_s        before=16146.69 after=16150.43
+    PENNYTTS wall_ms         3021   (exec to exit, taken in the launching subshell)
+    PENNYTTS elapsed_ms      1098   (the binary's own Elapsed: generate only)
+    PENNYTTS derived_load_ms 1923   (wall - elapsed: process start + load + WAV write + 2 date forks)
+    PENNYTTS Number of threads: 2
+    PENNYTTS Audio duration: 0.829 s
+    PENNYTTS Real-time factor (RTF): 1.098/0.829 = 1.324
+    PENNYTTS wav             sr=24000 ch=1 bytes=39798 samples=19899 ms=829
+    PENNYTTS memavail_kB     before=2073044 after=2044564
+    PENNYTTS memfree_kB      before=766112 after=735300
+    PENNYTTS swapfree_kB     before=804196 after=804196
+    PENNYTTS cached_kB       before=1475944 after=1476864
+    PENNYTTS pswpin          before=238174 after=238174
+    PENNYTTS pswpout         before=852970 after=852970
+    PENNYTTS pgmajfault      before=253999 after=254012
+    PENNYTTS ceil_x1_kHz     before=2802000 min=2704000 after=2802000   (policy6, cpus 6-7, rated 2802000)
+    PENNYTTS ceil_x1_min_at  uptime=16149.37
+    PENNYTTS ceil_a76_kHz    before=2253000 min=2253000 after=2253000   (policy4, cpus 4-5, rated 2253000)
+    PENNYTTS ceil_a76_min_at uptime=16146.69
+    PENNYTTS peak_rss_kB     286736   (VmHWM, monotonic)
+    PENNYTTS max_vmrss_kB    283232
+    PENNYTTS max_rssanon_kB  232232   (anonymous -- NOT reclaimable)
+    PENNYTTS max_rssfile_kB  50680   (file-backed -- reclaimable)
+    PENNYTTS rss_samples     9   (sleep 0.2 s between samples; a short run may get very few)
+    PENNYTTS lmk_kill_lines  0
+    --- binary stderr (tail) ---
+    /Users/mattstevenson/Documents/sherpa-onnx/sherpa-onnx/csrc/parse-options.cc:Read:374 /data/local/tmp/tts/sherpa-onnx-offline-tts --num-threads=2 --kokoro-model=/data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx --kokoro-voices=/data/local/tmp/tts/penny-kokoro-int8/voices.bin --kokoro-tokens=/data/local/tmp/tts/penny-kokoro-int8/tokens.txt --kokoro-data-dir=/data/local/tmp/tts/penny-kokoro-int8/espeak-ng-data --kokoro-lexicon=/data/local/tmp/tts/penny-kokoro-int8/lexicon-gb-en.txt --kokoro-lang=en --sid=22 --speed=1.0 --output-filename=/data/local/tmp/tts/out/ack-1.wav 'On it.' 
+
+    Number of threads: 2
+    Elapsed seconds: 1.098 s
+    Audio duration: 0.829 s
+    Real-time factor (RTF): 1.098/0.829 = 1.324
+    The text is: On it.. Speaker ID: 22
+    Saved to /data/local/tmp/tts/out/ack-1.wav successfully!
+    --- kill lines ---
+
+ack-1.wall raw: `1789750001 050402574 1789750004 071966214 0`. That is five
+numeric fields, so toybox `date +'%s %N'` returns real nanoseconds on this
+build and the %N guard did not fire. ack-1.err (797 B) is exactly the binary
+stderr shown above: the parse-options echo of the command, then "Number of
+threads", "Elapsed seconds", "Audio duration", "Real-time factor", "The text
+is", "Saved to".
+
+**The five rows.** All figures are from out/ack-N.report, .wall and .err. Derived
+load = **wall minus elapsed, which includes process start and WAV write** (and
+the model load, and two `date` forks).
+
+    row    wall_ms  elapsed_ms  derived_load_ms  RTF    peak_rss_kB  rss_samples  x1 min     a76 min    memavail_kB before -> after
+    ack-1  3021     1098        1923             1.324  286,736      9            2,704,000  2,253,000  2,073,044 -> 2,044,564
+    ack-2  3082     1121        1961             1.352  286,996      8            2,630,000  2,253,000  2,075,484 -> 2,046,420
+    ack-3  3037     1157        1880             1.395  286,628      8            2,630,000  2,253,000  2,043,172 -> 2,048,156
+    ack-4  3037     1162        1875             1.401  286,280      8            2,401,000  2,253,000  2,047,384 -> 2,050,980
+    ack-5  3063     1151        1912             1.388  287,112      9            2,630,000  2,253,000  2,041,976 -> 2,034,592
+
+    wall .raw   ack-2 1789750024 574685707 1789750027 656700194 0
+                ack-3 1789750029 281759521 1789750032 319538901 0
+                ack-4 1789750033 950758058 1789750036 988496870 0
+                ack-5 1789750038 587688440 1789750041 651081996 0
+    audio 0.829 s on every row; wav sr=24000 ch=1 bytes=39798 samples=19899 on every row
+    max_rssanon_kB 232,232-235,628; max_rssfile_kB 50,680-51,848
+    swapfree unchanged within each row (804,196 on ack-1, 804,452 on 2-5)
+    pgmajfault +13 on ack-1, 0 on ack-2/3/4, +8 on ack-5
+    lmk_kill_lines 0 on all five; .kills files 0 lines
+
+The x1 min column is policy6, rated 2,802,000: ack-4's 2,401,000 is 85.7% of
+rated, and the others are 93.9-96.5%. policy4 never moved.
+
+**Hand-read ceilings (policy0/4/6 scaling_max_freq), each in the same adb
+invocation as the row:**
+
+    ack-1 before 16146.43 17:46:40  1803000/2253000/2802000   after 16151.31 17:46:45  same
+    ack-2 before 16169.95 17:47:03  1803000/2253000/2802000   after 16174.48 17:47:08  same
+    ack-3 before 16174.62 17:47:08  same                      after 16179.10 17:47:13  same
+    ack-4 before 16179.33 17:47:13  same                      after 16183.74 17:47:17  same
+    ack-5 before 16184.00 17:47:18  same                      after 16188.76 17:47:22  same
+
+**policy0 is read by hand only, and only before and after.** pennytts.sh does
+not poll it, so a dip in policy0 during a row would not be seen.
+
+**Cooling between rows was the gate only.** COOL=1 waits until policy6 and
+policy4 read rated, and they already did at every start: cool_wait was
+0.04-0.10 s on every row. Gaps from one row's `after` to the next row's gate
+start: ack-1 -> ack-2 19.68 s (spent reading ack-1's files), then 1.11 s,
+1.20 s and 1.16 s. So ack-3 to ack-5 ran nearly back to back, with the X1
+ceiling already recovered to rated between rows.
+
+**Cold vs warm.** Only ack-1 is "cold" in the process sense. The model file was
+written by adb push at 17:42, so it was likely already in page cache even for
+ack-1 (Cached rose 920 kB on ack-1, pgmajfault +13). **No row here measures a
+load from flash.**
+
+**The WAV.** ack-1.wav was pulled to the Mac at
+~/kokoro-models/phone-6a-rung1/ack-1.wav (39,842 B). Its sha256
+4d7c10b9844e86a345fbd45a158eca46a9d02b59fdf87449c0c942b12f6caca4 matches the
+phone's copy. Header (python `wave`): 24,000 Hz, mono, 16-bit, **19,899
+frames = 829.12 ms**, "data" tag at 36. The Mac clip abtest-penny/00-int8.wav
+reads 19,812 frames = 825.50 ms. **Difference: 87 samples = 3.625 ms**, inside
+P-T5's 120-sample / 5 ms limit for this line. All five phone WAVs have the
+same sha256 (4d7c10b9…), so generation is deterministic across the five
+processes. The phone's WAV is not byte-identical to the Mac's (different
+lengths).
+
+What this entry does not say: anything about lines other than "On it."; a
+load time from flash (the file was likely cached); what policy0 did during a
+row; whether the 87-sample difference comes from the front end or from the
+1.13.8-vs-a5b4a94 version gap; anything about thermals beyond ~42 s of
+intermittent load; the predictions' verdicts (those come in the rung 1
+write-up); or anything on a fresh boot. Nothing here is a baseline.
