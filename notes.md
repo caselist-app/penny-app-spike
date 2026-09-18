@@ -12165,3 +12165,35 @@ reading and not a trend:
 **`SwapFree` rose 140,544 kB in the 323 s between them**, so swap was recovering
 rather than flat — but that is two points, one of which came from a row's
 after-block rather than from an idle sample, and **no rate is claimed from it.**
+
+### THE ~25 MINUTE READING — one invocation, every value and the wallclock together
+
+    uptime_s=1501.63 wallclock=13:42:35 MemAvailable=2347476 SwapFree=666876
+    Cached=1226340 MemFree=1277764 AnonPages=1297800 batt_temp_dC=312
+    ceil_x1=2802000 ceil_a76=2253000 ceil_a55=1803000
+
+Quoted from the command's own output, unedited. 25.03 minutes after power-on.
+
+    MemAvailable   2,347,476 kB
+    SwapFree         666,876 kB   (21.20% of SwapTotal 3,145,724)
+    Cached         1,226,340 kB
+    MemFree        1,277,764 kB
+    AnonPages      1,297,800 kB
+    battery        312 dC = 31.2 C
+    ceilings       X1 2,802,000 / A76 2,253,000 / A55 1,803,000 -- ALL AT RATED
+
+**`MemAvailable` 2,347,476 kB is ABOVE the five-boot ~25-minute range**, which
+CLAUDE.md records as 2,135,144 to 2,284,200 kB — higher than the top of it by
+63,276 kB. **This boot has had a row run on it and those five had not**, so it
+is not a like-for-like sixth member of that set and is not offered as one.
+
+**`SwapFree` RECOVERED between S0 and here: 487,932 -> 666,876 kB, +178,944 kB
+over 1,108 s.** S0 ended at 15.51% of `SwapTotal` and S1 starts at 21.20%.
+**S-B3's floor is 10% (314,572 kB), so the margin at the start of S1 is
+352,304 kB.** The recovery is recorded because the sampler that was supposed to
+measure it took no readings; these are two points either side of an 18-minute
+gap and no rate is claimed.
+
+**Battery: 330 dC at 85 s -> 318 at 303.84 s -> 316/317 across S0 -> 312 at
+1501.63 s.** The phone shed heat throughout the idle period. **S1 therefore
+starts at 31.2 C, not at rest**, and S-C2's slope must be read against that.
