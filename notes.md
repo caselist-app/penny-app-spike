@@ -10030,3 +10030,213 @@ stays correct that this session did not run them. The 31.4 MB/s push is one
 USB transfer, once, and is not a storage or a link figure. And the three
 MemTotal values are counted across transcripts of varying age — the count says
 they were all read at some point, not which boot each belongs to.
+
+## 2026-09-18 — ROW 6, `q35_r6_cold_fresh`. Qwen3.5-2B-Q4_K_M's cold load on boot 3. **A6 PASSES at 4.666 s**, and the 2B costs 1.74 GiB and three cached processes.
+
+First row on Qwen3.5-2B. Gated, cold page cache, the first run of the boot —
+nothing had read the `.gguf` since power-on, on the evidence in the boot-3 entry
+above. Every figure below is read from `out/q35_r6_cold_fresh.report` and
+`.bench` on the phone, not from scrollback.
+
+**THE GATE AND THE ROW, one shell invocation**, the same form rows 1-5 used:
+
+    while [ policy6 != 2802000 ] || [ policy4 != 2253000 ]; do sleep 5; done
+    PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh q35_r6_cold_fresh c0 -- \
+      -m /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf -t 2 -lm none -n 64 --print \
+      --sys-file /data/local/tmp/penny_system.txt \
+      --user-file /data/local/tmp/penny_user.txt --tag r6
+
+    rc=0   mask=c0   uptime before 1525.63 s   after 1544.62 s   (18.99 s)
+
+### THE 2B TOKENISES THE SAME TWO FILES DIFFERENTLY, AND IT MATTERS
+
+    PENNYLOAD sys_file=...penny_system.txt sys_bytes=1911 sys_tokens=413 sys_add_special=1 sys_parse_special=1
+    PENNYLOAD user_file=...penny_user.txt  user_bytes=95  user_tokens=21  user_add_special=0 user_parse_special=1
+
+**413 and 21, against Qwen3-1.7B's 407 and 20 on the identical files.** Same
+bytes, different vocabulary, so every per-token figure below is over 434 tokens
+where rows 1-5 were over 427. `chat_template=NONE` on both, so nothing is
+inserted around them.
+
+### EVERY PHASE LINE, AS READ
+
+    PENNYLOAD tag=r6 run_type=fresh rc=0
+    PENNYLOAD model=/data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf model_bytes=1280835840
+    PENNYLOAD threads=2 n_ctx=1024 n_batch=2048 n_ubatch=512 n_gpu_layers=99
+    PENNYLOAD load_mode=none extra_bufts=1 sampler=greedy
+    PENNYLOAD chat_template=NONE
+    PENNYLOAD progress_calls=322
+    PENNYLOAD t_backend_ms      2.62      (T1-T0)
+    PENNYLOAD t_model_open_ms   769.44    (T2-T1,  header+hparams+vocab+alloc)
+    PENNYLOAD t_tensor_band_ms  3863.26   (T3-T2,  tensor data read + repack)
+    PENNYLOAD t_model_tail_ms   5.95      (T4-T3)
+    PENNYLOAD t_model_total_ms  4638.66   (T4-T1)
+    PENNYLOAD t_ctx_create_ms   24.32     (T5-T4)
+    PENNYLOAD t_ready_ms        4665.60   (T5-T0)  == **A6**
+    PENNYLOAD t_tokenize_ms     3.39      (T6-T5)
+    PENNYLOAD t_state_load_ms   n/a       (fresh run)
+    PENNYLOAD t_sys_decode_ms   7713.13   (T9a-T6, 413 tokens, one llama_decode)
+    PENNYLOAD t_state_save_ms   n/a       (no --save-state)
+    PENNYLOAD state_file=(none) state_bytes=-1
+    PENNYLOAD t_user_decode_ms  454.53    (T9b-T9a, 21 tokens)
+    PENNYLOAD t_sample_ms       1.29      (T10-T9b)
+    PENNYLOAD ttft_fresh_ms     8168.95   (T10-T6)
+    PENNYLOAD ttft_cached_ms    8172.34   (T10-T5)
+    PENNYLOAD ttft_cold_proc_ms 12837.94  (T10-T0)
+    PENNYLOAD gen_tokens=64 gen_ms=5108.18 gen_tps=12.33
+    PENNYLOAD first_token_id=3710
+    PENNYLOAD token_fnv1a64=0x19d53b5da9186ff6
+
+**`ttft_cold_proc_ms` IS LABELLED `== B3` BY THE TOOL AND IS NOT B3.** The
+label is printed on every run. B3 is the cached-prefix wake, and this row is
+fresh — it decodes the system prompt rather than restoring it. The hybrid's B3
+would be row 10 on a fourth boot, which is undecided. Row 1 carried the same
+label and the same correction; it is repeated because the line is in the file.
+
+### A6, SCORED
+
+    #   prediction                        point   band        measured    verdict
+    A6  Qwen3.5-2B cold load -> ready      4.9 s  3.5-7.0 s   4.6656 s    **PASS**
+
+234 ms below the point, comfortably inside the band, on the first and only
+sample.
+
+**THE LOAD SCALES WITH THE FILE, ALMOST EXACTLY.** Against row 1's cold load of
+Qwen3-1.7B on 16 Sept boot 1 — a different boot, so this is a comparison and
+not an error bar:
+
+    t_ready_ms        4021.78 -> 4665.60   +643.82 ms   +16.01%
+    model bytes    1,107,409,472 -> 1,280,835,840      +15.66%
+
+**16.01% more time for 15.66% more bytes.** That the two agree to within a
+third of a percentage point is the kind of coincidence one sample cannot
+distinguish from a law, and it is recorded as the former.
+
+**BUT THE SPLIT INSIDE THE LOAD IS NOT PROPORTIONAL, AND THAT IS THE FINDING:**
+
+    phase               row 1 (1.7B)   row 6 (2B)    delta
+    t_model_open_ms          398.49       769.44    +370.95   **+93.09%**
+    t_tensor_band_ms        3581.59      3863.26    +281.67      +7.86%
+    t_ctx_create_ms           36.62        24.32     -12.30     -33.59%
+
+**`t_model_open_ms` nearly DOUBLED while the tensor band grew 7.86%.** That
+phase is header, hparams, vocabulary and allocation — not tensor bytes — so it
+does not scale with file size, and the 2B's vocabulary is the obvious suspect
+given it tokenises the same file to 413 tokens rather than 407. **Suspect, not
+established: nothing here isolates it**, and `progress_calls` moved only
+311->322. It is worth one cheap check on some later row and is not chased now.
+
+`t_ctx_create_ms` FELL, on a 1024-token KV cache — the same phase whose 0.2-0.8 s
+band A3 failed by an order of magnitude on the 1.7B. 24.32 ms here makes that
+failure worse, not better, and on a second model.
+
+### MEMORY, KILLS, AND THE CLOCK
+
+    PENNYBENCH memavail_kB   before 2,270,852   after 2,740,524
+    PENNYBENCH memfree_kB    before 1,536,804   after 1,918,048
+    PENNYBENCH swapfree_kB   before   862,460   after   476,412    (15.14% of total)
+    PENNYBENCH cached_kB     before   954,680   after 1,048,668    (**ROSE** 93,988)
+    PENNYBENCH pswpin        before    34,617   after    35,382    (+765)
+    PENNYBENCH pswpout       before   609,195   after   744,580    (+135,385)
+    PENNYBENCH pgmajfault    before    47,572   after    48,426    (+854)
+    PENNYBENCH ceil_x1_kHz   before 2,802,000   min 2,048,000   after 2,802,000
+    PENNYBENCH ceil_x1_min_at uptime=1532.24    (7 s into the row, 73.09% of rated)
+    PENNYBENCH ceil_a76_kHz  before 2,253,000   min 2,253,000   after 2,253,000
+    PENNYBENCH ceil_a76_min_at uptime=1525.63   (0 s into the row -- never fell)
+    PENNYBENCH peak_rss_kB   1,824,632   (VmHWM, monotonic)
+    PENNYBENCH max_rssanon_kB 1,819,144  (99.70% -- NOT reclaimable)
+    PENNYBENCH max_rssfile_kB     5,216
+    PENNYBENCH rss_samples       46
+    PENNYBENCH lmk_kill_lines     6
+
+**PEAK RSS 1,824,632 kB = 1.740 GiB, 99.70% anonymous**, against the 1.7B's
+1,541,140 kB on row 1 — **+283,492 kB, +18.39%** for +15.66% of file. It sits
+exactly on the 1.69-1.74 GiB the 16 Sept `llama-bench` rows reported for this
+model, which is a different instrument agreeing, and at `-lm none` every byte of
+it is memory the phone has to find.
+
+**SIX KILL LINES, THREE PROCESSES, AND `MemAvailable` IN FRONT OF THEM IS
+2,270,852 kB:**
+
+    com.android.DeviceAsWebcam   oom_score_adj 915   cch +15 CEM
+    com.android.keychain         oom_score_adj 915   cch +15 CEM
+    com.android.deskclock        oom_score_adj 905   cch CEM
+
+All three `reason: low watermark is breached`, all cached, none in the
+foreground band, our own process untouched. **Against row 1's four processes at
+`MemAvailable` 2,277,952 kB — 7,100 kB apart, the closest two starting
+conditions in this plan — the 2B at 1.74 GiB costs THREE where the 1.7B at
+1.47 GiB cost FOUR.** Two of the three are the same processes row 1 took
+(`DeviceAsWebcam`, `keychain`). So on this evidence the larger model did not
+cost more kills; the killer takes what is cheapest and stops when the watermark
+is met.
+
+**THE CONTAMINATION RULE IS NOT MET.** `Cached` ROSE 93,988 kB rather than
+falling by the model's size, and `SwapFree` ended at 476,412 kB — **15.14% of
+`SwapTotal`, above the ~10% floor** but the lowest any row in this plan has
+ended at. `pswpout` moved 135,385 pages. Worth watching on row 7.
+
+**THE X1 PAIR FELL TO 73.09% OF RATED, 7 SECONDS IN, AND THE A76 PAIR NEVER
+MOVED.** `ceil_x1` min 2,048,000 kHz is the same floor and the same timing row 1
+recorded (2,048,000 at 10 s in), so the two models drive the limiter
+comparably at `c0 -t 2`. Both clusters back at rated by the end of the row.
+`policy0` was not sampled.
+
+### BUFFER LINES
+
+The `.report` carries only the tail of the loader's stderr, and this is it
+verbatim:
+
+    sched_reserve:        CPU compute buffer size =   498.02 MiB
+    sched_reserve: graph nodes  = 1411
+    sched_reserve: graph splits = 1
+    sched_reserve: reserve took 11.98 ms, sched copies = 1
+    ~llama_context:        CPU compute buffer size is 498.0196 MiB, matches expectation of 498.0196 MiB
+
+**The per-tensor and model-buffer lines are NOT in the `.report`** — they are in
+`q35_r6_cold_fresh.err`, which was not read, so no accounting of the 1.74 GiB
+against llama.cpp's own buffer figures is attempted here. The 498.02 MiB compute
+buffer is the one number available and it is stated alone.
+
+`ZRAM: 580,400K physical used for 2,397,184K in swap (3,145,724K total swap)` —
+4.13:1, and swap on this handset is zram, as established 16 Sept.
+
+### THE TEXT
+
+64 tokens, `first_token_id=3710`, `token_fnv1a64=0x19d53b5da9186ff6`. The model
+echoes the question and opens a `<think>` block:
+
+    What is the capital of Australia, roughly how many people live there, and
+    when was it founded?
+
+    <think>
+    Thinking Process:
+
+    1.  **Analyze the Request:**
+        *   **Persona:** Penny, a voice assistant running entirely on this phone.
+
+**64 tokens is not enough to reach an answer** — it is still planning when the
+budget runs out. Recorded as text produced and nothing more. **No quality
+judgement**, and note the 1.7B's answer got two of its three facts wrong.
+
+`gen_tps=12.33` is 63 decodes over 5108.18 ms, the same divisor row 1 documented
+(`pennyload.cpp:390`), against the 1.7B's 15.04.
+
+### WHAT ROW 6 DOES NOT SAY
+
+**One sample, no error bar, and the comparisons to row 1 cross two boots.** Row
+1 ran on 16 Sept boot 1; this is 18 Sept boot 3, whose `Cached` at connect was
+~590 MB higher and which has no ~5-minute reading. The 16.01%/15.66% agreement
+and the "three kills against four" are observations across that gap, not
+controlled pairs.
+
+**B6 IS NOT SCORED HERE and the hybrid's state path is still untested.** Row 6
+carries no `--save-state`; whether `llama_state_save_file` succeeds on a model
+with eighteen recurrent layers is row 7's question, and it can still fail
+outright rather than return a number.
+
+Nothing sustained: 18.99 seconds of wall time, the X1 ceiling still at 73.09% of
+rated when the row ended. AC power, screen on, unlocked, foreground, over adb,
+app disabled, no VM. `t_model_open_ms` doubling is attributed to nothing — the
+vocabulary is a suspect and was not tested. And `ttft_cold_proc_ms` 12,837.94 ms
+is a fresh cold process, not a wake figure.
