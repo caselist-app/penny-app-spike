@@ -2514,6 +2514,26 @@ not soften it.
   zero-kill rows were flattered by prior kills.** So every row reports its kill
   count WITH `MemAvailable` before it, and a zero on a tired boot is never
   quoted as "this model causes no kills".
+- **A PROCESS LAUNCHED FROM `adb shell` HAS `oom_score_adj` -1000, SO IT CANNOT
+  BE LMK-KILLED — AND EVERY KILL LIST IN THIS REPO WAS TAKEN THAT WAY.** Read on
+  18 Sept, boot 3, before brief S was built:
+  `adb shell 'sh -c "cat /proc/\$\$/oom_score_adj"'` returns **-1000**, the
+  value adbd hands down. Rows 1-9 of the Q-A/Q-B plan all ran through
+  `pennybench.sh` from `adb shell`, so their kill lists — 8 lines / 4 processes
+  on r1, 8/4 on r5, 6/3 on r6, 16/8 on r7 — **could never have named
+  `pennyload`**. The counts stand; the closing entry's "our own process never
+  touched" was not a measurement on any of those rows and must not be read as
+  one. **The fix is one line and it is TESTED, not assumed**: raising
+  `oom_score_adj` is permitted to one's own uid (lowering needs
+  `CAP_SYS_RESOURCE`), and SELinux does not refuse it on this build — a
+  throwaway `sleep` went -1000 -> 200 with `write_rc=0`, empty stderr and a
+  read-back of 200, at uptime 8625.00 / 12:42:20. From brief S, `pennybench.sh`
+  writes **200** to the child and prints `pre=` and `post=` side by side so the
+  line is a reading rather than an intention. **200 is the perceptible /
+  foreground-service band** — the closest imitation of a service started from a
+  boot broadcast. It is NOT cached (900+) and NOT the foreground app (0);
+  3g-ii's killer stopped at **adj 201** under a 2GB VM, so 200 sits one point
+  inside the band it did not enter.
 - Prediction written in notes.md BEFORE the first run, and judged against
   in the write-up. The standing one: token generation barely improves
   beyond 2 threads (memory-bandwidth bound); prompt processing scales.

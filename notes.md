@@ -11423,3 +11423,366 @@ Nothing else in the closing entry changes: the twelve-prediction scorecard, A4's
 own 50.72% PASS on the 1.7B (r4 against r2, where r4's `Cached` moved 2,816 kB
 and `pswpout` did not move at all), Q-B's figures and B3's NOT MEASURED status
 are all untouched.
+
+## 2026-09-18 — BRIEF S AMENDMENTS and PREDICTIONS, written before any code, any build and any row: the sustained run
+
+Brief S asks the question every row in this repo has deferred: a model held
+resident, a cached prefix, a user turn arriving repeatedly, for an hour. The
+longest row in the Q-A/Q-B plan was r9 at 25.68 s and the shortest r8 at 9.88 s.
+Nothing here has run for more than half a minute.
+
+This entry is written before `pennyload` gains a line, before `pennybench.sh`
+gains a line, before anything is deleted from the phone and before anything is
+pushed to it. Three corrections to the brief come first, because two of them
+change what a row measures and the third changes what a sentence in the
+write-up may say.
+
+### CORRECTION 1 — `oom_score_adj` IS -1000 FROM `adb shell`, SO S-B1 AS BRIEFED COULD NOT FAIL
+
+Read on boot 3 before any of this was built:
+
+    adb shell 'sh -c "cat /proc/\$\$/oom_score_adj"'   ->   -1000
+
+**-1000 is the value adbd hands down, and it means the low-memory killer will
+not take the process at any pressure.** "Our process survived an hour holding
+1.43 GiB" is not a finding if the process was never a candidate. The brief had
+already asked for `oom_score_adj_child` to be printed "so 'our process was not
+killed' has a number beside it"; the number turns out to be the one that empties
+the claim.
+
+**DECIDED BY MATT, 18 Sept: raise it to 200**, and the write is tested before
+any reboot rather than assumed. Tested on boot 3, one invocation, a throwaway
+`sleep` launched from `adb shell`:
+
+    pid=9181  pre_oom_score_adj=-1000
+              write_stderr=[]  write_rc=0
+              post_oom_score_adj=200
+              uptime_s=8625.00  wallclock=12:42:20
+
+**SELinux does not refuse it**, the write returns 0 with empty stderr, and the
+read-back is 200. Raising `oom_score_adj` is permitted to one's own uid;
+lowering it needs `CAP_SYS_RESOURCE`, which is why -1000 -> 200 works and 200 ->
+-1000 would not.
+
+**200 IS THE PERCEPTIBLE / FOREGROUND-SERVICE BAND. It is NOT the cached band
+and it is NOT the foreground-app band.** Android's bands, as this repo has
+already measured them in 3g-ii and 3e-i: 0 is the foreground app, 100/200 are
+the visible and perceptible bands, 900+ is cached and empty. 3g-ii's killer
+cleared the whole cached band and then took `com.android.inputmethod.latin` at
+**adj 201** (`prcp IMPB`), twice, and stopped there without entering 200/100/0.
+200 is therefore the closest available imitation of **a foreground service
+started from a boot broadcast**, which is the shape rungs 3, 3b and 3d proved
+and the shape any real Penny would use. It is one point below the deepest adj
+the LMK has ever been observed to reach on this handset.
+
+`pennybench.sh` prints the pre-write value and the value read back AFTER the
+write, side by side, so the line is a reading rather than an intention:
+
+    PENNYBENCH oom_score_adj_child pre=<v> post=<v>   (written by the wrapper)
+
+**AND THE CONSEQUENCE FOR THE RECORD: rows 1-9 of the Q-A/Q-B plan ALL RAN AT
+-1000.** Every one was launched from `adb shell` through this same wrapper.
+Their kill lists — 8 lines / 4 processes on r1, 8/4 on r5, 6/3 on r6, 16/8 on
+r7 — **could never have named `pennyload`**, whatever the pressure. Those kill
+counts stay exactly as reported; what changes is that "our own process was never
+touched" (the closing entry's phrase) was not a measurement on any of the nine
+rows and must not be read as one. It is a measurement from S1 onwards.
+
+### CORRECTION 2 — THE BRIEF'S REASON FOR `state_set_data` OVER `seq_rm` IS NARROWER THAN IT SAYS
+
+The brief says "`seq_rm` on a partial range is not supported on recurrent
+memory, so it would silently make a 2B row a different experiment". Read at
+`src/llama-memory-recurrent.cpp:161-216`, commit 38a5b42d9, that is not quite
+right and the correct version is still a good reason.
+
+Partial `seq_rm` on recurrent memory **is** implemented at this commit, by a
+per-token snapshot index — but it is **bounded** (`rollback <= n_rs_seq`),
+**single-use** (it refuses while a rollback is already pending: `const bool
+pending = rs_idx[seq_id] != 0`), and it **returns `false`** rather than
+throwing when either condition fails. Rolling back one of these turns means
+discarding 85 tokens (20 user + 64 generated + 1), so it would need
+`n_rs_seq >= 85` and a clean pending flag on every one of 60 or 200 turns.
+
+**So the accurate reason is: a `false` return part-way through a row would turn
+a sustained row into a differently-shaped one with no exception raised**,
+whereas `llama_state_set_data` is unconditional and is the exact path Q-B
+measured at rows 3, 5 and 8. The per-turn figures then compare directly with
+B2's 422.31 ms (r3) and 406.21 ms (r5). None of this bites on Qwen3-1.7B, which
+is dense and has no recurrent layers; it is recorded so that the 2B can be run
+later on the same instrument without the reason having to be re-derived.
+
+API signatures verified by reading `include/llama.h:814-835` at 38a5b42d9, not
+recalled:
+
+    size_t llama_state_get_size(struct llama_context * ctx);
+    size_t llama_state_get_data(struct llama_context * ctx, uint8_t * dst, size_t size);
+    size_t llama_state_set_data(struct llama_context * ctx, const uint8_t * src, size_t size);
+
+`get_size`'s own comment — "Only use when saving the state, not when restoring
+it" — is about restoring; the snapshot is a save, so it is the right call.
+
+### CORRECTION 3 — BATTERY TEMPERATURE IS READ FROM sysfs IN THE SERIES, NOT FROM `dumpsys`. NAMED AS A DEVIATION.
+
+The brief specifies `dumpsys battery`. The series samples every 10 s for an
+hour, i.e. ~360 times, and `dumpsys` is a binder call into `system_server` —
+the process most likely to be perturbed by exactly the memory pressure the row
+is measuring. `/sys/class/power_supply/battery/temp` is a direct read of the
+same value.
+
+**They agree, read in ONE invocation so the comparison is not across time:**
+
+    sysfs_temp_dC=280  dumpsys_temp_dC=279  uptime_s=8865.42  wallclock=12:46:20
+
+1 dC apart. The series uses sysfs; `dumpsys battery` is still read once before
+and once after each row as the cross-check, so the deviation is bounded by a
+check at both ends. **It is BATTERY temperature in tenths of a degree C, not SoC
+temperature, and it is labelled that way everywhere.** `/sys/class/thermal/` is
+`Permission denied` to the shell user on this build, so no SoC temperature can
+be read at all.
+
+### WHAT THE PREDICTIONS ARE BUILT FROM — the four Qwen3-1.7B rows, quoted by tag
+
+All four ran `c0`, `-t 2`, `-lm none`, `n_ctx` 1024, `n_ubatch` 512, greedy,
+`chat_template=NONE`, `-n 64`, gated at rated on both ceilings. Every figure
+below was read from `out/<tag>.report` and `out/<tag>.bench` at the time and is
+quoted from its row entry, not re-measured:
+
+    row  t_state_load  t_user_decode  t_sample  ttft_cached  gen_tps  gen_ms   peak_rss_kB
+    r1   n/a (fresh)      371.75        0.89      6372.68     15.04   4188.65   1,541,140
+    r2   n/a (fresh)      360.32        0.85      6323.06     14.77   4266.65   1,541,012
+    r3     19.17 warm     401.99        0.81       422.31     15.35   4104.77   1,500,212
+    r5     59.16 cold     345.96        0.76       406.21     15.08   4177.14   1,500,196
+
+    user decode   mean of four   370.005 ms      spread 345.96 - 401.99  (+/- 7.6%)
+    sample        mean of four     0.8275 ms
+    gen_tps       mean of four    15.06 t/s      spread 14.77 - 15.35    (+/- 1.9%)
+    gen_ms        mean of four  4184.30 ms
+    peak RSS on the CACHED path (r3, r5)  1,500,212 kB = 1.4307 GiB, 99.6% anonymous
+
+**The cached path is the one S1 runs**, so 1,500,212 kB is the resident figure
+these predictions use — not r1's 1,541,140 kB, which is the fresh path.
+
+### THE ARITHMETIC, PREDICTION BY PREDICTION
+
+**The turn, decomposed.** `ttft_turn` = restore + user decode + first sample.
+
+*Restore.* r3's `t_state_load_ms` of 19.17 ms read 46,685,237 B from a warm page
+cache, parsed the session header and copied into the KV cache.
+`llama_state_set_data` from an in-memory snapshot does strictly less: no file
+read, no header. So 19.17 ms is an upper reference, not a target.
+**Point 15 ms, band 8-25 ms.** The brief's own "~10-20 ms already measured" sits
+inside that.
+
+*User decode.* 370.005 ms, the mean of all four rows, spread 345.96-401.99. The
+same 20-token `penny_user.txt` every turn — this is prompt processing, which the
+16 Sept matrix showed DOES scale with cores (P3, 2.10x from 1 to 4 threads), so
+it is the clock-sensitive half of a turn.
+
+*Sample.* 0.8275 ms. Negligible and carried only so the sum is honest.
+
+    ttft_turn (turn 1)   15 + 370.005 + 0.83  =  385.8 ms
+                         POINT 0.39 s   BAND 0.33 - 0.50 s
+
+That sits just below B2's measured 422.31 ms (r3) and 406.21 ms (r5), which is
+the direction the file read being removed predicts.
+
+    turn wall time (busy)   0.386 + 4.184  =  4.57 s     BAND 4.0 - 5.5 s
+    S1 duty                 4.57 / 60      =  7.6%
+    S1 duration             60 x 60 s      =  60.1 min
+    S2 duration at turn-1 speed   200 x 4.57  =  914 s = 15.2 min
+    S2 duration at the predicted settled speed  200 x 5.62 = 1124 s = 18.7 min
+                                                POINT 17 min   BAND 15 - 19 min
+
+**S-A1 — S1 `ttft_turn` settled. PREDICT decline 3%, band 0-8%. FAILS above 25%.**
+Each turn is ~4.6 s of work followed by ~55 s of idle. The measured ceiling
+recovery on this handset is 109.8 s of idle after a **65 s** two-thread load
+(16 Sept); the closer anchor is the Q-A/Q-B rows themselves, which were 9.9-25.7
+s long, dipped the X1 ceiling to 73.1-89.5% of rated, and **every one of the nine
+ended back AT rated**. An S1 turn is shorter than the shortest of those rows and
+has twelve times its own length to recover in. There is no mechanism in the
+record by which this row declines much.
+
+**S-A2 — S1 `gen_tps` settled. PREDICT decline 3%, band 0-8%; settled ~14.6 t/s,
+band 13.8-15.3. FAILS above 25% decline (below ~11.3 t/s).** Same reasoning, and
+generation is the *less* clock-sensitive half — see S-A3.
+
+**S-A3 — S2 `gen_tps` settled. PREDICT settled at 80% of turn 1, i.e. ~12.0 t/s
+from ~15.0; band 70-92% (10.5-13.8 t/s). FAILS below 50% of turn 1 (7.5 t/s).**
+
+The arithmetic is the cooled C-series of 16 Sept, which is the only place in
+this repo where the same configuration was run at two different row lengths and
+the clock floor recorded for both.
+
+    matched pair, UNPINNED, 4 threads -- the deepest clock floor in the record
+      C6   -p  64   52.93 s   X1 ceiling floor  984,000 kHz = 35.1% of rated   tg128 14.47
+      C5   -p 512  106.03 s   X1 ceiling floor  851,000 kHz = 30.4% of rated   tg128 11.74
+      2.00x the row length, a 13.4% lower floor
+      11.74 / 14.47 = 0.8113   ->   tg DOWN 18.87%
+
+    matched pair, c0, 2 threads -- S2's own configuration
+      C2   -p  64   52.57 s   X1 ceiling floor 1,277,000 kHz = 45.6%   tg128 14.91
+      C1   -p 512  103.32 s   X1 ceiling floor 1,106,000 kHz = 39.5%   tg128 14.11
+      14.11 / 14.91 = 0.9463   ->   tg DOWN 5.37%
+
+**Across all seven cooled rows the X1 floor spanned 851,000 to 1,277,000 kHz — a
+1.50x clock range, and 30.4% to 45.6% of rated — while `tg128` spanned 11.74 to
+14.91, a 1.27x range.** Token generation is memory-bandwidth bound on this
+handset: P2 held on 16 Sept, four threads are SLOWER than two. **If generation
+scaled with clock, a fall to 30% of rated would give 15.06 x 0.30 = 4.5 t/s and
+S-A3 would fail outright. The prediction is that it will not, and the C-series
+is the whole reason.**
+
+S2 is C1's configuration run roughly ten times as long, so it should reach a
+floor below C1's 39.5% — the unpinned pair's 18.87% tg loss at 30.4% is taken as
+the point rather than C1's own 5.37%, which is why the point is 80% and not 95%.
+
+**S-A4 — `fnv_all_equal = 1` on every row. PREDICT 1.**
+Greedy sampling on a restored prefix has already produced the identical 64
+tokens across four rows and two boots on this model —
+`token_fnv1a64 0xcba17a2fcbba49f4` on r1, r2, r3 and r5, with
+`first_token_id 32313` on all four — and across three rows on the 2B. **What is
+new is that the restore is from an in-memory snapshot rather than a file, and
+that it happens 60 or 200 times inside ONE process.** After turn k the context
+holds prefix + 20 + 64 tokens; `state_set_data` must return it to exactly the
+407-token prefix. If any residue survives, turn 2 differs from turn 1 and the
+fnv breaks at turn 2, not at turn 60. **That is the thing S-A4 actually tests,
+and a mismatch is the more important finding.**
+
+**S-B1 — S1 survives. PREDICT SURVIVES, at adj 200, and by one point.**
+3g-ii measured the LMK on a loaded phone clearing the entire cached band and
+then taking the IME at **adj 201**, twice, and stopping — never entering
+200/100/0 — under a 2048MB VM, which 3e-ii measured as taking **~1.92 GB** from
+the host at creation. S1 holds **1,500,212 kB = 1.43 GiB**, which is less. So
+the prediction is survival at one point below the deepest adj the killer has
+been seen to reach, under a smaller allocation than the one that took it there.
+**If it dies, it dies at exactly the band 3g-ii said the killer stops at, and
+that would be the headline.**
+
+**S-B2 — MemAvailable at the end of S1. PREDICT the SERIES settles at ~900,000
+kB, band 600,000 - 1,400,000 kB. FAILS if kill lines continue past the first
+five minutes of the row.**
+
+    native baseline, NO model, app disabled, one boot (CLAUDE.md):
+        2,119,020 kB at 25.3 min   2,012,348 at 60.5 min   1,929,032 at 120.6 min
+        decline between the last two ~2.0 MB/min
+    S1's last turn lands at roughly 25 min (protocol reading) + 60 min = ~88 min
+        2,012,348 - (88 - 60.5) x 2000  =  ~1,957,000 kB   with no model
+    model held (r3/r5 cached path)                          -1,500,212 kB
+    naive difference                                        =   456,788 kB
+    but the LMK gives memory back: every 1.7B row that killed RAISED MemAvailable
+        r1  2,277,952 -> 2,669,292   +391,340    (8 lines / 4 processes)
+        r5  2,191,292 -> 2,713,172   +521,880    (8 lines / 4 processes)
+        mean of the two                +456,610
+    456,788 + ~450,000  =  ~907,000 kB           POINT ~900,000 kB
+
+**THIS MUST BE READ FROM THE SERIES WHILE THE MODEL IS RESIDENT, NOT FROM
+`PENNYBENCH memavail_kB after`.** The wrapper's after-reading is taken once the
+child has exited and the 1.43 GiB has gone back, so it will read high — r3's was
+2,878,632 kB and r5's 2,713,172 kB. **Predicted `PENNYBENCH memavail_kB after`
+for S1: 2.6 - 2.9 GB, and it says nothing about the hour.** That is precisely
+why the brief added a series.
+
+On the kill half: the first row of a boot costs about four cached processes on
+this handset — r1 8 lines / 4 processes, r5 8/4, r6 6/3 — and every one of them
+happened at model load. **Predict 3-8 kill lines on S1, all inside the first
+60 s, NONE after minute 5.** A steady kill rate under a resident model is the
+finding that changes the design, and it is what the fail condition is written
+to catch.
+
+**S-B3 — SwapFree stays above 10% of SwapTotal (314,572 kB of 3,145,724)
+through S1. PREDICT PASS, settled ~650,000 kB, band 400,000 - 1,000,000
+(13 - 32%). The margin is not large and the prediction is specifically that it
+FLATTENS.**
+
+Loading this model costs swap, measured three times:
+
+    r5   997,372 -> 651,260   -346,112 kB   in one ~13 s row
+    r3   767,996 -> 530,940   -237,056 kB   in one ~9 s row
+    r2   820,732 -> 751,100    -69,632 kB
+
+Those are the cost of making room for 1.43-1.47 GiB of anonymous memory by
+compressing other processes into zram. **In S1 the model is loaded ONCE and held
+for an hour; the turns allocate nothing new after the KV cache exists.** So the
+prediction is a fall of 300,000-500,000 kB inside the first two minutes and then
+a flat line. **If it instead keeps draining at the loading rate it crosses the
+10% floor inside the hour, the row is void under the standing contamination rule
+and the boot is spent.** Starting SwapFree on a fresh boot at ~25 min is
+predicted at 1,000,000-1,400,000 kB; the record has no fresh-boot figure at that
+uptime, only r5's 997,372 kB as the first row of boot 2 and boot 3's close at
+739,156 kB, so this one number is the weakest in the entry.
+
+**S-C1 — ceilings between S1 turns. PREDICT the X1 pair IS at 2,802,000 at the
+start of every turn after the first, and >= 95% of series samples read rated;
+point 97%.**
+
+    measured recovery   109.8 s of idle from 1,426,000 kHz after a 65 s 2-thread run (16 Sept)
+    closer anchor       the nine Q-A/Q-B rows, 9.88 - 25.68 s long:
+                          X1 floor 73.1% (r1) to 89.5% (r5) of rated
+                          r3 min 2,401,000 (85.7%) at 7 s in, ended AT rated
+                          r5 min 2,507,000 (89.5%) at 7 s in, ended AT rated
+                          EVERY one of the nine ended at rated
+    an S1 turn is 4.57 s -- shorter than the shortest of those rows -- with 55 s after it
+
+Sampling arithmetic: duty is 7.6%, so ~8% of 10 s samples land inside a turn;
+and the Q-A/Q-B minima were first seen **7 s into** their rows, which is later
+than a whole S1 turn lasts. So the fraction of samples below rated is predicted
+to be *smaller* than the duty, hence 97%.
+
+Two more, carried in the same prediction: **`policy4` (A76, rated 2,253,000)
+never moves on S1** — it did not move on any of the nine Q-A/Q-B rows, before,
+min or after. And **`policy0` (A55, rated 1,803,000) is sampled during a row for
+the first time in this repo**; CLAUDE.md has named that gap twice and the series
+closes it. **No prediction is made for `policy0`** — nothing in the record
+supports one.
+
+For S2: **predict the X1 ceiling spends most of the row below rated with a floor
+below C1's 1,106,000 kHz (39.5%), point 900,000 - 1,000,000, band 851,000 -
+1,277,000** — the C-series envelope — because S2 is C1's configuration at ten
+times the length.
+
+**S-C2 — battery temperature. NO PREDICTION, per the brief; nothing in this repo
+has ever read it.** Recorded as a first reading, not a baseline: on boot 3,
+idle, AC power, screen on, level 100, `dumpsys battery` temperature **267 =
+26.7 C** at uptime 7725.22 / 12:27:20, and **280 / 279 dC = 28.0 / 27.9 C** at
+uptime 8865.42 / 12:46:20. The phone warmed ~1.2 C in 19 minutes doing nothing,
+which sets the resolution any S1 slope has to beat to mean anything.
+
+**The instrument's own two new figures, predicted so they can be judged:**
+
+    prefix_snapshot_bytes   POINT ~46,684,000 B   BAND 46.0 - 47.0 MB
+        r2's state FILE was 46,685,237 B for 407 tokens = 112.02 KiB/token,
+        against 114,688 B/token derived from the GGUF metadata -- so the state
+        is sized by used cells, not by n_ctx. The in-memory snapshot drops the
+        session-file header, so it is predicted slightly SMALLER than the file.
+    t_snapshot_ms           POINT 12 ms   BAND 5 - 25 ms
+        B4 measured 17.91 ms to build the state AND write it to disk (r2);
+        get_data does no write.
+
+### THE PREDICTED PLAIN ANSWER, SO IT CAN BE JUDGED TOO
+
+**Predicted: the conversational hour is uneventful and the back-to-back
+quarter-hour is where the chip shows.** One turn a minute for sixty minutes
+costs this handset a 1.43 GiB resident set, about four cached processes killed
+once at the start, and roughly 7.6% of its time; the turns at the end look like
+the turns at the beginning to within a few percent, because 55 seconds of idle
+is ten times what the X1 pair needs to come back to rated. Run the same turns
+with no gap and generation slows by about a fifth — not by the two-thirds the
+clock falls by — because generation on this phone is bound by memory bandwidth
+and not by clock. **The thing most likely to be wrong here is the memory half,
+not the timing half**: S-B2's ~900 MB and S-B3's flat swap line are both
+inferences from rows that lasted seconds, applied to an hour.
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+Nothing has been measured. Every number above is a prediction and all of them
+rest on rows of 9.88 to 25.68 s, or on the 16 Sept cooled matrix whose rows were
+52.57 to 246.73 s — **none of them on anything that ran for an hour, which is
+the entire point of the row being predicted.** The C-series pairs used for S-A3
+differ in `-p` as well as in length, so "row length" and "prompt size" are not
+separated in them. S-B2's baseline interpolation assumes the ~2.0 MB/min decline
+measured between 60.5 and 120.6 min continues to ~88 min, and CLAUDE.md
+separately records that the decline decelerates sharply beyond 120 min, so the
+extrapolation is only defensible inside the interval it came from. S-B3's
+starting figure is the weakest number in the entry. The Qwen3.5-2B is not
+predicted at all and is not being run. Nothing here is at boot, nothing is on
+battery, nothing has a second model in memory, and **an hour is not a day.**
