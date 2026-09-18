@@ -12075,3 +12075,93 @@ second reading behind it rather than one.
 
 Battery temperature fell 330 -> 318 dC over the same 218 s, so the phone was
 shedding the heat of the push and the reboot while this was taken.
+
+### S0 — `q17_s0_regen`. NOT A RESULT ROW; it exists to regenerate `q17_state.bin`. Figures only, no write-up.
+
+Gate and launch in one invocation:
+`GATE PASSED x1=2802000 a76=2253000 uptime_s=377.78 wallclock=13:23:51`.
+`c0`, `-t 2`, `-lm none`, `n_ctx` 1024, `-n 64 --print`, `--sys-file`,
+`--save-state`, greedy, `chat_template=NONE`. **COLD** — the reboot cleared the
+page cache the 13:11 push had warmed, so nothing had read the .gguf since
+power-on.
+
+    t_backend_ms          2.90
+    t_model_open_ms     475.40
+    t_tensor_band_ms   3371.09
+    t_model_tail_ms       2.73
+    t_model_total_ms   3849.22
+    t_ctx_create_ms      36.70
+    t_ready_ms         3888.82   COLD
+    t_tokenize_ms         4.35
+    t_sys_decode_ms    6301.49   407 tokens
+    t_state_save_ms      21.90
+    state_bytes    46,685,237    407 tokens saved
+    t_user_decode_ms    401.15   20 tokens
+    t_sample_ms           0.81
+    ttft_fresh_ms      6725.34
+    ttft_cached_ms     6729.69
+    ttft_cold_proc_ms 10618.51
+    gen_tokens 64      gen_ms 4346.77      gen_tps 14.49  (63 decodes)
+    first_token_id 32313     token_fnv1a64 0xcba17a2fcbba49f4
+    sys_tokens 407   user_tokens 20   progress_calls 312
+    peak_rss_kB 1,540,948    max_rssanon_kB 1,535,544
+
+    uptime_s       before   377.89   after   393.61
+    MemAvailable   before 2,210,640  after 2,609,868
+    MemFree        before 1,311,544  after 1,672,136
+    SwapFree       before   997,116  after   487,932   (15.51% of SwapTotal)
+    Cached         before 1,126,228  after 1,164,132
+    pswpout        before   567,983  after   695,302
+    pgmajfault     before    42,013  after    42,134
+    ceil_x1        before 2,802,000  min 2,048,000 (73.1%) 7 s in   after rated
+    ceil_a76       before 2,253,000  min 2,253,000 (rated)          after rated
+    oom_score_adj_child  pre=-1000  post=200
+    batt_temp_dC   before 316   after 317
+    lmk_kill_lines 0   **with MemAvailable before the row 2,210,640 kB**
+    series         2 samples
+
+**THE REGENERATED STATE FILE IS BYTE-FOR-BYTE THE ONE DELETED ON 16 SEPT.**
+Hashed on the phone after `sync`:
+
+    /data/local/tmp/q17_state.bin   46,685,237 B
+    707e0ea3c1cc490187616a67ba0097747c8b8c58fcd2dcf38e1870a31a8f6f4d
+
+CLAUDE.md records the original as `707e0ea3…`, 46,685,237 B, hashed at the end
+of boot 1 and again on boot 2 after r5. **The original was written by
+`be2cab2c…` and this by `f52fc604…`, on a different boot two days later.**
+
+**S-B3's committed start-of-row prediction (1.0-1.4 GB) is already false before
+S1 starts: 487,932 kB = 15.51%. Recorded, not revised.**
+
+### THE 60-SECOND SAMPLER TOOK ZERO READINGS. THERE IS NO TREND TABLE.
+
+A sampler was armed at ~13:26 to read `MemAvailable`, `SwapFree`, `Cached`,
+`pswpin`, `pswpout` and battery temperature every 60 s until the 25-minute mark,
+so that the swap question had a trend behind it. **It produced nothing.** Its
+entire output, four passes:
+
+    /system/bin/sh: no closing quote
+    /system/bin/sh: no closing quote
+    /system/bin/sh: no closing quote
+    /system/bin/sh: no closing quote
+
+The command was `adb shell 'echo "t=$(…) … wall=$(date +%H:%M:%S)'` — **the
+double quote was never closed before the closing single quote.** This is the
+same family as the `adb shell` argument-rejoining trap recorded earlier today,
+and it was walked into **inside a poll loop**, which is the precise failure that
+entry describes: "Inside a poll loop the variable was empty on every pass, the
+loop spun for twenty minutes and no reading was ever taken." It cost the trend
+and nothing else — S0 and both protocol readings are unaffected.
+
+Killed before the gate; `ps -ax | grep "adb shell"` returns nothing.
+
+**ONE valid reading exists**, from a correctly-formed command, and it is one
+reading and not a trend:
+
+    uptime_s   wallclock   MemAvailable      SwapFree     source
+    393.61     --          2,609,868 kB      487,932 kB   S0's after-block
+    717.00     13:29:31    2,586,968 kB      628,476 kB   single read
+
+**`SwapFree` rose 140,544 kB in the 323 s between them**, so swap was recovering
+rather than flat — but that is two points, one of which came from a row's
+after-block rather than from an idle sample, and **no rate is claimed from it.**
