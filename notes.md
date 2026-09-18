@@ -10729,3 +10729,139 @@ recorded either side.
 Nothing sustained: 9.88 seconds, AC power, screen on, unlocked, foreground, over
 adb, app disabled, no VM. The text is again 64 tokens stopping inside a `<think>`
 block, and no quality judgement is made of it.
+
+## 2026-09-18 — ROW 9, `q35_r9_warm_nobufts`. The `--extra-bufts 0` CONTROL on Qwen3.5-2B. **Zero repack lines, one buffer, and the repack is 45.47% or 65.68% of the cold load depending which warm row you subtract — which is the honest answer, not a number.**
+
+**Label fix, carried forward to any closing entry:** row 8's B2 table is headed
+"TTFT cached, model resident, state + 20 tok". **It is 21 tokens on Qwen3.5-2B**,
+not 20 — the 1.7B's figure. The prediction's own wording said 20 because it was
+written for the 1.7B; the 2B's `user_tokens=21` is what row 8 measured.
+
+**A DEVIATION FROM THE PLAN, STATED UP FRONT.** Row 4, the same control on the
+1.7B, ran `-n 1` because only the load matters. Row 9 kept row 6's `-n 64
+--print`. **The two controls are therefore not identical in shape.** It changes
+nothing in the subtraction — `t_model_total_ms` is measured before any token is
+generated and is indifferent to `-n` — but it made the row 25.68 s long instead
+of a few seconds, and the clock paid for it (see below).
+
+### THE CONTROL IS CLEAN — THIS IS THE POINT OF THE ROW
+
+    $ adb shell 'grep -i "model buffer size" .../q35_r9_warm_nobufts.err'
+    load_tensors:          CPU model buffer size =  1211.05 MiB
+    $ adb shell 'grep -c "repack tensor" .../q35_r9_warm_nobufts.err'
+    0
+
+**ONE buffer line, NO `CPU_REPACK` line, ZERO repack tensor lines** — against
+row 6's two lines and 187 repacked tensors across four kernels. `extra_bufts=0`
+is echoed in the run's own header. The control did what it was for.
+
+    row 6   CPU 399.94 + CPU_REPACK 1208.95 = 1608.89 MiB   187 repack lines
+    row 9   CPU 1211.05                     = 1211.05 MiB     0 repack lines
+    difference                                  397.84 MiB
+
+And `1211.05 MiB against the .gguf's 1221.50 MiB` — **10.45 MiB less than the
+file**, so the un-repacked buffer is very slightly smaller than the file on disk
+rather than equal to it. Not explained here.
+
+### THE TIME: A4-EQUIVALENT, AND IT HAS TWO ANSWERS
+
+    t_tensor_band_ms    row 6 (cold) 3863.26   row 7 3663.29   row 8 2725.80   **row 9 616.72**
+    t_model_total_ms    row 6        4638.66   row 7 4429.79   row 8 3490.87   **row 9 1395.09**
+
+Row 9's band is **22.63% of row 8's, 16.84% of row 7's and 15.96% of row 6's
+cold load.**
+
+**A4 is defined as the repack's share of A2 (the COLD `t_model_total`), obtained
+by warm-against-warm subtraction of the bands. Both available warm references
+give a different answer:**
+
+    reference          repack = band - 616.72    share of A2 (4638.66)   share of that row's band
+    row 8 (warmest)         2109.08 ms                **45.47%**              77.37%
+    row 7                   3046.57 ms                **65.68%**              83.16%
+
+    for comparison, Qwen3-1.7B row 4:  2019.76 ms      50.72%                  83.07%
+
+**A4's band was 40-65%. One reference lands inside it and the other lands on its
+edge, so no A4-equivalent verdict is recorded.** The spread is 20 percentage
+points and it is entirely an artefact of which row is treated as warm.
+
+**NEITHER REFERENCE ROW WAS WARM THE WAY ROW 2 WAS, AND THAT IS THE CAVEAT THAT
+MATTERS.** Row 2 followed row 1 by 236 s with the model fully in cache. On this
+boot: row 7 ran 50 minutes after its cold partner with `Cached` at 1,122,352 kB
+against a 1,250,816 kB model, and row 8 — the warmest band of the boot — ran
+with `Cached` at 1,436,804 kB, enough to hold it. **So row 8 is the better
+reference and 45.47% is the better figure, but "better" here is a judgement
+about cache states read from `Cached`, not a controlled pair**, and the 1.7B's
+50.72% was.
+
+The `share of that row's band` column is the one figure that is stable across
+references — **77.37% and 83.16%, against the 1.7B's 83.07%** — because it does
+not divide by a cold row measured on a different thermal and cache state.
+
+### THE SPACE: THE CHECK MATTERS MORE THAN THE FIGURE
+
+**Row 9's peak RSS is quoted ONLY as a difference. It is not this model's RSS**
+— `--extra-bufts 0` selects different matmul kernels and the process is not the
+one any other row measured.
+
+    row 8   peak_rss_kB 1,786,192
+    row 9   peak_rss_kB 1,416,884
+    difference            369,308 kB = **360.65 MiB**
+
+    against the buffer-line difference                 397.84 MiB
+    gap                                                 37.19 MiB
+
+**So the repack's cost in space, measured two independent ways, agrees to within
+37.19 MiB — 9.3% of the figure.** The 387.39 MiB the row-6 amendment derived
+from buffer lines alone now has a second, process-level witness at 360.65 MiB.
+Neither is exact and the gap is not accounted for.
+
+### MEMORY, KILLS AND THE CLOCK
+
+    PENNYBENCH memavail_kB   before 3,031,840   after 3,011,292
+    PENNYBENCH memfree_kB    before 1,869,512   after 1,588,552
+    PENNYBENCH swapfree_kB   before   709,972   after   709,972   (**unchanged**, 22.57%)
+    PENNYBENCH cached_kB     before 1,384,860   after 1,646,192   (ROSE 261,332)
+    PENNYBENCH pswpin        before   170,391   after   170,421   (+30)
+    PENNYBENCH pswpout       before   923,084   after   923,084   (**unchanged**)
+    PENNYBENCH pgmajfault    before   184,524   after   184,555   (+31)
+    PENNYBENCH ceil_x1_kHz   before 2,802,000   min 1,426,000   after 2,802,000
+    PENNYBENCH ceil_x1_min_at uptime=5461.69    (25 s into the row, **50.89%** of rated)
+    PENNYBENCH ceil_a76_kHz  before 2,253,000   min 2,253,000   after 2,253,000
+    PENNYBENCH max_rssanon_kB 1,411,664
+    PENNYBENCH rss_samples       62
+    PENNYBENCH lmk_kill_lines     0
+
+**ZERO KILLS, `MemAvailable` BEFORE 3,031,840 kB — AND FLATTERED AGAIN.** This
+boot had killed eleven processes across rows 6 and 7 before this row started.
+Same caveat as row 8: it says nothing about a fresh boot.
+
+**NOT ONE PAGE WAS SWAPPED IN EITHER DIRECTION.** `swapfree_kB` and `pswpout`
+are byte-identical either side — the only row in this plan where that is true.
+The un-repacked process is ~360 MiB smaller and the phone simply had the room.
+
+**THE X1 CEILING FELL TO 1,426,000 kHz, 50.89% of rated, 25 s in — the deepest
+of the four rows on this boot** (row 6 73.09%, row 7 65.17%, row 8 80.37%), and
+it is the direct cost of the `-n 64` deviation: this row ran 25.68 s against
+row 8's 9.88 s, and the minimum was recorded at the very end of it. 1,426,000 is
+the same figure the 16 Sept matrix recorded after a 65-second two-thread run.
+Both clusters back at rated afterwards. `policy0` not sampled.
+
+### WHAT ROW 9 DOES NOT SAY
+
+**No speed figure from this row is quoted anywhere** — no tok/s, no TTFT, no
+generation figure. `--extra-bufts 0` selects different matmul kernels, so every
+throughput number it produced describes a configuration nothing would ship.
+
+**There is no A4-equivalent verdict**, and that is the finding rather than a gap
+in the work: the subtraction needs a warm reference and this boot has two, 20
+percentage points apart. A clean A4-equivalent needs a cold row and a warm row
+minutes apart on one boot, which is a boot this plan did not budget.
+
+The space agreement (360.65 against 397.84 MiB) is two measurements of one row
+pair, and the 37.19 MiB gap is unexplained. The 1211.05 MiB buffer being
+10.45 MiB smaller than the file is observed and not accounted for.
+
+Zero kills and zero swap on a boot 91 minutes old that had already killed eleven
+processes. AC power, screen on, unlocked, foreground, over adb, app disabled, no
+VM. One sample.
