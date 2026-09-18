@@ -55,8 +55,15 @@ same commit as whatever changes it.
                                of the Q-A/Q-B row plan — the cold boot for
                                Qwen3.5-2B. Unlocked by hand; adb answered at
                                uptime 24.80 s, wallclock 10:18:59. **STILL UP
-                               at the last read: uptime 5914.10 s, wallclock
-                               11:57:09 on 18 Sept.** Protocol readings on this
+                               at the last read: uptime 10347.05 s, wallclock
+                               13:11:02 on 18 Sept — and NOW ALSO CARRIES BRIEF
+                               S's FOUR SMOKE RUNS** (uptime 9889.77 to
+                               10183.22), which are labelled NOT A RESULT ROW in
+                               notes.md and are quoted as nothing. **A REBOOT
+                               FOR BRIEF S's BOOT IS THE NEXT DEVICE ACTION**;
+                               boot 3 is spent and S needs a fresh one, with the
+                               protocol's ~5 and ~25 minute `MemAvailable`
+                               readings taken on it. Protocol readings on this
                                boot, each with uptime and wallclock in ONE
                                invocation: MemAvailable **2,310,624 kB at
                                512.80 s** (8.55 min) and **2,273,652 kB at
@@ -230,30 +237,38 @@ same commit as whatever changes it.
                                this phone** — different kernels, and it is
                                where llama.cpp's ARM dot-product repacking
                                lives. `--help` alone had proved nothing here.
-    models on the phone        **ONE — Qwen3.5-2B-Q4_K_M, and this block said
-                               Qwen3-1.7B until 18 Sept.** Swapped in 16 Sept
-                               18:36, in Matt's own hands, in this order:
-                               `rm` Qwen3-1.7B-Q4_K_M.gguf, `rm` q17_state.bin,
-                               `adb push` the 2B, `sha256sum` it, then
-                               `adb reboot`. Verified on the phone BEFORE that
-                               reboot — which is the only reason hashing it was
-                               harmless, since a hash reads every byte into the
-                               page cache: 1,280,835,840 B, sha256
-                               aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c
-                               731c0520ee914699223, matching MANIFEST.txt.
-                               **Qwen3-1.7B-Q4_K_M and q17_state.bin are
-                               DELETED**, both confirmed absent by `ls` at the
-                               time, 102 G free on /data (read 16 Sept 18:36).
-                               All ten models remain manifest-verified in
-                               ~/Documents/penny-models.
-                               **Its mtime reads 2026-09-15 20:26 and that is
+    models on the phone        **ONE — Qwen3-1.7B-Q4_K_M, and this block said
+                               Qwen3.5-2B until 18 Sept 13:11.** Swapped back
+                               for brief S (the sustained run), by Claude over
+                               adb with Matt's authorisation, in this order at
+                               uptime 10279.96-10347.05 on boot 3: hash
+                               `q35_state.bin` (`6f461e45…`, MATCHED the
+                               recorded value), `rm` Qwen3.5-2B-Q4_K_M.gguf and
+                               q35_state.bin, `ls` to confirm both absent,
+                               `adb push` the 1.7B (1,107,409,472 B in 32.810 s,
+                               32.2 MB/s), `sha256sum` it ON THE PHONE:
+                               **b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c8232
+                               04dc42c0d91fa181897**, matching MANIFEST.txt's
+                               HF-LFS-verified value and the Mac copy hashed
+                               the same day. **Qwen3.5-2B-Q4_K_M.gguf and
+                               q35_state.bin are DELETED**, both confirmed
+                               absent by `ls`; /data went 9.2G -> 8.0G used,
+                               102 G free. All ten models remain
+                               manifest-verified in ~/Documents/penny-models.
+                               **q35_state.bin is NOT re-creatable without a
+                               row** — it was row 7's output. Its hash is in
+                               notes.md and in the deleted line below; nothing
+                               outstanding depends on it, and the 2B's B3 (the
+                               unspent boot 4) would need it regenerated.
+                               **Its mtime reads 2026-09-15 20:25 and that is
                                NOT when it was pushed** — `adb push` preserves
                                the SOURCE file's mtime, so an mtime on this
                                phone dates the Mac's copy, never the transfer.
                                Cost a wrong read on 16 Sept 17:00.
-                               **BOOT 3's COLD READ IS SPENT** — row 6 took it —
-                               so every further load on this boot is a warm
-                               load and cold needs another reboot.
+                               **THE PUSH WARMED THE PAGE CACHE**, so no cold
+                               read is available on boot 3 — which is moot,
+                               because boot 3 is about to be spent and S needs
+                               a fresh one anyway.
                                One model at a time: delete before pushing the
                                next.
     logcat buffer              **RAISED to 64 MiB, 16 Sept 12:22**, after
@@ -261,33 +276,45 @@ same commit as whatever changes it.
                                ~/Documents/logcat-2026-09-16-preraise.txt
                                (6.6 MB, 43,759 lines, oldest 09-15 19:59:34).
                                The resize did NOT clear it. Dies on reboot.
-    /data/local/tmp contents   **Read off the phone 18 Sept 11:51, after a
-                               `sync`**, at the close of boot 3.
-                               `Qwen3.5-2B-Q4_K_M.gguf` 1,280,835,840 B
-                               `aaf42c8b…` (see above);
-                               **`q35_state.bin` 25,288,618 B, sha256
-                               6f461e459f2ef0e61a6e6f7579250e115f92f5c3cb43
-                               cba18d9600a15f432a8f** — written by row 7,
-                               read back by row 8 nine minutes later, and
-                               **NEVER read back across a reboot**; the hash
-                               exists so that it could be;
+    /data/local/tmp contents   **Read off the phone 18 Sept 13:11, after a
+                               `sync`**, at the close of boot 3 and after the
+                               model swap and the brief-S instrument install.
+                               `Qwen3-1.7B-Q4_K_M.gguf` 1,107,409,472 B
+                               `b139949c…` (see above);
                                `llama-bench` 4,708,216 B `44015c06…`;
                                `llama-simple` 3,805,208 B `3d6b6afa…`;
-                               `pennyload` 3,817,808 B `be2cab2c…` (= the
-                               repo's `build/pennyload-stripped`);
-                               `pennybench.sh` **revision 4**, 8,402 B,
-                               `c5b9f03a7c5add80196e8ed584c1091cc62390e24fafe
-                               3cda91004c8512ffc99`; `penny_system.txt`
-                               1,911 B (`94969770…`, hashed 16 Sept, size
-                               re-confirmed 18 Sept); `penny_user.txt`
-                               **95 B — this block said 74 B and that was
-                               STALE**, the file was replaced 16 Sept 17:05
-                               and its current hash is not on record;
-                               `out/` (every row's .bench/.err/.kills/.report)
-                               and the pre-existing `microdroid/` from
-                               14 Sept — left alone, nothing needs it gone.
-                               `Qwen3-1.7B-Q4_K_M.gguf` and `q17_state.bin`
-                               are GONE.
+                               **`pennyload` 3,836,992 B
+                               `f52fc60411b55e5ed9eb34e8307f32b45d6bed6f06de85
+                               a5347bc02ec2f4ffe9`** (= the repo's
+                               `build/pennyload-stripped`), which **SUPERSEDES
+                               `be2cab2c…` / 3,817,808 B** — it adds
+                               `--turns`/`--interval-s` and nothing else, and
+                               the single-turn path was verified unchanged on
+                               this phone by an A/B against the old binary
+                               (same 28 lines, same order, same
+                               `token_fnv1a64 0x19d53b5da9186ff6`, all 64 token
+                               ids identical);
+                               **`pennybench.sh` revision 5, 12,790 B,
+                               `96163d047d7a91cd3f937cba71c4bce9270e6f84afcb4d
+                               700fe7a1513e0889af`**, which **SUPERSEDES
+                               revision 4 `c5b9f03a…` / 8,402 B** — it adds a
+                               10 s time series to `<tag>.series` and the
+                               `oom_score_adj_child pre=/post=` line;
+                               `penny_system.txt` 1,911 B (`94969770…`, hashed
+                               16 Sept, size re-confirmed 18 Sept);
+                               `penny_user.txt` **95 B**, replaced 16 Sept
+                               17:05, its current hash not on record;
+                               `out/` (every row's .bench/.err/.kills/.report,
+                               and from rev 5 also .series) and the pre-existing
+                               `microdroid/` from 14 Sept — left alone.
+                               `Qwen3.5-2B-Q4_K_M.gguf` and `q35_state.bin` are
+                               GONE, as are the temporary `pennyload_s` and
+                               `pennybench_s.sh` the smoke tests used — there is
+                               exactly one of each binary on the phone.
+                               **NO `q17_state.bin` EXISTS**, on the phone or on
+                               the Mac (`find ~/Documents` returned nothing,
+                               18 Sept 12:28), so brief S's row S0 must
+                               regenerate it.
     adb                        ALIVE (phone unlocked). GrapheneOS keeps the port
                                charging-only while locked.
     models on the Mac          ~/Documents/penny-models, 10 GGUF files,
@@ -1473,7 +1500,16 @@ PARKED, and the work has moved to measuring a model natively on Android.**
   **Not done, and these are the NEXT THREE ITEMS, in order: (1) the `-ub` test
   that separates batch size from micro-batch size; (2) a sustained run — the
   thermal question every row in this repo has deferred; (3) the on-device VOICE
-  bake-off.** The third is Kokoro-82M `bf_isabella` and `kokoro-onnx` int8
+  bake-off.**
+  **(2) IS IN PROGRESS AS OF 18 Sept — BRIEF S.** A model held resident, a
+  cached prefix, a user turn arriving repeatedly, for an hour, on Qwen3-1.7B.
+  Predictions and the fixed definitions are committed BEFORE any code at
+  `3d0329e` and `6f8e2e4`; the instrument (`pennyload --turns/--interval-s`,
+  `pennybench.sh` rev 5) at `57c0f18`; the smoke tests that verified the
+  single-turn path unchanged on the phone, and the one bug they found, at
+  `ff009f5`. **Nothing has been measured yet.** Rows: S0 (regenerate
+  `q17_state.bin`), S1 (60 turns at 60 s — the row that matters), S2 (200 turns
+  back to back), S3 optional. The third is Kokoro-82M `bf_isabella` and `kokoro-onnx` int8
   under sherpa-onnx (**Matt's decision, 18 Sept**; recorded here from his
   instruction, with no notes.md entry behind it yet), measured with STT and the
   LLM **resident at the same time** — which is the first thing in this repo
@@ -2453,10 +2489,29 @@ not soften it.
   `dumpsys meminfo` answers it and is readable: read 16 Sept at 66,065 s uptime,
   **`ZRAM: 666,716K physical used for 2,830,100K in swap (3,145,724K total
   swap)`** — so swap on this handset IS zram, compressed in RAM at ~4.25:1, and
-  a "SwapFree" figure is not disk. **Wrapper sha256, revision 4, 16 Sept:
-  `c5b9f03a7c5add80196e8ed584c1091cc62390e24fafe3cda91004c8512ffc99`**
-  (supersedes `0f5cb2b5…` rev 3, which added `PENNYBIN`; which superseded
-  `484d75d4…`, `67eefed1…` and `e5a81104…`). **Revision 4 adds one thing and
+  a "SwapFree" figure is not disk. **Wrapper sha256, revision 5, 18 Sept:
+  `96163d047d7a91cd3f937cba71c4bce9270e6f84afcb4d700fe7a1513e0889af`, 12,790 B**
+  (supersedes rev 4 `c5b9f03a7c5add80196e8ed584c1091cc62390e24fafe3cda91004c85
+  12ffc99`; which superseded `0f5cb2b5…` rev 3, which added `PENNYBIN`; which
+  superseded `484d75d4…`, `67eefed1…` and `e5a81104…`).
+  **Revision 5 adds TWO things, for brief S.** A TIME SERIES to `$OUT.series`,
+  one line every 10 s of uptime while the child lives, fourteen columns:
+  `uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB
+  Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level` —
+  before/after readings bound an hour-long row but say nothing about what
+  happened inside it. **`ceil_a55` is `policy0`, which no row in this repo had
+  ever sampled.** And `PENNYBENCH oom_score_adj_child pre=/post=`, which writes
+  200 to the child and READS BOTH VALUES BACK — see the `oom_score_adj` trap
+  above. **Battery temperature is read from
+  `/sys/class/power_supply/battery/temp`, NOT `dumpsys battery`**, and that is a
+  named deviation from brief S: the series samples ~360 times in an hour and
+  `dumpsys` is a binder call into `system_server`, the process most likely to be
+  perturbed by the pressure being measured. `dumpsys` is still read once either
+  side as the cross-check — and the smoke tests showed it LAGS, reading 276 dC
+  at both ends of a row where sysfs went 278 -> 280, because it updates on
+  battery-change broadcasts rather than on demand. **It is BATTERY temperature
+  in tenths of a degree C, never SoC temperature**; `/sys/class/thermal/` is
+  `Permission denied` to the shell user on this build. **Revision 4 adds one thing and
   one only: the whole REPORT section is tee'd to `$OUT.report` as well as to
   stdout.** Until it, every `PENNYBENCH` line — peak RSS, the kill count,
   the clock ceilings, `MemAvailable` either side — existed ONLY in the
