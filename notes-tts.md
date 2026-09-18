@@ -1007,3 +1007,78 @@ Run as 4b was: hand gate on all three ceilings at rated first, then one adb
 invocation with a hand read of policy0/4/6 before line 0, `COOL=1 … a2-00 30 2 0`,
 lines 1-17 with COOL=0 back to back, and a hand read after line 17. The tags
 are a2-00 … a2-17.
+
+## 2026-09-18 — TTS RUNG 1, ADDITION RESULT (row a2, A76 pair, 2 threads): 18 of 18 rc=0, no kills, neither ceiling moved; RTF 1.822-2.523 with 7 of 18 lines above 2.0 — P-T6 MISSED. The 18-line elapsed sum is 143,543 ms against 4b's 85,431 ms on the X1 pair.
+
+Branch tts-kokoro. **This is a rung 1 addition.** It ran on spent boot 4, after rows
+4a/4b/4c. Nothing here is a baseline, and every figure is "on the 6a". The model
+is page-cached. Derived load is **wall minus elapsed, which includes process
+start and WAV write** (and the model load). Every figure was parsed from
+out/a2-NN.report, .err and .wall, pulled to the Mac (72 files). RTF is the
+binary's own line. P-T6 was committed at cf2fbde, before any a2 row ran.
+
+**Hand gate**, all three ceilings polled until rated, in one invocation: start
+uptime 17315.61 (18:06:09), end 17315.70 (18:06:09). It took 1 poll, 0.09 s:
+policy0 1,803,000, policy4 2,253,000, policy6 2,802,000.
+
+**Command**, one adb shell invocation: a hand read, then
+`COOL=1 sh /data/local/tmp/tts/pennytts.sh a2-00 30 2 0`, then lines 1-17 with
+COOL=0 back to back, then a hand read. Mask 30 = cpus 4-5 (see the previous
+entry).
+
+    ROW a2 (rung 1 addition): mask 30 (A76 pair, cpus 4-5), 2 threads
+    line  elapsed_ms  audio_ms  RTF    wall_ms  derived_load_ms  peak_rss_kB  rss_n  a76_min_kHz  x1_min_kHz  memavail_kB before -> after  kills
+    00         2092       829  2.523     5229             3137      287,428     14    2,253,000   2,802,000  2,055,984 -> 2,039,436      0
+    01         1820       758  2.402     5002             3182      283,568     13    2,253,000   2,802,000  2,044,812 -> 2,024,548      0
+    02         1943       814  2.388     5098             3155      284,660     13    2,253,000   2,802,000  2,041,928 -> 2,024,772      0
+    03         2677      1159  2.309     5864             3187      291,468     15    2,253,000   2,802,000  2,027,868 -> 2,031,976      0
+    04         8356      4545  1.838    11510             3154      363,260     30    2,253,000   2,802,000  2,053,820 -> 2,019,048      0
+    05        12585      6907  1.822    15791             3206      441,196     40    2,253,000   2,802,000  2,022,408 -> 2,017,004      0
+    06         7169      3593  1.995    10345             3176      350,996     27    2,253,000   2,802,000  2,064,856 -> 2,013,740      0
+    07        10769      5815  1.852    13968             3199      436,904     35    2,253,000   2,802,000  2,026,260 -> 2,038,044      0
+    08         9095      4704  1.934    12300             3205      402,552     32    2,253,000   2,802,000  2,033,104 -> 2,026,384      0
+    09         8760      4520  1.938    11922             3162      367,212     31    2,253,000   2,802,000  2,036,380 -> 2,020,920      0
+    10         6664      3450  1.932     9821             3157      345,980     26    2,253,000   2,802,000  2,017,860 -> 2,037,632      0
+    11         6602      3395  1.944     9808             3206      343,748     25    2,253,000   2,802,000  2,045,896 -> 2,065,264      0
+    12         6922      3513  1.970    10082             3160      347,864     26    2,253,000   2,802,000  2,068,568 -> 2,037,132      0
+    13         6048      3065  1.973     9228             3180      340,308     24    2,253,000   2,802,000  2,048,756 -> 2,032,748      0
+    14        16117      7450  2.164    19293             3176      327,996     48    2,253,000   2,802,000  2,035,312 -> 2,023,312      0
+    15        19073     10416  1.831    22352             3279      577,280     56    2,253,000   2,802,000  2,025,740 -> 2,010,196      0
+    16         6916      3109  2.225    10119             3203      323,404     26    2,253,000   2,802,000  2,005,696 -> 2,032,756      0
+    17         9935      4707  2.111    13088             3153      350,452     33    2,253,000   2,802,000  2,031,556 -> 2,011,008      0
+    pass: first line start uptime 17316.13, last line end 17543.78, span 227.65 s
+    A76 min 2,253,000 kHz = 100.00% of rated at [(0, '17316.13'), (1, '17322.77'), (2, '17329.09'), (3, '17335.89'), (4, '17343.14'), (5, '17356.26'), (6, '17373.73'), (7, '17385.77'), (8, '17401.35'), (9, '17415.15'), (10, '17428.47'), (11, '17439.98'), (12, '17451.31'), (13, '17462.81'), (14, '17473.65'), (15, '17494.46'), (16, '17518.47'), (17, '17530.11')]; first moved on line []
+    X1 min 2,802,000 kHz; lines where X1 moved: []
+    MemAvailable low-water (before/after reads only) 2,005,696 kB (line 16); kills 0; rc all 0 True; .wall all numeric True
+    RTF min 1.822 max 2.523; lines in 1.0-2.0: 11/18; under 1.0: 0; over 2.0: 7
+    peak RSS 283,568-577,280 kB; derived load 3137-3279 ms
+    elapsed sum, 18 lines: 4b (p2, X1) 85,431 ms; a2 (A76) 143,543 ms; ratio a2/4b 1.680
+    samples identical to 4b on all 18: True; stderr extra lines: []
+
+**Hand reads (policy0/4/6):** before line 0, uptime 17315.85 (18:06:09),
+1,803,000 / 2,253,000 / 2,802,000. After line 17, uptime 17544.65
+(18:09:58), 1,803,000 / 2,253,000 / 2,802,000. All were rated both times.
+
+**Ceilings during the pass:** the A76 ceiling (policy4) read rated, 2,253,000,
+in every 0.2 s sample of every line. **The X1 ceiling (policy6) did not move
+either**: 2,802,000 on every line. policy0 was read by hand only, before and
+after. All 18 rc=0; every .wall has five numeric fields; 0 kill lines; every
+tts/a2-NN.sherr is 0 B; no stderr line outside the expected set. Sample counts
+are identical to 4b on all 18 lines.
+
+**Elapsed sum, 18 lines:** 4b (X1 pair, 2 threads) **85,431 ms**; a2 (A76 pair,
+2 threads) **143,543 ms**. a2/4b = 1.680.
+
+**P-T6, RTF on the A76 pair at 2 threads 1.0-2.0: MISSED.** Min 1.822 (line
+05), max 2.523 (line 00). 11 of 18 lines fall inside 1.0-2.0, and **7 of 18 are
+above 2.0**: lines 00-03 (the four short lines, 2.309-2.523), 14 (four
+sentences, 2.164), 16 (2.225) and 17 (2.111). None is under 1.0.
+
+Derived load on the A76 pair was 3,137-3,279 ms, against 1,875-2,139 ms across
+the 41 rows of 4a/4b/4c. The model load runs on the pinned cores too.
+
+What this entry does not say: what the A76 pair does beside the LLM (rung 3);
+anything on a fresh boot; what policy0 did during the pass; why neither
+ceiling moved on this pass when the X1 ceiling moved on 4b (no reason is
+offered); anything from flash; anything about resident RSS, the app or the
+7a. Nothing here is a baseline.
