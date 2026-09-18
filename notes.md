@@ -12197,3 +12197,208 @@ gap and no rate is claimed.
 **Battery: 330 dC at 85 s -> 318 at 303.84 s -> 316/317 across S0 -> 312 at
 1501.63 s.** The phone shed heat throughout the idle period. **S1 therefore
 starts at 31.2 C, not at rest**, and S-C2's slope must be read against that.
+
+### S1 — `q17_s1_conv_60m`. THE CONVERSATIONAL HOUR. Figures only, no write-up; the write-up comes after S2.
+
+    GATE PASSED x1=2802000 a76=2253000 uptime_s=1572.88 wallclock=13:43:46
+
+Conditions read in the SAME invocation as the gate and the launch: `AC powered:
+true`, `status: 4`, `level: 100`, `temperature: 308`, `mWakefulness=Awake`,
+`screen_off_timeout=30000`, `stay_on_while_plugged_in=15` — and the phone
+UNLOCKED, which adb answering at all demonstrates, since GrapheneOS keeps the
+port charging-only while locked.
+
+`c0`, `-t 2`, `-c 1024`, `-lm none`, `-n 64`, `--load-state q17_state.bin`,
+`--turns 60 --interval-s 60`, greedy, `chat_template=NONE`.
+Ran uptime 1572.98 -> 5122.48, i.e. **3,549.50 s = 59.16 min**.
+
+    rc                       0
+    turns_done               60 of 60 requested, turns_overrun=0
+    oom_score_adj_child      pre=-1000  post=200
+    lmk_kill_lines           4  (= 2 processes, 2 ActivityManager lines)
+    SwapFree min             623,100 kB at uptime 1593.32  (19.81% of SwapTotal)
+    contamination rule       DID NOT TRIP
+    survived                 YES -- rc=0, turns_done==60, no kill naming
+                             pennyload, oom post=200 printed
+
+**Contamination, both limbs.** `Cached` 1,230,620 -> 1,040,276, a fall of
+**190,344 kB against a model of 1,081,454 kB** — 17.6% of the model, not
+"roughly the model size". `SwapFree` never below 623,100 kB = 19.81%, against
+the 10% floor of 314,572 kB. Neither limb met.
+
+    PENNYLOAD prefix_snapshot_bytes=46683597 got=46683597 t_snapshot_ms=19.61
+    PENNYLOAD turns=60 interval_s=60 n_gen_per_turn=64
+    PENNYLOAD turns_done=60 turns_requested=60 turns_overrun=0 fnv_all_equal=1
+    PENNYLOAD first_token_id=32313 token_fnv1a64=0xcba17a2fcbba49f4   (turn 1)
+    PENNYLOAD ttft_turn_ms   min=345.04 median=354.39 max=391.12
+    PENNYLOAD gen_tps        min=14.09 median=14.49 max=15.17
+    PENNYLOAD quarters       n_per_quarter=15  q1=turns 1-15  q4=turns 46-60
+    PENNYLOAD SETTLED ttft_turn_ms q1_median=355.16 q4_median=353.61 decline_pct=-0.44
+    PENNYLOAD SETTLED gen_tps      q1_median=14.49  q4_median=14.52  decline_pct=-0.20
+    PENNYLOAD SETTLED gen_tps_turn1=15.17 settled_pct_of_turn1=95.66
+    PENNYLOAD DUTY busy_median_ms=4704.44 interval_ms=60000 duty_pct=7.84
+
+`decline_pct` positive means SLOWER. **Both are negative: the last quarter was
+fractionally faster than the first.** The snapshot is 1,640 B smaller than the
+46,685,237 B state file — the session header, the same shape the 2B smoke test
+showed at 1,664 B.
+
+**PER-TURN TABLE — first five, every tenth, last five.**
+
+      k  uptime_s  t_restore  t_user_dec  ttft_turn    gen_ms  gen_tps   busy_ms ovr
+      1   1576.99      13.38      366.20     380.40   4151.59    15.17   4532.06 0
+      2   1636.99      13.31      351.37     364.87   4350.53    14.48   4715.44 0
+      3   1696.99      19.96      328.29     348.42   4275.89    14.73   4624.48 0
+      4   1756.99      15.09      339.85     355.16   4352.37    14.47   4707.64 0
+      5   1816.99      18.31      327.95     346.44   4289.58    14.69   4636.16 0
+     10   2117.00      15.66      330.02     345.86   4374.81    14.40   4720.77 0
+     20   2717.00      17.78      331.84     349.80   4325.98    14.56   4675.91 0
+     30   3317.01      13.73      334.98     348.90   4358.79    14.45   4707.86 0
+     40   3917.01      13.27      341.22     354.67   4358.21    14.46   4712.99 0
+     50   4517.02      19.88      334.93     354.99   4332.82    14.54   4688.00 0
+     56   4877.02      13.64      333.47     347.30   4386.54    14.36   4733.92 0
+     57   4937.02      19.87      348.14     368.23   4329.45    14.55   4697.82 0
+     58   4997.02      11.48      339.02     350.69   4379.99    14.38   4730.74 0
+     59   5057.02      16.47      344.68     361.33   4409.45    14.29   4770.94 0
+     60   5117.02      17.77      345.38     363.34   4416.91    14.26   4780.56 0
+
+    t_restore_ms    min  11.48   median  15.86   max  23.81
+    t_user_decode   min 327.95   median 338.92   max 370.34
+    busy_ms         min 4532.06  median 4704.43  max 4846.66
+    gen_tokens      64 on every one of the 60 turns
+
+**ONE distinct `fnv` across all sixty turns: `0xcba17a2fcbba49f4`** — the value
+r1, r2, r3, r5 and S0 all produced. Sixty in-memory state restores in one
+process leave no residue.
+
+**THE TWO KILLS, with `MemAvailable` before the row.**
+
+    MemAvailable before the row   2,332,040 kB   (first series sample 2,269,872)
+
+    13:43:50.664 lowmemorykiller Kill '.ShannonImsService' (2426), uid 10154,
+                 oom_score_adj 945 to free 142640kB rss, 0kB anon rss,
+                 51380kB swap; reason: min watermark is breached
+    13:43:50.715 lowmemorykiller Kill 'com.shannon.rcsservice:shannonrcsservice'
+                 (2428), uid 10151, oom_score_adj 935 to free 148460kB rss,
+                 9628kB anon rss, 41724kB swap; reason: min watermark is
+                 breached even after kill
+    13:43:50.750 ActivityManager .ShannonImsService (pid 2426) has died: cch +45 CEM
+    13:43:50.763 ActivityManager com.shannon.rcsservice (pid 2428) has died: cch +35 CEM
+
+Against the series: sample 1 at uptime 1573.63 reads `MemAvailable 2,269,872`,
+sample 2 at 1583.17 reads `963,264`. **Both kills fall between those two
+samples — inside the model load, ~4 s into a 3,550 s row. ZERO kills in the
+remaining 59 minutes.**
+
+**SERIES SUMMARY — 355 samples, uptime 1573.63 -> 5113.08.**
+
+    column            min                 at uptime      max                 at uptime
+    ceil_x1           2,802,000            1573.63       2,802,000            1573.63
+    ceil_a76          2,253,000            1573.63       2,253,000            1573.63
+    ceil_a55          1,803,000            1573.63       1,803,000            1573.63
+    MemAvailable_kB     911,212            4523.19       2,269,872            1573.63
+    MemFree_kB           79,060            4023.36       1,197,464            1573.63
+    SwapFree_kB         623,100            1593.32         667,132            1573.63
+    Cached_kB         1,028,524            4043.38       1,236,320            1573.63
+    VmRSS_kB              9,844            1573.63       1,548,652            5063.25
+    VmHWM_kB              9,844            1573.63       1,548,660            5063.25
+    pswpout             733,248            1573.63         778,774            4043.38
+    pgmajfault          123,500            1573.63         144,684            5113.08
+    batt_temp_dC            301            1703.28             328            5113.08
+    batt_level              100            1573.63             100            1573.63
+
+**THE LAST LINE OF THE SERIES, VERBATIM — S-B2 IS SCORED ON THE END OF THE ROW,
+NOT ON THE MINIMUM:**
+
+    uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level
+    5113.08 2802000 2253000 1803000 932128 111844 662268 1040272 1548652 1548660 778774 144684 328 100
+
+**`MemAvailable` at the END of the row is 932,128 kB.** The committed prediction
+was a point of ~900,000 kB with a 600,000-1,400,000 band; 932,128 is **3.57%
+above the point**. The minimum of 911,212 kB at uptime 4523.19 is 2.24% below
+the end figure, so the two do not disagree.
+
+**`VmRSS` moved 2,756 kB across the hour** — 1,545,896 at the second sample to
+1,548,652 at the second-to-last. Sixty restores and sixty generations, and the
+resident set is flat.
+
+**THE CEILINGS, AND THE TWO SOURCES DO NOT AGREE.**
+
+    PENNYBENCH ceil_x1_kHz     before 2,802,000  min 1,826,000  after 2,802,000
+    PENNYBENCH ceil_x1_min_at  uptime=3440.91   (1868 s into the row)
+    PENNYBENCH ceil_a76_kHz    before 2,253,000  min 2,253,000  after 2,253,000
+    series at rated:  X1 355/355 = 100.00%   A76 100.00%   A55 100.00%
+
+**The wrapper's 0.2 s poll caught the X1 ceiling at 1,826,000 kHz = 65.17% of
+rated, 31 minutes into the row. The 10-second series never sampled it.** So
+"100.00% of series samples at rated" is a fact about the SAMPLING RATE, not
+about the clock, and the two figures must always be quoted together. A 4.7 s
+turn does dip the ceiling; 55 s of idle restores it long before the next turn.
+**`policy0` held 1,803,000 at all 355 samples — the first time the A55 cluster
+has been watched through a row in this repo.**
+
+**BATTERY TEMPERATURE — BATTERY, NOT SoC.** `/sys/class/thermal/` is
+`Permission denied` to the shell user on this build.
+
+    start (first series sample, uptime 1573.63)   306 dC = 30.6 C
+    min                                           301 dC at uptime 1703.28
+    max                                           328 dC at uptime 5113.08
+    end (wrapper after-reading)                   328 dC = 32.8 C
+    dumpsys cross-check                           308 before, 327 after
+    slope start -> end   +22 dC over 3539.45 s  =  +0.0373 C/min
+
+It FELL for the first two minutes (306 -> 301) while the phone shed the
+reboot's heat, then climbed. 2.2 C over an hour at 7.84% duty.
+
+**PEAK RSS.**
+
+    peak_rss_kB      1,548,672  = 1.4771 GiB
+    max_vmrss_kB     1,548,664
+    max_rssanon_kB   1,543,040  = 99.64% anonymous
+    max_rssfile_kB       5,336
+    rss_samples          6,592
+
+48,460 kB above r3's 1,500,212 kB on the same cached path. The in-memory prefix
+snapshot is 46,683,597 B = 45,589 kB, which accounts for 94% of the difference.
+**Consistent, not established** — nothing here isolates it.
+
+**OTHER CONDITIONS.**
+
+    uptime_s     before 1572.98   after 5122.48
+    memavail_kB  before 2,332,040 after 2,477,280   (after = child exited)
+    memfree_kB   before 1,260,944 after 1,658,484
+    swapfree_kB  before   667,132 after   662,268
+    cached_kB    before 1,230,620 after 1,040,276
+    pswpin       before   110,201 after   130,969
+    pswpout      before   733,248 after   778,774
+    pgmajfault   before   123,500 after   144,692
+    ZRAM         544,888K physical for 2,283,776K in swap (3,145,724K total)
+
+### WHAT S1 DOES NOT SAY
+
+**One row, once.** Sixty turns, one boot, one handset, no error bars, nothing
+reproduced. **The hour was 7.84% busy** — 4.7 s of work then 55 s of idle, sixty
+times — so it says nothing about continuous use, which is what S2 asks. The X1
+ceiling dipped to 65.17% inside it and recovered every time; that recovery is
+what the gap buys, and S2 removes it.
+
+**`survived` is at `oom_score_adj 200`, which is an imitation and the margin was
+never tested.** This was a shell process launched over adb with its adj raised
+by the wrapper, not a foreground service started from a boot broadcast. The two
+processes the killer took were at 945 and 935 — the cached band — so **the
+killer never came near 200.** S-B1 passed without the question being pressed.
+
+**The prefix is the same 20 tokens every turn and the model never sees its own
+output.** Every turn begins from an identical 407-token state, so nothing tests
+a growing conversation, a longer prompt, or a context that fills. The KV cache
+is restored, never extended.
+
+**Nothing was judged for quality, and sixty identical answers are not sixty
+answers.** All sixty generations are byte-identical by construction — that is
+what `fnv_all_equal=1` means. The only text sample on this model, from S0, gets
+two of its three facts about Canberra wrong.
+
+**Battery temperature is not SoC temperature**, and an hour at 100% on AC says
+nothing about a phone on battery. On the 6a; the 7a re-measures anything that
+fails here. **No prediction is scored in this entry** — the scorecard belongs to
+the closing entry, after S2.
