@@ -406,3 +406,87 @@ What this entry does not say: that android-24 links; anything about
 sherpa-onnx-offline-tts, `file` on it, its needed libs, or its sha256;
 anything about install/lib/libonnxruntime.so (the script copies it only after
 make succeeds); or anything about the phone.
+
+## 2026-09-18 — TTS RUNG 1, BUILT at android-24: sherpa-onnx-offline-tts is aarch64, links only libonnxruntime.so plus Android system libs, and libonnxruntime.so is byte-identical to the hash-matched prebuilt. BUT it is a MIXED build: 318 objects were compiled for android-21 in run 2 and reused.
+
+Branch tts-kokoro. Mac only; the phone has not been touched from this branch.
+
+**Correction to the header at notes-tts.md:317.** It says "every executable
+failed to link". Four failed: sherpa-onnx-offline-audio-tagging,
+sherpa-onnx-offline, sherpa-onnx-keyword-spotter and sherpa-onnx. make stopped
+there, and the rest were not attempted. That entry's body was already right.
+
+**android-24 is a required build parameter for this onnxruntime prebuilt**
+(onnxruntime-android-1.28.2, libonnxruntime.so sha256 33847ad4…), because it
+needs LIBC_N symbols. The 7a build carries SHERPA_ONNX_ANDROID_PLATFORM=android-24
+or higher.
+
+**Deleted before the rerun, at the top level of
+~/Documents/sherpa-onnx/build-android-arm64-v8a/ only:** `CMakeCache.txt`
+(37,948 B, held ANDROID_PLATFORM=android-21) and `CMakeFiles/` (162 entries).
+`_deps/` and every per-subdirectory CMakeFiles/ under the build tree were left.
+
+**Run 3, command (from ~/Documents/sherpa-onnx; clone = a5b4a94 + the one
+uncommitted WEBSOCKET=OFF line):**
+
+    PATH=/opt/homebrew/share/android-commandlinetools/cmake/3.22.1/bin:$PATH \
+    ANDROID_NDK=/opt/homebrew/share/android-commandlinetools/ndk/30.0.16248370 \
+    SHERPA_ONNX_ONNXRUNTIME_ROOT=/Users/mattstevenson/Documents/sherpa-onnx-deps/onnxruntime-android-1.28.2 \
+    SHERPA_ONNX_ENABLE_BINARY=ON SHERPA_ONNX_ANDROID_PLATFORM=android-24 ./build-android-arm64-v8a.sh
+
+    START 2026-09-18 17:34:38 BST   END 17:34:58 BST   rc=0   wall_s=20
+    (read in the launching command)
+
+Configure: log line 47 passes `-DANDROID_PLATFORM=android-24`, and
+CMakeCache.txt:21 reads `ANDROID_PLATFORM:UNINITIALIZED=android-24`.
+
+**Nothing downloaded again.** The log prints the eleven "Downloading …" status
+lines on every configure, but every archive under _deps/ has the same size and
+mtime as before the run (17:17:40-17:29:58). There is no new archive and no new
+subbuild.
+
+**THE CAVEAT: the 20 s wall is because this was NOT a clean android-24 build.**
+Run 2 compiled 318 objects (log count of "Building C/CXX object") for
+android-21 before it failed at link. Run 3 compiled only 44: the ones run 2
+never reached, which were 5 in sherpa-onnx-core, one main.cc per executable
+(including sherpa-onnx-offline-tts.cc.o, 17:34:50), 23 in sherpa-onnx-jni and
+1 in ssentencepiece_core. It then linked 30 targets. The regenerated rules name
+android24 (sherpa-onnx-core.dir/build.make: 690 occurrences), but CMake's
+Makefile generator does not rebuild an object when only its rule's target
+triple changes. So most of libsherpa-onnx-core, and every _deps library,
+inside sherpa-onnx-offline-tts was compiled at __ANDROID_API__ 21. The binary's
+.note.android.ident records API 0x18 = 24, NDK r30 16248370 (from the crt
+objects at link). The mix is expected to run on API 37 (API-21 code is
+forward-compatible), but it is not the build that was asked for, and it is
+not reproducible from the command above alone.
+
+**The artefacts, as built:**
+
+    install/bin/sherpa-onnx-offline-tts   2,426,304 B
+      file: ELF 64-bit LSB pie executable, ARM aarch64, dynamically linked,
+            interpreter /system/bin/linker64, BuildID[sha1]=2266ef9f1bfe5cae7e31b160728b743f9ee672f1, stripped
+      sha256 cd23a509cacad4fa17a41e85d8ebc60a3c84fe34ae9716b629b7a15bb4e85a15 (computed)
+      RUNPATH $ORIGIN/../lib:$ORIGIN/../../../sherpa_onnx/lib
+      needed (llvm-readelf --needed-libs, NDK r30):
+        libonnxruntime.so   install/lib/
+        libandroid.so libc.so libdl.so liblog.so libm.so   Android system libs (not yet checked on the phone)
+    install/lib/libonnxruntime.so        22,249,560 B
+      sha256 33847ad43bffe204699fd4a27f7f3603452a8cdaf2f9a44983a0bc31ffcf2da1
+      = the unzipped prebuilt's jni/arm64-v8a/libonnxruntime.so (notes-tts.md:69),
+        whose zip matched sherpa-onnx's pin at cmake/onnxruntime-android-aarch64.cmake:18
+      needed: libc.so libdl.so liblog.so libm.so (system)
+    install/lib/libsherpa-onnx-jni.so    4,892,296 B (not needed by the CLI binary)
+
+sherpa-onnx-core is linked statically into the binary; install/lib holds no
+libsherpa-onnx-core.so, and the binary does not NEED one. libc++ is the NDK's
+static one (the script's default), so there is no libc++_shared.so to push.
+
+**Recommended before anything is pushed, held for Matt:** a clean android-24
+rebuild. Delete everything in build-android-arm64-v8a/ except `_deps/*-subbuild`
+(which holds the eleven verified archives and their download stamps), rerun
+the same command, and take the new sha256. With the same FetchContent stamps
+it should not download again, and a full compile was ~3 min in run 2.
+
+What this entry does not say: that the binary runs on the 6a; that the mixed
+build behaves differently from a clean one (untested either way); that the five
+system libs resolve on the phone; or anything measured.
