@@ -743,3 +743,150 @@ row; whether the 87-sample difference comes from the front end or from the
 1.13.8-vs-a5b4a94 version gap; anything about thermals beyond ~42 s of
 intermittent load; the predictions' verdicts (those come in the rung 1
 write-up); or anything on a fresh boot. Nothing here is a baseline.
+
+## 2026-09-18 — TTS RUNG 1, ROWS 4b AND 4c: the 18 lines on the X1 pair at 2 threads and unpinned at 4 threads, back to back — 36 of 36 rc=0, no kills, no stderr warnings; X1 ceiling fell to 73.09% of rated across 4b and to one 17.84% reading in 4c; the three pulled WAVs are within 87 samples (3.625 ms) of the Mac's. Boot 4, spent; nothing here is a baseline.
+
+Branch tts-kokoro. Boot 4 (up since 13:17:34; S0/S1/S2, eight model loads
+and row 4a had run on it). AC/USB charging at 100% and awake, as read at
+17:46:11 (previous entry). **Nothing here is a baseline.** Every figure is "on
+the 6a". **The model is page-cached** (pushed at 17:42, and loaded 5 times in
+4a), so no derived load below includes a read from flash. Derived load is
+always **wall minus elapsed, which includes process start and WAV write** (and
+the model load, and two `date` forks).
+
+**Commands.** Each pass ran as ONE adb shell invocation: a hand read of
+policy0/4/6 scaling_max_freq with uptime, then
+`COOL=1 sh /data/local/tmp/tts/pennytts.sh <p>-00 <mask> <threads> 0`, then
+lines 1-17 with COOL=0 back to back, then the hand read again. 4b: tags
+p2-00…p2-17, mask c0, 2 threads. 4c: tags p4-00…p4-17, mask none, 4 threads.
+Every figure below was parsed by script from out/<tag>.report and .err
+(pulled to the Mac, 246 files), not from scrollback. RTF is the binary's own
+line.
+
+    ROW 4b: mask c0 (X1 pair), 2 threads
+    line  elapsed_ms  audio_ms  RTF    wall_ms  derived_load_ms  peak_rss_kB  rss_n  x1_min_kHz  a76_min_kHz  memavail_kB before -> after  kills
+    00         1132       829  1.365     3104             1972      287,392      9   2,802,000    2,253,000  2,076,496 -> 2,040,228      0
+    01          959       758  1.266     2930             1971      283,656      8   2,802,000    2,253,000  2,045,320 -> 2,037,368      0
+    02         1032       814  1.268     2989             1957      284,532      8   2,704,000    2,253,000  2,033,484 -> 2,045,612      0
+    03         1502      1159  1.296     3405             1903      290,724      9   2,401,000    2,253,000  2,042,100 -> 2,034,260      0
+    04         4881      4545  1.074     6775             1894      362,492     18   2,188,000    2,253,000  2,054,932 -> 2,048,848      0
+    05         7370      6907  1.067     9344             1974      439,460     24   2,252,000    2,253,000  2,043,824 -> 2,057,596      0
+    06         4229      3593  1.177     6179             1950      350,340     16   2,252,000    2,253,000  2,036,880 -> 2,016,736      0
+    07         6254      5815  1.075     8218             1964      437,848     22   2,401,000    2,253,000  2,030,784 -> 2,056,848      0
+    08         5285      4704  1.124     7244             1959      402,264     19   2,252,000    2,253,000  2,061,548 -> 2,040,968      0
+    09         5167      4520  1.143     7105             1938      367,124     19   2,048,000    2,253,000  2,036,796 -> 2,038,416      0
+    10         4006      3450  1.161     5972             1966      345,576     16   2,188,000    2,253,000  2,036,636 -> 2,049,496      0
+    11         3887      3395  1.145     5853             1966      344,000     15   2,188,000    2,253,000  2,047,168 -> 2,042,276      0
+    12         4221      3513  1.202     6152             1931      347,428     16   2,188,000    2,253,000  2,063,148 -> 2,057,688      0
+    13         3554      3065  1.159     5509             1955      339,508     14   2,401,000    2,253,000  2,047,152 -> 2,029,380      0
+    14         9913      7450  1.331    11887             1974      328,580     30   2,188,000    2,253,000  2,051,352 -> 2,058,944      0
+    15        11730     10416  1.126    13667             1937      577,228     34   2,048,000    2,253,000  2,046,872 -> 2,052,752      0
+    16         4269      3109  1.373     6236             1967      323,132     16   2,188,000    2,253,000  2,055,460 -> 2,030,352      0
+    17         6040      4707  1.283     7977             1937      350,988     21   2,188,000    2,253,000  2,045,712 -> 2,040,848      0
+    pass: first line start uptime 16414.46, last line end 16560.31, span 145.85 s
+    MemAvailable low-water across the pass (before/after readings only): 2,016,736 kB (line 06)
+    X1 min across the pass: 2,048,000 kHz = 73.09% of rated, lines/uptime [(9, '16481.31'), (15, '16536.06')]; A76 min 2,253,000
+    peak RSS max 577,228 kB (line 15); rc all 0: True; kills total 0
+
+    ROW 4c: unpinned, 4 threads
+    line  elapsed_ms  audio_ms  RTF    wall_ms  derived_load_ms  peak_rss_kB  rss_n  x1_min_kHz  a76_min_kHz  memavail_kB before -> after  kills
+    00         1302       829  1.570     3185             1883      286,408      8   2,048,000    2,253,000  2,065,612 -> 2,032,884      0
+    01         1087       758  1.435     2972             1885      283,764      8   2,401,000    2,253,000  2,025,920 -> 2,046,756      0
+    02         1135       814  1.395     3087             1952      284,216      8   2,252,000    2,253,000  2,042,468 -> 2,038,480      0
+    03         1670      1159  1.441     3619             1949      291,168     10   2,401,000    2,253,000  2,057,672 -> 2,044,820      0
+    04         5376      4545  1.183     7317             1941      363,116     19     500,000    2,253,000  2,043,748 -> 2,038,888      0
+    05         8111      6907  1.174    10080             1969      441,496     27   1,826,000    2,253,000  2,060,812 -> 2,025,672      0
+    06         4605      3593  1.282     6567             1962      350,708     17   2,048,000    2,253,000  2,045,044 -> 2,014,792      0
+    07         6979      5815  1.200     8906             1927      438,232     23   1,745,000    2,253,000  2,067,788 -> 2,034,392      0
+    08         6360      4704  1.352     8464             2104      402,688     22   1,745,000    2,253,000  2,024,948 -> 2,051,684      0
+    09         6065      4520  1.342     8176             2111      367,452     21   1,745,000    2,253,000  2,056,952 -> 2,038,200      0
+    10         4545      3450  1.317     6611             2066      345,828     17   1,582,000    2,253,000  2,047,472 -> 2,041,476      0
+    11         4534      3395  1.335     6619             2085      344,620     17   1,582,000    2,253,000  2,043,592 -> 2,048,604      0
+    12         4883      3513  1.390     6918             2035      348,748     18   1,582,000    2,253,000  2,040,508 -> 2,031,208      0
+    13         4193      3065  1.368     6217             2024      339,204     16   1,582,000    2,253,000  2,051,952 -> 2,034,224      0
+    14        11226      7450  1.507    13251             2025      328,404     32   1,426,000    2,253,000  2,053,728 -> 2,062,316      0
+    15        12659     10416  1.215    14711             2052      577,488     35   1,582,000    2,253,000  2,059,616 -> 2,031,312      0
+    16         4860      3109  1.563     6925             2065      324,080     18   1,582,000    2,253,000  2,035,616 -> 2,024,972      0
+    17         7178      4707  1.525     9317             2139      350,616     23   1,582,000    2,253,000  2,037,492 -> 2,036,160      0
+    pass: first line start uptime 16590.48, last line end 16749.2, span 158.72 s
+    MemAvailable low-water across the pass (before/after readings only): 2,014,792 kB (line 06)
+    X1 min across the pass: 500,000 kHz = 17.84% of rated, lines/uptime [(4, '16616.33')]; A76 min 2,253,000
+    peak RSS max 577,488 kB (line 15); rc all 0: True; kills total 0
+
+**Row 4b, conditions.**
+- Hand read before line 0: uptime 16414.17, 17:51:08, policy0 1,803,000 /
+  policy4 2,253,000 / policy6 2,802,000 (all rated).
+- Hand read after line 17: uptime 16561.22, 17:53:35, 1,803,000 / 2,253,000 /
+  2,802,000 (all rated).
+- The X1 ceiling first moved on line 02 (2,704,000). Its minimum was
+  2,048,000 (73.09%) on lines 09 (uptime 16481.31) and 15 (16536.06), then
+  2,188,000 on 16-17. The A76 ceiling never moved.
+- policy0 was read by hand only, before and after, and read rated both times.
+- All 18 rc=0; every .wall has five numeric fields; 0 kill lines; every
+  script-stderr file (tts/p2-NN.sherr) is 0 B.
+
+**Gate between the passes, by hand**, polling all three ceilings until rated, in
+one invocation: start uptime 16581.12 (17:53:55), end 16581.20 (17:53:55),
+**1 poll, 0.08 s**. All three were already rated, 19.9 s after 4b's hand read.
+
+**Row 4c, conditions.**
+- Hand read before line 0: uptime 16590.20, 17:54:04, 1,803,000 / 2,253,000 /
+  2,802,000 (all rated).
+- Hand read after line 17: uptime 16749.96, 17:56:43, policy0 1,803,000,
+  policy4 2,253,000, **policy6 2,252,000 (80.37% of rated)**.
+- The X1 ceiling moved on line 00 already (2,048,000). **Line 04 read
+  500,000 kHz = 17.84% of rated at uptime 16616.33**, one 0.2 s poll sample
+  near that line's end (the line ran 16609.08-16616.90); how long it held is
+  not known. The pass then sat at 1,582,000 (56.46%) from line 10 to line 17,
+  with 1,426,000 (50.89%) on line 14. The A76 ceiling never moved.
+- **Unpinned means the scheduler chose the cores; which cores the four threads
+  ran on was not recorded.** The X1 ceiling applies to cpus 6-7 whether or not
+  any thread ran there.
+- All 18 rc=0; every .wall has five numeric fields; 0 kill lines; every
+  tts/p4-NN.sherr is 0 B.
+
+**Stated as fact, not judged.** Elapsed on 4c exceeds 4b on all 18 lines.
+Sample counts are identical between the passes on all 18 lines, and p2-00/05/15
+are byte-identical to p4-00/05/15.
+
+**The three WAVs**, pulled to ~/kokoro-models/phone-6a-rung1/ (sha256 by
+shasum on the Mac and sha256sum on the phone, each MATCH):
+
+    p2-00.wav   4d7c10b9844e86a345fbd45a158eca46a9d02b59fdf87449c0c942b12f6caca4
+    p2-05.wav   5d6cf04333b87efdbf06b834c42070c458d2a9ca40f124c6b6b81da0375258d5
+    p2-15.wav   c24121e107ca63f3c349b485450723ca85a430c41af8ee8a948f9cc7315b2244
+
+    header (python wave; all 24 kHz mono 16-bit, "data" at 36)
+    line  phone samples  Mac samples  difference
+    00       19,899         19,812    +87 = +3.625 ms
+    05      165,773        165,742    +31 = +1.292 ms
+    15      249,994        250,017    -23 = -0.958 ms
+
+p2-00.wav is byte-identical to ack-1.wav (4d7c10b9…).
+
+**Stderr and text.** No line in any of the 36 .err files falls outside the
+expected set (command echo, Number of threads, Elapsed, Audio duration, RTF,
+"The text is", Saved to), so there were no warnings. "The text is:" shows every line
+arrived intact, including "£12,480.50" and the apostrophes. The binary appends
+its own "." in that log line. Lines named for a later pronunciation check,
+**not listened to**:
+- 04 "3:45 pm", "24th"
+- 05 "£12,480.50", "17.5%"
+- 07 "API", "502", "GitHub"
+- 08 "OAuth", "MCP"
+- 09 "CI"
+- 12 read/read and record/record (heteronyms)
+- 14 "2 o'clock"
+- 11 speaks the word "Penny"
+
+Line 14 is four sentences. Its RTF (1.331 on 4b, 1.507 on 4c) is above the
+other long lines, and its peak RSS (328,580 kB) is below line 04's shorter
+single sentence. That fits per-sentence generation (max_num_sentences 1), but
+it is not shown here.
+
+What this entry does not say: the prediction verdicts (the write-up);
+anything from flash; what policy0 did during either pass; which cores 4c
+used; how long 4c's 500,000 kHz reading lasted; MemAvailable between the
+before/after reads of any line (the low-water figures are over those reads
+only); anything about pronunciation (not listened to); anything on a fresh
+boot. Nothing here is a baseline.
