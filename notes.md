@@ -10348,3 +10348,199 @@ need the same grep over `q17_r1_cold_fresh.err`, which was not run. The kernel
 counts are line counts from a log, not bytes: **nothing here says how the
 387.39 MiB divides between the four formats**, and the 36 `q8_0_4x4` tensors are
 flagged as the heaviest per weight without their size being measured.
+
+## 2026-09-18 — ROW 7, `q35_r7_warm_fresh_save`. **THE HYBRID'S PREFIX CAN BE CACHED**, and its state file is 24.12 MiB — 45.83% SMALLER than the 1.7B's. B6 PASSES on both its number and its direction. The A5-equivalent FAILS, and the page cache is why.
+
+The row that could have failed on a code path rather than a number. It did not.
+
+    PENNYLOAD tag=r7 run_type=fresh+save rc=0
+    PENNYLOAD state_file=/data/local/tmp/q35_state.bin state_bytes=25288618 state_tokens_saved=413
+    $ adb shell ls -la /data/local/tmp/q35_state.bin
+    -rw-rw-rw- 1 shell shell 25288618 2026-09-18 11:35 /data/local/tmp/q35_state.bin
+
+**`llama_state_save_file` returned TRUE on a model whose eighteen of twenty-four
+layers are recurrent.** No `FAILED state_save=false`, no rc=3. The plan's
+standing "whole of Q-B fails on Qwen3.5-2B" condition is not met, and row 8 is
+live. The loader's own stderr shows the write happening:
+
+    state_write_data: writing state
+    state_write_data: - writing model info
+    state_write_data: - writing memory module
+
+**A DECLARED WARMTH PROBLEM, WRITTEN DOWN BEFORE THE ROW WAS LAUNCHED.** Row 2
+followed row 1 by 236 s; row 7 followed row 6 by **50 minutes**, spent writing
+up two amendments. `Cached` read **1,122,276 kB at uptime 4576.83 s against a
+model of 1,250,816 kB**, so the file could not be fully resident, and the row
+was launched anyway with the warmth to be read off its own tensor band rather
+than assumed. **It was not warm, and the A5-equivalent fails because of it.**
+
+### THE GATE AND THE ROW, one shell invocation
+
+    GATE PASSED uptime_s=4605.32 wallclock=11:35:20
+    PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh q35_r7_warm_fresh_save c0 -- \
+      -m /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf -t 2 -lm none -n 64 --print \
+      --sys-file /data/local/tmp/penny_system.txt \
+      --user-file /data/local/tmp/penny_user.txt \
+      --save-state /data/local/tmp/q35_state.bin --tag r7
+
+    rc=0   mask=c0   uptime before 4605.42 s   after 4624.26 s   (18.84 s)
+    sys_tokens=413  user_tokens=21   (unchanged from row 6)
+
+### EVERY PHASE LINE, AS READ
+
+    PENNYLOAD t_backend_ms      8.30
+    PENNYLOAD t_model_open_ms   758.83
+    PENNYLOAD t_tensor_band_ms  3663.29
+    PENNYLOAD t_model_tail_ms   7.68
+    PENNYLOAD t_model_total_ms  4429.79
+    PENNYLOAD t_ctx_create_ms   30.08
+    PENNYLOAD t_ready_ms        4468.17
+    PENNYLOAD t_tokenize_ms     4.67
+    PENNYLOAD t_sys_decode_ms   7879.20   (413 tokens)
+    PENNYLOAD t_state_save_ms   16.87     (T8-T9a)  == B4-equivalent
+    PENNYLOAD state_bytes=25288618 state_tokens_saved=413
+    PENNYLOAD t_user_decode_ms  498.09    (T9b-T8 -- AFTER the save)
+    PENNYLOAD t_sample_ms       3.54
+    PENNYLOAD ttft_fresh_ms     8397.71
+    PENNYLOAD ttft_cached_ms    8402.38
+    PENNYLOAD ttft_cold_proc_ms 12870.55
+    PENNYLOAD gen_tokens=64 gen_ms=5143.28 gen_tps=12.25
+    PENNYLOAD first_token_id=3710
+    PENNYLOAD token_fnv1a64=0x19d53b5da9186ff6
+
+`ttft_fresh_ms` carries the save inside it and is not a clean TTFT, the same
+note row 2 carries. `ttft_cold_proc_ms` is again labelled `== B3` by the tool
+and is again NOT B3 — this row is fresh.
+
+### B6, SCORED — AND THE DIRECTIONAL CLAIM IS THE RESULT
+
+    #   prediction                              point      band        measured      verdict
+    B6  state file size, Qwen3.5-2B, ~420 tok   ~25 MiB   10-60 MiB   24.117 MiB   **PASS**
+
+    #   B4-equivalent (not a re-score of B4)
+        state save cost                         0.25 s    0.05-1.0 s   0.01687 s    inside
+
+**AND THE FAIL CONDITION WRITTEN BEFORE ANY RUN — "B6 fails if the Qwen3.5-2B
+file is LARGER than the Qwen3-1.7B one, which is the directional claim and the
+one worth being wrong about" — IS NOT MET. IT IS SMALLER:**
+
+    Qwen3-1.7B   46,685,237 B = 44.523 MiB   over 407 tokens = 112.02 KiB/token
+    Qwen3.5-2B   25,288,618 B = 24.117 MiB   over 413 tokens =  59.80 KiB/token
+    the 2B's file is **54.17% of the 1.7B's — smaller by 45.83%** — on a model
+    16% LARGER
+
+**A bigger model with a cheaper prefix.** The prediction's stated reason was six
+attention layers at 2 KV heads costing ~12 KiB a token against the 1.7B's
+112 KiB. Taking that 12 KiB at face value, 413 tokens of attention would be
+4.84 MiB, leaving **19.28 MiB that is not token-proportional** — the fixed
+recurrent state. **That split is arithmetic on an ASSUMED 12 KiB, not a
+measurement**: nothing here reads the file's internal structure, and the 12 KiB
+came from the prediction rather than from the model. The claim it does support,
+because it needs no assumption, is the observed 59.80 against 112.02 KiB/token.
+
+**THE CONSEQUENCE, IF THE FIXED PART IS REALLY FIXED, IS THAT THE HYBRID'S
+PREFIX FILE BARELY GROWS WITH THE PROMPT — AND THAT IS UNTESTED.** It needs one
+run at a different prompt length and has not been done.
+
+### THE A5-EQUIVALENT FAILS HIGH, AND THE CACHE IS MEASURABLY THE REASON
+
+    warm t_ready 4468.17 / cold t_ready 4665.60 = **95.77%**
+    fail condition (written before any run): FAILS if >= 90% or <= 40%
+    -> **FAIL, HIGH**
+
+For comparison the 1.7B's own pair, row 2 against row 1: **70.61%, a pass.**
+
+**The tensor band says plainly that this row was not warm:**
+
+    2B   row 7 3663.29 vs row 6 3863.26  = 94.82%   only  199.97 ms saved
+    1.7B row 2 2431.20 vs row 1 3581.59  = 67.88%        1150.39 ms saved
+
+A genuinely warm load of the 1.7B saved 1.15 seconds off the band. This saved
+0.20 s. **So the A5-equivalent's failure is a statement about the page cache on
+this row, not about the repack-versus-read split**, and it must not be quoted as
+evidence against A5's directional claim. The claim is untested on the 2B, and
+testing it needs row 7 re-run within a minute or two of a cold load — which
+costs a reboot, because this boot's cold read is spent.
+
+**This is the cost of taking 50 minutes between two rows that were designed to
+be seconds apart**, and it was foreseen and recorded before the launch rather
+than discovered afterwards.
+
+### THE CONTROL HOLDS
+
+    row 6   first_token_id=3710   token_fnv1a64=0x19d53b5da9186ff6
+    row 7   first_token_id=3710   token_fnv1a64=0x19d53b5da9186ff6   **MATCH**
+
+Same 64 tokens from a fresh load with a state save bolted on. That is the
+reference rows 8 and 10 must reproduce.
+
+### MEMORY, KILLS AND THE CLOCK
+
+    PENNYBENCH memavail_kB   before 2,636,476   after 3,106,172
+    PENNYBENCH memfree_kB    before 1,738,304   after 1,936,628
+    PENNYBENCH swapfree_kB   before   666,364   after   612,692   (19.48% of total)
+    PENNYBENCH cached_kB     before 1,122,352   after 1,394,936   (**ROSE** 272,584)
+    PENNYBENCH pswpin        before   128,227   after   128,675   (+448)
+    PENNYBENCH pswpout       before   793,604   after   905,248   (+111,644)
+    PENNYBENCH pgmajfault    before   141,836   after   142,445   (+609)
+    PENNYBENCH ceil_x1_kHz   before 2,802,000   min 1,826,000   after 2,802,000
+    PENNYBENCH ceil_x1_min_at uptime=4611.88    (6 s into the row, **65.17%** of rated)
+    PENNYBENCH ceil_a76_kHz  before 2,253,000   min 2,253,000   after 2,253,000
+    PENNYBENCH peak_rss_kB   1,824,196
+    PENNYBENCH max_rssanon_kB 1,819,144
+    PENNYBENCH max_rssfile_kB     4,796
+    PENNYBENCH lmk_kill_lines    16
+
+**PEAK RSS 1,824,196 kB against row 6's 1,824,632 — 436 kB apart, 0.024%.**
+`max_rssanon_kB` is 1,819,144 in BOTH rows, to the kilobyte. The 24.12 MiB state
+buffer does not show up in peak RSS, which is consistent with the save streaming
+out rather than being assembled in memory, and is not proof of it.
+
+**SIXTEEN KILL LINES, EIGHT PROCESSES, WITH `MemAvailable` BEFORE AT
+2,636,476 kB — MORE MEMORY AND MORE KILLS THAN ROW 6, AND THAT COMPLICATES THE
+RULE:**
+
+    row 6   MemAvailable before 2,270,852 kB   ->  3 processes,  6 lines
+    row 7   MemAvailable before 2,636,476 kB   ->  8 processes, 16 lines
+
+    euiccpixel, traceur, carrierconfig2, .adservices, imsserviceentitlement,
+    localtransport, backup.contacts, seedvault -- all oom_score_adj 905, all cch
+
+**And the reason strings are more severe**: row 6's were all `low watermark is
+breached`; row 7's include `min watermark is breached` and four of
+`min watermark is breached even after kill`. **So `MemAvailable` before a row
+did NOT predict its kills here, and the B2-R1 rule needs the caveat.** What
+differed: this row started with `pswpin` at 128,227 against row 6's 34,617 and
+`pgmajfault` at 141,836 against 47,572 — the phone had been swapping heavily in
+the fifty minutes between them, on a boot now 77 minutes old. **That is a
+correlation across two rows and nothing here establishes it as the cause.**
+
+**Not contaminated:** `Cached` ROSE 272,584 kB, `SwapFree` ended at 19.48% of
+`SwapTotal` — above the ~10% floor, and higher than row 6's 15.14%.
+
+**The X1 ceiling fell further than row 6's** — 1,826,000 kHz, 65.17% of rated,
+6 s in, against row 6's 2,048,000 (73.09%) at 7 s. The A76 pair never moved in
+either. Both back at rated by the end. `policy0` not sampled.
+
+`ZRAM: 560,168K physical used for 2,432,936K in swap` — 4.34:1.
+
+### WHAT ROW 7 DOES NOT SAY
+
+**It does not say a hybrid's prefix can be LOADED.** `llama_state_save_file`
+succeeded; `llama_state_load_file` has not been called on this file, and it can
+still return false. That is row 8, and until it runs, "the hybrid's prefix can be
+cached" means only that a file was written.
+
+**The A5-equivalent's failure is not a finding about the model.** It is a failure
+on a row whose page cache did not hold the model, established by its own tensor
+band, and the underlying repack-versus-read claim stays untested on the 2B.
+
+B6 passes on one file at one prompt length. The 19.28 MiB "fixed" remainder rests
+on a 12 KiB/token assumption taken from the prediction, not measured, and the
+claim that the file barely grows with prompt length is untested.
+
+One sample, 18.84 seconds, X1 at 65% of rated when it ended. AC power, screen
+on, unlocked, foreground, over adb, app disabled, no VM. The kill comparison
+crosses fifty minutes of a boot that was swapping throughout, and the text is
+again 64 tokens that stop inside a `<think>` block, with no quality judgement
+made.
