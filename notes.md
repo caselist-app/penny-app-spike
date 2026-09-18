@@ -11820,3 +11820,136 @@ extrapolation is only defensible inside the interval it came from. S-B3's
 starting figure is the weakest number in the entry. The Qwen3.5-2B is not
 predicted at all and is not being run. Nothing here is at boot, nothing is on
 battery, nothing has a second model in memory, and **an hour is not a day.**
+
+## 2026-09-18 — BRIEF S SMOKE TESTS on boot 3. **NOT A RESULT ROW — NEITHER OF THEM.** The single-turn path is unchanged on the phone, the loop runs, and one bug was found and fixed before any row.
+
+Two tests, both on the Qwen3.5-2B still resident from boot 3, both through
+`pennybench.sh` rev 5 with the new binary pushed as `/data/local/tmp/pennyload_s`
+so that `/data/local/tmp/pennyload` was **not** overwritten until both passed.
+**NOTHING HERE IS A MEASUREMENT OF THE HANDSET.** Boot 3 has had nine rows and
+four smoke runs on it, its swap is two-thirds spent, and no figure below is
+quoted anywhere as a result. They exist to test the instrument.
+
+    pennyload_s    8363d84e…  first build, used for smoke A
+                   f52fc604…  after the fix below, used for smoke A2 and B2
+    pennybench_s.sh 96163d04…  rev 5, unchanged throughout
+
+### SMOKE A — THE SINGLE-TURN PATH IS UNCHANGED, AND THE PROOF IS AN A/B ON THE PHONE
+
+Row 8's exact invocation, `--tag r8` included so the tag line matches, run on
+the NEW binary and then on the OLD one forty-six seconds apart on the same boot:
+
+    GATE x1=2802000 a76=2253000 uptime_s=9889.77  wallclock=13:03:24   new binary
+    GATE x1=2802000 a76=2253000 uptime_s=9935.48  wallclock=13:04:10   old binary
+
+    PENNYBIN=/data/local/tmp/pennyload_s sh pennybench_s.sh smoke_a_identity c0 -- \
+      -m /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf -t 2 -lm none -n 64 --print \
+      --user-file /data/local/tmp/penny_user.txt \
+      --load-state /data/local/tmp/q35_state.bin --tag r8
+
+**28 output lines from each, and after blanking every number the line set and
+order are IDENTICAL.** So is the generation, three ways:
+
+    old binary   first_token_id=3710   token_fnv1a64=0x19d53b5da9186ff6
+    new binary   first_token_id=3710   token_fnv1a64=0x19d53b5da9186ff6
+    all 64 token_ids identical: True
+
+**`0x19d53b5da9186ff6` is the figure row 7, row 8 and row 6 all recorded**, so
+the new binary reproduces the hybrid's restored-prefix generation exactly.
+Repeated on the FIXED binary afterwards (`smoke_a_identity2`, uptime 10183.22,
+13:08:18) with the same three results — the fix touched only loop-mode output,
+but that was verified rather than reasoned.
+
+**The timings differ and that is expected, not a regression.** `t_state_load_ms`
+read 41.08 ms against row 8's 9.58 ms, because row 8 ran nine minutes after the
+state file was written and this ran two days later with the file no longer as
+warm. `t_tensor_band_ms` 2914.17 against 2725.80, on a boot with four more hours
+on it. **These are two runs at different moments on a tired boot and neither is
+comparable with row 8's figures.** The fnv is the part that carries.
+
+### SMOKE B — THE LOOP RUNS, AND SO DOES THE OVERRUN PATH
+
+    PENNYBIN=/data/local/tmp/pennyload_s sh pennybench_s.sh smoke_b_loop2 c0 -- \
+      -m …Qwen3.5-2B-Q4_K_M.gguf -t 2 -lm none -n 64 \
+      --user-file …penny_user.txt --load-state …q35_state.bin \
+      --turns 3 --interval-s 5 --tag s_loop2
+    GATE x1=2802000 a76=2253000 uptime_s=10128.03 wallclock=13:07:23
+
+    PENNYLOAD prefix_snapshot_bytes=25286954 got=25286954 t_snapshot_ms=10.56
+    TURN k=1 uptime_s=10132.48 t_restore_ms=4.00 ttft_turn_ms=387.81 gen_tps=12.62 fnv=0x19d53b5da9186ff6 busy_ms=5379.57 overrun=1
+    TURN k=2 uptime_s=10137.86 t_restore_ms=4.57 ttft_turn_ms=454.77 gen_tps=12.25 fnv=0x19d53b5da9186ff6 busy_ms=5597.04 overrun=1
+    TURN k=3 uptime_s=10143.45 t_restore_ms=3.80 ttft_turn_ms=466.69 gen_tps=11.90 fnv=0x19d53b5da9186ff6 busy_ms=5761.23 overrun=1
+    turns_done=3 turns_requested=3 turns_overrun=3 fnv_all_equal=1
+    DUTY busy_median_ms=5597.04 interval_ms=5000 duty_pct=111.94
+
+**`fnv_all_equal=1`, and the value is the same one the FILE restore produces.**
+That is the mechanism S-A4 tests: `llama_state_set_data` from an in-memory
+snapshot returns the context to the 413-token prefix well enough that turn 3
+generates the identical 64 tokens as turn 1 and as row 8. A residue left behind
+by the restore would have broken it at turn 2.
+
+**The snapshot is 25,286,954 B against the state FILE's 25,288,618 — smaller by
+1,664 B**, which is the session-file header the in-memory form does not carry.
+That was predicted before the build ("predicted slightly SMALLER than the file")
+and is confirmed here on the 2B; the 1.7B's own figure is still unmeasured.
+
+**`overrun=1` on all three turns is correct behaviour, not a fault.** A 2B turn
+is ~5.4-5.8 s of work and the interval was set to 5 s deliberately, so the
+overrun path and `duty_pct` above 100 are exercised. S1's interval is 60 s.
+
+**`t_restore_ms` is 3.80-4.57 ms.** No prediction is scored on that — the
+predictions are for Qwen3-1.7B, whose snapshot is 46.7 MB against this 25.3 MB,
+and the frozen band stays as written.
+
+### THE BUG, FOUND BY THE FIRST RUN OF SMOKE B AND FIXED BEFORE ANY ROW
+
+With `turns_done=3`, `q = turns_done / 4 = 0`, so both quarters were empty and
+`median_of` returned its -1.0 sentinel. The report printed:
+
+    PENNYLOAD quarters       n_per_quarter=0  q1=turns 1-0  q4=turns 4-3
+    PENNYLOAD SETTLED ttft_turn_ms q1_median=-1.00 q4_median=-1.00 decline_pct=0.00
+    PENNYLOAD SETTLED gen_tps_turn1=12.73 settled_pct_of_turn1=-7.86
+
+**`-7.86` is a real-looking number computed from a sentinel, and `decline_pct`
+read 0.00 — which is exactly the figure S-A1 and S-A2 are scored on.** The guard
+stopped a crash and produced something worse than a crash. **S1 and S2 never
+reach this** (q is 15 and 50), **but a row that stops early does — and S-B1
+explicitly allows a row to stop early, scored on `turns_done`.** Fixed to print
+`n/a` in words. Verified on the re-run above.
+
+### THE INSTRUMENT ALSO ANSWERED THREE THINGS IT WAS NOT ASKED
+
+- **`oom_score_adj_child pre=-1000 post=200` on every run**, including the one
+  that failed at argument parsing. The write works through the wrapper, not only
+  in the hand test.
+- **`ceil_a55` is readable during a row and did not move**: 1,803,000 at every
+  series sample on both loop runs. That is the first time `policy0` has been
+  sampled during a row in this repo, and it closes the gap CLAUDE.md names
+  twice — **at the 10 s resolution of the series, and on a 22 s row, which is
+  not the same as saying it never moves.**
+- **`dumpsys battery` LAGS sysfs.** Read at both ends of smoke B: sysfs 278 ->
+  280 dC while dumpsys read 276 at both. Earlier in the day, idle, they agreed
+  to 1 dC. `dumpsys` updates on battery-change broadcasts rather than on demand.
+  **The deviation to sysfs was decided for a different reason — 360 binder calls
+  into `system_server` — and this is a second, better one.**
+
+### ONE FAILURE, AND IT WAS THE OPERATOR'S
+
+The first smoke B invocation omitted `--user-file` and returned rc=2 with
+`pennyload: -m and --user-file are required`. That is Claude's command being
+wrong, not the instrument. Recorded because the wrapper's behaviour under it is
+useful: `rc=2` reached the report, the oom and battery lines were still written,
+and `series_file … (0 samples)` was correct — the child exited in 0.43 s, before
+the poll loop ran once.
+
+### WHAT THE SMOKE TESTS DO NOT SAY
+
+**Neither is a result and neither is gated as one would be** — the gate was read
+and both ceilings were at rated, but these ran back to back on a boot with nine
+rows and four runs already on it. No figure here is this handset's speed, and
+the `gen_tps` of 11.90-12.73 must never be quoted against row 8's 12.65. Three
+turns is not sixty, five seconds is not sixty seconds, and nothing here ran long
+enough to throttle, swap or be killed — `lmk_kill_lines 0` on a row that lasted
+22 seconds says nothing. The series produced three samples; S1 will produce
+~360, and nothing here tests the sampler over an hour. The 1.7B has not been
+touched: every figure above is Qwen3.5-2B.

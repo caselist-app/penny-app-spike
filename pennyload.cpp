@@ -594,14 +594,30 @@ int main(int argc, char ** argv) {
                min_of(ttft_all), median_of(ttft_all), max_of(ttft_all));
         printf("PENNYLOAD gen_tps        min=%.2f median=%.2f max=%.2f\n",
                min_of(tps_all), median_of(tps_all), max_of(tps_all));
-        printf("PENNYLOAD quarters       n_per_quarter=%d  q1=turns 1-%d  q4=turns %d-%d\n",
-               q, q, turns_done - q + 1, turns_done);
-        printf("PENNYLOAD SETTLED ttft_turn_ms q1_median=%.2f q4_median=%.2f decline_pct=%.2f   (positive = SLOWER)\n",
-               t_m1, t_m4, t_m1 > 0.0 ? (t_m4 - t_m1) / t_m1 * 100.0 : 0.0);
-        printf("PENNYLOAD SETTLED gen_tps      q1_median=%.2f q4_median=%.2f decline_pct=%.2f   (positive = SLOWER)\n",
-               p_m1, p_m4, p_m1 > 0.0 ? (p_m1 - p_m4) / p_m1 * 100.0 : 0.0);
-        printf("PENNYLOAD SETTLED gen_tps_turn1=%.2f settled_pct_of_turn1=%.2f\n",
-               tps1, tps1 > 0.0 ? p_m4 / tps1 * 100.0 : 0.0);
+        // A row that stops early can leave fewer than four turns, and then no
+        // quarter exists. Print that in words rather than printing median_of's
+        // -1.0 sentinel as though it were a figure -- which the 3-turn smoke
+        // test on 18 Sept did, alongside a settled_pct_of_turn1 of -7.86
+        // computed from it. S1 and S2 never reach here; a killed row can.
+        if (q >= 1) {
+            printf("PENNYLOAD quarters       n_per_quarter=%d  q1=turns 1-%d  q4=turns %d-%d\n",
+                   q, q, turns_done - q + 1, turns_done);
+            printf("PENNYLOAD SETTLED ttft_turn_ms q1_median=%.2f q4_median=%.2f decline_pct=%.2f   (positive = SLOWER)\n",
+                   t_m1, t_m4, t_m1 > 0.0 ? (t_m4 - t_m1) / t_m1 * 100.0 : 0.0);
+            printf("PENNYLOAD SETTLED gen_tps      q1_median=%.2f q4_median=%.2f decline_pct=%.2f   (positive = SLOWER)\n",
+                   p_m1, p_m4, p_m1 > 0.0 ? (p_m1 - p_m4) / p_m1 * 100.0 : 0.0);
+            printf("PENNYLOAD SETTLED gen_tps_turn1=%.2f settled_pct_of_turn1=%.2f\n",
+                   tps1, tps1 > 0.0 ? p_m4 / tps1 * 100.0 : 0.0);
+        } else {
+            printf("PENNYLOAD quarters       n/a   turns_done=%d is fewer than 4, so no quarter exists\n",
+                   turns_done);
+            printf("PENNYLOAD SETTLED ttft_turn_ms q1_median=n/a q4_median=n/a decline_pct=n/a   (turns_done=%d)\n",
+                   turns_done);
+            printf("PENNYLOAD SETTLED gen_tps      q1_median=n/a q4_median=n/a decline_pct=n/a   (turns_done=%d)\n",
+                   turns_done);
+            printf("PENNYLOAD SETTLED gen_tps_turn1=%.2f settled_pct_of_turn1=n/a   (turns_done=%d)\n",
+                   tps1, turns_done);
+        }
         printf("PENNYLOAD DUTY busy_median_ms=%.2f interval_ms=%.0f duty_pct=%.2f\n",
                median_of(busy_all), interval_ms,
                interval_ms > 0.0 ? median_of(busy_all) / interval_ms * 100.0 : -1.0);
