@@ -11339,3 +11339,87 @@ GrapheneOS 2026091001 / Android 17 CP2A.260705.006, against llama.cpp at commit
 38a5b42d9 built `armv8.2-a+dotprod+fp16`. **It is an absolute feasibility
 measurement of this handset and never a native-versus-VM comparison**, which is
 closed.
+
+## 2026-09-18 — AMENDMENT to the Q-A/Q-B closing entry. "All nine rows' text stops inside a `<think>` block" is FALSE — only the 2B's rows do, and the 1.7B's rows reached an answer. And row 9's page cache ROSE during the row, so 45.47% is a FLOOR, not a figure.
+
+Appended, not edited in. Both corrections come from row entries already in this
+file; nothing was re-run and nothing new was read off the phone.
+
+### 1. THE TEXT CLAIM IS WRONG, AND ITS OWN SENTENCE CONTRADICTED ITSELF
+
+The closing entry's "does NOT say" section reads: *"all nine rows' text stops
+inside a `<think>` block at 64 tokens, and the 1.7B's sample gets two of its
+three facts about Canberra wrong."* **The two halves cannot both be true — a
+run that stops inside a reasoning block has not stated three facts about
+Canberra — and it is the first half that is wrong.** Corrected:
+
+    rows                model        what the row entry records
+    ----------------    ----------   --------------------------------------------
+    r1, r2, r3, r5      1.7B         an ANSWER, no `<think>` block: Canberra, a
+                                     population of ~4 million and a founding date
+                                     of 1901. r1: "both are wrong". r3: "Canberra
+                                     right, the other two facts wrong."
+    r4                  1.7B         NOTHING. `-n 1`, and r4 says "there is no
+                                     generation here at all".
+    r6, r7, r8          2B           stops INSIDE a `<think>` block at 64 tokens.
+                                     r6 quotes the opening verbatim: the model
+                                     echoes the question, then "<think> Thinking
+                                     Process:".
+    r9                  2B           `-n 64 --print`, but r9 quotes no text and no
+                                     figure from it, per the control rule. The
+                                     end-of-boot-3 entry records all four boot-3
+                                     rows as stopping inside a `<think>` block.
+
+**So the two models behave differently at a 64-token budget and the closing
+entry flattened that into one sentence.** Qwen3-1.7B reaches an answer inside 64
+greedy tokens with no chat template; Qwen3.5-2B opens a reasoning block and is
+still planning when the budget runs out.
+
+**What this still does NOT say.** Whether the 1.7B's answer completed on its own
+or merely fitted inside 64 tokens is not established — no row recorded an
+end-of-generation reason. **No quality judgement is made or reversed by this
+correction**: the 1.7B's three facts are recorded as two wrong because its own
+row entries record them that way, and the 2B's text is recorded as text produced
+and nothing more. 64 tokens was a budget chosen for the rows, not either model's
+own stopping point, and neither model saw a chat template.
+
+### 2. ROW 9's `Cached` ROSE DURING THE ROW, SO THE A4-EQUIVALENT IS A FLOOR
+
+From r9's own table, unchanged:
+
+    PENNYBENCH cached_kB   before 1,384,860   after 1,646,192   (**ROSE 261,332**)
+
+**A row whose page cache grows by 255 MiB while it runs is not established as a
+fully warm read.** At `-lm none` the model is read with `read()` rather than
+mapped, so a file read grows `Cached` without producing major faults — which is
+one reading of the 261,332 kB rise sitting beside `pgmajfault` +31 and `pswpin`
++30 in the same table. **That is a reading of two figures against each other and
+not a measurement**, and nothing here establishes how much of r9's 616.72 ms
+band was disk.
+
+**THE DIRECTION IS UNAMBIGUOUS EVEN THOUGH THE SIZE IS NOT.** r9's band is the
+subtrahend in every A4-equivalent figure. If any part of it is file read rather
+than the read-only floor, the band is INFLATED, the difference is too SMALL, and
+the repack is UNDERSTATED:
+
+    repack vs r8  =  2725.80 - 616.72  =  2109.08 ms  ->  45.47% of A2   **a floor**
+    repack vs r7  =  3663.29 - 616.72  =  3046.57 ms  ->  65.68% of A2   **a floor**
+    share of that row's own band          77.37% and 83.16%             **floors**
+
+**So 45.47% is best read as a floor on the repack's share of A2, not as a
+figure**, and the twenty-point spread between the two references is unaffected —
+both move the same way. **No A4-equivalent verdict is recorded and this does not
+create one.**
+
+For contrast, and it is why r9's rise is worth flagging rather than shrugging
+at: **r8, the warm reference, is the only row on boot 3 whose `Cached` FELL**
+(1,436,804 -> 1,383,168, down 53,636 kB), where r6 rose 93,988, r7 rose 272,584
+and r9 rose 261,332. The row treated as warm did not need to pull the file in;
+the control row did. **Stated, not resolved.** Resolving it needs a `--extra-bufts 0`
+row run within a minute or two of a warm one on the same boot, which is a boot
+this plan did not budget and which nothing here proposes spending.
+
+Nothing else in the closing entry changes: the twelve-prediction scorecard, A4's
+own 50.72% PASS on the 1.7B (r4 against r2, where r4's `Cached` moved 2,816 kB
+and `pswpout` did not move at all), Q-B's figures and B3's NOT MEASURED status
+are all untouched.
