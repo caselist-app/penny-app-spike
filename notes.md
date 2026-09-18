@@ -10865,3 +10865,129 @@ pair, and the 37.19 MiB gap is unexplained. The 1211.05 MiB buffer being
 Zero kills and zero swap on a boot 91 minutes old that had already killed eleven
 processes. AC power, screen on, unlocked, foreground, over adb, app disabled, no
 VM. One sample.
+
+## 2026-09-18 — END OF BOOT 3. Four rows, A6 and B6 and the B2-equivalent all pass, the hybrid saves AND loads a prefix, and **B3 for Qwen3.5-2B is NOT MEASURED**. Boot 4 is Matt's and the default is not to spend it.
+
+### THE STATE FILE, `sync`ed AND HASHED — one invocation
+
+Same discipline as the end of boot 1: **`sync` first**, because
+`llama_state_save_file` issues no `fsync` and the bytes may exist only in the
+page cache, then hash. Safe to read it here because boot 3's own cold reads are
+spent.
+
+    $ adb shell 'sync; echo "uptime_s=... wallclock=..."; ...; sha256sum /data/local/tmp/q35_state.bin; ls -la ...; ls -l /data/local/tmp; vm list'
+    uptime_s=5575.98  wallclock=11:51:31  date=2026-09-18
+    MemTotal:        5718284 kB
+    MemFree:         1586140 kB
+    MemAvailable:    3010084 kB
+    Cached:          1649788 kB
+    SwapTotal:       3145724 kB
+    SwapFree:         739156 kB
+    ceil_x1=2802000  ceil_a76=2253000  ceil_a55=1803000
+    --- state file ---
+    6f461e459f2ef0e61a6e6f7579250e115f92f5c3cb43cba18d9600a15f432a8f  /data/local/tmp/q35_state.bin
+    -rw-rw-rw- 1 shell shell 25288618 2026-09-18 11:35 /data/local/tmp/q35_state.bin
+    --- ls -l /data/local/tmp ---
+    total 1288875
+    -rw-rw-rw- 1 shell shell 1280835840 2026-09-15 20:26 Qwen3.5-2B-Q4_K_M.gguf
+    -rwxr-xr-x 1 shell shell    4708216 2026-09-16 12:08 llama-bench
+    -rwxr-xr-x 1 shell shell    3805208 2026-09-16 12:18 llama-simple
+    drwxrwxrwx 4 shell shell       3452 2026-09-14 11:35 microdroid
+    drwxrwxrwx 2 shell shell      12288 2026-09-18 11:49 out
+    -rw-rw-rw- 1 shell shell       1911 2026-09-16 16:48 penny_system.txt
+    -rw-rw-rw- 1 shell shell         95 2026-09-16 17:05 penny_user.txt
+    -rwxr-xr-x 1 shell shell       8402 2026-09-16 16:57 pennybench.sh
+    -rwxr-xr-x 1 shell shell    3817808 2026-09-16 16:29 pennyload
+    -rw-rw-rw- 1 shell shell   25288618 2026-09-18 11:35 q35_state.bin
+    --- vm ---
+    Running VMs: []
+
+**`6f461e459f2ef0e61a6e6f7579250e115f92f5c3cb43cba18d9600a15f432a8f`,
+25,288,618 bytes.** That hash exists so that IF boot 4 is ever spent, the file
+row 10 reads can be proved to be the file row 7 wrote — the same control the
+1.7B's `707e0ea3…` provided across boots 1 and 2. **It is recorded whether or
+not boot 4 happens**, because it costs nothing now and cannot be obtained later.
+
+### THE BOOT, END TO END
+
+    reboot issued          10:18:14 (last pre-reboot reading, same invocation)
+    adb back               uptime   24.80 s   10:18:59
+    reading                uptime  512.80 s   10:27:07   (8.55 min, NOT the ~5 min mark)
+    reading                uptime 1503.14 s   10:43:38   (25.05 min)
+    row 6 q35_r6_cold_fresh      1525.63 -> 1544.62 s    rc=0
+    row 7 q35_r7_warm_fresh_save 4605.42 -> 4624.26 s    rc=0
+    row 8 q35_r8_warm_cached     5174.13 -> 5184.01 s    rc=0
+    row 9 q35_r9_warm_nobufts    5436.68 -> 5462.36 s    rc=0
+    close                  uptime 5575.98 s   11:51:31
+
+Four rows, all gated on both clusters at rated in the launching invocation, all
+`rc=0`. `MemAvailable` ended at 3,010,084 kB, `SwapFree` at 739,156 kB — 23.50%
+of total, above the ~10% floor. **No row on this boot met the contamination
+condition.** Nineteen processes killed across the boot, all cached, all at
+`oom_score_adj` 905-915, none in the foreground band, our process never touched.
+
+### WHAT BOOT 3 SCORED
+
+    #   prediction                                   point      band          measured       verdict
+    A6  Qwen3.5-2B cold load -> ready                 4.9 s   3.5-7.0 s      4.6656 s       **PASS**
+    B6  state file size, Qwen3.5-2B, ~420 tokens    ~25 MiB   10-60 MiB     24.117 MiB      **PASS**
+    B2  TTFT cached, resident, state + 21 tokens      0.5 s   0.35-1.5 s     0.39228 s      **PASS**
+        (B2-equivalent; the prediction says 20 tokens, which is the 1.7B's count)
+
+**And the one that was not a number at all: `llama_state_save_file` AND
+`llama_state_load_file` both return true on a model with eighteen of
+twenty-four layers recurrent.** The plan's standing branch — "the whole of Q-B
+fails on Qwen3.5-2B … a hybrid's prefix cannot be cached at this commit" — is
+not taken. **The hybrid's prefix file is 45.83% SMALLER than the dense 1.7B's**
+(59.80 against 112.02 KiB/token) on a model 16% larger, which is the directional
+claim B6 was written to risk being wrong about.
+
+Not scored, and recorded as not scored: **the A5-equivalent** (fails high at
+95.77%, consistent with a partially evicted model file and not established; the
+plan does not score A5 on boot 3) and **the A4-equivalent** (two warm references
+20 percentage points apart — 45.47% against row 8, 65.68% against row 7 — so no
+verdict).
+
+### B3 FOR Qwen3.5-2B — **NOT MEASURED**
+
+**This is a blank, not an oversight, and the plan named it in advance:** B3 is
+the cached wake from a COLD process — the first run after a power cycle, with
+neither the model nor the state file read on that boot. Only a row 10 on a
+fourth boot can supply one. Boot 4 was written into the plan as OPTIONAL and
+**Matt's to spend, and the default is not to spend it.** So B3 for the hybrid is
+reported NOT MEASURED, and row 8's `ttft_cold_proc_ms` of 3905.77 ms is reported
+under its own name — a warm-model, warm-state-file, ninth-row-of-the-boot figure
+— and is never quoted as B3.
+
+**A PREDICTION, MARKED AS A PREDICTION AND NOT A MEASUREMENT.** Built the same
+way B3's own was, from this boot's measured parts:
+
+    cold t_ready (row 6, MEASURED)                              4665.60 ms
+    cold state load (PREDICTED: row 5's 59.16 ms scaled
+      24.117/44.523 MiB)                                          ~32    ms
+    user turn (row 8's cached-path t_user_decode, MEASURED)      381.30 ms
+    ----------------------------------------------------------------------
+    **predicted B3, Qwen3.5-2B  ~5.08 s**   against the 1.7B's MEASURED 4.099 s
+
+**Nothing has been run that produces this number.** The cold state-load term is
+a scaling of a different model's figure and the user-turn term comes from a row
+whose model was already in cache. If boot 4 is ever spent, this prediction is
+what it is judged against, and it is frozen here so it cannot be revised to fit.
+
+### WHAT THE END OF BOOT 3 DOES NOT SAY
+
+**The 2B's state file has never survived a power cycle.** It was written and
+read back nine minutes apart on one boot. The `sync` and the hash above are the
+preparation for testing that and are not the test. The 1.7B's equivalent
+question was answered on boot 2; the hybrid's is open.
+
+**Boot 3 has no ~5-minute protocol reading**, and its 8.55-minute substitute is
+not compared with boot 1's 303.33 s figures anywhere.
+
+Every row here is one sample. No row ran longer than 25.68 s, the X1 ceiling was
+below rated inside every one of them and reached 50.89% in row 9, and nothing on
+this boot is a sustained or thermal figure. AC power, screen on, unlocked,
+foreground, over adb, app disabled, no VM throughout. Two of the four rows
+returned zero kills and both are flattered by the nineteen this boot had already
+taken. And no output text was judged for quality on any row — all four stopped
+inside a `<think>` block at 64 tokens.
