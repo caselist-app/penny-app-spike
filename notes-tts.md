@@ -977,3 +977,33 @@ branch.** The /data/local/tmp listing is the one read at 17:06, plus tts/.
 - Nothing about which cores 4c's threads used.
 - Nothing about pronunciation: not listened to.
 - Nothing about the 7a.
+
+## 2026-09-18 — TTS RUNG 1, ADDITION (row 4d-A76), PREDICTION BEFORE ANY RUN: the 18 lines on the A76 pair (mask 30), 2 threads. P-T6: RTF 1.0-2.0.
+
+Branch tts-kokoro. **An addition to rung 1, named as such.** It is not in the
+brief's rung 1 list (rows 4a-4d). It runs on boot 4 as it stands: spent,
+already carrying S0/S1/S2, eight model loads and rows 4a/4b/4c (41 TTS
+processes). Nothing from it is a baseline.
+
+**Mask 30 = cpus 4-5 = the A76 pair.** CLAUDE.md names policy4 as the A76
+pair (CLAUDE.md:2528, "A76 pair (`policy4`, rated 2,253,000)") and labels masks
+"c0 = X1 pair, f0 = X1+A76" (CLAUDE.md:2670), so 0x30 is cpus 4-5 by
+elimination. It does not state "policy4 = cpus 4-5" in so many words. Read
+on the phone at uptime ~17100 (related_cpus): policy0 = 0 1 2 3, policy4 = 4 5,
+policy6 = 6 7.
+
+**P-T6. Generate RTF on the A76 pair at 2 threads, pinned: 1.0-2.0.** Taken
+from the brief's rung 3 prediction (TTS on the A76 pair, RTF 1.0-2.0, with the
+LLM on the X1). It is written here before any a2 row runs, and it does not move.
+
+**Why tonight.** Rung 3 plans to put TTS on the A76 pair beside the LLM on the
+X1 pair, and to report TTS RTF "with and without the LLM". The "without"
+figure on the A76 pair has never been measured. It needs no LLM and no fresh
+boot, and the binary, model and wrapper are already on the phone and
+hash-verified. Measured now, rung 3's comparison has its TTS-alone side. It
+is still from a spent boot, so rung 3 may re-measure it on its fresh boot.
+
+Run as 4b was: hand gate on all three ceilings at rated first, then one adb
+invocation with a hand read of policy0/4/6 before line 0, `COOL=1 … a2-00 30 2 0`,
+lines 1-17 with COOL=0 back to back, and a hand read after line 17. The tags
+are a2-00 … a2-17.
