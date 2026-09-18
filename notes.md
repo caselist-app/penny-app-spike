@@ -12402,3 +12402,206 @@ two of its three facts about Canberra wrong.
 nothing about a phone on battery. On the 6a; the 7a re-measures anything that
 fails here. **No prediction is scored in this entry** — the scorecard belongs to
 the closing entry, after S2.
+
+### S2 — `q17_s2_b2b_15m`. TWO HUNDRED TURNS BACK TO BACK. Figures only.
+
+    GATE PASSED x1=2802000 a76=2253000 uptime_s=5445.44 wallclock=14:48:19
+
+Conditions read in the SAME invocation as the gate and the launch: `AC powered:
+true`, `status: 2`, `level: 100`, `temperature: 330`, `mWakefulness=Awake`,
+`screen_off_timeout=30000`, `stay_on_while_plugged_in=15`, phone UNLOCKED.
+`c0`, `-t 2`, `-c 1024`, `-lm none`, `-n 64`, `--load-state q17_state.bin`,
+`--turns 200 --interval-s 0`.
+Ran uptime 5445.52 -> 7007.03 = **1,561.51 s = 26.03 min.**
+
+    rc                       0
+    turns_done               200 of 200 requested, turns_overrun=0
+    oom_score_adj_child      pre=-1000  post=200
+    lmk_kill_lines           0
+    SwapFree min             708,248 kB at uptime 6166.45  (22.51% of SwapTotal)
+    contamination rule       DID NOT TRIP
+    survived                 YES -- rc=0, turns_done==200, zero kills, oom
+                             post=200 printed
+
+**Contamination.** `Cached` 1,046,980 -> 1,015,764, a fall of **31,216 kB
+against a model of 1,081,454 kB** — 2.9%. `SwapFree` never below 708,248 kB =
+22.51%, floor 314,572 kB. Neither limb met. **ZERO kills, with `MemAvailable`
+before the row 2,313,308 kB.**
+
+    PENNYLOAD prefix_snapshot_bytes=46683597 got=46683597 t_snapshot_ms=17.40
+    PENNYLOAD turns=200 interval_s=0 n_gen_per_turn=64
+    PENNYLOAD turns_done=200 turns_requested=200 turns_overrun=0 fnv_all_equal=1
+    PENNYLOAD first_token_id=32313 token_fnv1a64=0xcba17a2fcbba49f4   (turn 1)
+    PENNYLOAD ttft_turn_ms   min=404.58 median=876.49 max=933.30
+    PENNYLOAD gen_tps        min=8.06 median=9.09 max=15.04
+    PENNYLOAD quarters       n_per_quarter=50  q1=turns 1-50  q4=turns 151-200
+    PENNYLOAD SETTLED ttft_turn_ms q1_median=870.88 q4_median=897.01 decline_pct=3.00
+    PENNYLOAD SETTLED gen_tps      q1_median=9.22  q4_median=8.24  decline_pct=10.64
+    PENNYLOAD SETTLED gen_tps_turn1=15.04 settled_pct_of_turn1=54.77
+    PENNYLOAD DUTY busy_median_ms=7806.34 interval_ms=0 duty_pct=-1.00
+
+`duty_pct=-1.00` is the sentinel for `interval_ms=0`; duty is 100% by
+construction on this row. `turns_overrun=0` is likewise definitional with no
+interval and carries no information here.
+
+**PER-TURN TABLE — first five, every twentieth, last five.**
+
+       k  uptime_s  t_restore  t_user_dec  ttft_turn    gen_ms  gen_tps   busy_ms
+       1   5449.65      11.62      392.22     404.58   4188.53    15.04   4593.16
+       2   5454.25       7.99      406.29     414.49   4402.00    14.31   4816.54
+       3   5459.06      10.00      438.72     448.93   4432.03    14.21   4881.00
+       4   5463.94       8.06      449.75     458.02   4504.75    13.99   4962.82
+       5   5468.91       8.79      465.70     474.70   4615.48    13.65   5090.23
+      20   5554.03      12.25      614.70     627.22   5231.76    12.04   5859.03
+      40   5705.91      11.84      857.38     869.67   6837.69     9.21   7707.41
+      60   5860.74      13.36      860.55     874.36   6887.42     9.15   7761.85
+      80   6016.05      17.05      857.45     874.89   6936.91     9.08   7811.87
+     100   6171.62      14.35      864.82     879.62   7005.76     8.99   7885.43
+     120   6329.01      15.00      864.94     880.39   7209.31     8.74   8089.76
+     140   6490.44      15.24      862.54     878.22   7172.81     8.78   8051.10
+     160   6654.48      16.67      893.62     910.71   7480.93     8.42   8391.71
+     180   6824.96      21.40      884.98     906.83   7615.39     8.27   8522.27
+     196   6962.35      17.37      905.04     922.85   7740.06     8.14   8662.97
+     197   6971.02      20.03      896.16     916.59   7679.54     8.20   8596.21
+     198   6979.61      15.64      883.41     899.51   7818.63     8.06   8718.23
+     199   6988.33      17.39      902.17     919.99   7750.82     8.13   8670.88
+     200   6997.00      19.63      899.73     919.81   7623.53     8.26   8543.41
+
+    ttft_turn_ms  min 404.58  median 876.49  max 933.30
+    gen_tps       min   8.06  median   9.09  max  15.04
+    t_restore_ms  min   7.99  median  15.00  max  21.41
+    busy_ms       min 4593.16 median 7806.34 max 8718.23
+
+**ONE distinct `fnv` across all two hundred turns: `0xcba17a2fcbba49f4`.**
+Two hundred restores, `fnv_all_equal=1`, identical to S1, S0 and rows 1/2/3/5.
+
+**THE DECAY IS FRONT-LOADED AND THEN NEARLY FLAT.** `gen_tps` falls 15.04 ->
+9.21 over the first forty turns (turn 40 at uptime 5705.91, 260 s in), then
+9.21 -> 8.26 over the remaining 160 turns and 1,291 s. **Most of the loss
+happens in the first four minutes.**
+
+**S-A3, SCORED, WITH THE ARITHMETIC.**
+
+    settled = median of the LAST QUARTER = median of turns 151-200 = 8.24 t/s
+    turn 1                                                        = 15.04 t/s
+    8.24 / 15.04 = 0.5477   ->   54.77% of turn 1
+    FAIL CONDITION: settled BELOW 50% of turn 1
+    54.77% > 50%   ->   **PASS, by 4.77 percentage points**
+
+**The committed POINT was 80% of turn 1 with a band of 70-92%. Measured 54.77%
+is OUTSIDE that band, low.** The prediction was built from the cooled C-series,
+whose deepest matched pair (C5 against C6, unpinned, 4 threads) showed tg down
+18.87% at an X1 floor of 30.4% of rated — and from that a ~20% decline was
+predicted. **The measured decline against turn 1 is 45.2%.** The C-series rows
+were 52-247 s; this row was 1,561 s. **The arithmetic underestimated, and it
+underestimated because it extrapolated from rows an order of magnitude shorter.**
+Recorded as a band miss with the fail condition passed.
+
+**SERIES SUMMARY — 157 samples, uptime 5446.15 -> 7006.20.**
+
+    column            min                 at uptime      max                 at uptime
+    ceil_x1             984,000            5576.16       2,802,000            5446.15
+    ceil_a76            696,000            6946.47       2,253,000            5446.15
+    ceil_a55            738,000            5576.16       1,803,000            5446.15
+    MemAvailable_kB     865,388            5466.17       2,431,828            7006.20
+    MemFree_kB           86,488            6946.47       1,638,504            7006.20
+    SwapFree_kB         708,248            6166.45         853,500            5446.15
+    Cached_kB           999,776            5456.28       1,052,688            5446.15
+    VmRSS_kB              9,948            5446.15       1,548,932            6936.48
+    VmHWM_kB              9,948            5446.15       1,548,952            7006.20
+    pswpout             782,312            5446.15         823,319            6166.45
+    pgmajfault          195,923            5446.15         203,465            7006.20
+    batt_temp_dC            326            5476.34             407            6696.07
+    batt_level              100            5446.15             100            5446.15
+
+**LAST LINE OF THE SERIES, VERBATIM — AND IT IS A TEARDOWN SAMPLE, NOT AN
+END-OF-ROW SAMPLE:**
+
+    uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level
+    7006.20 984000 799000 738000 2431828 1638504 722584 1015764 156676 1548952 823319 203465 407 100
+
+`VmRSS` reads **156,676 kB** against a `VmHWM` of 1,548,952 — the process was
+already releasing memory when this sample was taken, which is why
+`MemAvailable` reads its maximum here. **The resident-state figure is the
+minimum, 865,388 kB at uptime 5466.17**, and S-B2 is not scored on this row.
+
+**THE CEILINGS, FROM BOTH SOURCES, AND THIS TIME THEY AGREE.**
+
+    PENNYBENCH ceil_x1_kHz     before 2,802,000  min 984,000  after 984,000
+    PENNYBENCH ceil_x1_min_at  uptime=5574.61   (129 s into the row)
+    PENNYBENCH ceil_a76_kHz    before 2,253,000  min 696,000  after 799,000
+    PENNYBENCH ceil_a76_min_at uptime=6943.69   (1498 s into the row)
+
+    series at rated:  X1    1 of 157 =  0.64%   series min   984,000 = 35.12%
+                      A76  96 of 157 = 61.15%   series min   696,000 = 30.89%
+                      A55  42 of 157 = 26.75%   series min   738,000 = 40.93%
+
+**The X1 ceiling reached its floor 129 seconds in and NEVER RECOVERED — the
+`after` reading is still 984,000.** S1's after-reading was 2,802,000. Only ONE
+of 157 samples read rated, and that was the first, taken before the model had
+loaded.
+
+**THE A55 CLUSTER THROTTLES. THIS IS THE FIRST TIME `policy0` HAS BEEN SEEN TO
+MOVE IN THIS REPO.** It fell to 738,000 kHz = 40.93% of its 1,803,000 rated
+clock, and spent 115 of 157 samples below rated — on a row where `taskset c0`
+scheduled nothing onto it. That is the same package-wide behaviour the 16 Sept
+cooled matrix found for `policy4`, now observed on the third cluster. S1, at
+7.84% duty, held all three at rated in every one of its 355 samples.
+
+**BATTERY TEMPERATURE — BATTERY, NOT SoC.**
+
+    start (first series sample, uptime 5446.15)   328 dC = 32.8 C
+    min                                           326 dC at uptime 5476.34
+    max                                           407 dC at uptime 6696.07
+    end (wrapper after-reading)                   407 dC = 40.7 C
+    dumpsys cross-check                           330 before, 406 after
+    slope start -> end   +79 dC over 1560.05 s  =  +0.304 C/min
+
+**Against S1's +0.0373 C/min: 8.2x the rate.** It reached its maximum at uptime
+6696.07, 1,250 s in, and held 407 for the last 310 s — so it was levelling off,
+not still climbing, by the end.
+
+**PEAK RSS AND OTHER CONDITIONS.**
+
+    peak_rss_kB      1,548,952   = 1.4772 GiB   (S1: 1,548,672 -- 280 kB apart)
+    max_rssanon_kB   1,544,036   = 99.68% anonymous
+    max_rssfile_kB       4,804
+    rss_samples          2,785
+    uptime_s     before 5445.52   after 7007.03
+    memavail_kB  before 2,313,308 after 2,438,028   (after = child exited)
+    swapfree_kB  before   853,500 after   722,584
+    cached_kB    before 1,046,980 after 1,015,764
+    pswpin       before   182,186 after   189,535
+    pswpout      before   782,312 after   823,319
+    pgmajfault   before   195,922 after   203,465
+    ZRAM         536,136K physical for 2,404,708K in swap (3,145,724K total)
+
+**THE ROW TOOK 26.03 MINUTES AGAINST A PREDICTED 15-19.** The prediction was
+200 turns at a predicted settled 5.62 s each = 1,124 s; measured median
+`busy_ms` is 7,806.34 and the row ran 1,561.51 s. **Outside the band, high**,
+and for the same reason S-A3 missed low: the throttling is deeper than the
+C-series extrapolation allowed for.
+
+### WHAT S2 DOES NOT SAY
+
+**One row, once**, on one boot, one handset, no error bars, nothing reproduced.
+**It is the opposite extreme from S1, not a midpoint** — 100% duty for 26
+minutes is as unrealistic a conversation as 7.84% duty is undemanding, and the
+product shape is somewhere between them and is untested.
+
+**Zero kills does not mean a resident model is free.** The row started with
+`MemAvailable` 2,313,308 kB on a boot that had already killed two processes
+during S1, so the cheap victims were partly spent — CLAUDE.md's own rule says a
+kill count is meaningless without that context, and this one is flattered by it.
+
+**`survived` is again at `oom_score_adj 200` and again untested**, because
+nothing was killed at all.
+
+**The thermal figure is a battery figure.** `/sys/class/thermal/` is unreadable
+to the shell user, so what the SoC did is unknown, and 40.7 C on the battery
+after 26 minutes at 100% duty on AC with the screen on says nothing about the
+same work on battery with the screen off.
+
+**Every generation is byte-identical by construction** and no output was judged.
+The prefix is the same 407 tokens and the turn the same 20 tokens, two hundred
+times; nothing tests a growing context. On the 6a.
