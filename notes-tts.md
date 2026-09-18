@@ -313,3 +313,96 @@ two still unread.
 What this entry does not say: that sherpa-onnx builds with this NDK, anything
 about a binary, its libraries or its hashes, that the fetch list is complete at
 eleven, or anything about the phone.
+
+## 2026-09-18 — TTS RUNG 1, BUILD FAILED AT LINK: configure completed with all ELEVEN fetches pinned and matching, then every executable failed to link — libonnxruntime.so 1.28.2 needs API-24 libc symbols and the script targets android-21. No binary exists.
+
+Branch tts-kokoro. Mac only; the phone has not been touched from this branch.
+
+**Rule change from Matt, applying from this run:** any archive cmake fetches
+during configure is approved if it is sha256-pinned in the cmake file that
+requests it. kissfft and kaldifst are approved on that basis. The stop
+conditions are only (a) a fetch with no pin, or (b) a hash-check failure. No
+watcher and no pkill.
+
+**Deleted before the rerun**, from
+~/Documents/sherpa-onnx/build-android-arm64-v8a/_deps/, and nothing else:
+`piper_phonemize-subbuild/` (41 entries, 2,260 KB, including the partial
+`f3ff95afc03640bc1399e113e83361192a2fafb4.zip` of 1,916,928 B),
+`piper_phonemize-src/` (empty) and `piper_phonemize-build/` (empty).
+
+**Run 2.** It used the same command as the previous entry, with the clone's
+one-line WEBSOCKET=OFF edit still in place (clone = a5b4a94 + that line). The
+wall time was read in the launching command:
+START 17:27:42 BST, END 17:31:05 BST, **rc=2, wall_s=203**.
+Configure completed ("Configuring done", "Generating done", "Build files have
+been written", log lines 223-225). `make -j4` stopped at [ 87%].
+
+**Every archive fetched across both runs.** Run 2 re-used run 1's archives, and
+their mtimes are unchanged (17:17:40-17:23:53). Only piper-phonemize (17:29:56)
+and hclust-cpp (17:29:58) were fetched in run 2. Bytes are from `stat -f %z`.
+Each sha256 was COMPUTED on the Mac and compared with the pin line named. No
+cmake log line prints the hash check (FetchContent is quiet on success). Each
+archive has its `-populate-download` stamp, which ExternalProject writes only
+after the check passes.
+
+    archive                    orig nine  bytes        sha256 vs pin  pin file:line
+    kaldi-native-fbank v1.22.3 yes            71,144   MATCH          cmake/kaldi-native-fbank.cmake:6
+    kaldi-decoder v0.3.0       yes            51,199   MATCH          cmake/kaldi-decoder.cmake:5
+    eigen 5.0.1                yes         2,967,272   MATCH          cmake/eigen.cmake:5
+    openfst 1.8.5-2026-07-09   yes         1,501,685   MATCH          cmake/openfst.cmake:7
+    simple-sentencepiece v0.7  yes           355,335   MATCH          cmake/simple-sentencepiece.cmake:6
+    nlohmann json v3.12.0      yes         9,678,593   MATCH          cmake/json.cmake:6
+    espeak-ng @ed530aa         yes        18,011,501   MATCH          cmake/espeak-ng-for-piper.cmake:5
+    piper-phonemize @f3ff95a   yes         9,805,962   MATCH          cmake/piper-phonemize.cmake:5
+    hclust-cpp 2026-02-25      yes            22,523   MATCH          cmake/hclust-cpp.cmake:7
+    kissfft @febd4cae          no             74,252   MATCH          _deps/kaldi_native_fbank-src/cmake/kissfft.cmake:11
+    kaldifst v1.8.0            no            172,147   MATCH          _deps/kaldi_decoder-src/cmake/kaldifst.cmake:5
+
+    original nine: 42,465,214 B   the two added: 246,399 B   all eleven: 42,711,613 B
+    (plus the discarded partial piper-phonemize zip from run 1, 1,916,928 B)
+
+**Nothing unpinned was fetched.** The whole build tree has exactly eleven
+`*-populate-download` stamps and no other `-prefix` or `-stamp` directory.
+Two fetch routes exist in the unpacked sources and did NOT run:
+piper-phonemize's own `ExternalProject_Add` (its CMakeLists.txt:46-70) sits
+under `if(NOT DEFINED ESPEAK_NG_DIR)`, and ESPEAK_NG_DIR is set. espeak-ng's
+sonic `FetchContent_Declare` (its cmake/deps.cmake:18-19) sits under
+`USE_LIBSONIC`, which is OFF.
+
+**The failure.** Four executables failed to link, and make stopped before
+reaching any others:
+sherpa-onnx-offline-audio-tagging, sherpa-onnx-offline,
+sherpa-onnx-keyword-spotter and sherpa-onnx. `build/bin/` is empty.
+**sherpa-onnx-offline-tts was never linked.** It links the same
+libonnxruntime.so, so the same failure is expected, but it was not observed.
+Each failure is the same five undefined symbols, all referenced by
+`onnxruntime-android-1.28.2/jni/arm64-v8a/libonnxruntime.so` and rejected
+by `--no-allow-shlib-undefined`:
+
+    __register_atfork@LIBC  stderr@LIBC  __gnu_strerror_r@LIBC
+    __write_chk@LIBC_N  __fwrite_chk@LIBC_N
+
+The script defaults to `SHERPA_ONNX_ANDROID_PLATFORM=android-21`
+(build-android-arm64-v8a.sh:164-166; CMakeCache ANDROID_PLATFORM=android-21).
+Checked with the NDK's own llvm-readelf --dyn-syms against its libc.so stubs
+(sysroot/usr/lib/aarch64-linux-android/<api>/libc.so):
+
+    API 21: none of the five exported
+    API 23: the three LIBC ones, not the two LIBC_N ones
+    API 24: all five
+
+libonnxruntime.so's version-needs list is LIBC and LIBC_N, and LIBC_N is API
+24 (Nougat). So this prebuilt needs API >= 24 to link against. The NDK r30
+range is 21-37 (meta/platforms.json). The 6a runs Android 17, API 37.
+
+**Likely fix, not applied (it changes the command):** add
+`SHERPA_ONNX_ANDROID_PLATFORM=android-24` to the command. The script already
+reads it at :164, so the clone needs no edit. The build dir's cache holds
+android-21 and the toolchain detection from the first configure. The cleanest
+rerun deletes `CMakeCache.txt` and `CMakeFiles/` at the build-dir top level
+only; `_deps/` and its eleven verified archives stay. Held for Matt.
+
+What this entry does not say: that android-24 links; anything about
+sherpa-onnx-offline-tts, `file` on it, its needed libs, or its sha256;
+anything about install/lib/libonnxruntime.so (the script copies it only after
+make succeeds); or anything about the phone.
