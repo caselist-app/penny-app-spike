@@ -9671,3 +9671,203 @@ facts wrong.
 Outstanding for this repo's predictions: **A6 and B6, which need Qwen3.5-2B**,
 which is not on the phone. Boot 3 is a separate decision and the hybrid's state
 path may refuse outright.
+
+## 2026-09-18 — BOOT 3 OPENED for Qwen3.5-2B-Q4_K_M. Nothing measured yet. The 5-minute protocol reading was MISSED by a bug in this session's own poll, and the reading that replaced it is at 8.55 minutes and is not a substitute.
+
+This entry exists because the session that swapped the model was interrupted
+before it wrote anything down, and two days passed. HEAD was still `25d16b1`
+(row 5) and `notes.md` was unchanged since 16 Sept 18:33, so the model swap, the
+boot it was made for, and that boot's loss existed only in a terminal. Nothing
+here is a measurement. It is the state row 6 will run on, written down before
+it runs.
+
+**THE 16 SEPT BOOT 3 IS GONE AND WAS NEVER SPENT.** The plan's boot 3 was
+brought up at 18:38 on 16 Sept and row 6 was waiting on its 25-minute mark when
+the session was interrupted. No row ran on it. Today's is a second boot 3.
+
+### 1. THE MODEL SWAP — NOT RUN BY THIS SESSION, AND SAID SO
+
+**The `rm` of `Qwen3-1.7B-Q4_K_M.gguf`, the `rm` of `q17_state.bin` and the
+`adb push` of `Qwen3.5-2B-Q4_K_M.gguf` were run in the interrupted session on
+16 Sept. This session did not run them and does not have their output.** It
+cannot be quoted, and the scrollback that held it is gone. What stands in its
+place is the resulting listing, read today:
+
+    $ adb shell ls -l /data/local/tmp
+    total 1264147
+    -rw-rw-rw- 1 shell shell 1280835840 2026-09-15 20:26 Qwen3.5-2B-Q4_K_M.gguf
+    -rwxr-xr-x 1 shell shell    4708216 2026-09-16 12:08 llama-bench
+    -rwxr-xr-x 1 shell shell    3805208 2026-09-16 12:18 llama-simple
+    drwxrwxrwx 4 shell shell       3452 2026-09-14 11:35 microdroid
+    drwxrwxrwx 2 shell shell       8192 2026-09-16 18:32 out
+    -rw-rw-rw- 1 shell shell       1911 2026-09-16 16:48 penny_system.txt
+    -rw-rw-rw- 1 shell shell         95 2026-09-16 17:05 penny_user.txt
+    -rwxr-xr-x 1 shell shell       8402 2026-09-16 16:57 pennybench.sh
+    -rwxr-xr-x 1 shell shell    3817808 2026-09-16 16:29 pennyload
+
+Qwen3-1.7B-Q4_K_M.gguf and q17_state.bin are both absent, which is the evidence
+that the two `rm`s happened; there is no record of the commands themselves. The
+`.gguf`'s mtime reads 2026-09-15 20:26 and **that is the Mac file's mtime, not
+the push time** — `adb push` preserves the source mtime, the trap CLAUDE.md
+already carries. So the listing dates the Mac's copy and says nothing about
+when the transfer ran.
+
+**THE HASH THIS SESSION DID RUN**, 18 Sept, on the previous boot at uptime
+77,353 s, deliberately BEFORE the reboot so that warming 1.25 GB of page cache
+cost nothing:
+
+    $ adb shell 'echo "start $(date +%H:%M:%S)"; sha256sum /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf; echo "end   $(date +%H:%M:%S)"'
+    start 10:17:25
+    aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223  /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf
+    end   10:17:26
+
+    on phone        aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223
+    MANIFEST.txt    aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223
+    MATCH.  1,280,835,840 bytes both.
+
+The MANIFEST.txt line reads `unsloth/Qwen3.5-2B-GGUF  Qwen3.5-2B-Q4_K_M.gguf
+1280835840  aaf42c8b… VERIFIED vs HF LFS oid`, so the phone's copy is verified
+against Hugging Face's published hash and not merely against itself.
+
+**THE HASH ALSO ESTABLISHED THAT THE FILE WAS COLD ON THAT BOOT**, which is a
+free result and is recorded as one. Memory either side of it, each read in its
+own invocation:
+
+    before  uptime 77,252.51 s  10:15:57   MemAvailable   885,664   Cached   972,876   SwapFree 2,520,080
+    after   uptime 77,353.94 s  10:17:38   MemAvailable 2,122,348   Cached 2,227,704   SwapFree   943,120
+    change                                              +1,236,684          +1,254,828        -1,576,960
+
+`Cached` rose 1,254,828 kB against a model of 1,250,816 kB, so essentially none
+of it was resident and the whole file came off UFS. The stamps are 10:17:25 and
+10:17:26 at one-second resolution, i.e. between 1 and 2 seconds, i.e. 610 MB/s
+to 1.22 GB/s — the same order as the 598 and 835 MB/s cold reads of rungs
+3e-iv and 3e-iii, and **too coarse to quote tighter than that band**. The cost
+is the line worth keeping: holding those pages pushed **1,576,960 kB of
+anonymous memory out to zram** on a 21.5-hour boot.
+
+### 2. THE REBOOT
+
+    $ adb shell 'echo "last pre-reboot reading: uptime_s=$(cut -d\  -f1 /proc/uptime)  wallclock=$(date +%H:%M:%S)"' && adb reboot && echo "reboot sent"
+    last pre-reboot reading: uptime_s=77389.83  wallclock=10:18:14
+    reboot sent
+
+`adb reboot` ran in the same command line, immediately after that reading, so
+**10:18:14 is the wall-clock of the reading and the reboot went in within the
+same invocation**; it is not a separately observed reboot time.
+
+Matt unlocked the phone by hand. adb answered 45 seconds later.
+
+### 3. THE CONNECT READING — uptime 24.80 s
+
+Taken by a polling loop that waited for `adb get-state` and then ran ONE
+invocation. **Wall-clock WAS read in the same invocation as the uptime.**
+MemTotal and the cluster ceilings were NOT in it:
+
+    $ adb shell 'echo "ADB BACK: uptime_s=$(cut -d\  -f1 /proc/uptime)  wallclock=$(date +%H:%M:%S)"; grep -E "^(MemAvailable|MemFree|Cached|SwapFree):" /proc/meminfo'
+    ADB BACK: uptime_s=24.80  wallclock=10:18:59
+    MemFree:           86676 kB
+    MemAvailable:    1324400 kB
+    Cached:          1461544 kB
+    SwapFree:        3118588 kB
+
+`Cached` 1,461,544 kB at 24.80 s is roughly 590 MB above the two boots the
+earlier rows ran on at a comparable point — 873,560 kB at 31.69 s on 16 Sept
+boot 1, 879,432 kB at 34.20 s on the abandoned 16 Sept boot 3. **Nothing of
+ours is in it.** Recorded as an observed difference between boots and not
+explained, the same way row 5 recorded boot 2's elevated `Cached`.
+
+`SwapFree` 3,118,588 of 3,145,724 kB — 99.1% free, the cleanest start of any
+boot in this plan.
+
+### 4. THE READING AT 8.55 MINUTES — **NOT THE PROTOCOL'S ~5 MINUTE READING**
+
+    $ adb shell 'echo "uptime_s=$(cut -d\  -f1 /proc/uptime)  wallclock=$(date +%H:%M:%S)"; grep -E "^(MemTotal|MemAvailable|MemFree|SwapFree|Cached):" /proc/meminfo; echo "ceil_x1=$(cat /sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq)  ceil_a76=$(cat /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq)  ceil_a55=$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq)"'
+    uptime_s=512.80  wallclock=10:27:07
+    MemTotal:        5718284 kB
+    MemFree:         1596300 kB
+    MemAvailable:    2310624 kB
+    Cached:           940392 kB
+    SwapFree:         847612 kB
+    ceil_x1=2802000  ceil_a76=2253000  ceil_a55=1803000
+
+512.80 s is **8.55 minutes**. The protocol asks for ~5 minutes and this boot
+does not have one — see section 5. **It is not compared against boot 1's
+303.33 s figures anywhere in this entry**: different marks on a curve that is
+still moving at both of them, and a percentage between them would be an
+invented comparison. It stands as a reading at 8.55 minutes and nothing else.
+All three cluster ceilings rated.
+
+### 5. THE POLL BUG THAT COST THE 5-MINUTE READING
+
+The reading was queued to a background loop that polled the phone's uptime. The
+loop sent:
+
+    adb shell cut -d' ' -f1 /proc/uptime
+
+**`adb shell` re-joins its arguments with spaces before the remote shell sees
+them**, so the quoted space delimiter collapsed and the phone received
+`cut -d -f1 /proc/uptime`. Reproduced deliberately afterwards:
+
+    $ adb shell cut -d' ' -f1 /proc/uptime
+    cut: Needs -CFfcb (see "cut --help")
+    exit=1
+
+The loop's uptime variable was therefore empty on every pass, its guard clause
+treated that as "not a number yet" and it span until it was stopped. No reading
+was taken at 300 s. The fixed poll reads the file whole and does the arithmetic
+on the Mac, verbatim:
+
+    u=$(adb shell cat /proc/uptime 2>/dev/null | tr -d '\r' | awk '{print int($1)}')
+
+**The general trap, which is not yet in CLAUDE.md: any `adb shell` argument
+that relies on its own quoting is unsafe unless the whole remote command is
+wrapped in a single quoted string.** Every reading in this repo that worked
+used the wrapped form; this poll did not, and it is the same family as the
+`--es` semicolon trap already recorded.
+
+Cost: one comparison point. Row 6 runs after the 25-minute reading and is
+unaffected.
+
+### 6. NOTHING HAS READ THE `.gguf` ON THIS BOOT — WHAT THAT RESTS ON
+
+Three checks, not an assertion:
+
+    $ adb shell ps -A | grep -E "pennyload|llama|sha256"
+    (exit 1 -- no matching process)
+
+    $ adb shell ls -la /data/local/tmp/out/ | grep -c q35
+    0
+
+and the only `sha256sum` of the model this session ran was at wall-clock
+10:17:25, **before** the `adb reboot` at 10:18:14, so it warmed a page cache
+the power cycle then threw away. No row, smoke run or hash has touched the file
+since 10:18:59.
+
+What this does NOT establish: `ps` is a point-in-time sample, so it proves no
+such process is running now rather than that none ever ran. The `out/` count
+and the reboot ordering are what carry the claim.
+
+### 7. MemTotal DIFFERS FROM CLAUDE.md BY 4 kB, AND BOTH FIGURES ARE READ
+
+    16 Sept and earlier, in CLAUDE.md   MemTotal 5,718,280 kB
+    18 Sept 10:15:57, uptime 77,252 s   MemTotal 5,718,280 kB   (read)
+    18 Sept 10:27:07, uptime    512 s   MemTotal 5,718,284 kB   (read)
+
+**Both are read off `/proc/meminfo`, neither is typed from memory**, and the
+two appear in the quoted invocations above. The 4 kB appeared across this
+reboot. Nothing here explains it and no conclusion is drawn from it; it is
+recorded so that a later reading of 5,718,284 is not mistaken for a
+transcription error in CLAUDE.md.
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+**Nothing was measured.** No row has run on this boot, `out/` contains no `q35`
+file, and A6 and B6 are exactly as unanswered as they were on 16 Sept.
+
+The model swap's own commands are not in the record and cannot be recovered —
+only their effect. The cold-read band of 610 MB/s to 1.22 GB/s is one
+observation at one-second resolution on a 21.5-hour boot, not a storage figure.
+The 8.55-minute reading is not a 5-minute reading and is not treated as one.
+Whether this boot behaves like 16 Sept boot 1 is not claimed: its `Cached` at
+connect was ~590 MB higher, and the only later reading is at a mark boot 1 has
+no counterpart for.
