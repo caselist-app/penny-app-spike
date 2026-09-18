@@ -10240,3 +10240,111 @@ rated when the row ended. AC power, screen on, unlocked, foreground, over adb,
 app disabled, no VM. `t_model_open_ms` doubling is attributed to nothing — the
 vocabulary is a suspect and was not tested. And `ttft_cold_proc_ms` 12,837.94 ms
 is a fresh cold process, not a wake figure.
+
+## 2026-09-18 — AMENDMENT to row 6, before row 7. The 25-minute reading was taken and never written down; the two buffer lines do NOT sum to the file; and two sentences are withdrawn.
+
+Appended, not edited in. No model read: everything below comes from
+`q35_r6_cold_fresh.err`, already on the phone, and from a reading taken before
+the row.
+
+### 1. THE 25-MINUTE PROTOCOL READING — TAKEN, AND MISSING FROM THE RECORD UNTIL NOW
+
+**The poll DID fire.** The boot-3 entry was committed at 10:30 and the poll
+fired at 10:43, so the reading existed in the operator's terminal and never
+reached `notes.md` — the exact failure that entry was written to prevent. It
+is the second reading of this boot and it belongs beside the 8.55-minute one:
+
+    $ adb shell 'echo "uptime_s=$(cut -d\  -f1 /proc/uptime)  wallclock=$(date +%H:%M:%S)"; grep -E "^(MemTotal|MemAvailable|MemFree|SwapFree|Cached):" /proc/meminfo; echo "ceil_x1=$(cat .../policy6/scaling_max_freq)  ceil_a76=$(cat .../policy4/scaling_max_freq)  ceil_a55=$(cat .../policy0/scaling_max_freq)"; echo "--- presence, ls only, no read ---"; ls -la /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf; /apex/com.android.virt/bin/vm list'
+    uptime_s=1503.14  wallclock=10:43:38
+    MemTotal:        5718284 kB
+    MemFree:         1550512 kB
+    MemAvailable:    2273652 kB
+    Cached:           946808 kB
+    SwapFree:         862460 kB
+    ceil_x1=2802000  ceil_a76=2253000  ceil_a55=1803000
+    --- presence, ls only, no read ---
+    -rw-rw-rw- 1 shell shell 1280835840 2026-09-15 20:26 /data/local/tmp/Qwen3.5-2B-Q4_K_M.gguf
+    Running VMs: []
+
+**So row 6 did NOT gate straight in from nowhere.** The reading is at
+uptime 1503.14 s and the row's own `before` figures are at 1525.63 s, 22.49 s
+later — `MemAvailable` 2,273,652 then 2,270,852 kB, `SwapFree` 862,460 kB in
+both, so the phone did not move between them. All three ceilings rated at the
+reading and the gate therefore passed without blocking.
+
+**Boot 3's protocol readings, complete, both labelled by their real marks:**
+
+    uptime s   wallclock   MemAvailable   MemFree     Cached     SwapFree
+      24.80    10:18:59      1,324,400     86,676   1,461,544   3,118,588   (connect)
+     512.80    10:27:07      2,310,624  1,596,300     940,392     847,612   (8.55 min)
+    1503.14    10:43:38      2,273,652  1,550,512     946,808     862,460   (25.05 min)
+
+The 8.55-minute and 25.05-minute figures are 36,972 kB apart on `MemAvailable`
+— 1.6% — so this boot's curve is flat across that window.
+
+### 2. THE BUFFER LINES, AND THEY DO NOT SUM TO THE FILE
+
+    $ adb shell 'grep -i "model buffer size" .../q35_r6_cold_fresh.err'
+    load_tensors:          CPU model buffer size =   399.94 MiB
+    load_tensors:   CPU_REPACK model buffer size =  1208.95 MiB
+
+    CPU + CPU_REPACK   = 1608.89 MiB
+    the .gguf itself   = 1221.50 MiB   (1,280,835,840 B)
+    difference         = **+387.39 MiB, i.e. the buffers EXCEED the file by 31.7%**
+
+**They do NOT sum to the file, and the excess is the answer to what the repack
+costs in memory rather than in time.** Row 4 measured the repack's TIME on the
+1.7B by subtraction; this is the first figure in this repo for its SPACE, and it
+is 387.39 MiB on a 1,221.5 MiB model. Not explained here beyond the arithmetic.
+
+**THE REPACK, COUNTED BY KERNEL** — 187 tensors, four target formats:
+
+    $ adb shell 'grep "repack tensor" .../q35_r6_cold_fresh.err | sed "s/.*with //" | sort | uniq -c'
+         98 q4_K_8x4
+         36 q5_K_8x4
+         17 q6_K_8x4
+         36 q8_0_4x4
+        187 total
+
+Sample line, verbatim: `repack: repack tensor blk.0.ffn_down.weight with q6_K_8x4`.
+**Four kernels, not one** — a Q4_K_M file is not uniformly Q4_K, and 36 tensors
+repack to `q8_0_4x4`, which is the heaviest of the four per weight. The `8x4`
+and `4x4` suffixes are the ARM dot-product repack layouts this build was
+compiled for.
+
+**AGAINST PEAK RSS, and this does not close either:**
+
+    peak RSS                       1781.87 MiB   (1,824,632 kB)
+    CPU + CPU_REPACK buffers       1608.89 MiB   -> peak is 172.98 MiB ABOVE
+    those plus compute (498.02)    2106.91 MiB   -> peak is 325.04 MiB BELOW
+
+So peak RSS sits between the model buffers and the model buffers plus the
+declared compute buffer. **The 498.02 MiB compute buffer was therefore not
+fully resident at peak** — declared and allocated is not touched. Stated as
+arithmetic; no mechanism is claimed, and nothing here apportions the 172.98 MiB.
+
+### 3. TWO SENTENCES IN THE ROW 6 ENTRY ARE WITHDRAWN
+
+**(a)** "It sits exactly on the 1.69-1.74 GiB the 16 Sept `llama-bench` rows
+reported for this model" — **withdrawn.** "Exactly" is an adjective on a
+measurement and the range is not a point. Replaced by the plain comparison:
+**row 6's peak RSS is 1,824,632 kB = 1.740 GiB; the 16 Sept `llama-bench` rows
+for Qwen3.5-2B reported 1.69-1.74 GiB. The figure falls at the top of that
+range.** The two were produced by different binaries under different flags and
+neither is a check on the other.
+
+**(b)** "the killer takes what is cheapest and stops when the watermark is met"
+— **withdrawn in full.** That is a mechanism, and nothing in row 6 tests it.
+What stays is the observation, unchanged: **three cached processes at
+`MemAvailable` 2,270,852 kB for the 2B at 1.74 GiB, against row 1's four at
+2,277,952 kB for the 1.7B at 1.47 GiB, two of the three being processes row 1
+also took.** Why is not addressed.
+
+### WHAT THIS AMENDMENT DOES NOT SAY
+
+A6's pass is untouched; no measured figure changes. The 387.39 MiB of repack
+excess is one model, one row, and is not compared with the 1.7B — that would
+need the same grep over `q17_r1_cold_fresh.err`, which was not run. The kernel
+counts are line counts from a log, not bytes: **nothing here says how the
+387.39 MiB divides between the four formats**, and the 36 `q8_0_4x4` tensors are
+flagged as the heaviest per weight without their size being measured.
