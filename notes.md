@@ -14923,3 +14923,64 @@ issued until Matt has plugged the Mac into power or said otherwise. caffeinate
 is left running; the phone has not been touched.
 
 What this entry does NOT say: that the phone has been rebooted — it has not.
+
+## 2026-09-19 — BRIEF T, THE ROW BOOT AND ITS PROTOCOL READINGS. The 7a's first row boot, after the spent bring-up boot.
+
+Mac on AC before the reboot (`pmset -g batt`: `Now drawing from 'AC Power'`,
+100%, charged, read 14:13:18); `pmset -g assertions`: `PreventSystemSleep 1`,
+`PreventUserIdleSystemSleep 1`; caffeinate pid 17389, elapsed 01:11 at that
+read. `adb devices -l` listed only 37291JEHN04619.
+
+    last_before_reboot uptime_s=2571.17 wallclock=14:13:24 batt_temp_dC=308
+    adb -s 37291JEHN04619 reboot     issued Mac time 14:13:29, rc=0
+    ADB UP uptime_s=20.19 wallclock=14:14:01 boot_completed=1      (adb wait-for-device, then one invocation)
+
+Unlock state, one invocation:
+
+    uptime_s=32.93 wallclock=14:14:14 ce_available=true mWakefulness=Awake
+        mShowingDream=false mDreamingLockscreen=false
+        isKeyguardShowing=false
+     User "Owner" (id=0, flags=0x4c13) (current): trustState=UNTRUSTED, trustManaged=0, deviceLocked=0, isActiveUnlockRunning=0, strongAuthRequired=0x0
+
+**Matt entered the PIN before adb returned**: credential-encrypted storage is
+available and the keyguard is not showing at 32.93 s. adb answered at 20.19 s;
+on the 6a's boot 4 it answered at 52.95 s (notes.md 12023). The difference is
+how fast the PIN was typed as much as anything, and no conclusion is drawn.
+Nothing read the GGUF or `q17_state.bin` on this boot.
+
+### THE ~5 MINUTE READING — one invocation, value and wallclock together
+
+    READING_5MIN uptime_s=307.72 wallclock=14:18:49
+    MemTotal: 7640312 kB MemFree: 2021932 kB MemAvailable: 3408164 kB Cached: 1897176 kB SwapTotal: 3820152 kB SwapFree: 1868920 kB AnonPages: 1834760 kB
+    p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000
+    batt_temp_dC=297 batt_level=100 dumpsys=[ AC powered: true status: 2 level: 100 temperature: 298 ]
+    Failed to write while dumping service window: Broken pipe
+    stay_on=15 screen_off_timeout=30000 keyguard=isKeyguardShowing=false
+    ls: Qwen3-1.7B-Q4_K_M.gguf out penny_system.txt penny_user.txt pennybench.sh pennyload q17_state.bin
+    READING_5MIN_END uptime_s=308.17
+
+Quoted unedited. (The `Broken pipe` line is `grep -m1` closing `dumpsys
+window` early; the value was read.)
+
+    MemAvailable   3,408,164 kB at 5.13 min
+    MemFree        2,021,932 kB
+    Cached         1,897,176 kB
+    SwapFree       1,868,920 kB = 48.92% of SwapTotal 3,820,152
+    AnonPages      1,834,760 kB
+    ceilings       all three at rated (each scaling_max_freq = its cpuinfo_max_freq)
+    battery        297 dC sysfs, 298 dumpsys, level 100, AC powered, charging
+    screen         stay_on 15, keyguard not showing
+
+**MemTotal reads 7,640,312 kB and SwapTotal 3,820,152 kB**, 4 kB more each than
+the bring-up boot's 7,640,308 / 3,820,148 (notes.md 14066-14068). Recorded; no
+cause claimed. Percentages of SwapTotal on this boot use 3,820,152.
+
+**SwapFree is 48.92% at 5.13 min, i.e. 1,951,232 kB of swap already in use**
+on a boot where nothing of ours has run. Recorded as read.
+
+MemAvailable 3,408,164 kB at 5.13 min is a first reading on this boot, not a
+baseline. The `ls` shows every file present by name; nothing was opened.
+Battery 29.7 C.
+
+Mac side: caffeinate pid 17389 still holding (checked at the reboot); Matt
+leaves after this reading.
