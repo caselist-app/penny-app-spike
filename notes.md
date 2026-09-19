@@ -15329,3 +15329,191 @@ T1's end temperature: T2 inherits T1. 100% duty is the extreme, not a use
 pattern. The killer took one cached process at load and never approached 200.
 The same 20-token turn 200 times; nothing judged for quality. Battery is not
 SoC. No prediction scored here.
+
+## 2026-09-19 — BRIEF T, T3 `7a_q17_t3_recover`: T1 again, launched 0.33 s after T2 with NO cooling gate. rc=0, 60 of 60, fnv_all_equal=1; turn 1 at 9.63 t/s, turn 3 at 14.67; settled gen_tps 15.00 = 99.01% of T1's settled 15.15. One cached process killed 7 s in at adj 915. Contamination not met. AND: T1's "X1 100% at rated" series figure is a sampling-phase artefact.
+
+Figures only. From `out/7a_q17_t3_recover.report`, `.bench`, `.series`,
+`.kills`, pulled after T3 ended. Mac sha256: report
+0da6a5c1ea26b8138ab2c7d4b440d10bd88c070330388b7d127a60a5f1261f34, bench
+ed2354735fcd967026a1bb6601cc749214ba57719431be93d23320bbbc4ba91d, series
+e347aa2e55e4ceb7d9bc21ae613a328e432de2741a621d5b87b5d7e4792fbe1e, kills
+2ddc034f04eb4a0ccd846b28edcd1acea974f7cb8dcba5fdf2b9a92e294c6c1b.
+
+Same invocation as T2 (notes.md 15163 has the terminal lines). **CEILINGS AT
+LAUNCH, the single read between the rows** (ruling 2):
+
+    T2_DONE uptime_s=6658.42
+    CEILINGS AT LAUNCH p0=1803000/1803000 p4=2348000/2348000 p6=984000/2850000 batt_temp_dC=393 uptime_s=6658.50 wallclock=16:04:40
+
+**T3 launched with the X1 ceiling at 984,000 = 34.53% of rated and the battery
+at 39.3 C.** policy4 and policy0 at rated. T2's report ended at 6654.28 and
+T3's before-reading is 6658.75: 4.47 s between rows, no gate.
+
+`c0`, `-t 2`, `-c 1024`, `-lm none`, `-n 64`, `--load-state q17_state.bin`,
+`--turns 60 --interval-s 60`. Ran uptime 6658.75 -> 10210.94 = **3,552.19 s =
+59.20 min.** T3_DONE at 10215.47, 17:03:57; adb shell rc=0 at Mac 17:03:58.
+
+### THE SEVEN LINES
+
+    CEILINGS AT LAUNCH p0 1803000/1803000  p4 2348000/2348000  p6 984000/2850000 (34.53%)  batt 393 dC  uptime 6658.50  16:04:40
+    rc                 0
+    turns_done         60 of 60, turns_overrun=0
+    oom_score_adj      pre=-1000  post=200
+    kill count         2 lines = 1 process: com.android.DeviceAsWebcam at adj 915, 16:04:47.742 (~7 s after launch); MemAvailable before the row 3,270,772 kB
+    SwapFree min       2,097,272 kB at uptime 9999.43 = 54.90% of SwapTotal 3,820,152
+    contamination      NOT MET: Cached 1,961,332 -> 1,768,144 = -193,188 kB (17.86% of the model); SwapFree never below 54.90%
+
+**survived: YES.** duty 7.63% (busy_median 4,578.74 ms / 60,000).
+
+### SETTLED, verbatim from .bench
+
+    PENNYLOAD turns_done=60 turns_requested=60 turns_overrun=0 fnv_all_equal=1
+    PENNYLOAD first_token_id=32313 token_fnv1a64=0xcba17a2fcbba49f4   (turn 1)
+    PENNYLOAD ttft_turn_ms   min=335.79 median=348.49 max=787.96
+    PENNYLOAD gen_tps        min=9.63 median=14.88 max=15.27
+    PENNYLOAD quarters       n_per_quarter=15  q1=turns 1-15  q4=turns 46-60
+    PENNYLOAD SETTLED ttft_turn_ms q1_median=356.22 q4_median=342.56 decline_pct=-3.83   (positive = SLOWER)
+    PENNYLOAD SETTLED gen_tps      q1_median=14.83 q4_median=15.00 decline_pct=-1.15   (positive = SLOWER)
+    PENNYLOAD SETTLED gen_tps_turn1=9.63 settled_pct_of_turn1=155.72
+    PENNYLOAD DUTY busy_median_ms=4578.74 interval_ms=60000 duty_pct=7.63
+    PENNYLOAD prefix_snapshot_bytes=46683597 got=46683597 t_snapshot_ms=42.09
+    PENNYLOAD t_ready_ms 6769.94   t_tensor_band_ms 5771.43   t_state_load_ms 51.45
+
+`grep -c "fnv=0xcba17a2fcbba49f4"` over the .bench: **60 of 60.**
+
+**RECOVERY, the question S3 never asked:**
+
+    T3 settled gen_tps / T1 settled gen_tps = 15.00 / 15.15 = 99.01%
+    T3 turn 1 / T1 turn 1                   =  9.63 / 15.62 = 61.65%
+    T3 settled ttft / T1 settled ttft       = 342.56 / 342.60 = 99.99%
+
+    turn 1   gen_tps  9.63   ttft 787.96 ms   (launched on the 984,000 ceiling)
+    turn 2           14.10        448.21      (60 s later)
+    turn 3           14.67        352.00      (120 s later)
+    turns 4-9        14.83-15.01  356.05-365.67
+
+**By turn 3, two minutes after a 24.7-minute back-to-back row, the per-turn
+speed is within 6.1% of T1's settled figure (14.67 vs 15.15), and by the last
+quarter it is within 1%.** T3's own q4 is 1.15% FASTER than its q1. The model
+load itself ran on the throttled ceiling: t_tensor_band 5,771.43 ms against
+T1's 3,068.58 and T2's 2,732.01 — recorded, not a load-time row.
+
+### PER-TURN, every 10th plus the first and last five (from .bench)
+
+      k  uptime_s  restore  user_dec   ttft_ms  gen_ms  gen_tps  busy_ms  ovr  fnv
+      1   6666.02   13.82    772.49    787.96 6539.51    9.63  7327.55   0  0xcba17a2fcbba49f4
+      2   6726.02   11.87    436.12    448.21 4469.24   14.10  4917.51   0  0xcba17a2fcbba49f4
+      3   6786.02   13.26    338.54    352.00 4295.11   14.67  4647.18   0  0xcba17a2fcbba49f4
+      4   6846.02   12.96    344.27    357.41 4246.89   14.83  4604.36   0  0xcba17a2fcbba49f4
+      5   6906.02   13.74    351.76    365.67 4247.66   14.83  4613.44   0  0xcba17a2fcbba49f4
+     10   7206.03   16.90    337.19    354.26 4256.54   14.80  4610.89   0  0xcba17a2fcbba49f4
+     20   7806.03   20.49    335.58    356.26 4252.36   14.82  4608.73   0  0xcba17a2fcbba49f4
+     30   8406.04   12.03    331.00    343.21 4263.65   14.78  4606.91   0  0xcba17a2fcbba49f4
+     40   9006.05   14.54    328.48    343.19 4251.31   14.82  4594.57   0  0xcba17a2fcbba49f4
+     50   9606.06   12.27    325.85    338.30 4240.04   14.86  4578.40   0  0xcba17a2fcbba49f4
+     56   9966.06   13.82    329.24    343.27 4215.63   14.94  4559.01   0  0xcba17a2fcbba49f4
+     57  10026.06   19.13    327.24    346.61 4197.32   15.01  4544.08   0  0xcba17a2fcbba49f4
+     58  10086.06   18.54    330.30    349.02 4217.73   14.94  4566.97   0  0xcba17a2fcbba49f4
+     59  10146.06   13.15    325.32    338.65 4178.01   15.08  4516.76   0  0xcba17a2fcbba49f4
+     60  10206.06   16.00    326.38    342.56 4185.74   15.05  4528.38   0  0xcba17a2fcbba49f4
+
+### KILLS — with MemAvailable before: 3,270,772 kB
+
+    09-19 16:04:47.742   513   513 I lowmemorykiller: Kill 'com.android.DeviceAsWebcam' (3282), uid 1000, oom_score_adj 915 to free 149360kB rss, 7584kB anon rss, 42860kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+    09-19 16:04:47.829  1301  1407 I ActivityManager: Process com.android.DeviceAsWebcam (pid 3282) has died: cch  +15 CEM
+
+One cached process at model load; nothing after in 59 min.
+
+### SERIES SUMMARY — 356 samples
+
+    column            min          at uptime    max          at uptime
+    MemAvailable_kB   1,762,680    9639.22      3,247,540    6659.44 (model not yet loaded)
+    MemFree_kB          565,252    9989.41      1,850,076    6659.44
+    SwapFree_kB       2,097,272    9999.43      2,131,064    6659.44
+    Cached_kB         1,749,304    6669.21      1,961,348    6659.44
+    VmRSS_kB             11,276    6659.44      1,548,692    10209.52
+    pswpout             556,167    6659.44        578,228    9999.43
+    pgmajfault          131,667    6659.44        134,744    10169.39
+    batt_temp_dC            341    9779.29            394    6739.33
+
+Last series line, 10209.52: VmRSS 1,548,692 against VmHWM 1,548,700 — **not a
+teardown sample.** MemAvailable there 1,808,660 kB.
+
+    last line: 10209.52 2630000 2348000 1803000 1808660 612008 2097272 1768140 1548692 1548700 578228 134744 341 100
+
+### CEILINGS — poll loop AND series
+
+    X1  (policy6)  poll:   before 984,000  min 984,000 (at launch, 0 s in)  after 2,850,000
+                   series: 282 of 356 at rated = 79.21%; first rated sample 6809.04 (150.29 s after launch);
+                           after that, 59 of 341 below rated, min 2,188,000 = 76.77%;
+                           last quarter (from turn 46, uptime >= 9366.06): 15 of 85 below, min 2,507,000 = 87.96%,
+                           14 of those 15 at 2,630,000 = 92.28%
+    A78 (policy4)  poll never moved; series 356 of 356 = 100.00%
+    A55 (policy0)  series 356 of 356 = 100.00%
+
+**The X1 ceiling was back at rated within 150.29 s of T3's launch** (first
+series sample at rated; the poll's min is the launch value and cannot time it
+more finely).
+
+### A FINDING ABOUT T1'S SERIES — THE 100.00% IS A SAMPLING-PHASE ARTEFACT
+
+T3's series shows the X1 ceiling below rated in one sample of almost every
+turn, to the end of the row; T1's shows it at rated in all 355. **The
+difference is where the 10 s samples fell relative to each turn, not
+(established) a difference in the clock.** Offsets of every series sample from
+the start of its turn, from the uptimes in the .series and .bench files:
+
+    T1  samples at  6 s:59  16 s:59  26 s:59  36 s:59  46 s:59  56 s:60   after turn start
+    T3  samples at  2-3 s:60  12-13 s:59  22-23 s:59  32-33 s:59  42-43 s:59  53 s:60
+    T3  below-rated samples, by offset:  2-3 s: 57   12-13 s: 2
+
+Each turn is busy ~4.5 s (T1 busy_median 4,477.14 ms, T3 4,578.74). **T1's
+samples all landed 6 s after a turn started, i.e. after the turn had finished;
+T3's landed at 3 s, inside the turn — and 57 of T3's 59 below-rated samples
+after recovery are those in-turn samples.** So T1's "X1 355 of 355 at rated"
+says only that the ceiling was at rated 1.5 s after each turn ended. What the
+X1 ceiling does DURING a conversational turn is shown by T3's last quarter
+(mostly 2,630,000 = 92.28%) and by T1's 0.2 s poll minimum (2,507,000 = 87.96%
+once) — **not** by T1's series. **The same caveat applies to the 6a's S1
+"100.00%" (notes.md 12774) unless its sample phase is checked; it has not
+been.**
+
+### BATTERY — BATTERY, NOT SoC
+
+    start   393 dC  (first series sample 6659.44; report before=393)
+    max     394 dC  at 6739.33
+    min     341 dC  at 9779.29
+    end     341 dC  (report after=341 at 10210.94; dumpsys 341)
+    slope   -52 dC over 3,551.50 s = -0.0879 C/min
+    dumpsys before [AC powered: true status: 5 level: 100 temperature: 392]
+            after  [AC powered: true status: 5 level: 100 temperature: 341]
+
+At 7.63% duty the battery FELL 5.2 C over the hour from T2's 39.3 C and ended
+at 34.1 C — above T1's 28.0 C start, near T1's 33.0 C end.
+
+### MEMORY AND COUNTERS
+
+    peak_rss_kB     1,548,700 (VmHWM)     max_rssanon_kB 1,543,024 (99.63%)     max_rssfile_kB 5,380
+    memavail_kB     before 3,270,772  after 3,348,960   (after = child exited)
+    memfree_kB      before 1,878,608  after 2,154,004
+    swapfree_kB     before 2,131,064  after 2,097,272
+    cached_kB       before 1,961,332  after 1,768,144   (-193,188)
+    pswpin          before   120,220  after   123,292   (+3,072)
+    pswpout         before   556,167  after   578,228   (+22,061)
+    pgmajfault      before   131,667  after   134,744   (+3,077)
+    ZRAM            404,332K physical used for 1,656,832K in swap (3,820,152K total swap)
+    rss_samples     6,307
+
+Between T2's after (6654.28) and T3's before (6658.75), 4.47 s: pswpin
+103,658 -> 120,220 (+16,562), pgmajfault 115,097 -> 131,667 (+16,570),
+SwapFree 2,063,224 -> 2,131,064. That window holds T2's process exit and
+pennybench's report and `dumpsys` calls. Recorded; no cause claimed.
+
+### WHAT T3 DOES NOT SAY
+
+One recovery, once, from one T2 on one boot. The 150.29 s to rated is bounded
+by the 10 s series and the phase above, not measured to the second. T3 inherits
+T1 and T2; the battery never returned to T1's start temperature. The killer
+took one cached process and never approached adj 200. The same 20-token turn;
+nothing grows; no quality judged. Battery is not SoC. No prediction scored
+here; the scoring is for the closing entry, which is the reviewer's.
