@@ -15159,3 +15159,173 @@ The same 20-token turn sixty times from the same 407-token prefix; nothing
 grows, nothing is judged for quality. Battery temperature is not SoC
 temperature; AC power is not battery. No prediction is scored here. T2 and T3
 follow straight on, in one invocation, per ruling 7 (notes.md 14869).
+
+## 2026-09-19 — BRIEF T, T2 `7a_q17_t2_b2b`: two hundred turns back to back on the 7a. rc=0, 200 of 200, fnv_all_equal=1; settled gen_tps 57.51% of turn 1; X1 ceiling at 984,000 (34.53% of rated) from 471 s in to the end; one cached process killed 4 s in at adj 915. Contamination not met.
+
+Figures only. From `out/7a_q17_t2_b2b.report`, `.bench`, `.series`, `.kills`,
+pulled after T3 ended (ruling 2, notes.md 14869: no figure quoted until both
+reports were pulled). Mac sha256: report
+afd57b47f171bcb99711fc9502483ee0d4f314f106e38d8a2d376779b827bcd9, bench
+3d8c12b00f56be9d5ba16186be5b2b30b9a99ab1cb2686513534f02f68ce6677, series
+c728bf14d71f6199c9754271f56178b4244433829b69552394ec8f8cb365c182, kills
+c79236bb665cb716677c57eb5352f607ac4a9f71b49088ff2c8a33352c4ca61c.
+
+T2 and T3 ran in ONE `adb -s 37291JEHN04619 shell` invocation (ruling 2):
+T gate -> T2 -> one ceilings read -> T3. No adb command ran during either row.
+Between T1's end and this launch the only phone commands were five `adb pull`s
+of T1's out/ files; the Mac committed T1's entry (f5326fa). Terminal lines of
+the invocation, unedited:
+
+    mac_launch=15:39:54
+    GATE FIRST p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 uptime_s=5171.72
+    GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 polls_failed=0 gate_start_uptime_s=5171.72 uptime_s=5171.86 wallclock=15:39:53
+    T2_DONE uptime_s=6658.42
+    CEILINGS AT LAUNCH p0=1803000/1803000 p4=2348000/2348000 p6=984000/2850000 batt_temp_dC=393 uptime_s=6658.50 wallclock=16:04:40
+    T3_DONE uptime_s=10215.47 wallclock=17:03:57
+    ADB_SHELL_RC=0 mac_time=17:03:58
+
+**THE GATE WAIT, as a reading:** T1's after-reading was at uptime 5072.85; the
+gate began at 5171.72 and passed on its FIRST poll at 5171.86 —
+`polls_failed=0`, 0.14 s in the gate. **All three clusters were already at
+rated 98.87 s after T1 ended**; how much sooner they got there is not
+observed.
+
+`c0`, `-t 2`, `-c 1024`, `-lm none`, `-n 64`, `--load-state q17_state.bin`,
+`--turns 200 --interval-s 0`. AC, screen on, unlocked, untouched. Ran uptime
+5172.14 -> 6654.28 = **1,482.14 s = 24.70 min.**
+
+### THE SEVEN LINES
+
+    GATE PASSED        all three at rated, polls_failed=0, uptime 5171.86, 15:39:53
+    rc                 0
+    turns_done         200 of 200, turns_overrun=0
+    oom_score_adj      pre=-1000  post=200
+    kill count         2 lines = 1 process: com.android.keychain at adj 915, 15:39:57.529 (~4 s after launch); MemAvailable before the row 3,328,272 kB
+    SwapFree min       2,063,224 kB at uptime 6402.30 = 54.01% of SwapTotal 3,820,152
+    contamination      NOT MET: Cached 2,145,888 -> 1,960,764 = -185,124 kB (17.12% of the model); SwapFree never below 54.01%
+
+**survived: YES** (rc=0, 200 = --turns, no kill line naming pennyload, post=200).
+
+### SETTLED, verbatim from .bench
+
+    PENNYLOAD turns_done=200 turns_requested=200 turns_overrun=0 fnv_all_equal=1
+    PENNYLOAD first_token_id=32313 token_fnv1a64=0xcba17a2fcbba49f4   (turn 1)
+    PENNYLOAD ttft_turn_ms   min=381.54 median=873.49 max=888.54
+    PENNYLOAD gen_tps        min=8.65 median=8.95 max=15.47
+    PENNYLOAD quarters       n_per_quarter=50  q1=turns 1-50  q4=turns 151-200
+    PENNYLOAD SETTLED ttft_turn_ms q1_median=618.30 q4_median=875.50 decline_pct=41.60   (positive = SLOWER)
+    PENNYLOAD SETTLED gen_tps      q1_median=10.91 q4_median=8.90 decline_pct=18.47   (positive = SLOWER)
+    PENNYLOAD SETTLED gen_tps_turn1=15.47 settled_pct_of_turn1=57.51
+    PENNYLOAD DUTY busy_median_ms=7914.82 interval_ms=0 duty_pct=-1.00
+    PENNYLOAD prefix_snapshot_bytes=46683597 got=46683597 t_snapshot_ms=22.56
+    PENNYLOAD t_ready_ms 3204.69   t_tensor_band_ms 2732.01   t_state_load_ms 32.56
+
+`grep -c "fnv=0xcba17a2fcbba49f4"` over the .bench: **200 of 200.** `duty_pct=-1.00`
+is pennyload's sentinel for `--interval-s 0` (duty is 100% by construction).
+**Settled / turn 1 = 8.90 / 15.47 = 57.51%.** The first turn below 10 t/s is
+turn 15, at uptime 5247.78 (75.6 s in), 9.81 t/s.
+
+### PER-TURN, every 20th plus the first and last five (from .bench)
+
+      k  uptime_s  restore  user_dec   ttft_ms  gen_ms  gen_tps  busy_ms  ovr  fnv
+      1   5175.87   13.25    387.56    401.57 4072.39   15.47  4474.00   0  0xcba17a2fcbba49f4
+      2   5180.35    8.02    373.33    381.54 4147.16   15.19  4528.74   0  0xcba17a2fcbba49f4
+      3   5184.87    9.29    381.68    391.18 4175.84   15.09  4567.04   0  0xcba17a2fcbba49f4
+      4   5189.44    8.01    403.03    411.23 4372.18   14.41  4783.46   0  0xcba17a2fcbba49f4
+      5   5194.22    9.80    482.55    492.59 4689.69   13.43  5182.34   0  0xcba17a2fcbba49f4
+     20   5280.84   11.09    550.18    561.55 5623.00   11.20  6184.59   0  0xcba17a2fcbba49f4
+     40   5411.98   13.03    674.42    687.80 6089.30   10.35  6777.15   0  0xcba17a2fcbba49f4
+     60   5552.49   13.06    670.48    683.88 6141.79   10.26  6825.72   0  0xcba17a2fcbba49f4
+     80   5696.74   13.79    771.78    785.91 6257.08   10.07  7043.08   0  0xcba17a2fcbba49f4
+    100   5849.74   14.31    861.39    876.11 7050.84    8.94  7927.02   0  0xcba17a2fcbba49f4
+    120   6008.89   13.91    858.29    872.65 7083.47    8.89  7956.18   0  0xcba17a2fcbba49f4
+    140   6168.10   13.20    859.48    873.09 7074.97    8.90  7948.13   0  0xcba17a2fcbba49f4
+    160   6327.11   14.77    859.13    874.31 7085.18    8.89  7959.55   0  0xcba17a2fcbba49f4
+    180   6486.12   13.73    859.37    873.49 7101.48    8.87  7975.02   0  0xcba17a2fcbba49f4
+    196   6613.45   14.49    861.02    875.91 7144.37    8.82  8020.36   0  0xcba17a2fcbba49f4
+    197   6621.47   14.90    862.23    877.52 7107.37    8.86  7984.95   0  0xcba17a2fcbba49f4
+    198   6629.45   13.80    861.04    875.24 7085.97    8.89  7961.28   0  0xcba17a2fcbba49f4
+    199   6637.41   13.93    860.53    874.88 7080.91    8.90  7955.89   0  0xcba17a2fcbba49f4
+    200   6645.37   14.61    859.68    874.73 7085.63    8.89  7960.45   0  0xcba17a2fcbba49f4
+
+### KILLS — with MemAvailable before: 3,328,272 kB
+
+    09-19 15:39:57.529   513   513 I lowmemorykiller: Kill 'com.android.keychain' (2961), uid 1000, oom_score_adj 915 to free 148176kB rss, 924kB anon rss, 46620kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+    09-19 15:39:57.625  1301  2989 I ActivityManager: Process com.android.keychain (pid 2961) has died: cch  +15 CEM
+
+One process, cached band (adj 915), during model load (~4 s after the 15:39:53
+gate). Nothing past that in the remaining 24.6 min. **The killer never came
+within 700 points of adj 200.**
+
+### SERIES SUMMARY — 149 samples
+
+    column            min          at uptime    max          at uptime
+    MemAvailable_kB   1,742,616    6082.42      3,254,116    5172.85 (model not yet loaded)
+    MemFree_kB          353,452    6412.56      1,663,108    5172.85
+    SwapFree_kB       2,063,224    6402.30      2,082,936    6392.10
+    Cached_kB         1,950,872    5182.37      2,151,732    5172.85
+    VmRSS_kB              9,672    5172.85      1,549,392    6652.19
+    pswpout             538,513    5172.85        556,167    6402.30
+    pgmajfault          111,178    5172.85        115,097    6402.30
+    batt_temp_dC            330    5172.85            393    6642.55
+
+Last series line, 6652.19: VmRSS 1,549,392 against VmHWM 1,549,400 — **not a
+teardown sample.** MemAvailable there 1,763,356 kB.
+
+    last line: 6652.19 984000 2348000 1803000 1763356 372316 2063224 1960764 1549392 1549400 556167 115097 393 100
+
+### CEILINGS — poll loop AND series
+
+    X1  (policy6)  poll:   before 2,850,000  min 984,000 = 34.53% of rated, first at 5643.65 (471 s in)  after 984,000
+                   series: 1 of 149 at rated = 0.67% (the first sample); first below rated 5182.37 (2,507,000, ~10 s in);
+                           first 984,000 at 5682.43; min 984,000
+    A78 (policy4)  poll:   never moved, 2,348,000 throughout;  series 149 of 149 = 100.00%
+    A55 (policy0)  series: 148 of 149 at rated = 99.33%; ONE sample below, 1,704,000 = 94.51% of rated at 6072.26
+
+**X1 reached 984,000 kHz and stayed there to the end** — `after` is 984,000.
+The same floor figure as the 6a's S2 (984,000, notes.md 12503), which is 35.12%
+of the 6a's rated 2,802,000 and 34.53% of the 7a's 2,850,000. **The A78 pair
+never moved. The A55 cluster moved in exactly one 10 s sample, to 94.51%** —
+the only time it left rated on the 7a in this brief.
+
+### BATTERY — BATTERY, NOT SoC
+
+    start   330 dC  (first series sample 5172.85; report before=330)
+    min     330 dC  at 5172.85
+    max     393 dC  at 6642.55
+    end     393 dC  (report after=393, at 6654.28; dumpsys 392)
+    slope   +63 dC over 1,481.43 s = +0.2551 C/min
+    dumpsys before [AC powered: true status: 5 level: 100 temperature: 330]
+            after  [AC powered: true status: 5 level: 100 temperature: 392]
+
+T2 began at 33.0 C, T1's end temperature: 99 s between rows did not cool the
+battery (T1 after-reading 330 dC).
+
+### MEMORY AND COUNTERS
+
+    peak_rss_kB     1,549,400 (VmHWM)     max_rssanon_kB 1,543,908 (99.64%)     max_rssfile_kB 5,208
+    memavail_kB     before 3,328,272  after 3,313,884   (after = child exited)
+    memfree_kB      before 1,752,208  after 1,924,032
+    swapfree_kB     before 2,072,952  after 2,063,224
+    cached_kB       before 2,145,888  after 1,960,764   (-185,124)
+    pswpin          before    99,836  after   103,658   (+3,822)
+    pswpout         before   538,513  after   556,167   (+17,654)
+    pgmajfault      before   111,178  after   115,097   (+3,919)
+    ZRAM            418,436K physical used for 1,698,048K in swap (3,820,152K total swap)
+    rss_samples     2,194
+
+**Between T1's after-reading (5072.85) and T2's before-reading (5172.14),
+pswpin rose 11,810 -> 99,836 (+88,026) and pgmajfault 23,149 -> 111,178
+(+88,029); SwapFree rose 1,866,104 -> 2,072,952 (+206,848).** In those 99.29 s
+the phone ran five `adb pull`s of small text files and nothing else of ours.
+This is the second ~88,000 jump seen on the 7a with nothing of ours computing
+(the first: between the smoke runs, notes.md 14306 onward). **Recorded; no
+cause claimed.**
+
+### WHAT T2 DOES NOT SAY
+
+One row, once, starting 99 s after T1 on the same boot with the battery at
+T1's end temperature: T2 inherits T1. 100% duty is the extreme, not a use
+pattern. The killer took one cached process at load and never approached 200.
+The same 20-token turn 200 times; nothing judged for quality. Battery is not
+SoC. No prediction scored here.
