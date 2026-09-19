@@ -13996,3 +13996,255 @@ What this entry does NOT say: that every sentence of every cut block is
 repeated word for word in the cited entry — each citation is the entry where
 grep found the content, checked by heading, not read end to end. The 6a's
 device state in the new file is as last recorded; no phone was read.
+
+## 2026-09-19 — BRIEF T, T0 PART ONE: the Pixel 7a flash record and the first read-only reads. Locked, yellow, GS201, three clusters at policy0/4/6 (A55 x4 / A78 x2 / X1 x2), MemTotal 7,640,308 kB. Nothing pushed, nothing installed, nothing changed on the phone.
+
+First entry for the 7a. Handset: Pixel 7a (lynx), serial 37291JEHN04619.
+Every `adb` command in this entry was `adb -s 37291JEHN04619`, the whole remote
+command in one single-quoted string. `adb devices -l` at session start listed
+this one device and no other; the 6a was not attached and was not touched.
+
+### FLASH RECORD — every line is MATT'S REPORT, NOT READ BY THE BUILDER
+
+- Before flashing: stock Android 17, security update 5 July 2026, "Pixel up to
+  date". (Matt's report, not read by the builder)
+- Web installer, in Chrome 153.0.8010.53. (Matt's report, not read by the builder)
+- Unlock, Download, Flash, Lock: all four completed. (Matt's report, not read by the builder)
+- Bootloader screen read "locked" afterwards. (Matt's report, not read by the builder)
+- Boot key compared by Matt, on screen, against the install page's Pixel 7a
+  line `508d75dea10c5cbc3e7632260fc0b59f6055a8a49dd84e693b6d8899edbb01e4`.
+  (Matt's report, not read by the builder)
+- "Disable OEM unlocking" unticked at the end of setup; OEM unlocking read ON
+  in Developer options afterwards. (Matt's report, not read by the builder)
+- PIN set. (Matt's report, not read by the builder)
+- USB debugging on, "Always allow" ticked for this Mac. (Matt's report, not
+  read by the builder)
+
+### LOCK STATE AND BUILD — read from the phone, one invocation
+
+    ro.boot.flash.locked=[1]
+    ro.boot.verifiedbootstate=[yellow]
+    ro.boot.vbmeta.device_state=[locked]
+    sys.oem_unlock_allowed=[]
+    ro.oem_unlock_supported=[]
+    ro.build.fingerprint=[google/lynx/lynx:17/CP2A.260705.006/2026091000:user/release-keys]
+    ro.build.version.security_patch=[2026-09-01]
+    ro.build.version.release=[17]
+    ro.build.id=[CP2A.260705.006]
+    ro.build.version.incremental=[2026091000]
+    ro.product.device=[lynx]
+    ro.product.model=[Pixel 7a]
+    ro.soc.manufacturer=[Google]
+    ro.soc.model=[GS201]
+    ro.hardware=[lynx]
+    ro.boot.hardware.platform=[gs201]
+    ro.bootloader=[lynx-17.0-15199429]
+    ro.serialno=[37291JEHN04619]
+    uname_r=6.1.176-android14-11-gbba346ef9364
+    uptime_s=672.50 wallclock=13:41:46 date=2026-09-19
+
+Against the brief's predictions: flash.locked 1, verifiedbootstate `yellow`
+(locked, custom key — correct for GrapheneOS), vbmeta.device_state `locked`,
+product.device `lynx` — all as predicted. GrapheneOS build **2026091000**; the
+6a's last-recorded build is 2026091001 (CLAUDE.md, not re-read). Security patch
+2026-09-01, Android 17, build ID CP2A.260705.006 — the same build ID and patch
+as the 6a's record.
+
+**OEM-unlock state is NOT readable from the shell on this build.**
+`sys.oem_unlock_allowed` and `ro.oem_unlock_supported` are both empty.
+`getprop | grep -iE "oem_unlock|oemunlock|flash.locked|frp|unlock"` returned
+only `ro.boot.flash.locked` and `ro.frp.pst`. `settings get global
+oem_unlock_allowed` returned `null`. `dumpsys oem_lock` printed nothing, rc=0.
+`cmd oem_lock` returned `No shell command implementation.` The service exists
+(`service list`: `233 oem_lock: [android.service.oemlock.IOemLockService]`).
+**I did NOT try `service call oem_lock <n>`**: the transaction numbers would be
+guessed, and the same interface carries a setter. So the only record that OEM
+unlocking is ON is Matt's on-screen reading above.
+
+### IDENTITY, MEMORY AND CLUSTERS — one invocation
+
+    MemTotal:        7640308 kB
+    MemAvailable:    2928748 kB
+    SwapTotal:       3820148 kB
+    SwapFree:        1747316 kB
+    uptime_s=694.52 wallclock=13:42:08
+    --- nproc=8
+    /sys/devices/system/cpu/cpufreq/policy0
+    /sys/devices/system/cpu/cpufreq/policy4
+    /sys/devices/system/cpu/cpufreq/policy6
+    /sys/devices/system/cpu/cpufreq/policy0 related_cpus=[0 1 2 3] cpuinfo_max_freq=[1803000] scaling_max_freq=[1803000] cpuinfo_min_freq=[300000]
+    /sys/devices/system/cpu/cpufreq/policy4 related_cpus=[4 5] cpuinfo_max_freq=[2348000] scaling_max_freq=[2348000] cpuinfo_min_freq=[400000]
+    /sys/devices/system/cpu/cpufreq/policy6 related_cpus=[6 7] cpuinfo_max_freq=[2850000] scaling_max_freq=[2850000] cpuinfo_min_freq=[500000]
+
+Core type per CPU, `/proc/cpuinfo` (Features, implementer and part, pasted in
+one line per CPU):
+
+    processor 0-3  CPU implementer 0x41  CPU part 0xd05
+    processor 4-5  CPU implementer 0x41  CPU part 0xd41
+    processor 6-7  CPU implementer 0x41  CPU part 0xd44
+    Features (identical on all eight): fp asimd evtstrm aes pmull sha1 sha2 crc32
+      atomics fphp asimdhp cpuid asimdrdm lrcpc dcpop asimddp
+
+0x41 is Arm; 0xd05 / 0xd41 / 0xd44 are Arm's part numbers for Cortex-A55 /
+Cortex-A78 / Cortex-X1. **That mapping is from Arm's published part-number list
+as I know it, not read from a document this session.** The cluster boundaries
+themselves are READ (related_cpus), and they match the public spec the brief
+gave as a prediction: 2x X1 at 2.85 GHz (2,850,000 kHz), 2x A78 at 2.35 GHz
+(2,348,000 kHz), 4x A55 at 1.80 GHz (1,803,000 kHz).
+
+**The Features line has `asimddp` (dotprod) and `fphp asimdhp` (fp16) and has
+NO `i8mm`, NO `sve`, NO `sve2`, NO `sme`.** That is the same constraint the 6a
+imposed, so the `armv8.2-a+dotprod+fp16` build is the right target here too
+and an `armv8.7a` build would SIGILL on this phone as it would on the 6a.
+
+Layout against the 6a's: **the same policy numbers and the same cpu ranges**
+(policy0 = cpus 0-3, policy4 = cpus 4-5, policy6 = cpus 6-7). Different: the
+middle pair is A78, not A76; the middle pair's rated clock is 2,348,000, not
+2,253,000; the big pair's is 2,850,000, not 2,802,000. policy0's rated
+1,803,000 is the same figure as the 6a's. Masks therefore keep their cpu
+meaning: `c0` = cpus 6-7 (X1 pair), `30` = cpus 4-5 (A78 pair), `f0` = cpus
+4-7.
+
+MemTotal 7,640,308 kB against the 6a's 5,718,280 kB: +1,922,028 kB. SwapTotal
+3,820,148 kB against the 6a's 3,145,724 kB: +674,424 kB. **SwapFree was
+1,747,316 kB = 45.74% of SwapTotal at uptime 694.52 s, on a boot where
+nothing of ours has run.** MemAvailable 2,928,748 kB at the same uptime. These
+are first readings on a bring-up boot, not protocol readings and not a
+baseline; the phone had been set up by hand since this boot began.
+
+### SETTINGS, APP, adj — one invocation
+
+    stay_on_while_plugged_in=[0]
+    pm_path_probe2a=[]
+    pm_list_pennyspike=[]
+    -1000
+    self_oom=-1000
+
+**The probe app is NOT installed** (`pm path com.pennyspike.probe2a` empty,
+`pm list packages | grep -i penny` empty). **An `adb shell` process on this
+phone has `oom_score_adj` -1000**, read twice (child `sh`, and `/proc/self`),
+the same as the 6a.
+
+**`stay_on_while_plugged_in` is 0 on the 7a.** Read again with the screen
+timeout, one invocation:
+
+    screen_off_timeout=30000 stay_on_while_plugged_in=0   mWakefulness=Dozing uptime_s=766.27 wallclock=13:43:20
+
+(The `Broken pipe` line printed beside it came from `grep -m1` closing the
+pipe early on `dumpsys power`; the value was read.) The 6a ran brief S with
+`stay_on_while_plugged_in=15` (notes.md 12030). **With 0 and a 30 s timeout,
+an hour-long row on the 7a would turn the screen off and lock, which voids the
+row.** The brief forbids changing settings on the phone, so this is recorded and
+raised with Matt, not changed.
+
+### CHARGING LIMIT
+
+`settings list global|secure|system`, grepped for
+`charg|batt|adaptive_charg|limit|optimi|dock_defend|health`:
+
+    == global
+    battery_charging_state_enforce_level=-1
+    battery_charging_state_update_delay=-1
+    charging_started_sound=/product/media/audio/ui/ChargingStarted.ogg
+    low_battery_sound=/product/media/audio/ui/LowBattery.ogg
+    low_battery_sound_timeout=0
+    wear_charging_experience_enabled=0
+    wireless_charging_started_sound=/product/media/audio/ui/WirelessChargingStarted.ogg
+    == secure
+    charging_sounds_enabled=1
+    charging_vibration_enabled=1
+    disable_adaptive_auth_limit_lock=0
+    sysui_qs_tiles=wifi,bt,cell,airplane,dnd,flashlight,rotation,alarm,screenrecord,battery,mictoggle,cameratoggle,location
+    == system
+
+`dumpsys battery` (in full, the relevant lines): `AC powered: true`, `Max
+charging current: 3000000`, `status: 2`, `health: 2`, `level: 82`,
+`temperature: 345`, `Charging state: 1`, `Charging policy: 1`. `/sys/class/
+power_supply/battery/` has no `charge_control_limit`,
+`charge_control_end_threshold` or `charge_stop_threshold` (No such file); it
+has `charge_type=3`.
+
+**No settings key naming a charge limit exists in any of the three
+namespaces.** `Charging policy: 1` is, as I know Android's BatteryManager
+constants, CHARGING_POLICY_DEFAULT (the 80% limit would read 4,
+ADAPTIVE_LONGLIFE) — **from memory, not read from source this session.** So:
+no limit is active by that reading; whether GrapheneOS shows a charging-limit
+switch in the Settings app on this build is NOT established — nothing on the
+screen was read. Nothing was changed.
+
+### THERMAL AND BATTERY TEMPERATURE — one invocation
+
+    ls: /sys/class/thermal/: Permission denied
+    --- zone0 type:
+    cat: /sys/class/thermal/thermal_zone0/type: Permission denied
+    cat: /sys/class/thermal/thermal_zone0/temp: Permission denied
+    --- battery:
+    sysfs_temp_dC=345 capacity=82 dumpsys=[ AC powered: true USB powered: false status: 2 level: 82 temperature: 345 ] uptime_s=706.02 wallclock=13:42:19
+
+**`/sys/class/thermal/` is Permission denied to the shell on the 7a**, the
+directory and a zone file alike — the same as the 6a. **No SoC temperature can
+be read on this phone either.** Battery temperature from sysfs works:
+345 dC, and `dumpsys battery` agreed at 345 in the same invocation. Every T row
+therefore carries BATTERY temperature only, labelled as such.
+
+### WHAT CARRIES A 6a NUMBER — pennybench.sh rev 5, pennyload.cpp, the gate
+
+`grep -nE "2802|2253|1803|policy|a76|A76|x1|X1|a55|A55|cpus [0-9]" pennybench.sh`:
+
+    41:# policy4 "was never observed to move" and that "only the X1 pair is capped".
+    42:# BOTH ARE REFUTED BY MEASUREMENT. policy4 (A76 pair, rated 2,253,000) fell on
+    47:# load. policy6 (X1 pair, rated 2,802,000) fell below half rated on every
+    53:CEIL6=/sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq
+    54:CEIL4=/sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
+    55:# policy0 is the A55 cluster, rated 1,803,000. It has NEVER been sampled during
+    58:CEIL0=/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
+    137:echo "uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB ..." > "$SER"
+    205:echo "PENNYBENCH ceil_x1_kHz     before=$C6_B min=$C6_MIN after=$C6_A   (policy6, cpus 6-7, rated 2802000)"
+    207:echo "PENNYBENCH ceil_a76_kHz    before=$C4_B min=$C4_MIN after=$C4_A   (policy4, cpus 4-5, rated 2253000)"
+
+- Lines 53, 54, 58: the three paths **exist on the 7a and point at the same
+  cpu ranges** (read above). They measure the right clusters.
+- **Line 205: `rated 2802000` is wrong on the 7a** (read: 2,850,000).
+- **Line 207: `rated 2253000` is wrong** (read: 2,348,000) **and `a76` is the
+  wrong core name** (0xd41, A78).
+- Line 137: the series header names the columns `ceil_x1 ceil_a76 ceil_a55`.
+  The values under them are correct (policy6 / policy4 / policy0); the middle
+  column's NAME is the 6a's core.
+- Lines 41-58 are comments recording 6a history; they change nothing that runs.
+- **Nothing in pennybench.sh compares a reading with a rated figure** — the
+  numbers on 205/207 are printed text only. The min/before/after values are
+  read from sysfs. So rev 5 on the 7a would record correct numbers under two
+  wrong labels.
+
+`pennyload.cpp` carries no frequency, mask or cluster. Its one device-shaped
+default is the thread count:
+
+    209:        "  -t <n>              n_threads and n_threads_batch   (default 2)\n"
+    237:    int  n_threads    = 2;
+
+Every brief S row passed `-t 2` explicitly, so the default is never relied on.
+
+**The gate command is where a 6a number would bite.** As written in notes.md
+8778-8781 and used through brief S:
+
+    while [ "$(cat /sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq)" != 2802000 ] ||
+          [ "$(cat /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq)" != 2253000 ]; do
+        sleep 5
+    done; PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh <tag> c0 -- <pennyload args>
+
+**On the 7a that loop would never exit** — policy6 at rated reads 2,850,000,
+never 2,802,000. It also gates two clusters, and brief T says ALL clusters. The
+T gate has to compare each policy's `scaling_max_freq` with its own
+`cpuinfo_max_freq`, for policy0, policy4 and policy6. `c0` keeps its meaning
+(cpus 6-7, the X1 pair) on this phone.
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+Nothing has been pushed to the 7a, nothing installed, no binary run, no hash
+taken on the phone. OEM unlocking being ON is Matt's reading only; the shell
+cannot see it. The charging-limit answer is "no settings key, and `Charging
+policy: 1`", with the meaning of 1 from memory. The A55/A78/X1 names are from
+the part numbers as I know them. MemAvailable and SwapFree here are first
+readings on a hand-set-up bring-up boot, not the ~5 and ~25 minute protocol
+readings, and not a baseline. The screen-on setting is not changed and must be
+decided before any hour-long row.
