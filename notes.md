@@ -14905,3 +14905,21 @@ T3's commit and the post-T3 re-hash of the GGUF and `q17_state.bin`. **"BRIEF T,
 CLOSED" is NOT written in this session** — it waits for the reviewer.
 
 What this entry does NOT say: that any of it has happened yet.
+
+## 2026-09-19 — BRIEF T, BEFORE THE REBOOT: caffeinate started; the Mac is on BATTERY, not AC. Stopped before the reboot for Matt.
+
+    nohup caffeinate -i -s -t 14400 >/dev/null 2>&1 &     (Mac; -t 14400 = 4 h cap, killed by hand after T3)
+    caffeinate_pid=17389 started=14:12:08
+    pmset -g batt:        Now drawing from 'Battery Power'   100%; discharging; 7:38 remaining
+    pmset -g assertions:  PreventSystemSleep 0   PreventUserIdleSystemSleep 1
+                          pid 17389(caffeinate): PreventUserIdleSystemSleep, PreventSystemSleep (asserting for 14400 secs)
+
+**The ruling assumed AC power; the Mac reads 'Battery Power'.** `-s`
+(PreventSystemSleep) is honoured only on AC — the summary line reads
+`PreventSystemSleep 0` although caffeinate holds the assertion. `-i` (idle
+sleep) is in force. On battery the Mac can still sleep if the lid is closed.
+This is outside the rulings, so it is recorded here and the reboot is NOT
+issued until Matt has plugged the Mac into power or said otherwise. caffeinate
+is left running; the phone has not been touched.
+
+What this entry does NOT say: that the phone has been rebooted — it has not.
