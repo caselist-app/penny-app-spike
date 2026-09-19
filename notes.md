@@ -14984,3 +14984,31 @@ Battery 29.7 C.
 
 Mac side: caffeinate pid 17389 still holding (checked at the reboot); Matt
 leaves after this reading.
+
+### THE ~25 MINUTE READING — one invocation, value and wallclock together
+
+    READING_25MIN uptime_s=1497.93 wallclock=14:38:39
+    MemTotal: 7640312 kB MemFree: 2004944 kB MemAvailable: 3405124 kB Cached: 1909092 kB SwapTotal: 3820152 kB SwapFree: 1868920 kB AnonPages: 1839904 kB
+    p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000
+    batt_temp_dC=280 batt_level=100 dumpsys=[ AC powered: true status: 2 level: 100 temperature: 280 ]
+    Failed to write while dumping service window: Broken pipe
+    Failed to write while dumping service power: Broken pipe
+    stay_on=15 screen_off_timeout=30000 keyguard=isKeyguardShowing=false wake=mWakefulness=Awake
+    vmstat pswpin=6737 pswpout=495008 pgmajfault=17907
+    READING_25MIN_END uptime_s=1498.49
+
+Quoted unedited, 24.97 min after power-on.
+
+    MemAvailable   3,405,124 kB    (5 min: 3,408,164 kB -- 3,040 kB apart)
+    SwapFree       1,868,920 kB = 48.92% of SwapTotal  (identical to the 5 min reading)
+    Cached         1,909,092 kB
+    ceilings       all three at rated
+    battery        280 dC (297 at 5 min): the phone shed 1.7 C over 20 min at idle
+    screen         awake, keyguard not showing, stay_on 15
+
+**MemAvailable read twice on this boot, 20 min apart, under the same
+conditions (idle, unlocked, AC, nothing of ours run): 3,408,164 and 3,405,124
+kB.** Two readings on ONE boot; per the reporting rules that is still not
+called a budget. T-B4 (i) is judged in the closing entry, not here.
+
+T1 is next: T gate and launch in one invocation, nothing between.
