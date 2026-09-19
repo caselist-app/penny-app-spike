@@ -15517,3 +15517,39 @@ T1 and T2; the battery never returned to T1's start temperature. The killer
 took one cached process and never approached adj 200. The same 20-token turn;
 nothing grows; no quality judged. Battery is not SoC. No prediction scored
 here; the scoring is for the closing entry, which is the reviewer's.
+
+## 2026-09-19 — BRIEF T, AFTER T3: the post-T3 re-hash on the phone — all six files unchanged; caffeinate stopped. The row boot is SPENT.
+
+Taken after T3's report was written and committed (09276c7), per the ruling
+that nothing reads the GGUF or `q17_state.bin` before then. One invocation:
+
+    rehash_start uptime_s=10424.75 wallclock=17:07:26
+    -rw-rw-rw- 1 shell shell 1107409472 2026-09-15 20:25 Qwen3-1.7B-Q4_K_M.gguf
+    -rw-rw-rw- 1 shell shell       1911 2026-09-16 16:48 penny_system.txt
+    -rw-rw-rw- 1 shell shell         95 2026-09-16 17:05 penny_user.txt
+    -rwxrwxrwx 1 shell shell      13820 2026-09-19 13:52 pennybench.sh
+    -rwxrwxrwx 1 shell shell    3836992 2026-09-18 13:07 pennyload
+    -rw-rw-rw- 1 shell shell   46685237 2026-09-19 13:56 q17_state.bin
+    b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897  Qwen3-1.7B-Q4_K_M.gguf
+    707e0ea3c1cc490187616a67ba0097747c8b8c58fcd2dcf38e1870a31a8f6f4d  q17_state.bin
+    f52fc60411b55e5ed9eb34e8307f32b45d6bed6f06de85a5347bc02ec2f4ffe9  pennyload
+    ddb39f3c68c32f4a8cc30fc4aa0cf6d374b8377e805cf062e0318fdd34a8aa24  pennybench.sh
+    9496977025bffba32886e447cf10ab2281c439dc7c4811124827762fdb730ff4  penny_system.txt
+    b61e0a992e5e8b4cd479c8596c63381b95372ee8b0c3982b895259f9b7a4121b  penny_user.txt
+    rehash_end uptime_s=10425.93 wallclock=17:07:27
+
+**Every hash equals the value recorded at the push (notes.md 14306 onward) and
+in CLAUDE.md's 7a block.** The GGUF still matches MANIFEST.txt's Hugging Face
+LFS value; the state file still matches the 6a's. The three rows ran on the
+files on record.
+
+caffeinate pid 17389 stopped by `kill` at 17:07:34 Mac time, elapsed 02:55:26.
+`pmset -g assertions` afterwards: `PreventSystemSleep 0`,
+`PreventUserIdleSystemSleep 1` (the second held by something other than
+17389, not investigated).
+
+**THE ROW BOOT IS NOW SPENT**: T1, T2, T3, the pulls and this re-hash. The
+phone is left as it is: on the cable, unlocked, screen on. Nothing was deleted.
+
+What this entry does NOT say: "BRIEF T, CLOSED". The closing entry, with the
+scorecard, is the reviewer's to take.
