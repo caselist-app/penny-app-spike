@@ -14865,3 +14865,43 @@ citation after the commit. No prediction, figure or band changes.
 What this entry does NOT say: that every other citation in that entry was
 re-read line by line after this one — they were checked against the grep
 output they came from, not re-opened.
+
+## 2026-09-19 — BRIEF T, AMENDMENT: the reviewer's rulings for the row boot, committed BEFORE the reboot.
+
+Predictions accepted by the reviewer, who opened notes.md 12225, 12236-7, 12487,
+12537 and 14077. GO for the row boot, under these rulings, verbatim in substance:
+
+1. **Tags start `7a_`**; the rule wins over the brief's listed names:
+   `7a_q17_t1_conv_60m`, `7a_q17_t2_b2b`, `7a_q17_t3_recover`. These replace the
+   `q17_7a_…` tags written in the predictions entry (notes.md 14659).
+2. **T2 and T3 run in ONE invocation:** T gate (wait time and failed polls
+   recorded) -> T2 -> ONE ceilings-and-uptime reading (a single read, not a
+   loop) -> T3, no gate. T3's CEILINGS AT LAUNCH is that reading. Afterwards T2
+   is pulled, written up and committed first, then T3, as two commits. No figure
+   for either is quoted until both reports are pulled.
+3. **caffeinate on the Mac** before the reboot, `-i -s`, on AC power, so the Mac
+   cannot sleep for ~3.5 h even with the display asleep and the screen locked;
+   command and PID recorded; killed after T3. Not an adb loop.
+4. **Row-boot hygiene:** after the reboot and the PIN, NOTHING reads the GGUF or
+   `q17_state.bin` before T1 — no sha256sum, no cat. Existence is checked by
+   `ls` only. The ~5 and ~25 minute readings are single wrapped invocations,
+   written into notes.md as taken and committed. No poll loop alive at any gate
+   or during any row.
+5. **adb drop / row dies with the connection:** record what the phone shows
+   afterwards (.report if it exists, uptime, dmesg/logcat access if any), label
+   the row, STOP. No rerun without Matt.
+6. **T-B5:** if T1 meets the Cached limb (fall >= 865,163 kB), T1 is written up in
+   full, T2/T3 do not run, STOP.
+7. **After T1:** full report per the brief's REPORTING section, commit, then
+   straight on to the T2+T3 invocation without waiting for the reviewer. T1 is
+   reported to Matt while T2 runs; NO adb command during T2 or T3.
+
+**Matt is away after the ~5 minute reading.** The PIN is asked for once, right
+after the reboot; nothing else is asked. Anything outside the rulings above:
+record what is seen, commit what exists, STOP. A command that would need a
+permission prompt nobody can answer is not run; it is noted. Each report is
+written into notes.md and committed as it is taken. The final message follows
+T3's commit and the post-T3 re-hash of the GGUF and `q17_state.bin`. **"BRIEF T,
+CLOSED" is NOT written in this session** — it waits for the reviewer.
+
+What this entry does NOT say: that any of it has happened yet.
