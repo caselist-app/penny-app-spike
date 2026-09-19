@@ -14248,3 +14248,57 @@ the part numbers as I know them. MemAvailable and SwapFree here are first
 readings on a hand-set-up bring-up boot, not the ~5 and ~25 minute protocol
 readings, and not a baseline. The screen-on setting is not changed and must be
 decided before any hour-long row.
+
+## 2026-09-19 — BRIEF T, T0 PART TWO (i): "Stay awake" re-read after Matt switched it on; pennybench.sh REVISION 6 — labels read off the phone, one report line added, nothing measured differently. rev 6 sha256 ddb39f3c68c32f4a8cc30fc4aa0cf6d374b8377e805cf062e0318fdd34a8aa24, 13,820 B.
+
+### STAY AWAKE — Matt switched it ON by hand in Developer options; re-read, not set
+
+    stay_on_while_plugged_in=15 screen_off_timeout=30000 wake=mWakefulness=Awake uptime_s=1308.69 wallclock=13:52:22
+
+15 = stay on while plugged into AC, USB or wireless (1+2+4+8 bitmask — as I
+know Android's BatteryManager plug flags, from memory). The same value the 6a
+ran brief S with (notes.md 12030). `screen_off_timeout` is unchanged at 30000;
+with stay-on set, the timeout applies only when unplugged. Neither was set by
+the builder. `adb devices -l` now reports `transport_id:15` where part one's
+read `14`: the USB connection re-enumerated between the two reads, same serial.
+
+### pennybench.sh REVISION 6
+
+Decided by Matt, 19 Sept: labels only; key names (`ceil_x1_kHz`,
+`ceil_a76_kHz`) and the series header STAY as they are. rev 5 on the 7a would
+have printed correct numbers beside the 6a's rated figures (lines 205/207 of
+rev 5, notes.md 14000 onward).
+
+The changes, and nothing else:
+
+1. Header comment naming rev 6.
+2. Six reads before the row: `cpuinfo_max_freq` and `related_cpus` for policy6,
+   policy4 and policy0, into R6/P6, R4/P4, R0/P0, through a helper `rd` that
+   prints `UNREAD` if a read fails or comes back empty — never an empty string.
+3. The two ceiling lines print `cpus $P?` and `rated $R? read from
+   cpuinfo_max_freq` in place of the written-in `cpus 6-7, rated 2802000` and
+   `cpus 4-5, rated 2253000`.
+4. One new report line, straight after the ceiling lines:
+   `PENNYBENCH rated_kHz policy0=<R0> policy4=<R4> policy6=<R6>   (read from cpuinfo_max_freq before the row)`
+
+**One variable name changed from the draft, and why.** The draft's helper held
+its value in `V`. `V` is the poll loop's VmHWM variable, and the series writes
+`${V:--1}`. If the first `/proc/$PID/status` read came back empty, the first
+series line would carry the helper's leftover value in the VmHWM column
+instead of `-1`. The helper now uses `RDV`, which appears nowhere else in the
+file (`grep -nwE 'R0|R4|R6|P0|P4|P6|POL|rd|RDV'` finds only the new lines).
+
+`sh -n pennybench.sh` on the Mac's `/bin/sh`: OK. It is not yet parsed by the
+phone's shell; that happens after the push.
+
+    rev 5  96163d047d7a91cd3f937cba71c4bce9270e6f84afcb4d700fe7a1513e0889af  12,790 B  (git show HEAD:pennybench.sh before this commit)
+    rev 6  ddb39f3c68c32f4a8cc30fc4aa0cf6d374b8377e805cf062e0318fdd34a8aa24  13,820 B
+
+The poll loop, the 0.2 s sleep, the 10 s series, its fourteen columns, the
+files written, the kill grep and every other report line are byte-identical to
+rev 5 (`git diff` shows 3 hunks: 6 comment lines added, 7 lines of reads added,
+2 lines changed, 1 line added).
+
+What this entry does NOT say: that rev 6 has run. It has not been pushed or
+smoke-tested; that is the next step, on this (bring-up) boot. Nothing about the
+phone's shell parsing it is known yet.

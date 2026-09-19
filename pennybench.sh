@@ -11,6 +11,12 @@
 #      happened inside it -- which is the whole question S-B and S-C ask.
 #   2. oom_score_adj of the child, written and then READ BACK. See below.
 #
+# REVISION 6, 19 Sept, for brief T (the Pixel 7a). LABELS ONLY. The rated
+# figure and cpu list printed beside each ceiling were written-in 6a numbers;
+# they are now read off the phone (cpuinfo_max_freq, related_cpus) once, before
+# the row, and printed UNREAD if a read fails. One report line added,
+# rated_kHz. No measurement, poll interval, column, file or key name changed.
+#
 # usage:  pennybench.sh <tag> <taskset-mask|none> -- <llama-bench args...>
 # e.g.    pennybench.sh smoke c0 -- -m /data/local/tmp/model.gguf -t 2 -p 16 -n 16
 
@@ -56,6 +62,13 @@ CEIL4=/sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
 # a row in this repo -- CLAUDE.md names that gap twice. It is carried in the
 # series only; its before/min/after are computable from that file.
 CEIL0=/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
+# Rev 6: rated clock and cpu list per policy, READ, not written in. On the 6a
+# policy6/4 were 2802000/2253000; on the 7a they are 2850000/2348000.
+POL=/sys/devices/system/cpu/cpufreq
+rd() { RDV=$(cat "$1" 2>/dev/null); [ -n "$RDV" ] && echo "$RDV" || echo UNREAD; }
+R6=$(rd $POL/policy6/cpuinfo_max_freq); P6=$(rd $POL/policy6/related_cpus)
+R4=$(rd $POL/policy4/cpuinfo_max_freq); P4=$(rd $POL/policy4/related_cpus)
+R0=$(rd $POL/policy0/cpuinfo_max_freq); P0=$(rd $POL/policy0/related_cpus)
 
 # BATTERY temperature, tenths of a degree C. NOT SoC temperature --
 # /sys/class/thermal/ is Permission denied to the shell user on this build, so
@@ -202,10 +215,11 @@ echo "PENNYBENCH cached_kB       before=$CA_B after=$CA_A"
 echo "PENNYBENCH pswpin          before=$PSI_B after=$PSI_A   (pages read back IN from swap)"
 echo "PENNYBENCH pswpout         before=$PSO_B after=$PSO_A   (pages written OUT to swap)"
 echo "PENNYBENCH pgmajfault      before=$PGM_B after=$PGM_A   (major faults: had to hit storage or swap)"
-echo "PENNYBENCH ceil_x1_kHz     before=$C6_B min=$C6_MIN after=$C6_A   (policy6, cpus 6-7, rated 2802000)"
+echo "PENNYBENCH ceil_x1_kHz     before=$C6_B min=$C6_MIN after=$C6_A   (policy6, cpus $P6, rated $R6 read from cpuinfo_max_freq)"
 echo "PENNYBENCH ceil_x1_min_at  uptime=$C6_MIN_UP   ($((${C6_MIN_UP%.*} - ${UP_B%.*})) s into the row)"
-echo "PENNYBENCH ceil_a76_kHz    before=$C4_B min=$C4_MIN after=$C4_A   (policy4, cpus 4-5, rated 2253000)"
+echo "PENNYBENCH ceil_a76_kHz    before=$C4_B min=$C4_MIN after=$C4_A   (policy4, cpus $P4, rated $R4 read from cpuinfo_max_freq)"
 echo "PENNYBENCH ceil_a76_min_at uptime=$C4_MIN_UP   ($((${C4_MIN_UP%.*} - ${UP_B%.*})) s into the row)"
+echo "PENNYBENCH rated_kHz policy0=$R0 policy4=$R4 policy6=$R6   (read from cpuinfo_max_freq before the row)"
 echo "PENNYBENCH oom_score_adj_child pre=$OOM_PRE post=$OOM_POST   (target $OOM_TARGET; both READ off /proc)"
 echo "PENNYBENCH batt_temp_dC    before=$BT_B after=$BT_A   (BATTERY, tenths of a degree C -- NOT SoC)"
 echo "PENNYBENCH batt_level      before=$BL_B after=$BL_A"
