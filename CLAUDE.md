@@ -131,6 +131,52 @@ Never quote one without its uptime.** The 5-minute mark is not a stable point.
 
 Verify with: `adb shell pm path com.pennyspike.probe2a`.
 
+## LIVE DEVICE STATE — Pixel 7a (from 19 Sept; the Brief T row phone)
+
+Read from the phone on 19 Sept unless marked. Story in notes.md 14000 (T0 part
+one), 14252 (stay awake, rev 6), 14306 (gate, push, smoke tests).
+**Every adb command uses `adb -s 37291JEHN04619`, never bare `adb`.**
+
+    Handset       Pixel 7a (lynx), serial 37291JEHN04619, ro.soc.model GS201
+    GrapheneOS    2026091000, Android 17, build ID CP2A.260705.006, patch 2026-09-01
+    Fingerprint   google/lynx/lynx:17/CP2A.260705.006/2026091000:user/release-keys
+    Bootloader    lynx-17.0-15199429; flash.locked=1, verifiedbootstate=yellow, vbmeta.device_state=locked
+    Kernel        6.1.176-android14-11-gbba346ef9364
+    Boot key      508d75dea10c5cbc3e7632260fc0b59f6055a8a49dd84e693b6d8899edbb01e4 — compared on screen by Matt; not read by the builder
+    OEM unlocking ON per Matt's on-screen reading; not readable from shell (sys.oem_unlock_allowed empty, dumpsys oem_lock empty)
+    Memory        MemTotal 7,640,308 kB; SwapTotal 3,820,148 kB, zram
+    Boot          bring-up boot SPENT (push, smoke a, smoke b; smoke a met the Cached contamination limb). No row boot yet.
+    Stay awake    stay_on_while_plugged_in=15 (set by Matt by hand), screen_off_timeout=30000
+    Charging      no charge-limit settings key; dumpsys battery "Charging policy: 1" (= default, builder's memory)
+    adb shell     oom_score_adj -1000
+    Thermal       /sys/class/thermal Permission denied; battery temp from /sys/class/power_supply/battery/temp only, not SoC
+    Probe app     NOT installed
+    First reads   MemAvailable 2,928,748 kB, SwapFree 1,747,316 kB at uptime 694.52 s, bring-up boot — not a baseline
+
+**7a CPU layout, masks and ceiling paths** (related_cpus and cpuinfo_max_freq, read):
+
+    policy0  cpus 0-3  4x A55  rated 1,803,000 kHz  /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
+    policy4  cpus 4-5  2x A78  rated 2,348,000 kHz  /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
+    policy6  cpus 6-7  2x X1   rated 2,850,000 kHz  /sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq
+    core names  from Arm part numbers 0xd05/0xd41/0xd44, builder's memory, not a checked source
+    masks       c0 = cpus 6-7 (X1 pair)   30 = cpus 4-5 (A78 pair)   f0 = cpus 4-7 (X1+A78)
+    features    asimddp, fphp, asimdhp; NO i8mm, NO sve — armv8.2-a+dotprod+fp16 stays the target
+    row shape   -t 2, mask c0
+    gate        the T gate, notes.md 14306: each policy's scaling_max_freq against its OWN cpuinfo_max_freq. The 6a gate at notes.md 8778 never exits here.
+
+`/data/local/tmp` on the 7a, pushed and hashed 19 Sept (notes.md 14306):
+
+    pennyload               3,836,992 B      sha256 f52fc60411b55e5ed9eb34e8307f32b45d6bed6f06de85a5347bc02ec2f4ffe9  (= build/pennyload-stripped; 0 smmla / 0 SVE / 898 sdot over 735,079 lines)
+    pennybench.sh rev 6     13,820 B         sha256 ddb39f3c68c32f4a8cc30fc4aa0cf6d374b8377e805cf062e0318fdd34a8aa24
+    Qwen3-1.7B-Q4_K_M.gguf  1,107,409,472 B  sha256 b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897  (= MANIFEST.txt's HF-LFS value)
+    penny_system.txt        1,911 B          sha256 9496977025bffba32886e447cf10ab2281c439dc7c4811124827762fdb730ff4
+    penny_user.txt          95 B             sha256 b61e0a992e5e8b4cd479c8596c63381b95372ee8b0c3982b895259f9b7a4121b  (first recorded hash, Mac copy)
+    q17_state.bin           46,685,237 B     sha256 707e0ea3c1cc490187616a67ba0097747c8b8c58fcd2dcf38e1870a31a8f6f4d  (written ON the 7a by smoke a; = the 6a's)
+    token_fnv1a64           0xcba17a2fcbba49f4  (T-A4 reference on the 7a; the same value as the 6a's)
+    out/                    7a_t0_smoke_a.*, 7a_t0_smoke_b.*
+
+Verify with: `adb -s 37291JEHN04619 shell 'pm path com.pennyspike.probe2a'` (expect empty).
+
 ## Mac toolchain
 
 Command-line only — no Android Studio, deliberately (notes.md 277):

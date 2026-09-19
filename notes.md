@@ -14616,3 +14616,42 @@ and state hash say the same bytes come out of both phones for this one prompt;
 they say nothing about output quality. `penny_user.txt`'s identity with the 6a's
 copy is inferred from the fnv matching, not from a recorded hash. Nothing here
 predicts a row; predictions come after review.
+
+## 2026-09-19 — BRIEF T, T0 PART TWO (iii): CLAUDE.md gains a "LIVE DEVICE STATE — Pixel 7a" block; the 6a block is byte-identical. Plus one correction to the entry at notes.md 14306.
+
+A new block, 46 lines, inserted between the 6a's LIVE DEVICE STATE block and
+"## Mac toolchain". It carries the 7a's identity, lock state, build, memory,
+settings as read, the cluster layout with masks and ceiling paths, the T gate's
+location, and the five pushed files plus `q17_state.bin` with every hash full
+on one line. Core names are marked "from Arm part numbers 0xd05/0xd41/0xd44,
+builder's memory, not a checked source"; OEM unlocking is marked "ON per Matt's
+on-screen reading; not readable from shell". Each line's story is in the
+entries at notes.md 14000, 14252 and 14306.
+
+**The 6a block did not change.** Its title line, `grep -c`, and a sha256 over
+the block (title line through the line before the next `## ` heading), before
+and after:
+
+    before  title_count=1  effd849c2f3f0414369b926bf9035cebb6c644c93284b36ce2e99d885d0b619d  79 lines 5,870 B
+    after   title_count=1  effd849c2f3f0414369b926bf9035cebb6c644c93284b36ce2e99d885d0b619d  79 lines 5,870 B
+
+Lines 1-133 of CLAUDE.md (everything above the insertion) hash
+`4cf58af43cbc870f1afe2c02532e2a50880e9ece86f4d490d0b82a93cafc6056` before and
+after, and `git diff CLAUDE.md` shows 46 insertions and 0 deletions.
+
+### CORRECTION to notes.md 14306 (the smoke (a) paragraph)
+
+It says the state file was written by "a different kernel (6.1.176 against
+the 6a's 6.12-series guest-era record; the 6a's host kernel is not in
+CLAUDE.md)". **That sentence mixes two things.** The 6.12.92 kernel in
+CLAUDE.md is the DEBIAN GUEST's kernel inside the Terminal app's VM, not the
+6a's Android kernel, and has nothing to do with where pennyload ran. The 6a's
+Android (host) kernel version is not recorded in CLAUDE.md, and was not read
+this session because the 6a is not attached. **What can be said: the 7a's host
+kernel is 6.1.176-android14-11-gbba346ef9364; the 6a's is not on record here.**
+The finding itself stands: the same state file and fnv came out of GS201 as
+out of the 6a's SoC.
+
+What this entry does NOT say: that the 7a block is complete for the rows —
+the ~5 and ~25 minute protocol readings of the row boot do not exist yet, and
+will be added to the block when they do.
