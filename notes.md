@@ -15012,3 +15012,150 @@ kB.** Two readings on ONE boot; per the reporting rules that is still not
 called a budget. T-B4 (i) is judged in the closing entry, not here.
 
 T1 is next: T gate and launch in one invocation, nothing between.
+
+## 2026-09-19 — BRIEF T, T1 `7a_q17_t1_conv_60m`: the conversational hour on the 7a. rc=0, 60 of 60 turns, fnv_all_equal=1, no kills, all three ceilings at rated in every series sample; X1 poll min 87.96%. Cached ROSE 236,492 kB — the contamination limb is not met.
+
+Figures only; the scoring is in the closing entry, after review. Every figure
+is from `out/7a_q17_t1_conv_60m.report`, `.bench` and `.series`, pulled to the
+Mac with `adb -s 37291JEHN04619 pull` after the row ended (Mac sha256: report
+105d0cb80116c4670d87a515d7305357b232ff2e7a6f3a54fff66d5ba316fc68, bench
+bfea4efc08ab9681d29b8f6b44fff691aabc651b7a346f9f10ef33a20500f448, series
+f2cf9ea57441728e4ab7593a080f26ded68de002a82bbc30cafcded4737c7c99; kills
+empty, e3b0c442…).
+
+Gate and launch in one invocation, the T gate from notes.md 14306 onward:
+
+    GATE FIRST p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 uptime_s=1523.36
+    GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 polls_failed=0 gate_start_uptime_s=1523.36 uptime_s=1523.49 wallclock=14:39:05
+
+`c0`, `-t 2`, `-c 1024`, `-lm none`, `-n 64`, `--load-state q17_state.bin`,
+`--turns 60 --interval-s 60`. AC, screen on, unlocked, Matt away, nothing
+touched, no adb command during the row. The GGUF and `q17_state.bin` were not
+read on this boot before the launch. Ran uptime 1523.75 -> 5072.85 =
+**3,549.10 s = 59.15 min.** The adb shell returned rc=0 at Mac time 15:38:19.
+
+### THE SEVEN LINES
+
+    GATE PASSED        all three at rated, polls_failed=0, uptime 1523.49, 14:39:05
+    rc                 0
+    turns_done         60 of 60, turns_overrun=0
+    oom_score_adj      pre=-1000  post=200
+    kill count         lmk_kill_lines 0, with MemAvailable before the row 3,388,440 kB
+    SwapFree min       1,866,104 kB at uptime 2804.27 = 48.85% of SwapTotal 3,820,152
+    contamination      NOT MET on either limb: Cached 1,909,108 -> 2,145,600 (+236,492 kB, a RISE); SwapFree never below 48.85%
+
+**survived: YES** — rc=0, turns_done 60 = --turns, no kill line at all, `post=200`
+read back. duty 7.46% (busy_median 4,477.14 ms / 60,000).
+
+### SETTLED, verbatim from .bench
+
+    PENNYLOAD turns_done=60 turns_requested=60 turns_overrun=0 fnv_all_equal=1
+    PENNYLOAD first_token_id=32313 token_fnv1a64=0xcba17a2fcbba49f4   (turn 1)
+    PENNYLOAD ttft_turn_ms   min=331.98 median=343.75 max=361.97
+    PENNYLOAD gen_tps        min=14.97 median=15.24 max=15.62
+    PENNYLOAD quarters       n_per_quarter=15  q1=turns 1-15  q4=turns 46-60
+    PENNYLOAD SETTLED ttft_turn_ms q1_median=342.37 q4_median=342.60 decline_pct=0.07   (positive = SLOWER)
+    PENNYLOAD SETTLED gen_tps      q1_median=15.30 q4_median=15.15 decline_pct=0.96   (positive = SLOWER)
+    PENNYLOAD SETTLED gen_tps_turn1=15.62 settled_pct_of_turn1=97.01
+    PENNYLOAD DUTY busy_median_ms=4477.14 interval_ms=60000 duty_pct=7.46
+    PENNYLOAD prefix_snapshot_bytes=46683597 got=46683597 t_snapshot_ms=18.43
+    PENNYLOAD t_ready_ms 3580.68   t_tensor_band_ms 3068.58   t_state_load_ms 70.99   state_tokens_restored=407
+
+`grep -c "fnv=0xcba17a2fcbba49f4"` over the .bench: **60 of 60 turns.**
+The load is the first read of the GGUF since power-on (t_ready 3,580.68 ms);
+it is recorded, not a cold-load row.
+
+### PER-TURN, every 10th plus the first and last five (from .bench)
+
+      k  uptime_s  restore  user_dec   ttft_ms  gen_ms  gen_tps  busy_ms  ovr  fnv
+      1   1527.91   10.95    330.78    342.37 4034.17   15.62  4376.57   0  0xcba17a2fcbba49f4
+      2   1587.91   14.72    317.32    332.22 4129.86   15.25  4462.22   0  0xcba17a2fcbba49f4
+      3   1647.91   20.13    324.81    345.10 4074.94   15.46  4420.25   0  0xcba17a2fcbba49f4
+      4   1707.91   18.02    321.45    339.64 4099.76   15.37  4439.52   0  0xcba17a2fcbba49f4
+      5   1767.91   13.10    328.28    341.56 4071.16   15.47  4412.75   0  0xcba17a2fcbba49f4
+     10   2067.92   12.72    335.50    348.40 4145.55   15.20  4493.99   0  0xcba17a2fcbba49f4
+     20   2667.93    9.92    327.71    337.82 4129.55   15.26  4467.43   0  0xcba17a2fcbba49f4
+     30   3267.94   14.39    323.28    337.85 4128.62   15.26  4466.59   0  0xcba17a2fcbba49f4
+     40   3867.95   19.56    324.01    343.75 4107.22   15.34  4451.10   0  0xcba17a2fcbba49f4
+     50   4467.95   12.09    324.90    337.16 4156.38   15.16  4493.65   0  0xcba17a2fcbba49f4
+     56   4827.96   17.78    324.64    342.59 4149.13   15.18  4491.78   0  0xcba17a2fcbba49f4
+     57   4887.96   13.73    336.39    350.30 4142.69   15.21  4493.11   0  0xcba17a2fcbba49f4
+     58   4947.96   14.60    321.97    336.74 4202.38   14.99  4539.20   0  0xcba17a2fcbba49f4
+     59   5007.96   18.20    330.67    349.05 4172.85   15.10  4522.14   0  0xcba17a2fcbba49f4
+     60   5067.96   12.99    325.91    339.08 4183.54   15.06  4522.72   0  0xcba17a2fcbba49f4
+
+### KILLS
+
+**None.** `.kills` is 0 bytes; `lmk_kill_lines 0`. MemAvailable before the row
+3,388,440 kB (report `before=`), at the gate 1523.75 s on a boot where nothing
+else of ours had run.
+
+### SERIES SUMMARY — 355 samples, one per 10 s of uptime
+
+    column            min          at uptime    max          at uptime
+    MemAvailable_kB   1,862,700    3664.13      3,307,944    1524.48 (model not yet loaded)
+    MemFree_kB          294,000    3964.06      1,890,152    1524.48
+    SwapFree_kB       1,866,104    2804.27      1,889,400    2794.46
+    Cached_kB         1,917,444    1524.48      2,146,656    4644.32
+    VmRSS_kB              9,836    1524.48      1,548,516    5014.03
+    pswpout             495,008    1524.48        500,811    2804.27
+    pgmajfault           17,928    1524.48         23,149    3614.43
+    batt_temp_dC            280    1524.48            330    4894.41
+
+**MemAvailable at T1's midpoint** (turn 30 at uptime 3267.94; nearest series
+line 3264.30, 3.64 s earlier): **1,910,116 kB.** Second-nearest, 3274.20:
+1,900,480 kB.
+
+**MemAvailable at the end of the row: 1,873,472 kB** (last series line,
+5064.26). The last line is NOT a teardown sample: VmRSS 1,548,516 against
+VmHWM 1,548,524.
+
+    last line: 5064.26 2850000 2348000 1803000 1873472 298184 1866104 2145588 1548516 1548524 500811 23149 330 100
+
+### CEILINGS — poll loop AND series, side by side
+
+    X1  (policy6)  poll: before 2,850,000  min 2,507,000 = 87.96% of rated, at uptime 3032.43 (1509 s in)  after 2,850,000
+                   series: 355 of 355 at 2,850,000 = 100.00%
+    A78 (policy4)  poll: before 2,348,000  min 2,348,000 (never moved)  after 2,348,000
+                   series: 355 of 355 = 100.00%
+    A55 (policy0)  series only: 355 of 355 at 1,803,000 = 100.00%
+
+**The series says the X1 pair never left rated; the 0.2 s poll caught it at
+87.96% once, 25 minutes in.** The dip is shorter than 10 s and must travel
+with the 100.00%.
+
+### BATTERY — BATTERY, NOT SoC (/sys/class/thermal is Permission denied)
+
+    start   280 dC  (first series sample, 1524.48; report before=280)
+    min     280 dC  at 1524.48
+    max     330 dC  at 4894.41
+    end     330 dC  (report after=330, at 5072.85)
+    slope   +50 dC over 3548.37 s = +0.0845 C/min
+    dumpsys before [AC powered: true status: 2 level: 100 temperature: 280]
+            after  [AC powered: true status: 5 level: 100 temperature: 330]
+
+`status` changed 2 -> 5 across the row (charging -> full, as I know
+BatteryManager's constants — builder's memory).
+
+### MEMORY AND COUNTERS
+
+    peak_rss_kB     1,548,536 (VmHWM)     max_rssanon_kB 1,543,044 (99.64%)     max_rssfile_kB 5,196
+    memavail_kB     before 3,388,440  after 3,439,488   (after = child exited)
+    memfree_kB      before 1,986,356  after 1,865,068
+    swapfree_kB     before 1,868,920  after 1,866,104
+    cached_kB       before 1,909,108  after 2,145,600   (+236,492)
+    pswpin          before     6,737  after    11,810   (+5,073)
+    pswpout         before   495,008  after   500,811   (+5,803)
+    pgmajfault      before    17,907  after    23,149   (+5,242)
+    ZRAM            450,392K physical used for 1,643,008K in swap (3,820,152K total swap)
+    rss_samples     6,341
+
+### WHAT T1 DOES NOT SAY
+
+One row, once, one boot, one handset. 7.46% duty says nothing about continuous
+use. `survived` is at adj 200 imitating a foreground service, and **nothing was
+killed at all**, so the killer never came near it — "the phone never tried".
+The same 20-token turn sixty times from the same 407-token prefix; nothing
+grows, nothing is judged for quality. Battery temperature is not SoC
+temperature; AC power is not battery. No prediction is scored here. T2 and T3
+follow straight on, in one invocation, per ruling 7 (notes.md 14869).
