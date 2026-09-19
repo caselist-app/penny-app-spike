@@ -1543,6 +1543,33 @@ PARKED, and the work has moved to measuring a model natively on Android.**
   sampled during any of the nine Q-A/Q-B rows either), and **any judgement of
   output quality** — the Q-A/Q-B rows did print text and it is quoted in
   notes.md, but no row's text has been judged.
+- **TTS rung 1 — CLOSED on the 6a, 18 Sept (branch `tts-kokoro`, merged 19
+  Sept).** Kokoro int8 (`penny-kokoro-int8`, sid 22) under sherpa-onnx
+  `sherpa-onnx-offline-tts` `bd7d26e8…`, NDK r30, android-24, a fresh process
+  per line. **Every row ran on spent boot 4, model page-cached; nothing here is
+  a baseline.** Quoted from the write-up at **notes.md 13753** and the A76 row
+  at **notes.md 13870**:
+  RTF **1.067-1.570 on all 41 rows, none under 1.0** — X1 pair 2 threads: 4a
+  1.324-1.401, 4b 1.067-1.373; unpinned 4 threads (4c) 1.174-1.570. Peak RSS
+  283,656-577,488 kB, the top only on line 15 (10.416 s of audio). Derived load,
+  cached (wall minus elapsed, includes process start and WAV write)
+  1,875-2,139 ms. X1 ceiling fell to 2,048,000 kHz, 73.09% of rated, inside
+  4b. Sample counts within 3.625 ms of the Mac's. **P-T5 HELD; P-T2, P-T3,
+  P-T4 MISSED; P-T1 NOT JUDGED.** Product assumption: 2 threads pinned to the
+  X1 pair (4c's 4 threads unpinned was slower on 18 of 18 lines, but ran after
+  4b with its X1 ceiling lower — not controlled for heat).
+  A76 pair, 2 threads (row a2): RTF **1.822-2.523, 7 of 18 lines above 2.0 —
+  P-T6 MISSED**; neither ceiling moved; 18-line elapsed sum 143,543 ms against
+  4b's 85,431 ms (ratio 1.680); derived load 3,137-3,279 ms.
+  **NOT measured:** load from flash, resident RSS (rung 2), TTS beside the LLM
+  (rung 3), the app / AudioTrack / time-to-first-audio (rung 4), a fresh boot,
+  `policy0` during a row, pronunciation, the 7a.
+  The twelve entries sit at notes.md 12868-13943, moved verbatim from
+  `notes-tts.md` (now removed). **References inside them of the form
+  `notes-tts.md:N` mean notes.md line N+12859.** `pennytts.sh` is at the repo
+  root. On the 6a, `/data/local/tmp/tts/` still holds the binary,
+  `libonnxruntime.so`, `penny-kokoro-int8/`, `pennytts.sh` and `out/`, left as
+  they were.
 
 **A rebuild now COSTS something again.** `penny3ev`'s store holds a verified
 64MB file and a reinstall strands it — and worse, `Penny3evService`'s recovery
