@@ -14854,3 +14854,14 @@ inputs are from a spent boot that met the Cached limb. The T-B4 point rests on
 two spent-boot readings, one taken after a model run. T-A5 and D-T7 have no 6a
 data behind them at all. Two open items for the reviewer are named above: T2+T3
 in one invocation, and the tag prefix.
+
+## 2026-09-19 — CORRECTION to the BRIEF T PREDICTIONS entry (notes.md 14659): one wrong line citation.
+
+The ROW SHAPE paragraph cites the policy6 reading (`related_cpus=[6 7]`,
+`cpuinfo_max_freq=[2850000]`) as **notes.md 14075. That line is policy0.** The
+policy6 line is **notes.md 14077**. Found by the builder re-checking the
+citation after the commit. No prediction, figure or band changes.
+
+What this entry does NOT say: that every other citation in that entry was
+re-read line by line after this one — they were checked against the grep
+output they came from, not re-opened.
