@@ -14655,3 +14655,202 @@ out of the 6a's SoC.
 What this entry does NOT say: that the 7a block is complete for the rows —
 the ~5 and ~25 minute protocol readings of the row boot do not exist yet, and
 will be added to the block when they do.
+
+## 2026-09-19 — BRIEF T, PREDICTIONS, written before the row boot, before any row, and before any reboot. Point + band for every question, arithmetic shown, each input named as a 6a figure (with its notes.md line) or a 7a first reading from the spent bring-up boot (with its line).
+
+Every 6a figure below is a PREDICTION for the 7a, never a baseline. The only
+arithmetic inputs I allow myself beyond the 6a record are RAM (MemTotal) and
+the cluster ceilings; where a 7a first reading from today is used, it is from
+the SPENT bring-up boot (push, two smoke runs, one run that met the Cached
+limb) and is labelled so.
+
+### ROW SHAPE AND GATE, restated
+
+**`-t 2`, mask `c0` = cpus 6-7 = policy6, `related_cpus=[6 7]`,
+`cpuinfo_max_freq=[2850000]`** (notes.md 14075), one thread per core of the
+X1 pair — the same shape as every brief S row. `-c 1024 -lm none -n 64`,
+greedy, no template, `--user-file /data/local/tmp/penny_user.txt
+--load-state /data/local/tmp/q17_state.bin`.
+
+The T gate, copied from notes.md 14306 onward, one line from the Mac, with
+`<tag>` and `<args>` filled per row:
+
+    adb -s 37291JEHN04619 shell 'cd /data/local/tmp; P=/sys/devices/system/cpu/cpufreq; g0=$(cut -d" " -f1 /proc/uptime); n=0; while :; do s0=$(cat $P/policy0/scaling_max_freq); r0=$(cat $P/policy0/cpuinfo_max_freq); s4=$(cat $P/policy4/scaling_max_freq); r4=$(cat $P/policy4/cpuinfo_max_freq); s6=$(cat $P/policy6/scaling_max_freq); r6=$(cat $P/policy6/cpuinfo_max_freq); [ $n = 0 ] && echo "GATE FIRST p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 uptime_s=$g0"; [ -n "$r0" ] && [ -n "$r4" ] && [ -n "$r6" ] && [ "$s0" = "$r0" ] && [ "$s4" = "$r4" ] && [ "$s6" = "$r6" ] && break; n=$((n+1)); sleep 5; done; echo "GATE PASSED p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 polls_failed=$n gate_start_uptime_s=$g0 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"; PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh <tag> c0 -- <args>'
+
+Row args:
+
+    T1  <tag>=q17_7a_t1_conv_60m  <args>=-m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t 2 -c 1024 -lm none -n 64 --user-file /data/local/tmp/penny_user.txt --load-state /data/local/tmp/q17_state.bin --turns 60 --interval-s 60 --tag q17_7a_t1_conv_60m
+    T2  <tag>=q17_7a_t2_b2b       same, --turns 200 --interval-s 0 --tag q17_7a_t2_b2b
+    T3  <tag>=q17_7a_t3_recover   same as T1, --tag q17_7a_t3_recover — NOT gated
+
+T3 replaces the loop with a single read, the brief's CEILINGS AT LAUNCH:
+
+    s0=...; r0=...; s4=...; r4=...; s6=...; r6=...; echo "CEILINGS AT LAUNCH p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 uptime_s=... wallclock=..."; PENNYBIN=... ./pennybench.sh q17_7a_t3_recover c0 -- <T1 args, T3 tag>
+
+**Proposed, for the reviewer: T2 and T3 run in ONE invocation** — gate; T2;
+CEILINGS AT LAUNCH; T3 — so the gap between them is seconds and nothing of
+mine sits between. That means T2's write-up is committed while T3 runs or after
+it, not before T3 starts. The brief's "append and commit each row before the
+next" and "T3 straight after T2 with NO cooling gate" cannot both hold for this
+one pair; I would keep the second. Not adopted until the reviewer says so.
+
+**Tag names, for the reviewer:** the brief lists `q17_7a_t1_conv_60m` etc.
+and also says "every row tag starts 7a_". The listed tags start `q17_7a_`.
+Used as listed above unless told otherwise.
+
+### THE ROW-BOOT TIMELINE
+
+    reboot                   Matt's action, command given first; adb is charging-only until Matt types the PIN
+    ~5 min reading           one invocation: uptime, wallclock, meminfo, three ceilings, battery sysfs+dumpsys, stay_on, wakefulness
+    ~25 min reading          same, written into notes.md as taken
+    gate + T1                starts ~26 min, runs ~60 min
+    T1 appended + committed  a few minutes, phone idle, nothing polled
+    gate (wait recorded) + T2  ~26 min if it behaves like S2
+    T3 immediately           ~60 min
+    TOTAL                    ~25 + 60 + ~5 + ~2 + 26 + 60 = ~178 min, i.e. ~3 hours, not 2.5
+
+The phone stays on the cable, unlocked, screen on (stay awake 15), untouched.
+**Before T1 launches: NO push, NO sha256sum, NO `cat`, `ls` or any other read
+of the GGUF or `q17_state.bin`** (decided by the reviewer, 19 Sept). The
+~5/~25 minute readings touch only /proc, /sys and settings. Today's hashes
+stand; re-hash only after T3's report is written.
+
+One risk named, not mitigated: the row runs inside an `adb shell` held open
+from the Mac. If the USB link drops, the row may die with it. That is recorded
+as what it is if it happens, not retried silently.
+
+### T-A — SETTLE OR FALL
+
+**T-A1 — T1 ttft_turn settled decline (q4 median vs q1 median).** Fail > 25%.
+Input: 6a S1 **-0.44%** (notes.md 12236). No arithmetic moves it: RAM and
+ceilings do not predict a slope, and the 6a's gap between turns restored the
+X1 ceiling every time (notes.md 12774-12784).
+**Point -0.44%, band -5% to +5%.**
+
+**T-A2 — T1 gen_tps settled decline.** Fail > 25%. Input: 6a S1 **-0.20%**
+(notes.md 12237). **Point -0.20%, band -5% to +5%.**
+
+**T-A3 — T2 settled gen_tps / turn 1.** Fail < 50%. Input: 6a S2 **54.77%**
+(notes.md 12440, 12487). Ceiling arithmetic does not give a throttle depth: the
+X1 rated clock is 2,850,000 against 2,802,000 (+1.71%), which says nothing
+about where the limiter settles. **Point 54.77%, band 45% to 70%.** **The point
+sits 4.77 points above the fail line**, and the smoke runs on the 7a dropped
+the X1 ceiling to 87.96% within 5 s and 79.02% within 17 s (notes.md 14448,
+14527) — the 6a's S0 did 73.1% at 7 s (notes.md 12079 onward). Two short
+readings on each phone say nothing about 26 minutes. **A T-A3 fail is a
+plausible outcome and would be reported as one.**
+
+**T-A4 — fnv_all_equal on every row, at 0xcba17a2fcbba49f4.** Input: the 7a's
+own smoke (a) and (b) (notes.md 14306 onward), identical to the 6a's
+reference. **Point: 1 on T1, T2 and T3, all at 0xcba17a2fcbba49f4.** Any 0
+fails.
+
+**T-A5 — T3's settled gen_tps as a fraction of T1's settled gen_tps.** The
+brief's prediction is >= 95%. No 6a input exists: S3 was never run (notes.md
+12862). Reasoning, not arithmetic: T3's settled figure is the median of turns
+46-60, 45 minutes after T2 ended, at ~7.4% duty. The 6a's only recovery data
+are 109.8 s after a 65 s load (16 Sept) and "within 886.40 s" after S2
+(notes.md 12632-12634); the battery went 40.7 C -> 31.7 C in ~16 min at idle
+(notes.md 12636). By minute 45 the heat of T2 should be gone.
+**Point 99%, band 95% to 101%.** The brief sets no fail condition; below 95% is
+reported as a MISS of the prediction.
+
+Derived, committed alongside, no fail conditions:
+
+    D-T1  T1 ttft_turn, turn 1        point 380 ms     band 330-450 ms   6a S1 380.40 ms (notes.md 12249); 7a smoke (b) 356.32-401.87 (notes.md 14551 on, spent boot)
+    D-T2  T1 gen_tps, turn 1          point 15.4 t/s   band 14.0-16.5    7a smoke (b) median 15.40 (notes.md 14575, spent boot); 6a S1 turn 1 15.17 (notes.md 12249)
+    D-T3  T1 duty                     point 7.4%       band 6.5-8.5%     7a smoke (b) busy_median 4,447.93 ms / 60,000 = 7.41%; 6a S1 7.84%
+    D-T4  T2 turn-1 gen_tps           point 15.4 t/s   band 14.0-16.5    as D-T2
+    D-T5  T2 settled gen_tps          point 8.43 t/s   band 6.9-10.8     54.77% x 15.4 = 8.43; band = T-A3 band x 15.4
+    D-T6  T2 duration                 point 26 min     band 20-32 min    6a S2 26.03 min (notes.md 12415); no arithmetic moves it
+    D-T7  T3 turn-1 gen_tps / T1 turn-1   point 60%    band 50-95%       T3 starts at T2's end state; 6a S2's last turns ran at ~55% of turn 1 (notes.md 12487), and 55 s of idle before turn 2 begins recovery
+    D-T8  gate wait before T2         point 0 failed polls   band 0-12 polls (<= 60 s)   6a S1 ended with the X1 ceiling at rated (notes.md 12774-12784); at 7.4% duty T1 should end at rated
+
+### T-B — MEMORY AND SURVIVAL
+
+**T-B1 — T1 survives at adj 200** (rc=0, turns_done 60, no kill naming
+pennyload, `oom_score_adj_child post=200`). Input: 6a S1 survived, and the
+killer went no deeper than adj 935 (notes.md 12754-12767). **Point: survives.**
+It will again say nothing about pressure unless the killer comes near 200.
+
+**T-B2 — kills continuing past minute 5 of T1 fails.** Input: 6a S1 killed two
+processes at adj 945/935 in the first four seconds, with MemAvailable before
+2,332,040 kB, and nothing after (notes.md 12744-12747). The 7a has 1,922,028 kB
+more MemTotal. **Point: 0 kills past minute 5; kills at model load 0 processes,
+band 0-2.**
+
+**T-B3 — SwapFree minimum through T1.** Fail and void below 10% of SwapTotal
+= 382,015 kB (3,820,148 x 0.10). Inputs: 6a S1 fell only 44,032 kB from start to
+minimum (667,132 -> 623,100, notes.md 12301); 7a first readings 1,747,316 kB at
+694.52 s (notes.md 14069, spent boot) and 1,679,024 kB at the end of smoke (a)
+(notes.md 14443, spent boot). Arithmetic: ~1,700,000 start - ~80,000 =
+**Point 1,620,000 kB (42.4% of SwapTotal), band 1,000,000-2,000,000 kB.**
+
+**T-B4 — MemAvailable (i) at the ~25 minute reading, (ii) with the model
+resident at T1's midpoint.**
+6a arithmetic: the five-boot ~25-minute range 2,135,144-2,284,200 kB (CLAUDE.md
+127) plus all 1,922,028 kB of the extra MemTotal gives 4,057,172-4,206,228 kB.
+That is an UPPER bound: it assumes the OS takes none of the extra RAM.
+7a spent-boot readings: 2,869,064 kB at 1553.34 s (notes.md 14441) and
+3,092,172 kB at 1589.80 s (notes.md 14520) — the second is 26.5 min, i.e. at
+the ~25-minute mark, but after a push and a model run. Mean 2,980,618.
+**(i) Point 3,000,000 kB, from the 7a spent-boot readings, band 2,500,000 -
+3,600,000 kB.** The 6a arithmetic is ~1.1 GB higher than the 7a has read, so the
+point is NOT taken from it: the 7a's OS evidently keeps a share of the extra RAM.
+**(ii)** 6a S1 fell 2,332,040 -> 932,128 kB (notes.md 12368, 12316), -1,399,912
+kB with the model resident, flat after load (VmRSS moved 2,756 kB in the hour,
+notes.md 12739-12741). 3,000,000 - 1,400,000 = **point 1,600,000 kB at T1's
+midpoint, band 1,100,000-2,200,000 kB.** The midpoint is read from T1's
+.series line nearest turn 30.
+
+**T-B5 — change in cached_kB across T1, before -> after, from the report.**
+Inputs: 6a S1 **-190,344 kB** (1,230,620 -> 1,040,276, notes.md 12225); 6a
+S0, the first load of the GGUF after a reboot, **+37,904 kB** (1,126,228 ->
+1,164,132, notes.md 12113); 7a smoke (a) -1,160,312 kB (notes.md 14444) on a
+boot where the GGUF had just been pushed and sat in the page cache — **not
+explained**, and not used as an input for a fresh boot. On the row boot nothing
+reads the GGUF before T1, so T1's load is its first read since power-on, as
+S0's was on the 6a. **Point -190,344 kB (the 6a S1 figure), band -600,000 to
++200,000 kB.**
+**THE VOID CONSEQUENCE, stated before the row.** The rule stays exactly as
+written. A fall within 20% of the model's 1,081,454 kB is a fall of 865,163 to
+1,297,745 kB; **I read a fall LARGER than 1,297,745 as also meeting the limb**
+("roughly the model size" or more), so the threshold is **any fall of 865,163
+kB or more.** If it is met: T1 is still written up and committed in full,
+labelled as having met the limb; **T2 and T3 do NOT run on that boot; I stop
+for Matt.**
+
+**T-B6 — pswpin and pgmajfault deltas across T1.** No fail condition; a
+recorded reading, because 87,709 swap-ins and 88,047 major faults appeared
+between the two smoke runs with nothing of ours running (notes.md 14306
+onward). 6a S1 reference: pswpin +20,768 (110,201 -> 130,969), pgmajfault
++21,192 (123,500 -> 144,692) (notes.md 12368-12375). **Point +20,768 / +21,192,
+band 0-120,000 each** — the band is wide because the 7a has already shown an
+88,000 delta with nothing running.
+
+### T-C — CLOCKS AND HEAT
+
+**T-C1 — fraction of T1's series at rated, X1, with the 0.2 s poll minimum
+beside it.** Input: 6a S1 series 100.00% (355 of 355), poll min 65.17% of
+rated (notes.md 12774-12776). **Point: series 100%, band >= 95%; poll min 65%
+of 2,850,000 = 1,852,500 kHz, band 45%-90%.** The series fraction is a fact
+about the 10 s sampling rate, and is never quoted without the poll min.
+
+**T-C2 — battery temperature start/max/end/slope, T1, T2, T3.** No
+prediction. BATTERY, not SoC: `/sys/class/thermal` is Permission denied on the
+7a (notes.md 14000 onward).
+
+**T-C3 — does policy0 (A55) throttle in T2?** Input: 6a S2 series min 738,000
+= 40.93% of 1,803,000, 42 of 157 samples at rated = 26.75% (notes.md 12537).
+policy0's rated clock is the same 1,803,000 on the 7a.
+**Point: YES, series min 40.93% (738,000 kHz), band 25%-80%; fraction at
+rated 26.75%, band 10%-60%.** Alongside, not scored: X1 series min in T2 point
+35% of 2,850,000 (6a 35.12%, notes.md 12535).
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+These are predictions. Nothing here has been measured on a row boot; the 7a
+inputs are from a spent boot that met the Cached limb. The T-B4 point rests on
+two spent-boot readings, one taken after a model run. T-A5 and D-T7 have no 6a
+data behind them at all. Two open items for the reviewer are named above: T2+T3
+in one invocation, and the tag prefix.
