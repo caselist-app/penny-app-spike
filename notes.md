@@ -14302,3 +14302,317 @@ rev 5 (`git diff` shows 3 hunks: 6 comment lines added, 7 lines of reads added,
 What this entry does NOT say: that rev 6 has run. It has not been pushed or
 smoke-tested; that is the next step, on this (bring-up) boot. Nothing about the
 phone's shell parsing it is known yet.
+
+## 2026-09-19 — BRIEF T, T0 PART TWO (ii): THE T GATE, written before its first use; the binary check and the push; thread count and mask. Smoke tests follow in this same entry as they are taken.
+
+### THE T GATE — no written-in frequency anywhere in it
+
+The brief S gate (notes.md 8778-8781) compared policy6 with `2802000` and
+policy4 with `2253000` and never looked at policy0. On the 7a it would never
+exit. The T gate compares **each policy's `scaling_max_freq` with that same
+policy's `cpuinfo_max_freq`**, for policy0, policy4 AND policy6, polls every
+5 s until all three match, and launches the row in the same invocation. It
+refuses to pass if any `cpuinfo_max_freq` reads empty (an unreadable file
+would otherwise compare "" = "" and pass). The first poll's values are printed
+whatever happens, and the pass line carries the values from the poll that
+passed, the number of failed polls, and the uptime at gate start and at pass
+— so the time a gate took (needed for T2) is a reading.
+
+Run from the Mac, the WHOLE remote command in ONE single-quoted string, on one
+line. Shown here wrapped for reading only:
+
+    adb -s 37291JEHN04619 shell 'cd /data/local/tmp; P=/sys/devices/system/cpu/cpufreq;
+      g0=$(cut -d" " -f1 /proc/uptime); n=0;
+      while :; do
+        s0=$(cat $P/policy0/scaling_max_freq); r0=$(cat $P/policy0/cpuinfo_max_freq);
+        s4=$(cat $P/policy4/scaling_max_freq); r4=$(cat $P/policy4/cpuinfo_max_freq);
+        s6=$(cat $P/policy6/scaling_max_freq); r6=$(cat $P/policy6/cpuinfo_max_freq);
+        [ $n = 0 ] && echo "GATE FIRST p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 uptime_s=$g0";
+        [ -n "$r0" ] && [ -n "$r4" ] && [ -n "$r6" ] && [ "$s0" = "$r0" ] && [ "$s4" = "$r4" ] && [ "$s6" = "$r6" ] && break;
+        n=$((n+1)); sleep 5;
+      done;
+      echo "GATE PASSED p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 polls_failed=$n gate_start_uptime_s=$g0 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)";
+      PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh <tag> c0 -- <pennyload args>'
+
+Each `pN=` prints `scaling_max_freq/cpuinfo_max_freq` as read. For T3, which
+is NOT gated, the same line without the loop is used to record CEILINGS AT
+LAUNCH. The dry run replaces the last line with an `echo`; nothing else
+differs.
+
+### THE BINARY — unchanged, hash matches, three counts re-run
+
+Mac, `shasum -a 256 build/pennyload*`:
+
+    eb0dff73e57705276a8c7e72084e16ff37bf54ddff585901359b999710686a66  build/pennyload            (unstripped, not pushed)
+    f52fc60411b55e5ed9eb34e8307f32b45d6bed6f06de85a5347bc02ec2f4ffe9  build/pennyload-stripped   3,836,992 B, mtime 18 Sep 13:07
+
+`f52fc604…` is the value the brief expects and CLAUDE.md records. **No rebuild.**
+
+Three-count disassembly, NDK 30.0.16248370's
+`toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objdump -d
+build/pennyload-stripped`, counted on the mnemonic column:
+
+    lines   = 735079
+    i8mm    = 0     grep -cE '\t(smmla|ummla|usmmla)[ \t]'
+    sve_sme = 0     grep -cE '\t(ptrue|whilelo|smstart|smstop)([ \t]|$)|[ ,{]z[0-9]+\.'
+    dotprod = 898   grep -cE '\t(sdot|udot)[ \t]'
+
+**0 / 0 / 898 over 735,079 lines**, the same four figures as notes.md 11962
+onward records for this binary. Against the 7a's `Features` line (no i8mm, no
+sve; asimddp present — notes.md 14000 onward): nothing in the binary needs an
+extension this phone lacks, and the dotprod kernels are compiled in. 898 says
+they are present, not that they execute.
+
+### THE PUSH — five files, each hashed on the phone against the Mac
+
+`adb -s 37291JEHN04619 push`, one file each, from the Mac:
+
+    build/pennyload-stripped -> /data/local/tmp/pennyload             3836992 bytes in 0.026s
+    pennybench.sh (rev 6)    -> /data/local/tmp/pennybench.sh         13820 bytes
+    prompts/penny_system.txt -> /data/local/tmp/penny_system.txt      1911 bytes
+    prompts/penny_user.txt   -> /data/local/tmp/penny_user.txt        95 bytes
+    ~/Documents/penny-models/Qwen3-1.7B-Q4_K_M.gguf -> /data/local/tmp/  1107409472 bytes in 33.765s
+
+`/data/local/tmp` was EMPTY before the push (`ls -la` showed `.` and `..`
+only). On the phone, one invocation:
+
+    -rw-rw-rw- 1 shell shell 1107409472 2026-09-15 20:25 Qwen3-1.7B-Q4_K_M.gguf
+    -rw-rw-rw- 1 shell shell       1911 2026-09-16 16:48 penny_system.txt
+    -rw-rw-rw- 1 shell shell         95 2026-09-16 17:05 penny_user.txt
+    -rwxrwxrwx 1 shell shell      13820 2026-09-19 13:52 pennybench.sh
+    -rwxrwxrwx 1 shell shell    3836992 2026-09-18 13:07 pennyload
+    f52fc60411b55e5ed9eb34e8307f32b45d6bed6f06de85a5347bc02ec2f4ffe9  pennyload
+    ddb39f3c68c32f4a8cc30fc4aa0cf6d374b8377e805cf062e0318fdd34a8aa24  pennybench.sh
+    9496977025bffba32886e447cf10ab2281c439dc7c4811124827762fdb730ff4  penny_system.txt
+    b61e0a992e5e8b4cd479c8596c63381b95372ee8b0c3982b895259f9b7a4121b  penny_user.txt
+    b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897  Qwen3-1.7B-Q4_K_M.gguf
+    phone sh -n OK
+    uptime_s=1471.08 wallclock=13:55:04
+
+**All five match the Mac's `shasum -a 256`.** The GGUF matches MANIFEST.txt's
+line `unsloth/Qwen3-1.7B-GGUF Qwen3-1.7B-Q4_K_M.gguf 1107409472
+b139949c… VERIFIED vs HF LFS oid` — i.e. Hugging Face's published LFS hash.
+`penny_system.txt` matches CLAUDE.md's recorded 9496977…. **`penny_user.txt`
+has NO hash on record anywhere** (CLAUDE.md: "hash not on record"); `b61e0a99…`,
+95 B, is its first recorded hash, taken from the Mac's copy. Whether it is
+byte-identical to the file the 6a used is not established by a hash — the
+smoke (a) fnv is the check that would show a difference. rev 6 is parsed
+without error by the phone's own `sh -n`. File mtimes on the phone are the
+Mac's (adb push preserves the source mtime) and date nothing on the phone.
+
+### THREAD COUNT AND MASK, stated before any run
+
+    policy6 related_cpus=[6 7]   cpuinfo_max_freq=[2850000]   CPU part 0xd44
+    policy4 related_cpus=[4 5]   cpuinfo_max_freq=[2348000]   CPU part 0xd41
+    policy0 related_cpus=[0 1 2 3] cpuinfo_max_freq=[1803000] CPU part 0xd05
+
+**`-t 2`, mask `c0` (binary 1100 0000 = cpus 6 and 7) = policy6, the pair with
+the highest rated clock.** The reason: one thread per core of the big pair, the
+same shape as every brief S row (`c0`, `-t 2` on the 6a's X1 pair), so the
+only change between the phones is the silicon. `c0` means cpus 6-7 on both
+phones because the related_cpus ranges are the same. `f0` (4 threads across
+X1+A78) is not used: it would change two variables at once.
+
+### GATE DRY RUN — one invocation, the gate exactly as above with the launch replaced by an echo
+
+    GATE FIRST p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 uptime_s=1534.11
+    GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 polls_failed=0 gate_start_uptime_s=1534.11 uptime_s=1534.29 wallclock=13:56:08
+    DRYRUN would launch: PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh <tag> c0 -- <args>
+
+The quoting survives `adb shell`, all six files read, and the pass path works.
+**The BLOCKING path — a policy below rated, the loop sleeping and re-polling —
+has NOT been exercised**: this dry run and both smoke tests passed on the first
+poll. It will first be exercised for real by the gate before T2.
+
+### SMOKE (a) — `7a_t0_smoke_a`, single-turn identity row: fresh + `--save-state`. NOT A RESULT ROW.
+
+Gated and launched in one invocation. `c0`, `-t 2`, `-c 1024`, `-lm none`,
+`-n 64`, `--print`, `--sys-file`, `--user-file`, `--save-state
+/data/local/tmp/q17_state.bin`. **The model was page-cached by the push ~2 min
+earlier, so this is NOT a cold load**; nothing below is a load-time figure.
+AC powered, screen on (stay awake 15), unlocked.
+
+    GATE FIRST p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 uptime_s=1552.88
+    GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 polls_failed=0 gate_start_uptime_s=1552.88 uptime_s=1553.01 wallclock=13:56:26
+    PENNYBENCH tag=7a_t0_smoke_a rc=0 mask=c0
+    PENNYBENCH bin=/data/local/tmp/pennyload
+    PENNYBENCH args=-m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t 2 -c 1024 -lm none -n 64 --print --sys-file /data/local/tmp/penny_system.txt --user-file /data/local/tmp/penny_user.txt --save-state /data/local/tmp/q17_state.bin --tag 7a_t0_smoke_a
+    PENNYBENCH uptime_s        before=1553.34 after=1567.38
+    PENNYBENCH memavail_kB     before=2869064 after=3147184
+    PENNYBENCH memfree_kB      before=211764 after=1766608
+    PENNYBENCH swapfree_kB     before=1746096 after=1679024
+    PENNYBENCH cached_kB       before=3114692 after=1954380
+    PENNYBENCH pswpin          before=22877 after=22877   (pages read back IN from swap)
+    PENNYBENCH pswpout         before=553842 after=570588   (pages written OUT to swap)
+    PENNYBENCH pgmajfault      before=33939 after=33963   (major faults: had to hit storage or swap)
+    PENNYBENCH ceil_x1_kHz     before=2850000 min=2507000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+    PENNYBENCH ceil_x1_min_at  uptime=1558.95   (5 s into the row)
+    PENNYBENCH ceil_a76_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq)
+    PENNYBENCH ceil_a76_min_at uptime=1553.34   (0 s into the row)
+    PENNYBENCH rated_kHz policy0=1803000 policy4=2348000 policy6=2850000   (read from cpuinfo_max_freq before the row)
+    PENNYBENCH oom_score_adj_child pre=-1000 post=200   (target 200; both READ off /proc)
+    PENNYBENCH batt_temp_dC    before=306 after=305   (BATTERY, tenths of a degree C -- NOT SoC)
+    PENNYBENCH batt_level      before=92 after=92
+    PENNYBENCH batt_dumpsys    before=[ AC powered: true status: 2 level: 92 temperature: 306 ] after=[ AC powered: true status: 2 level: 92 temperature: 306 ]   (cross-check on the sysfs figures)
+    PENNYBENCH series_file     /data/local/tmp/out/7a_t0_smoke_a.series   (2 samples, one per 10 s of uptime)
+    PENNYBENCH peak_rss_kB     1540784   (VmHWM, monotonic)
+    PENNYBENCH max_vmrss_kB    1540776
+    PENNYBENCH max_rssanon_kB  1535516   (anonymous -- NOT reclaimable)
+    PENNYBENCH max_rssfile_kB  4976   (file-backed -- reclaimable)
+    PENNYBENCH rss_samples     25   (sleep 0.2 s between samples; achieved rate is lower)
+    PENNYBENCH lmk_kill_lines  0
+         ZRAM:   484,124K physical used for 1,780,676K in swap (3,820,148K total swap)
+    series (whole file):
+    uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level
+    1554.10 2850000 2348000 1803000 2872876 361656 1746096 2984460 10132 10132 553842 33952 306 92
+    1564.04 2630000 2348000 1803000 1629232 249220 1679024 1954220 1540412 1540412 570588 33962 306 92
+    PENNYLOAD tag=7a_t0_smoke_a run_type=fresh+save rc=0
+    PENNYLOAD threads=2 n_ctx=1024 n_batch=2048 n_ubatch=512 n_gpu_layers=99
+    PENNYLOAD load_mode=none extra_bufts=1 sampler=greedy
+    PENNYLOAD sys_file=/data/local/tmp/penny_system.txt sys_bytes=1911 sys_tokens=407 sys_add_special=1 sys_parse_special=1
+    PENNYLOAD user_file=/data/local/tmp/penny_user.txt user_bytes=95 user_tokens=20 user_add_special=0 user_parse_special=1
+    PENNYLOAD progress_calls=312
+    PENNYLOAD t_model_total_ms  3004.77   t_ctx_create_ms 43.44   t_ready_ms 3050.57   (page-cached, NOT cold)
+    PENNYLOAD t_sys_decode_ms   5674.37   (T9a-T6, system-prompt llama_decode)
+    PENNYLOAD t_state_save_ms   19.27   (T8-T9a) == B4
+    PENNYLOAD state_file=/data/local/tmp/q17_state.bin state_bytes=46685237 state_tokens_saved=407
+    PENNYLOAD t_user_decode_ms  354.21   t_sample_ms 0.78
+    PENNYLOAD gen_tokens=64 gen_ms=4083.85 gen_tps=15.43
+    PENNYLOAD first_token_id=32313
+    PENNYLOAD token_fnv1a64=0xcba17a2fcbba49f4
+    --- text ---
+    Okay, the user is asking about the capital of Australia, the population, and the founding date. I need to answer these directly. The capital is Canberra. The population is around 4 million. The founding date is 1901. I should provide these answers without routing.
+    The capital of Australia is Canberra
+    kill lines: none
+
+State file, hashed on the phone after `sync`:
+
+    -rw-rw-rw- 1 shell shell 46685237 2026-09-19 13:56 q17_state.bin
+    707e0ea3c1cc490187616a67ba0097747c8b8c58fcd2dcf38e1870a31a8f6f4d  q17_state.bin
+    uptime_s=1577.20 wallclock=13:56:51
+
+**BOTH IDENTITY CHECKS MATCH THE 6a.** `token_fnv1a64=0xcba17a2fcbba49f4`, the
+6a's reference (notes.md 12639 onward), and `q17_state.bin` is
+`707e0ea3…`, 46,685,237 B — **byte-for-byte the 6a's state file**, written
+here by a different SoC (GS201 against Tensor G1), a different kernel
+(6.1.176 against the 6a's 6.12-series guest-era record; the 6a's host kernel is
+not in CLAUDE.md) and a different GrapheneOS build. So the same 407-token
+prefix decodes to the same KV state and the same 64 tokens on both phones.
+**The T-A4 reference for the 7a is therefore the same value, 0xcba17a2fcbba49f4.**
+The text is the same text S0 printed, with the same two wrong facts.
+
+**SMOKE (a) MEETS THE `Cached` LIMB OF THE CONTAMINATION RULE.** `Cached` fell
+3,114,692 -> 1,954,380 kB, **-1,160,312 kB**, against a model of 1,081,454 kB
+(1,107,409,472 B). On the 6a's S0 `Cached` ROSE (1,126,228 -> 1,164,132).
+**No cause is claimed.** The page cache here held the freshly pushed GGUF;
+MemFree rose 211,764 -> 1,766,608 across the same run. The boot is a bring-up
+boot and is spent in any case; no row runs on it. SwapFree minimum 1,679,024 kB
+= 43.95% of SwapTotal, so the SwapFree limb is not met.
+
+### SMOKE (b) — `7a_t0_smoke_b`, `--load-state q17_state.bin --turns 3 --interval-s 5` through rev 6. NOT A RESULT ROW.
+
+    GATE FIRST p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 uptime_s=1589.31
+    GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 polls_failed=0 gate_start_uptime_s=1589.31 uptime_s=1589.49 wallclock=13:57:03
+    PENNYBENCH tag=7a_t0_smoke_b rc=0 mask=c0
+    PENNYBENCH bin=/data/local/tmp/pennyload
+    PENNYBENCH args=-m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t 2 -c 1024 -lm none -n 64 --user-file /data/local/tmp/penny_user.txt --load-state /data/local/tmp/q17_state.bin --turns 3 --interval-s 5 --tag 7a_t0_smoke_b
+    PENNYBENCH uptime_s        before=1589.80 after=1608.22
+    PENNYBENCH memavail_kB     before=3092172 after=3125644
+    PENNYBENCH memfree_kB      before=1690660 after=2054404
+    PENNYBENCH swapfree_kB     before=1754032 after=1686960
+    PENNYBENCH cached_kB       before=1974012 after=1655440
+    PENNYBENCH pswpin          before=110586 after=110586   (pages read back IN from swap)
+    PENNYBENCH pswpout         before=643282 after=659951   (pages written OUT to swap)
+    PENNYBENCH pgmajfault      before=122010 after=122012   (major faults: had to hit storage or swap)
+    PENNYBENCH ceil_x1_kHz     before=2850000 min=2252000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+    PENNYBENCH ceil_x1_min_at  uptime=1606.27   (17 s into the row)
+    PENNYBENCH ceil_a76_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq)
+    PENNYBENCH ceil_a76_min_at uptime=1589.80   (0 s into the row)
+    PENNYBENCH rated_kHz policy0=1803000 policy4=2348000 policy6=2850000   (read from cpuinfo_max_freq before the row)
+    PENNYBENCH oom_score_adj_child pre=-1000 post=200   (target 200; both READ off /proc)
+    PENNYBENCH batt_temp_dC    before=305 after=304   (BATTERY, tenths of a degree C -- NOT SoC)
+    PENNYBENCH batt_level      before=92 after=92
+    PENNYBENCH batt_dumpsys    before=[ AC powered: true status: 2 level: 92 temperature: 305 ] after=[ AC powered: true status: 2 level: 92 temperature: 304 ]   (cross-check on the sysfs figures)
+    PENNYBENCH series_file     /data/local/tmp/out/7a_t0_smoke_b.series   (2 samples, one per 10 s of uptime)
+    PENNYBENCH peak_rss_kB     1546196   (VmHWM, monotonic)
+    PENNYBENCH max_vmrss_kB    1546188
+    PENNYBENCH max_rssanon_kB  1540672   (anonymous -- NOT reclaimable)
+    PENNYBENCH max_rssfile_kB  5240   (file-backed -- reclaimable)
+    PENNYBENCH rss_samples     32   (sleep 0.2 s between samples; achieved rate is lower)
+    PENNYBENCH lmk_kill_lines  0
+         ZRAM:   501,184K physical used for 2,109,380K in swap (3,820,148K total swap)
+    series (whole file):
+    uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level
+    1590.60 2850000 2348000 1803000 3020796 1607480 1754032 1979780 17992 18976 643282 122011 305 92
+    1600.42 2401000 2348000 1803000 1590708 507176 1686960 1654852 1545940 1545940 659951 122011 304 92
+    .bench (whole file):
+    PENNYLOAD prefix_snapshot_bytes=46683597 got=46683597 t_snapshot_ms=21.33
+    PENNYLOAD turns=3 interval_s=5 n_gen_per_turn=64
+    PENNYLOAD TURN k=1 uptime_s=1593.35 t_restore_ms=12.65 t_user_decode_ms=388.56 ttft_turn_ms=401.87 gen_tokens=64 gen_ms=4011.86 gen_tps=15.70 fnv=0xcba17a2fcbba49f4 busy_ms=4413.78 overrun=0
+    PENNYLOAD TURN k=2 uptime_s=1598.35 t_restore_ms=13.76 t_user_decode_ms=342.35 ttft_turn_ms=356.32 gen_tokens=64 gen_ms=4091.47 gen_tps=15.40 fnv=0xcba17a2fcbba49f4 busy_ms=4447.93 overrun=0
+    PENNYLOAD TURN k=3 uptime_s=1603.35 t_restore_ms=13.84 t_user_decode_ms=368.12 ttft_turn_ms=382.15 gen_tokens=64 gen_ms=4149.99 gen_tps=15.18 fnv=0xcba17a2fcbba49f4 busy_ms=4532.19 overrun=0
+    PENNYLOAD tag=7a_t0_smoke_b run_type=cached rc=0
+    PENNYLOAD model=/data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf model_bytes=1107409472
+    PENNYLOAD threads=2 n_ctx=1024 n_batch=2048 n_ubatch=512 n_gpu_layers=99
+    PENNYLOAD load_mode=none extra_bufts=1 sampler=greedy
+    PENNYLOAD chat_template=NONE   (both prompt files tokenised verbatim; no template applied)
+    PENNYLOAD sys_file=(none) sys_bytes=-1 sys_tokens=-1 sys_add_special=1 sys_parse_special=1
+    PENNYLOAD user_file=/data/local/tmp/penny_user.txt user_bytes=95 user_tokens=20 user_add_special=0 user_parse_special=1
+    PENNYLOAD progress_calls=312
+    PENNYLOAD t_backend_ms      3.65   (T1-T0,  ggml_backend_load_all)
+    PENNYLOAD t_model_open_ms   406.67   (T2-T1,  header+hparams+vocab+alloc)
+    PENNYLOAD t_tensor_band_ms  2523.56   (T3-T2,  tensor data read + repack)
+    PENNYLOAD t_model_tail_ms   2.83   (T4-T3)
+    PENNYLOAD t_model_total_ms  2933.06   (T4-T1,  llama_model_load_from_file)
+    PENNYLOAD t_ctx_create_ms   41.57   (T5-T4,  llama_init_from_model)
+    PENNYLOAD t_ready_ms        2978.28   (T5-T0,  READY TO GENERATE)
+    PENNYLOAD t_tokenize_ms     0.39   (T6-T5)
+    PENNYLOAD t_state_load_ms   22.90   (T7-T6)
+    PENNYLOAD state_file=/data/local/tmp/q17_state.bin state_bytes=46685237 state_tokens_restored=407
+    PENNYLOAD turns_done=3 turns_requested=3 turns_overrun=0 fnv_all_equal=1
+    PENNYLOAD first_token_id=32313 token_fnv1a64=0xcba17a2fcbba49f4   (turn 1)
+    PENNYLOAD ttft_turn_ms   min=356.32 median=382.15 max=401.87
+    PENNYLOAD gen_tps        min=15.18 median=15.40 max=15.70
+    PENNYLOAD quarters       n/a   turns_done=3 is fewer than 4, so no quarter exists
+    PENNYLOAD SETTLED ttft_turn_ms q1_median=n/a q4_median=n/a decline_pct=n/a   (turns_done=3)
+    PENNYLOAD SETTLED gen_tps      q1_median=n/a q4_median=n/a decline_pct=n/a   (turns_done=3)
+    PENNYLOAD SETTLED gen_tps_turn1=15.70 settled_pct_of_turn1=n/a   (turns_done=3)
+    PENNYLOAD DUTY busy_median_ms=4447.93 interval_ms=5000 duty_pct=88.96
+    .err: 1271 lines, tail is llama.cpp's state_read_data / compute-buffer lines, no error
+    .kills: empty
+
+**The loop runs on the 7a through rev 6**: rc=0, turns_done 3 of 3, no overrun,
+`fnv_all_equal=1` at `0xcba17a2fcbba49f4`, `oom_score_adj_child` -1000 -> 200
+read back. The in-memory snapshot is 46,683,597 B, the same figure as the 6a's
+S rows (D5, notes.md 12639 onward), 1,640 B under the file. **The rev 6 labels
+print what was read**: `cpus 6 7, rated 2850000`, `cpus 4 5, rated 2348000`,
+and `rated_kHz policy0=1803000 policy4=2348000 policy6=2850000`. No `UNREAD`
+appeared; **the UNREAD branch has not been exercised** (no read failed). The
+last series line (1600.42) has VmRSS 1,545,940 = VmHWM 1,545,940, so it is not
+a teardown sample. `Cached` fell 318,572 kB (29% of the model): the
+contamination limb is not met here. SwapFree minimum 1,686,960 kB = 44.16%.
+
+**The X1 ceiling moved in both smoke runs, on a cool gate**: min 2,507,000
+(87.96% of rated) 5 s into (a), and min 2,252,000 (79.02%) 17 s into (b); the
+series caught 2,630,000 and 2,401,000. Both read 2,850,000 again at `after`.
+policy4 and policy0 did not move in either. Battery 304-306 dC throughout.
+
+**Between the two smoke runs, `pswpin` rose 22,877 -> 110,586 and `pgmajfault`
+33,963 -> 122,010**, with nothing of ours running except the `sync`/`sha256sum`
+of the state file. Recorded, no cause claimed.
+
+The single-turn and three-turn figures on this spent, page-cached boot are
+first readings, not baselines, and are not compared with the 6a's here: gen_tps
+15.43 (a) and 15.18-15.70 (b); ttft_turn 356.32-401.87 ms.
+
+**THIS BOOT IS NOW SPENT.** It carried the push, two smoke runs, and a run that
+met the `Cached` contamination limb. No row runs on it.
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+Nothing here is a result row. The gate's blocking path and rev 6's `UNREAD`
+path have not run. The load timings are page-cached, not cold. A matching fnv
+and state hash say the same bytes come out of both phones for this one prompt;
+they say nothing about output quality. `penny_user.txt`'s identity with the 6a's
+copy is inferred from the fnv matching, not from a recorded hash. Nothing here
+predicts a row; predictions come after review.
