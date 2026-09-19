@@ -13941,3 +13941,58 @@ anything on a fresh boot; what policy0 did during the pass; why neither
 ceiling moved on this pass when the X1 ceiling moved on 4b (no reason is
 offered); anything from flash; anything about resident RSS, the app or the
 7a. Nothing here is a baseline.
+
+## 2026-09-19 — CLAUDE.md slimmed on 19 Sept 2026; full previous text at git show 121dc4b:CLAUDE.md
+
+No phone, no code. CLAUDE.md is loaded into every session and after every
+compaction, and at 26,692 words it had become the largest thing in context.
+The slim version is the current state only. Everything cut is in this file, at
+the entry cited beside it in the new CLAUDE.md, or in `git show 121dc4b:CLAUDE.md`.
+
+    before (121dc4b)   26,692 words   176,423 characters   2,724 lines
+    after              5,593 words    36,823 characters    602 lines
+
+Target was under 4,000 words; the brief put "anything with no home in notes.md
+STAYS" above the target. What holds it at 5,593: the seven sections kept in
+full (What this repo is, How to read, Findings, Constraints, Reporting rules,
+Decisions, Do not — 1,286 words, byte-identical except one added paragraph in
+How to read); the verbatim hashes, masks and the llama.cpp build line copied
+from notes.md 5030-5057; the 6a LIVE block at one line per item; and the items
+grep found nowhere in notes.md (the `--es` semicolon trap, `setprop
+persist.logd.size` refused, the pasted-newline trap, Terminal app hidden, port
+forwarding, subnet, CIDs, SSH `IdentitiesOnly`, `.bashrc`, `input text`,
+`ss -ltn`, git/node/pip3 absent, `[200~`, `avb_custom_key`, the Mac/VM shell
+commands, `verifiedbootstate=yellow`, and the open threads on Claude Code in
+the guest, phone vs Linux box, OS patching and the revert checksum
+`03992adc…`).
+
+**Removed or cut to one index line:**
+- Every rung's long form — 1, the API question, 2a, 2b, 2c, 2d, "what rung 2
+  buys", 3, 3b (with its eviction and user-tap story), 3c, 3d, 3e-i to 3e-v, 3f,
+  3h, 3g-i, 3g-ii — now one table row each with its notes.md line.
+- Sequencing's done items (native feasibility, Q-A/Q-B, Brief S) — one index
+  row each; Sequencing became "What is next".
+- The LIVE block's history — kept as current values only. Five stale or
+  contradictory lines resolved, later wins: the two "logcat buffer" lines
+  (now "not read since the 18 Sept 13:17 reboot; logcat -G does not survive a
+  reboot"), "NOTHING is on the phone yet", "NO q17_state.bin EXISTS", the
+  15:30:14 "last read" (superseded by TTS rung 1's 18:09:58 read, notes.md
+  13870), and "adb ALIVE".
+- The toolchain story (why the NDK was not installed, then was), the APK
+  build story, and `~~Before any app code~~`.
+- The traps' long form: current ones cut to one or two lines each with their
+  notes.md line; VM-payload traps listed under one "VM-era traps" heading,
+  with a pointer to `git show 121dc4b:CLAUDE.md` lines 1603-2150.
+- Open threads already answered: Q9 endurance, the join, "one second is not a
+  stream", the memory/storage/delivery/store/compute gates, wake+memory,
+  `libvm_payload.so`, the ten-line payload, the q9 sampler log, and the
+  assistant-by-tapping thread (answered FAILED, notes.md 1900).
+- The Benchmark protocol's story of how each rule was found, and the
+  superseded wrapper hashes (rev 1-4). Two protocol lines changed because they
+  were stale: "B3 … boot 4 is unspent" (boot 4 is spent; B3 remains NOT
+  MEASURED) and "no thermal run" (Brief S was the thermal run).
+
+What this entry does NOT say: that every sentence of every cut block is
+repeated word for word in the cited entry — each citation is the entry where
+grep found the content, checked by heading, not read end to end. The 6a's
+device state in the new file is as last recorded; no phone was read.
