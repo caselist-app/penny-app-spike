@@ -17226,3 +17226,90 @@ It does not say how threads are actually placed inside a mask, only that
 `taskset` does not decide it. It does not say what the limiter responds to. It
 says nothing about battery life, about the screen being off, about a
 boot-started service, or about answer quality.
+
+## 2026-09-21 — BRIEF U, THE GATE, VERBATIM. The gate's script text, which notes.md 16874 described but did not contain. Nothing was run for this entry.
+
+**Each block below is indented four spaces as notes.md formatting. The command
+is that line with the four leading spaces removed, and it is ONE line.** The
+whole remote command is inside ONE pair of single quotes, per CLAUDE.md's
+`adb shell` trap; there is no single quote anywhere inside it, which is why
+`G="GATE TIMED OUT - LAUNCHED WARM"` is built as a variable rather than quoted
+inline. **There is no `&` anywhere: nothing runs in the background and nothing
+survives `break` into the row.**
+
+### (a) DRY RUN A, exactly as it was run at 12:20:11 on the spent 21 Sept boot
+
+Output is at notes.md 16874, section 3. `TMAX=400` made it pass on the first
+poll; `CAP=240` is the real cap.
+
+    adb -s 37291JEHN04619 shell 'cd /data/local/tmp; P=/sys/devices/system/cpu/cpufreq; B=/sys/class/power_supply/battery/temp; TMAX=400; CAP=240; g0=$(cut -d" " -f1 /proc/uptime); n=0; warm=0; while :; do s0=$(cat $P/policy0/scaling_max_freq); r0=$(cat $P/policy0/cpuinfo_max_freq); s4=$(cat $P/policy4/scaling_max_freq); r4=$(cat $P/policy4/cpuinfo_max_freq); s6=$(cat $P/policy6/scaling_max_freq); r6=$(cat $P/policy6/cpuinfo_max_freq); bt=$(cat $B); [ $n = 0 ] && echo "GATE FIRST p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 batt=$bt/$TMAX uptime_s=$g0"; [ -n "$r0" ] && [ -n "$r4" ] && [ -n "$r6" ] && [ -n "$bt" ] && [ "$s0" = "$r0" ] && [ "$s4" = "$r4" ] && [ "$s6" = "$r6" ] && [ "$bt" -le "$TMAX" ] && break; n=$((n+1)); [ $n -ge $CAP ] && warm=1 && break; sleep 5; done; if [ $warm = 1 ]; then G="GATE TIMED OUT - LAUNCHED WARM"; else G="GATE PASSED"; fi; echo "$G p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 batt_temp_dC=$bt tmax_dC=$TMAX polls_failed=$n gate_start_uptime_s=$g0 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"; echo "DRYRUN A would launch here"'
+
+**DRY RUN B was this same string with two substitutions and nothing else:**
+`TMAX=400` -> `TMAX=1` (unreachable, forces the timeout) and `CAP=240` ->
+`CAP=2` (so the timeout arrives in 5 s instead of 20 min), plus the final
+`echo` reworded and `jobs` appended. **The real rows use `CAP=240`.**
+
+### (b) THE REAL FORM
+
+**U1 — the worked example. CLOCKS ONLY: U1 sets the reference temperature, so
+there is no `TMAX` and no battery condition in its exit test.** `bt` is still
+read and printed, because `TREF_dC` is what U2-U4's `TMAX` is computed from.
+
+    adb -s 37291JEHN04619 shell 'cd /data/local/tmp; P=/sys/devices/system/cpu/cpufreq; B=/sys/class/power_supply/battery/temp; CAP=240; g0=$(cut -d" " -f1 /proc/uptime); n=0; warm=0; while :; do s0=$(cat $P/policy0/scaling_max_freq); r0=$(cat $P/policy0/cpuinfo_max_freq); s4=$(cat $P/policy4/scaling_max_freq); r4=$(cat $P/policy4/cpuinfo_max_freq); s6=$(cat $P/policy6/scaling_max_freq); r6=$(cat $P/policy6/cpuinfo_max_freq); bt=$(cat $B); [ $n = 0 ] && echo "GATE FIRST p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 batt=$bt uptime_s=$g0"; [ -n "$r0" ] && [ -n "$r4" ] && [ -n "$r6" ] && [ "$s0" = "$r0" ] && [ "$s4" = "$r4" ] && [ "$s6" = "$r6" ] && break; n=$((n+1)); [ $n -ge $CAP ] && warm=1 && break; sleep 5; done; if [ $warm = 1 ]; then G="GATE TIMED OUT - LAUNCHED WARM"; else G="GATE PASSED"; fi; echo "$G p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 batt_temp_dC=$bt TREF_dC=$bt polls_failed=$n gate_start_uptime_s=$g0 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"; PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh 7a_q17_u1_x1x1 c0 -- -m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t 2 -c 1024 -lm none -n 64 --user-file /data/local/tmp/penny_user.txt --load-state /data/local/tmp/q17_state.bin --turns 100 --interval-s 0 --tag 7a_q17_u1_x1x1 > /dev/null 2>&1; echo "ROW_DONE uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B)"'
+
+**U2, U3 and U4 — the same string with `TMAX` set by the launcher and the
+battery condition back in the exit test.** Shown with U2's tag, mask and thread
+count; `TMAX=<TREF+15>` is written out as a literal integer by whoever launches
+it, computed from U1's printed `TREF_dC`.
+
+    adb -s 37291JEHN04619 shell 'cd /data/local/tmp; P=/sys/devices/system/cpu/cpufreq; B=/sys/class/power_supply/battery/temp; TMAX=<TREF+15>; CAP=240; g0=$(cut -d" " -f1 /proc/uptime); n=0; warm=0; while :; do s0=$(cat $P/policy0/scaling_max_freq); r0=$(cat $P/policy0/cpuinfo_max_freq); s4=$(cat $P/policy4/scaling_max_freq); r4=$(cat $P/policy4/cpuinfo_max_freq); s6=$(cat $P/policy6/scaling_max_freq); r6=$(cat $P/policy6/cpuinfo_max_freq); bt=$(cat $B); [ $n = 0 ] && echo "GATE FIRST p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 batt=$bt/$TMAX uptime_s=$g0"; [ -n "$r0" ] && [ -n "$r4" ] && [ -n "$r6" ] && [ -n "$bt" ] && [ "$s0" = "$r0" ] && [ "$s4" = "$r4" ] && [ "$s6" = "$r6" ] && [ "$bt" -le "$TMAX" ] && break; n=$((n+1)); [ $n -ge $CAP ] && warm=1 && break; sleep 5; done; if [ $warm = 1 ]; then G="GATE TIMED OUT - LAUNCHED WARM"; else G="GATE PASSED"; fi; echo "$G p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 batt_temp_dC=$bt tmax_dC=$TMAX polls_failed=$n gate_start_uptime_s=$g0 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"; PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh 7a_q17_u2_a78a78 30 -- -m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t 2 -c 1024 -lm none -n 64 --user-file /data/local/tmp/penny_user.txt --load-state /data/local/tmp/q17_state.bin --turns 100 --interval-s 0 --tag 7a_q17_u2_a78a78 > /dev/null 2>&1; echo "ROW_DONE uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B)"'
+
+`> /dev/null 2>&1` on the launch line discards the wrapper's own tee'd report to
+the terminal only — **`out/<tag>.report`, `.bench`, `.series`, `.err` and
+`.kills` are still written on the phone**, and every figure is read from those
+files, never from scrollback (CLAUDE.md's benchmark protocol).
+
+### (c) WHAT CHANGES PER ROW, AND NOTHING ELSE MAY
+
+**Four things change between rows: the tag (twice — `pennybench.sh`'s first
+argument AND `--tag`), the mask, `-t`, and `TMAX`.** Everything else in the
+string — the gate, `CAP=240`, the model path, `-c 1024`, `-lm none`, `-n 64`,
+the user file, the state file, `--turns 100`, `--interval-s 0`, the redirect
+and the `ROW_DONE` line — is identical in all four rows, because the same work
+in every row is what makes the wall times comparable.
+
+    row  tag                  mask  -t  TMAX
+    U1   7a_q17_u1_x1x1       c0     2  (none -- clocks-only gate; prints TREF_dC)
+    U2   7a_q17_u2_a78a78     30     2  TREF+15
+    U3   7a_q17_u3_x1x1a78    d0     3  TREF+15
+    U4   7a_q17_u4_2plus2     f0     4  TREF+15
+
+### THE RECORD ITSELF WAS CHECKED — syntax only, nothing executed
+
+The three strings above were extracted back OUT of this file, the four-space
+indent and the outer `adb -s 37291JEHN04619 shell '...'` wrapper stripped, and
+the inner remote command written to a temp file and passed to `sh -n` on the
+Mac. All three parse:
+
+    block (a) dry run A   1,037 chars   sh -n rc=0
+    block (b) U1          1,344 chars   sh -n rc=0
+    block (b) U2-U4       1,413 chars   sh -n rc=0
+
+Each was also checked to contain **no single quote anywhere inside the outer
+pair** — the `adb shell` trap that has cost this repo time before. For the
+U2-U4 block the placeholder `TMAX=<TREF+15>` was replaced with `TMAX=999`
+before the check, because `<` is a redirect and the placeholder is not valid
+shell as written. **This is the MAC's `sh`, not the phone's `/system/bin/sh`,
+and it is a parse check, not an execution.**
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+**Nothing was run for it.** The U1 and U2-U4 forms above have never been
+executed in any form — only the gate half was, as dry runs A and B on a spent
+boot with the launch replaced by an echo. **The `pennybench.sh` launch line has
+not been exercised inside this gate string**, and a paste error in it would not
+have been caught by anything recorded here.
+
+The `TMAX=<TREF+15>` placeholder is not valid shell as written; it is replaced
+with an integer before the string is used. The gate reads battery temperature,
+which is not chip temperature.
