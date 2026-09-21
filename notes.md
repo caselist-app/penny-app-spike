@@ -20589,3 +20589,76 @@ differences between them are not evidence of anything.
 - Nothing about Pixel speed. The Mac's 17.6 s / 34.1 s is a Mac figure.
 - No cause for the phone-vs-Mac line 12 gap (brief V) is claimed; the old
   sherpa-fp32 line 12 (83,168) is shown only because it was on disk.
+
+## 2026-09-21 — BRIEF W STEP C: pennytts.sh REVISION 3 — MODELDIR and MODELFILE from the environment, defaults equal to rev 2's written-in values; two report keys (model_path, model_bytes) after lmk_kill_lines. sha256 90cbeea1eb05e3857a5702ca97ab9439d7cae94a34b6a7a0e66a5fa69c784b88, 20,351 B. Nothing pushed; the phone still holds rev 2 (3200e06c…).
+
+Approved by Matt as proposed. Mac only apart from ONE read-only adb command,
+recorded below.
+
+**The fp32 file rev 3 exists to run: input kokoro-v1.0.onnx has no hash
+published by its originating project; matched only against a third-party
+mirror (fastrtc/kokoro-onnx).**
+
+### The change
+
+`git diff --stat`: `pennytts.sh | 21 ++++++++++++++++++---`, 18 insertions,
+3 deletions. The three deleted lines are the one line `M="$TTSDIR/penny-kokoro-int8"`
+and the two `--kokoro-model="$M/model.int8.onnx"` arguments (one per launch
+branch, `none` and `taskset`). Everything else is added:
+
+- comment block "REVISION 3 … ADDITIONS ONLY" after rev 2's, and two `env:`
+  lines documenting MODELDIR and MODELFILE;
+- `M="${MODELDIR:-$TTSDIR/penny-kokoro-int8}"`, `MF="${MODELFILE:-model.int8.onnx}"`,
+  `MB=$(stat -c %s "$M/$MF" 2>/dev/null); MB=${MB:-missing}`;
+- both launch branches pass `--kokoro-model="$M/$MF"`; voices, tokens,
+  espeak-ng-data and lexicon-gb-en.txt still come from `$M`, as in rev 2;
+- after `PENNYTTS lmk_kill_lines`: `PENNYTTS model_path      $M/$MF   (rev 3)`
+  and `PENNYTTS model_bytes     $MB   (rev 3: stat -c %s before the run; the
+  file is not read)`.
+
+With neither variable set, `M` and the model argument expand to exactly rev
+2's strings, so the binary gets rev 2's command line. The report is rev 2's
+plus two lines at the end; every rev 2 key keeps its name and position.
+Whether the int8 WAV is then byte-identical to V1's is step D's smoke (i).
+
+`sh -n pennytts.sh` rc=0 — on the Mac's `/bin/sh`, NOT the phone's mksh.
+Repo copy hash 90cbeea1… and 20,351 B = the approved scratchpad draft.
+
+**Left deliberately:** line 2's header comment still reads "run
+sherpa-onnx-offline-tts ONCE against penny-kokoro-int8". It is outside the
+change, and the rev 3 block below it says the model now comes from the
+environment. Rev 2 left rev 1's header the same way.
+
+### Why `stat -c %s`, not `wc -c`
+
+The first draft read the size with `wc -c < "$M/$MF"`. On the phone `wc` is
+toybox; whether toybox `wc -c` counts by reading the file or from the inode
+was not established. If it reads, every line would pull the whole model
+(325,534,862 B for fp32) through the page cache BEFORE the timed run —
+making line 00's model load a cached load, and adding a read to every line
+between gate and launch. `stat -c %s` takes the size from the inode and does
+not read the file.
+
+**The read-only adb check, as run** (not reported with its exact text at the
+time — recorded here):
+
+    adb -s 37291JEHN04619 shell 'stat -c %s /data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx; echo "rc=$?"; ls -l /system/bin/stat /system/bin/wc'
+
+Output:
+
+    92363779
+    rc=0
+    lrwxr-xr-x 1 root shell 6 2009-01-01 00:00 /system/bin/stat -> toybox
+    lrwxr-xr-x 1 root shell 6 2009-01-01 00:00 /system/bin/wc -> toybox
+
+92,363,779 = model.int8.onnx's size on the Mac and in CLAUDE.md's 7a block.
+Nothing was written on the phone. No uptime was read in that command; it
+ran between the step B commit (bf4ed0a) and this entry.
+
+### What this entry does NOT say
+
+- That rev 3 runs on the phone — nothing has been pushed; step D's smoke is
+  the first run.
+- That rev 3 with nothing set gives a WAV byte-identical to V1's — step D
+  smoke (i) tests it.
+- That `wc -c` would have read the file; only that `stat` does not need to.

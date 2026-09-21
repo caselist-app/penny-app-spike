@@ -41,6 +41,15 @@
 #      ceil_a55_min_at, rated_kHz and batt_temp_dC. Placed so that no existing
 #      key changes its order relative to any other.
 #
+# REVISION 3, 21 Sept, for brief W (stage 3a step 2, fp32). ADDITIONS ONLY.
+#   1. The model folder and file come from the environment: MODELDIR (default
+#      $TTSDIR/penny-kokoro-int8) and MODELFILE (default model.int8.onnx) --
+#      rev 2's written-in values, so a caller who sets neither runs exactly
+#      rev 2's command line. voices.bin, tokens.txt, espeak-ng-data and
+#      lexicon-gb-en.txt are read from MODELDIR, as rev 2 read them from M.
+#   2. Two report keys, model_path and model_bytes, printed AFTER
+#      lmk_kill_lines, so no rev 2 key changes name or position.
+#
 # usage:  pennytts.sh <tag> <taskset-mask|none> <threads> <line>
 #         <line> is 0-17 (the 18 lines of ~/kokoro-models/abtest_sherpa.py, in
 #         order, embedded below so no "£" or apostrophe has to survive adb
@@ -59,6 +68,8 @@
 #                 launches anyway, labelled LAUNCHED WARM. Only read if COOL=1.
 #         TMAX    default UNSET: battery limit in dC. If set, the gate also
 #                 needs battery temp <= TMAX. Only read if COOL=1.
+#         MODELDIR  default $TTSDIR/penny-kokoro-int8 (rev 3)
+#         MODELFILE default model.int8.onnx, a file inside MODELDIR (rev 3)
 #
 # Figures are labelled by the row tag; this file names no phone. Results land
 # in $TTSDIR/out/<tag>.* (.wav, .err, .kills, .report). This is a separate out/
@@ -75,7 +86,9 @@ TTSDIR="${TTSDIR:-/data/local/tmp/tts}"
 COOL="${COOL:-1}"
 GATECAP="${GATECAP:-240}"                                       # rev 2
 BIN="$TTSDIR/sherpa-onnx-offline-tts"
-M="$TTSDIR/penny-kokoro-int8"
+M="${MODELDIR:-$TTSDIR/penny-kokoro-int8}"                      # rev 3
+MF="${MODELFILE:-model.int8.onnx}"                              # rev 3
+MB=$(stat -c %s "$M/$MF" 2>/dev/null); MB=${MB:-missing}      # rev 3: size from the inode, the file is NOT read
 OUTDIR="$TTSDIR/out"
 mkdir -p "$OUTDIR"
 OUT="$OUTDIR/$TAG"
@@ -182,14 +195,14 @@ LOGSTART=$(date +'%m-%d %H:%M:%S.000')
     T0=$(date +'%s %N')
     if [ "$MASK" = "none" ]; then
         "$BIN" --num-threads="$THREADS" \
-            --kokoro-model="$M/model.int8.onnx" --kokoro-voices="$M/voices.bin" \
+            --kokoro-model="$M/$MF" --kokoro-voices="$M/voices.bin" \
             --kokoro-tokens="$M/tokens.txt" --kokoro-data-dir="$M/espeak-ng-data" \
             --kokoro-lexicon="$M/lexicon-gb-en.txt" --kokoro-lang=en \
             --sid=22 --speed=1.0 --output-filename="$OUT.wav" "$TEXT" \
             > /dev/null 2> "$OUT.err" &
     else
         taskset "$MASK" "$BIN" --num-threads="$THREADS" \
-            --kokoro-model="$M/model.int8.onnx" --kokoro-voices="$M/voices.bin" \
+            --kokoro-model="$M/$MF" --kokoro-voices="$M/voices.bin" \
             --kokoro-tokens="$M/tokens.txt" --kokoro-data-dir="$M/espeak-ng-data" \
             --kokoro-lexicon="$M/lexicon-gb-en.txt" --kokoro-lang=en \
             --sid=22 --speed=1.0 --output-filename="$OUT.wav" "$TEXT" \
@@ -345,6 +358,8 @@ echo "PENNYTTS max_rssanon_kB  $ANON_MAX   (anonymous -- NOT reclaimable)"
 echo "PENNYTTS max_rssfile_kB  $FILE_MAX   (file-backed -- reclaimable)"
 echo "PENNYTTS rss_samples     $SAMPLES   (sleep 0.2 s between samples; a short run may get very few; rev 2 counts not comparable with rev 1)"
 echo "PENNYTTS lmk_kill_lines  $KILLS"
+echo "PENNYTTS model_path      $M/$MF   (rev 3)"
+echo "PENNYTTS model_bytes     $MB   (rev 3: stat -c %s before the run; the file is not read)"
 echo "--- binary stderr (tail) ---"; tail -8 "$OUT.err"
 echo "--- kill lines ---"; cat "$OUT.kills"
 } | tee "$OUT.report"
