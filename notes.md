@@ -18634,3 +18634,70 @@ It does not say why turn 1 was the floor, why policy0 is capped to 60.90%, or
 where the scheduler placed four threads inside mask `f0`. It says nothing about
 a growing context, battery life, the screen being off, a boot-started service,
 Q4_0, or output quality. Battery temperature is not SoC temperature.
+
+## 2026-09-21 — BRIEF U, AFTER U4: the post-matrix re-hash — all six files on the phone unchanged; caffeinate stopped; CLAUDE.md's 7a Boot line updated and the 6a block confirmed byte-identical. The matrix boot is SPENT. Brief U is NOT closed here — that entry is the reviewer's.
+
+### THE SIX FILES — re-hashed after U4, one invocation
+
+    f52fc60411b55e5ed9eb34e8307f32b45d6bed6f06de85a5347bc02ec2f4ffe9  pennyload
+    ca3f8414c3295ff953c96591dd61b46de2008fac7563311703d8491826e484d7  pennybench.sh
+    b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897  Qwen3-1.7B-Q4_K_M.gguf
+    9496977025bffba32886e447cf10ab2281c439dc7c4811124827762fdb730ff4  penny_system.txt
+    b61e0a992e5e8b4cd479c8596c63381b95372ee8b0c3982b895259f9b7a4121b  penny_user.txt
+    707e0ea3c1cc490187616a67ba0097747c8b8c58fcd2dcf38e1870a31a8f6f4d  q17_state.bin
+    uptime_s=8617.02 wallclock=15:05:25 batt=361
+
+**All six match CLAUDE.md's 7a block exactly.** Nothing was pushed, deleted or
+modified on the phone at any point in step D; the only writes were
+`pennybench.sh`'s own output files under `/data/local/tmp/out/`.
+
+### THE MAC
+
+`caffeinate -i -s` pid **54802** killed at 15:05:19, confirmed absent from `ps`.
+`pmset -g batt` after: `Now drawing from 'AC Power'`, 64%, charging. It held
+from 12:41:15 to 15:05:19, i.e. across the reboot, both protocol readings, all
+four gates and all four rows.
+
+### CLAUDE.md — ONE LINE CHANGED
+
+The 7a block's `Boot` line only. It gains the step D rehearsal against the
+21 Sept 07:39 boot, and the matrix boot with its five notes.md line numbers,
+the LAUNCHED WARM fact for U2-U4, and the leave-state. `git diff --stat
+CLAUDE.md`: **1 file changed, 1 insertion(+), 1 deletion(-)**.
+
+**The 6a block did not change.** sha256 over the block (title line through the
+line before the next `## ` heading), before and after this edit:
+
+    before  effd849c2f3f0414369b926bf9035cebb6c644c93284b36ce2e99d885d0b619d  79 lines
+    after   effd849c2f3f0414369b926bf9035cebb6c644c93284b36ce2e99d885d0b619d  79 lines
+
+### THE MATRIX IN ONE TABLE — U1 is the ONLY row not launched warm
+
+    row  mask -t  turn 1  last-10 med  % of own turn 1  wall (s)  poll-min X1 / A78 / A55        batt rise  warm  token_fnv1a64
+    U1   c0   2   15.53      11.175        71.96%        553.21   50.04% / 100.00% / 100.00%     +7.9 C    no    0xcba17a2fcbba49f4
+    U2   30   2   10.74       7.995        74.44%        764.54   94.88% /  63.50% /  94.51%     +7.2 C    YES   0xcba17a2fcbba49f4
+    U3   d0   3   11.33       9.835        86.80% (*)    636.02   34.53% /  63.50% /  60.90%     +6.3 C    YES   0x9f67352b7af035d5
+    U4   f0   4    9.90      10.510       106.16% (*)    603.76   34.53% /  56.56% /  60.90%     +6.1 C    YES   0x1c724a99200e0d0d
+
+    (*) turn 1 is not the peak in U3 and is the row floor in U4, so these two
+        percentages are NOT comparable with U1's and U2's (notes.md 18353).
+    Poll minima are the 0.2 s poll loop, not the 7 s series. policy0's poll
+    figures have no rev 6 counterpart anywhere.
+
+Every row: `rc=0`, `turns_done=100`, `turns_overrun=0`, `fnv_all_equal=1`,
+`lmk_kill_lines=0`, `.kills` 0 bytes, contamination not met on either limb,
+`oom_score_adj` pre -1000 / post 200.
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+**It does not close brief U.** No closing entry is written here; the reviewer
+writes it. The table above restates figures from the four row entries and adds
+nothing.
+
+**Three of four rows were launched warm and the matrix cannot separate mask from
+row order.** U1 both went first and won on every absolute measure. Nothing here
+argues that away.
+
+**Nothing in the matrix measured prompt processing**, and no row captured or
+compared output text, so the three token hashes describe streams, not quality.
+Battery temperature is not SoC temperature.
