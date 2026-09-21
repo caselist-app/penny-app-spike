@@ -20662,3 +20662,191 @@ ran between the step B commit (bf4ed0a) and this entry.
 - That rev 3 with nothing set gives a WAV byte-identical to V1's — step D
   smoke (i) tests it.
 - That `wc -c` would have read the file; only that `stat` does not need to.
+
+## 2026-09-21 — BRIEF W STEP D: penny-kokoro-fp32/ pushed (360 files, 384,051,680 B) and pennytts.sh rev 3 over rev 2; phone list = Mac list, diff rc=0. SMOKE on the SPENT boot: (i) int8 line 0, NOTHING set — WAV BYTE-IDENTICAL to V1 line 00 (cmp rc 0, both 4d7c10b9…), 35 rev 2 keys in order + model_path/model_bytes last. (ii) THE PHONE BINARY LOADS THE fp32 FILE: fp32 lines 0 and 4 rc=0, sample counts EQUAL to the Mac fp32 reference on both (19,475; 106,892).
+
+**Every smoke figure below: smoke, spent boot, file just pushed so very likely
+page-cached — says nothing about load from flash. No fp32-vs-int8 conclusion
+is drawn from the smoke.** Boot: the 21 Sept matrix boot (~12:41:48), SPENT.
+**Input kokoro-v1.0.onnx has no hash published by its originating project;
+matched only against a third-party mirror (fastrtc/kokoro-onnx).**
+
+### 1. Before the push — one read-only adb shell, as run
+
+    adb -s 37291JEHN04619 shell 'echo "uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat /sys/class/power_supply/battery/temp) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2)"; for p in 0 4 6; do echo "policy$p scaling_max=$(cat /sys/devices/system/cpu/cpufreq/policy$p/scaling_max_freq)"; done; ls -la /data/local/tmp/tts; ls -d /data/local/tmp/tts/penny-kokoro-fp32; echo "fp32dir_ls_rc=$?"; echo "out_files=$(ls /data/local/tmp/tts/out | wc -l)"; cd /data/local/tmp/tts; sha256sum pennytts.sh sherpa-onnx-offline-tts libonnxruntime.so; find penny-kokoro-int8 -type f | sort | xargs sha256sum | sha256sum; find penny-kokoro-int8 -type f | wc -l'
+
+    uptime_s=14904.12 wallclock=16:50:12 batt_temp_dC=271 memavail_kB=3378292
+    policy0 1803000 / policy4 2348000 / policy6 2850000   (all rated)
+    tts/: libonnxruntime.so, out/, penny-kokoro-int8/, pennytts.sh 19,278 B, sherpa-onnx-offline-tts
+    ls: /data/local/tmp/tts/penny-kokoro-fp32: No such file or directory   fp32dir_ls_rc=1
+    out_files=228
+    pennytts.sh              3200e06c…  (rev 2, as expected)
+    sherpa-onnx-offline-tts  bd7d26e8…  (as expected)
+    libonnxruntime.so        33847ad4…  (as expected)
+
+The int8 aggregate in that command is VOID: plain `xargs` split the file
+`voices/!v/Mr serious` (the same trap as notes.md 20258 §4). The int8 folder
+was re-checked properly after the push (§3) with `find -exec`.
+
+### 2. The push, as run
+
+    cd /Users/mattstevenson && adb -s 37291JEHN04619 push kokoro-models/penny-kokoro-fp32 Documents/penny-app-spike/pennytts.sh /data/local/tmp/tts/
+
+    kokoro-models/penny-kokoro-fp32/: 360 files pushed, 0 skipped. 35.1 MB/s (384051680 bytes in 10.447s)
+    Documents/penny-app-spike/pennytts.sh: 1 file pushed, 0 skipped. 101.5 MB/s (20351 bytes in 0.000s)
+    361 files pushed, 0 skipped. 35.0 MB/s (384072031 bytes in 10.461s)
+
+The one overwrite: pennytts.sh, rev 2 3200e06c… before -> rev 3 90cbeea1…
+after. Nothing else written; nothing deleted; no chmod. The push wrote the
+fp32 model through the page cache (as brief V's did, notes.md 19131).
+
+### 3. After the push — hashes
+
+Phone: `adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; find penny-kokoro-fp32 -type f -exec sha256sum {} +; sha256sum pennytts.sh'`,
+sorted on the Mac. Mac: `find penny-kokoro-fp32 -type f -exec shasum -a 256 {} +` in
+~/kokoro-models plus `shasum -a 256 pennytts.sh`, sorted. 361 lines each.
+
+    rows/7a_w/7a_tts_w_push_phone.sha256   361 lines   file sha256 f00ba311…af7f
+    rows/7a_w/7a_tts_w_push_mac.sha256     361 lines   file sha256 f00ba311…af7f
+    diff rc=0
+    penny-kokoro-fp32/model.fp32.onnx  a0986d39…409f   stat -c %s 325534862
+    pennytts.sh                        90cbeea1…8b88   stat -c %s 20351
+
+Unchanged, checked against brief V's committed rows/7a_v/7a_tts_push_phone.sha256
+(its 362 non-pennytts.sh lines, sorted) by re-hashing on the phone with
+`find penny-kokoro-int8 -type f -exec sha256sum {} +; sha256sum sherpa-onnx-offline-tts libonnxruntime.so`:
+**362 lines, diff rc=0** — penny-kokoro-int8/ (360 files, model.int8.onnx
+a089794d…), the binary bd7d26e8…, the library 33847ad4…. At uptime 14946.07,
+16:50:54: out_files=228 (= before), MemAvailable 3,377,228 kB.
+`ls -la` shows pennytts.sh dated 16:48 — `adb push` keeps the SOURCE mtime
+(the Mac copy was made at 16:48), not the transfer time.
+
+### 4. CLAUDE.md — additions only
+
+Four lines added to the 7a tts section: a pennytts.sh rev 3 line under the rev
+2 line (saying it OVERWROTE rev 2 on the phone), and a penny-kokoro-fp32/
+block (folder, model.fp32.onnx with its provenance, the shared files).
+`git diff --stat CLAUDE.md`: 4 insertions, 0 deletions. The 6a block, lines
+55-133, re-hashed after the edit: effd849c…, byte-identical.
+
+### 5. THE SMOKES — strings as run, one at a time, nothing else on adb during each
+
+Each string: LAUNCH and SMOKE_DONE read uptime, wallclock, battery and
+MemAvailable in the same command; `COOL`, `GATECAP`, `TMAX` not set (defaults:
+gate on, cap 240, clocks-only gate). Line numbers plain.
+
+**(i) 7a_tts_wsmoke_int8_00 — int8, line 0, c0, 2 threads, NOTHING set**
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; echo "LAUNCH uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2)"; sh /data/local/tmp/tts/pennytts.sh 7a_tts_wsmoke_int8_00 c0 2 0 > /dev/null 2> /dev/null; echo "SMOKE_DONE rc=$? uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2)"'
+
+    LAUNCH uptime_s=14985.51 wallclock=16:51:34 batt_temp_dC=271 memavail_kB=3377984
+    SMOKE_DONE rc=0 uptime_s=14990.81 wallclock=16:51:39 batt_temp_dC=271 memavail_kB=3370208
+
+**(ii-a) 7a_tts_wsmoke_fp32_00 — fp32, line 0, c0, 2 threads**
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; echo "LAUNCH uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2)"; MODELDIR=/data/local/tmp/tts/penny-kokoro-fp32 MODELFILE=model.fp32.onnx sh /data/local/tmp/tts/pennytts.sh 7a_tts_wsmoke_fp32_00 c0 2 0 > /dev/null 2> /dev/null; echo "SMOKE_DONE rc=$? uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2)"'
+
+    LAUNCH uptime_s=15013.87 wallclock=16:52:02 batt_temp_dC=271 memavail_kB=3378048
+    SMOKE_DONE rc=0 uptime_s=15018.81 wallclock=16:52:07 batt_temp_dC=271 memavail_kB=3354428
+
+**(ii-b) 7a_tts_wsmoke_fp32_04 — fp32, line 4, c0, 2 threads** — the (ii-a)
+string with the tag `7a_tts_wsmoke_fp32_04` and the line `4`; nothing else changed:
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; echo "LAUNCH uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2)"; MODELDIR=/data/local/tmp/tts/penny-kokoro-fp32 MODELFILE=model.fp32.onnx sh /data/local/tmp/tts/pennytts.sh 7a_tts_wsmoke_fp32_04 c0 2 4 > /dev/null 2> /dev/null; echo "SMOKE_DONE rc=$? uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2)"'
+
+    LAUNCH uptime_s=15031.07 wallclock=16:52:19 batt_temp_dC=271 memavail_kB=3378060
+    SMOKE_DONE rc=0 uptime_s=15038.68 wallclock=16:52:27 batt_temp_dC=271 memavail_kB=3356612
+
+Afterwards, 16:52:36, uptime 15047.40: out_files=246 (228 + 3 smokes × 6
+files). All six files of each smoke pulled to rows/7a_w/.
+
+### 6. The three reports, side by side (read from rows/7a_w/*.report)
+
+    smoke, spent boot, file just pushed so very likely page-cached — says nothing about load from flash
+
+                         (i) int8 line 0            (ii-a) fp32 line 0          (ii-b) fp32 line 4
+    gate                 GATE PASSED polls_failed=0 wait_s=0.20  |  GATE PASSED polls_failed=0 wait_s=0.20  |  GATE PASSED polls_failed=0 wait_s=0.19
+                         (all three: p0 1803000/1803000 p4 2348000/2348000 p6 2850000/2850000 batt_dC=271 tmax_dC=unset cap=240)
+    rc                   0                          0                           0
+    wall_ms              2,970                      3,000                       5,515
+    elapsed_ms           1,078                      803                         3,288
+    derived_load_ms      1,892                      2,197                       2,227
+    Audio duration       0.829 s                    0.811 s                     4.454 s
+    RTF (binary)         1.078/0.829 = 1.300        0.803/0.811 = 0.990         3.288/4.454 = 0.738
+    wav samples          19,899                     19,475                      106,892
+    memavail_kB b/a      3,348,076 / 3,331,348      3,350,472 / 3,334,756       3,357,016 / 3,340,488
+    swapfree_kB b/a      2,040,696 / 2,040,696      2,040,696 / 2,040,696       2,040,696 / 2,040,696
+    cached_kB b/a        2,713,532 / 2,713,600      2,712,576 / 2,712,644       2,712,660 / 2,712,900
+    pgmajfault b/a       161,588 / 161,588          161,589 / 161,589           161,589 / 161,589
+    ceil_x1 b/min/a      2850000/2802000/2850000    2850000/2630000/2850000     2850000/2507000/2850000
+      min_at             14988.89                   15017.74                    15036.98
+    ceil_a78 b/min/a     2348000 never moved        2348000 never moved         2348000 never moved
+    ceil_a55 b/min/a     1803000 never moved        1803000 never moved         1803000 never moved
+    batt_temp_dC b/a     271 / 271                  271 / 271                   271 / 271
+    peak_rss_kB          282,704                    494,080                     585,816
+    max_rssanon_kB       232,360                    443,784                     534,872
+    max_rssfile_kB       50,024                     49,976                      50,636
+    rss_samples          6                          6                           11
+    lmk_kill_lines       0 (.kills 0 bytes)         0 (.kills 0 bytes)          0 (.kills 0 bytes)
+    model_path           …/penny-kokoro-int8/model.int8.onnx   …/penny-kokoro-fp32/model.fp32.onnx   same
+    model_bytes          92363779                   325534862                   325534862
+
+pgmajfault unchanged across all three lines and Cached steady — consistent
+with the model files already cached; not proof of it.
+
+The binary's command line, from each .err: (i) `--kokoro-model=/data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx`
+with voices/tokens/espeak/lexicon from penny-kokoro-int8 — the same string as
+V1's; (ii) `--kokoro-model=/data/local/tmp/tts/penny-kokoro-fp32/model.fp32.onnx`
+with the others from penny-kokoro-fp32; `--sid=22`, `Speaker ID: 22` printed.
+
+### 7. Smoke (i) against V1 line 00
+
+    cmp rows/7a_w/7a_tts_wsmoke_int8_00.wav rows/7a_v/7a_tts_v1_x1x1_00.wav   rc=0
+    sha256  4d7c10b9844e86a345fbd45a158eca46a9d02b59fdf87449c0c942b12f6caca4  both
+
+PENNYTTS keys in order, V1 line 00 report beside the smoke (i) report (the
+first word after `PENNYTTS`): positions 1-35 identical — tag, text, bin,
+cool_wait_s, cool_gate_first, cool_gate_result, uptime_s, wall_ms, elapsed_ms,
+derived_load_ms, Number, Audio, Real, wav, memavail_kB, memfree_kB,
+swapfree_kB, cached_kB, pswpin, pswpout, pgmajfault, ceil_x1_kHz,
+ceil_x1_min_at, ceil_a78_kHz, ceil_a78_min_at, ceil_a55_kHz, ceil_a55_min_at,
+rated_kHz, batt_temp_dC, peak_rss_kB, max_vmrss_kB, max_rssanon_kB,
+max_rssfile_kB, rss_samples, lmk_kill_lines. Positions 36-37, smoke only:
+model_path, model_bytes. model_path = /data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx,
+model_bytes = 92363779. **Rev 3 with nothing set reproduces rev 2's output on this line.**
+
+### 8. fp32 sample counts against the Mac fp32 reference (abtest-penny-fp32/, notes.md 20508)
+
+    line  phone fp32   Mac fp32 (NN-fp32.wav)   difference
+    00      19,475       19,475                   +0 = 0.000 ms
+    04     106,892      106,892                   +0 = 0.000 ms
+
+Compared against abtest-penny-fp32/NN-fp32.wav ONLY — not the int8 files and
+not the old abtest-penny/NN-full.wav (sherpa's export). All WAVs 24 kHz mono 16-bit.
+
+WAV sha256: int8_00 4d7c10b9…caca4, fp32_00 dbc2c6e9…9b42, fp32_04 d50a8cc1…60bb5.
+Report sha256: int8_00 32d47d3d…0da9, fp32_00 e4fb3d67…c2e90, fp32_04 68155758…c1a.
+
+### 9. FIGURES STEP E MUST DECLARE AS ALREADY SEEN
+
+- fp32 line 0: RTF **0.990** (under 1.0), elapsed 803 ms, wall 3,000, derived
+  load 2,197 ms, peak RSS 494,080 kB, X1 min 2,630,000.
+- fp32 line 4: RTF **0.738**, elapsed 3,288 ms, wall 5,515, derived load
+  2,227 ms, peak RSS 585,816 kB, X1 min 2,507,000.
+- int8 line 0 (this session): RTF 1.300, elapsed 1,078, wall 2,970, derived
+  load 1,892, peak RSS 282,704, X1 min 2,802,000.
+- For reference only, from brief V (not re-measured): V1 line 00 RTF 1.309,
+  V1 line 04 RTF 1.005 (notes.md 20053 §2 and the V1 table at 19655).
+
+### What this entry does NOT say
+
+- Nothing about fp32 against int8 in speed or memory — three single lines on
+  a spent boot with the files just pushed. The step E predictions use them as
+  declared inputs, nothing more.
+- Nothing about load from flash: every model file was just written through
+  the page cache by the push, and line 0 of int8 had been run many times on
+  this boot.
+- Nothing about sound. The phone fp32 matching the Mac fp32 in sample count on
+  two lines says the lengths agree, not that the audio does.
+- Two fp32 lines are not all 18; the line 12 / line 17 differences brief V
+  found for int8 could appear for fp32 too. Not tested.

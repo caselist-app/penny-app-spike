@@ -180,12 +180,16 @@ one), 14252 (stay awake, rev 6), 14306 (gate, push, smoke tests).
     sherpa-onnx-offline-tts 2,432,496 B      sha256 bd7d26e8f1cca82da2596fce2fe1957b2a2ed139f772a7655ec5983cb83c4f2d  (= the 6a's; sherpa-onnx a5b4a94, android-24, NDK r30)
     libonnxruntime.so       22,249,560 B     sha256 33847ad43bffe204699fd4a27f7f3603452a8cdaf2f9a44983a0bc31ffcf2da1
     pennytts.sh rev 2       19,278 B         sha256 3200e06cfed274d34cc459a919d7a3c08307eeea2749867caba805ae49c3d17b  (three-policy gate, GATECAP 240, optional TMAX — notes.md 18977)
+    pennytts.sh rev 3       20,351 B         sha256 90cbeea1eb05e3857a5702ca97ab9439d7cae94a34b6a7a0e66a5fa69c784b88  OVERWROTE rev 2 on the phone 21 Sept ~16:50 (brief W step D, notes.md 20666). MODELDIR/MODELFILE env, defaults = rev 2's; keys model_path, model_bytes last (notes.md 20593)
     penny-kokoro-int8/      360 files, 38 dirs, 150,880,597 B; every file hashed, list at rows/7a_v/7a_tts_push_phone.sha256
       model.int8.onnx       92,363,779 B     sha256 a089794d1293b91e82f3f2b8bed5417d04ac64447d6ada5f21045cde0799bf99
       voices.bin            28,200,960 B     sha256 1c5a5b983d3d50d8586d437a51f3faa2da7919ce76a013c081e65671a3447c29
       tokens.txt            687 B            sha256 6ebb6bb288f20f3ae8d004d3c2ca27697da27c037d75e81a60e2a6a663f95425
       lexicon-gb-en.txt     6,366,635 B      sha256 c4cbb37316f62210dff52718a7afcaae24f50c032cc75ab47ae67b831d1049e7
       lexicon-us-en.txt     5,956,885 B      sha256 7daaab53a181be9885b853a8582bf1838186317e5dadacbcef9c426d6fa0da14
+    penny-kokoro-fp32/      pushed 21 Sept ~16:50 (brief W step D, notes.md 20666); 360 files, 384,051,680 B; list at rows/7a_w/7a_tts_w_push_phone.sha256 (= Mac list, diff rc=0)
+      model.fp32.onnx       325,534,862 B    sha256 a0986d39118221f730dd3322900071075bab81b9b71cf44ef67617066f62409f  (kokoro-v1.0.onnx + sherpa fp32's 16 metadata_props, notes.md 20440; input has no hash from its originating project, matched only against the fastrtc/kokoro-onnx HF mirror)
+      voices.bin, tokens.txt, both lexicons, espeak-ng-data/   byte-identical copies of penny-kokoro-int8's (hashes above)
     tts/out/                7a_tts_smoke_00.*, 7a_tts_smoke_04.*, 7a_tts_v1_x1x1_00..17.* and 7a_tts_v2_a78a78_00..17.* (108 files each, pulled to rows/7a_v/, notes.md 19620, 19842)
 
 Verify with: `adb -s 37291JEHN04619 shell 'pm path com.pennyspike.probe2a'` (expect empty).
