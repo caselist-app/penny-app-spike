@@ -18083,3 +18083,269 @@ It does not say what thread placement the scheduler chose inside mask 30 — thi
 repo has no instrument that would see it. It says nothing about battery life,
 the screen being off, a boot-started service, or answer quality. Battery
 temperature is not SoC temperature.
+
+## 2026-09-21 — BRIEF U, U3 `7a_q17_u3_x1x1a78`, **LAUNCHED WARM**: both X1 cores plus one A78, 3 threads, 100 turns. rc=0, 100 of 100, fnv_all_equal=1, ZERO kill lines. **THE TOKEN HASH CHANGED: 0x9f67352b7af035d5, not 0xcba17a2fcbba49f4. U-A4's -t 3 limb is a FINDING, recorded, no quality claim.** And a THIRD core made it SLOWER than U1 at every matched minute (0.80-0.95).
+
+**THIS ROW WAS LAUNCHED WARM.** The gate ran its full 240 polls over 1,240.90 s
+(20.68 min) and never reached `TMAX=267`; the battery fell 361 -> 291 dC and
+stopped 2.4 C short. All three clock ceilings WERE at rated at launch. **Every
+table and comparison below carries the LAUNCHED WARM label.**
+
+### THE STRING AS RUN — one line, verbatim
+
+    adb -s 37291JEHN04619 shell 'cd /data/local/tmp; P=/sys/devices/system/cpu/cpufreq; B=/sys/class/power_supply/battery/temp; TMAX=267; CAP=240; g0=$(cut -d" " -f1 /proc/uptime); n=0; warm=0; while :; do s0=$(cat $P/policy0/scaling_max_freq); r0=$(cat $P/policy0/cpuinfo_max_freq); s4=$(cat $P/policy4/scaling_max_freq); r4=$(cat $P/policy4/cpuinfo_max_freq); s6=$(cat $P/policy6/scaling_max_freq); r6=$(cat $P/policy6/cpuinfo_max_freq); bt=$(cat $B); [ $n = 0 ] && echo "GATE FIRST p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 batt=$bt/$TMAX uptime_s=$g0"; [ -n "$r0" ] && [ -n "$r4" ] && [ -n "$r6" ] && [ -n "$bt" ] && [ "$s0" = "$r0" ] && [ "$s4" = "$r4" ] && [ "$s6" = "$r6" ] && [ "$bt" -le "$TMAX" ] && break; n=$((n+1)); [ $n -ge $CAP ] && warm=1 && break; sleep 5; done; if [ $warm = 1 ]; then G="GATE TIMED OUT - LAUNCHED WARM"; else G="GATE PASSED"; fi; echo "$G p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 batt_temp_dC=$bt tmax_dC=$TMAX polls_failed=$n gate_start_uptime_s=$g0 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"; PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh 7a_q17_u3_x1x1a78 d0 -- -m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t 3 -c 1024 -lm none -n 64 --user-file /data/local/tmp/penny_user.txt --load-state /data/local/tmp/q17_state.bin --turns 100 --interval-s 0 --tag 7a_q17_u3_x1x1a78 > /dev/null 2>&1; echo "ROW_DONE uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B)"'
+
+**Token diff against the recorded U2-U4 form at notes.md 17265: FIVE TOKENS,
+ALL IN THE ALLOWED SET.**
+
+    token   9   TMAX=<TREF+15>;    ->  TMAX=267;          (TMAX)
+    token 142   7a_q17_u2_a78a78   ->  7a_q17_u3_x1x1a78  (tag, pennybench.sh arg 1)
+    token 143   30                 ->  d0                 (mask)
+    token 148   2                  ->  3                  (-t)
+    token 164   7a_q17_u2_a78a78   ->  7a_q17_u3_x1x1a78  (tag, --tag)
+
+Nothing else differs. `TMAX = TREF_dC + 15 = 252 + 15 = 267`, from U1's printed
+`TREF_dC` (notes.md 17584). Mask `d0` = 0x10+0x40+0x80 = cpus 4, 6 and 7 —
+**both X1 cores and the LOWER-numbered A78 only; cpu5 is excluded** (notes.md
+16874 section 2, derived there, not quoted from the 7a block).
+
+### THE SEVEN LINES
+
+    GATE          TIMED OUT - LAUNCHED WARM. 240 polls, 1,240.90 s (20.68 min)
+                  GATE FIRST p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt=361/267 uptime_s=4541.09
+                  GATE TIMED OUT - LAUNCHED WARM p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_temp_dC=291 tmax_dC=267 polls_failed=240 gate_start_uptime_s=4541.09 uptime_s=5781.99 wallclock=14:18:10
+    rc            0
+    turns_done    100 of 100 requested, turns_overrun=0
+    oom_score_adj pre=-1000 post=200   (both READ off /proc)
+    kills         lmk_kill_lines 0, .kills is 0 bytes, with MemAvailable BEFORE the row = 3,441,992 kB
+    SwapFree      min 1,959,288 kB = 51.29% of SwapTotal 3,820,152, over 91 series samples
+    contamination NOT MET on either limb. Cached ROSE 2,048,404 -> 2,150,372 (+101,968 kB)
+
+### THE TOKEN HASH CHANGED — the row's most important line
+
+    U1, U2, every T row, every S row, the 6a:   token_fnv1a64 = 0xcba17a2fcbba49f4   (-t 2)
+    U3:                                          token_fnv1a64 = 0x9f67352b7af035d5   (-t 3)
+    first_token_id in BOTH:                      32313
+
+**`fnv_all_equal=1` within U3**: all 100 turns produced `0x9f67352b7af035d5`,
+one distinct value in the file. The restore path is deterministic; what changed
+is the thread count.
+
+**This is a FINDING ABOUT THE RUNTIME, NOT A FAILURE, and nothing is claimed
+here about answer quality.** notes.md 16874 (U-A4) predicted YES-unchanged at
+only ~60% confidence and said in terms: "Thread count changes how the work is
+split, and a different split can sum in a different order... No row in this
+repo has ever changed `-t` and checked the fnv, so there is NO DATA either way."
+**There is now data, and it says the hash moves.**
+
+What can be said: **the first token is identical (`32313`), so the divergence
+is not immediate**; it appears somewhere in the 64 generated tokens. What CANNOT
+be said from this row: which token diverges, why, whether the text is better,
+worse or equivalent, or whether `-t 4` gives a third value. The sampler is
+greedy and the prefix is the same 407 tokens in both. **No output text was
+captured or compared** — this repo has never judged output quality and does not
+start here.
+
+**Consequence for the repo: `token_fnv1a64` is a reproducibility check WITHIN a
+thread count, not across one.** Every prior use of it compared `-t 2` rows and
+remains valid.
+
+### SETTLED, verbatim from .bench
+
+    PENNYLOAD turns_done=100 turns_requested=100 turns_overrun=0 fnv_all_equal=1
+    PENNYLOAD first_token_id=32313 token_fnv1a64=0x9f67352b7af035d5   (turn 1)
+    PENNYLOAD ttft_turn_ms   min=331.67 median=543.10 max=781.53
+    PENNYLOAD gen_tps        min=9.39 median=10.66 max=13.79
+    PENNYLOAD quarters       n_per_quarter=25  q1=turns 1-25  q4=turns 76-100
+    PENNYLOAD SETTLED ttft_turn_ms q1_median=412.96 q4_median=607.57 decline_pct=47.13   (positive = SLOWER)
+    PENNYLOAD SETTLED gen_tps      q1_median=12.39 q4_median=10.12 decline_pct=18.27   (positive = SLOWER)
+    PENNYLOAD SETTLED gen_tps_turn1=11.33 settled_pct_of_turn1=89.37
+    PENNYLOAD DUTY busy_median_ms=6461.97 interval_ms=0 duty_pct=-1.00
+    PENNYLOAD threads=3   t_ready_ms 2895.08
+
+### **TURN 1 IS NOT THIS ROW'S PEAK, SO `settled_pct_of_turn1` IS NOT COMPARABLE HERE**
+
+    turn 1                 11.33 t/s
+    row maximum            13.79 t/s, at turn 15
+    turns 2, 5, 10, 20     12.12, 12.82, 13.54, 13.32
+
+**U3 got FASTER for its first fifteen turns and then decayed.** U1 and U2 both
+peaked at turn 1 and fell monotonically. So U3's 89.37% "settled as % of turn 1"
+— and the last-10 equivalent, 86.80% — **are inflated by a depressed
+denominator and must not be read beside U1's 72.56% or U2's 75.26% as if they
+measured the same thing.** They do not. The absolute last-10 median, 9.835 t/s,
+is the figure that survives the comparison.
+
+Why turn 1 was slow is not established by this row. `t_user_decode_ms` on turn 1
+was 766.27 ms against 473.59 on turn 3 and 321.87 on turn 4, so the cost is in
+the 20-token user decode, not the generation; a first-touch or scheduler-placement
+effect is a candidate and **nothing here tests it**.
+
+### PER-TURN, every 10th plus the first and last five (from .bench) — LAUNCHED WARM
+
+      k  uptime_s  restore  user_dec   ttft_ms  gen_ms  gen_tps  busy_ms  ovr  fnv
+      1    5785.68   14.44    766.27    781.53  5560.68   11.33  6342.27  0  0x9f67352b7af035d5
+      2    5792.03    9.00    747.08    756.26  5197.60   12.12  5953.89  0  0x9f67352b7af035d5
+      3    5797.98    7.93    473.59    481.70  5455.11   11.55  5936.86  0  0x9f67352b7af035d5
+      4    5803.92    9.60    321.87    331.67  5341.26   11.79  5672.96  0  0x9f67352b7af035d5
+      5    5809.59    7.86    504.49    512.54  4914.18   12.82  5426.76  0  0x9f67352b7af035d5
+     10    5835.94    9.89    387.91    398.01  4651.59   13.54  5049.65  0  0x9f67352b7af035d5
+     20    5887.77    8.62    392.00    400.89  4729.76   13.32  5130.70  0  0x9f67352b7af035d5
+     30    5948.48   12.52    475.12    487.87  5658.07   11.13  6145.99  0  0x9f67352b7af035d5
+     40    6011.58   10.03    523.03    533.32  5765.36   10.93  6298.74  0  0x9f67352b7af035d5
+     50    6074.97   10.96    534.63    546.29  5767.13   10.92  6313.51  0  0x9f67352b7af035d5
+     60    6139.82   11.58    586.33    598.30  6085.54   10.35  6683.93  0  0x9f67352b7af035d5
+     70    6205.67   10.71    576.34    587.34  6234.83   10.10  6822.24  0  0x9f67352b7af035d5
+     80    6272.68   15.51    598.00    613.90  5951.60   10.59  6565.57  0  0x9f67352b7af035d5
+     90    6340.30   10.55    589.97    600.79  6289.70   10.02  6890.56  0  0x9f67352b7af035d5
+     96    6382.72   12.31    638.11    650.74  6244.27   10.09  6895.09  0  0x9f67352b7af035d5
+     97    6389.61   10.49    593.50    604.26  6708.21    9.39  7312.53  0  0x9f67352b7af035d5
+     98    6396.92   13.77    639.37    653.53  6262.25   10.06  6915.87  0  0x9f67352b7af035d5
+     99    6403.84   10.52    600.25    611.61  6505.87    9.68  7117.54  0  0x9f67352b7af035d5
+    100    6410.96   12.86    641.05    654.30  6222.34   10.12  6876.70  0  0x9f67352b7af035d5
+
+    last-10 median (turns 91-100)  9.835 t/s, from
+    [9.62 9.99 9.43 10.17 9.48 10.09 9.39 10.06 9.68 10.12]
+
+### WALL TIME — LAUNCHED WARM
+
+    turn 1 start to turn 100 end     5785.68 -> 6417.84      632.16 s
+    pennybench before -> after       5782.30 -> 6418.32      636.02 s   (includes the 2.90 s model load)
+    gate pass -> ROW_DONE            5781.99 -> 6424.08      642.09 s
+    gate wait BEFORE the row         4541.09 -> 5781.99    1,240.90 s   (240 polls, not part of the row)
+
+### CEILINGS — poll loop AND series, all THREE policies
+
+    X1  (policy6)  poll:   before 2,850,000  min 984,000 = 34.53% of rated, min_at 6095.98 (313 s in)  after 984,000
+                   series: min 984,000; 1 of 91 at rated = 1.10%; first below rated at 5790.19
+    A78 (policy4)  poll:   before 2,348,000  min 1,491,000 = 63.50% of rated, min_at 6348.74 (566 s in)  after 1,491,000
+                   series: min 1,491,000; 9 of 91 at rated = 9.89%; first below rated at 5846.35
+    A55 (policy0)  poll:   before 1,803,000  min 1,098,000 = 60.90% of rated, min_at 6341.40 (559 s in)  after 1,098,000
+                   series: min 1,098,000; 22 of 91 at rated = 24.18%; first below rated at 5832.33
+
+**The X1 pair reached 984,000 kHz — T2's exact floor, and the 6a's S2 floor
+(notes.md 12503).** U1, on a cold boot, stopped at 1,426,000. **Three loaded
+cores reached the floor two rows of heat sooner than two loaded cores did.**
+
+**policy0 fell to 1,098,000 = 60.90% of rated, the deepest A55 dip this repo has
+recorded** — against T2's single 94.51% sample and U2's 94.51% poll minimum,
+**with nothing scheduled on policy0 in any of the three rows**. The cap is
+package-wide (CLAUDE.md trap, notes.md 12639); this is the clearest instance of
+it yet, and it is only visible because rev 7 polls policy0 at 0.2 s.
+
+### BATTERY — BATTERY, NOT SoC — LAUNCHED WARM
+
+    start   291 dC   max 354 dC   end 354 dC sysfs, 351 dumpsys
+    rise    +63 dC = +6.3 C over 636.02 s (10.600 min) = +0.5943 C/min
+    dumpsys before [ AC powered: true status: 4 level: 100 temperature: 293 ]
+            after  [ AC powered: true status: 4 level: 100 temperature: 351 ]
+
+### MEMORY AND COUNTERS
+
+    peak_rss_kB     1,549,304 (VmHWM)    max_rssanon_kB 1,543,820 (99.65%)   max_rssfile_kB 5,176
+    memavail_kB     before 3,441,992  after 3,411,228     series min 1,866,116
+    memfree_kB      before 1,964,924  after 1,846,728
+    swapfree_kB     before 1,974,392  after 1,960,824     series min 1,959,288 (51.29%)
+    cached_kB       before 2,048,404  after 2,150,372     (+101,968 -- ROSE)
+    pswpin          109,462 -> 109,780  (+318)
+    pswpout         572,655 -> 576,400  (+3,745)
+    pgmajfault      120,852 -> 121,229  (+377)
+    rss_samples     998        lmk_kill_lines 0
+
+**Last series line is NOT a teardown sample** — `VmRSS` 1,549,284 against
+`VmHWM` 1,549,304, twenty kB apart, and `MemAvailable` is in line with its
+neighbours. Quoted as read:
+
+    6413.44 984000 1663000 1197000 1891632 325384 1960824 2150368 1549284 1549304 576400 121229 354 100
+
+### THREE CORES AGAINST TWO — matched minute by matched minute
+
+Elapsed measured from each row's own `pennybench before=` uptime.
+
+    minute   U1 (c0, -t 2, X1 pair)   U3 (d0, -t 3, X1+1 A78)   U3/U1
+       1     k=13  14.86 t/s          k=11  13.64 t/s           0.9179
+       2     k=26  13.75              k=23  10.97               0.7978
+       3     k=37  13.37              k=32  10.70               0.8003
+       4     k=49  13.19              k=42  10.55               0.7998
+       5     k=59  12.04              k=51  11.15               0.9261
+       6     k=70  12.05              k=60  10.35               0.8589
+       7     k=80  11.29              k=69  10.70               0.9477
+       8     k=89  11.17              k=78  10.65               0.9534
+       9     k=99  11.18              k=87  10.07               0.9007
+
+**Adding a third core made the row SLOWER at every single matched minute —
+0.80 to 0.95 of the two-thread X1 row, never once above 1.0.** Wall for the same
+100 turns: 636.02 s against U1's 553.21 s, a ratio of 1.150.
+
+This is the direction the 6a's anchors predicted (l and m, notes.md 6349 and
+6507: four threads across two clusters came out 0.906 of two threads on the big
+pair). **U3 was LAUNCHED WARM and U1 was not**, so part of the gap is heat and
+this row cannot say how much. The reasoning offered in the prediction entry —
+that a slower thread makes the faster threads wait at every barrier — **remains
+unverified; llama.cpp's threading code has not been read in this session and
+nothing here instruments a barrier.**
+
+### THE PREDICTIONS, JUDGED — committed at notes.md 16874, not revised
+
+    figure                     predicted   band           read        verdict
+    turn-1 gen_tps             14.5        10.5-18.0      11.33       HIT (low in band)
+    last-10 median             8.0         5.5-12.0       9.835       HIT
+    that as % of own turn 1    55%         40-70          86.80%      MISS (high)
+      (pennyload settled_pct_of_turn1)                     89.37%     MISS (high)
+    wall, 100 turns            760 s       620-950        636.02 s    HIT (low in band)
+    poll-min policy6           33%         25-45          34.53%      HIT
+    poll-min policy4           80%         40-100         63.50%      HIT
+    poll-min policy0           88%         70-100         60.90%      MISS (low)
+    battery rise               +5.5 C      +3.0 to +10.0  +6.3 C      HIT
+
+Six of eight hit. **Both misses are informative rather than embarrassing.** The
+"% of own turn 1" miss is an artefact of turn 1 not being the peak — the metric
+broke, the phone did not surprise. The policy0 miss is the real one: **no band
+in this matrix anticipated the A55 cluster being capped to 60.90% while idle**,
+and it is the first time this repo has had an instrument fine enough to see it.
+
+    U-A4  token_fnv1a64 = 0xcba17a2fcbba49f4 at -t 3?   **NO. 0x9f67352b7af035d5.**
+          Predicted YES at ~60% confidence. **MISSED, and it is the finding above.**
+          fnv_all_equal = 1                              HIT.
+    U-B1  no kill line naming pennyload                  HIT, zero kill lines.
+          SwapFree min >= 45%                            HIT, 51.29% (band 25-60).
+          Cached: U3 predicted to FALL ~180,000 kB, band -600,000 to +100,000
+                                                         **MISS -- it ROSE +101,968.**
+          void limb NOT met                              HIT.
+
+    U-A2  fastest last-10 median so far: U1 11.175 > U3 9.835 > U2 7.995.  U4 pending.
+    U-A3  soonest finish so far:         U1 553.21 s < U3 636.02 s < U2 764.54 s.  U4 pending.
+          **Both were predicted to be U2. U2 is last on both with only U4 to come.**
+
+### THE FILES
+
+Pulled raw to `rows/7a_u/`, no edits; each hashes identically on Mac and phone:
+
+    40f1e32ab29cdbce09126d3bddf72306ea31e21a17cfa6667233706cb95d8da6  7a_q17_u3_x1x1a78.report   24,983 B
+    a569274defbcc2505096855514e4502d3c592e17376ae0f1ce00646721979836  7a_q17_u3_x1x1a78.bench    21,214 B
+    e9252f0e32d16851d11df0538ffbae50c3c3bbd4832d0314deea25c366b88244  7a_q17_u3_x1x1a78.series    9,294 B
+    206f23e3f7845b4542d0ce98e6953e8a48139c3a0381e57613cf635c4ef033f5  7a_q17_u3_x1x1a78.err      80,048 B
+    e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  7a_q17_u3_x1x1a78.kills         0 B
+
+### WHAT U3 DOES NOT SAY
+
+**IT WAS LAUNCHED WARM**, third in a fixed order, on the warmest chassis of the
+matrix so far. notes.md 16874 section 7 named U3 and U4 as the least trustworthy
+rows and that stands.
+
+**The changed fnv says the token stream differs at -t 3. It does NOT say the
+answer is worse, better, wrong, or that anything is broken.** No text was
+captured, no output compared, and the first token is identical in both. It does
+not say where in the 64 tokens the divergence begins, or whether `-t 4` will
+give the same value as `-t 3`, a third value, or the original.
+
+**It does not say a third core cannot help.** It says that on this shape — 64
+decoded tokens, a restored 407-token prefix, a warm chip — it did not, at any
+matched minute. Decode at low thread counts is the case CLAUDE.md's standing
+prediction calls memory-bandwidth bound; **prefill is the case where more cores
+are expected to pay, and NOTHING IN THIS MATRIX PREFILLS.**
+
+It does not say why turn 1 was slow, why policy0 was capped to 60.90%, or what
+the scheduler did with three threads inside mask `d0` — `taskset` sets an
+affinity mask, not a placement, and this repo has no instrument that would see
+the placement. Battery temperature is not SoC temperature.
