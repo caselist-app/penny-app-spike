@@ -21149,3 +21149,31 @@ runs while a pass or gate is alive.
   audio, TTS beside the LLM, fp16, the app or AudioTrack.
 - Nothing is judged against a "3c budget"; no such figure is on record here.
 - Battery temperature is not chip temperature.
+
+## 2026-09-21 — BRIEF W, CORRECTION BEFORE W1: there is NO "3c budget". Peak RSS is reported against int8's (V1, V2, today's W3) and the plan's "~330 MB resident" fp32 prediction is judged HIT or MISS on the figures. No budget is judged.
+
+From the reviewer, after step E (notes.md 20854 §4 asked for the figure). The
+brief's "the 3c budget" was the reviewer's wording, and wrong: no such number
+exists. What the plan (outside this repo) has, as the reviewer quotes it:
+
+    (a) a prediction of "~330 MB resident" for fp32 Kokoro;
+    (b) a working-set prediction for the trio of 2.3-2.8 GiB, up to ~3.3 GiB
+        with fp32 Kokoro + Parakeet;
+    (c) a measured ~1.87 GB MemAvailable with the LLM resident.
+
+How W reports it from here:
+- Peak RSS for W1 and W2 is set beside int8's: V1 and V2 (brief V) and W3 (today).
+- The plan's "~330 MB resident" is judged HIT or MISS on W1/W2's figures. It
+  is a prediction about a RESIDENT process, and W measures a FRESH process
+  per line, so the judgement says what was measured and no more.
+- **Every RSS figure in brief W is labelled: "peak of a fresh process for one
+  line — NOT a resident process's RSS (step 3)".** That applies retro-
+  actively to the smoke figures at notes.md 20666 §6 and the RSS predictions at
+  20854 §3-§4.
+- (b) and (c) are not judged here: W runs no trio and no LLM.
+
+**Input kokoro-v1.0.onnx has no hash published by its originating project;
+matched only against a third-party mirror (fastrtc/kokoro-onnx).**
+
+What this entry does NOT say: nothing new measured; it changes how RSS is
+reported, not any prediction's number or band.
