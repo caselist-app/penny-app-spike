@@ -1,0 +1,57 @@
+PENNYSPEAKSH tag=7a_tts_r1_fp32_x1x1 rc=0 mask=c0 threads=2 cool_gate=1 lines=all idle_ms=0
+PENNYSPEAKSH bin=/data/local/tmp/tts/pennyspeak
+PENNYSPEAKSH cool_wait_s     uptime 30176.47 -> 30176.65
+PENNYSPEAKSH cool_gate_first p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=249 uptime_s=30176.47   (rev 2: the gate's first poll, scaling/cpuinfo per policy)
+PENNYSPEAKSH cool_gate_result GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=249 tmax_dC=285 polls_failed=0 cap=240 wait_s=0.18   (rev 2)
+PENNYSPEAKSH uptime_s        before=30176.80 after=30239.95
+PENNYSPEAKSH pass_wall_ms    62289   (exec to exit of the WHOLE pass: load + every line + destroy; taken in the launching subshell)
+PENNYSPEAKSH memavail_kB     before=3252408 after=3238688
+PENNYSPEAKSH memfree_kB      before=1079840 after=1060280
+PENNYSPEAKSH swapfree_kB     before=2047352 after=2047352
+PENNYSPEAKSH cached_kB       before=2740704 after=2744268
+PENNYSPEAKSH pswpin          before=173380 after=173380
+PENNYSPEAKSH pswpout         before=619538 after=619538
+PENNYSPEAKSH pgmajfault      before=185132 after=185132
+PENNYSPEAKSH ceil_x1_kHz     before=2850000 min=2188000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+PENNYSPEAKSH ceil_x1_min_at  uptime=30210.20
+PENNYSPEAKSH ceil_a78_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq; key was ceil_a76_kHz in rev 1)
+PENNYSPEAKSH ceil_a78_min_at uptime=30176.80   (key was ceil_a76_min_at in rev 1)
+PENNYSPEAKSH ceil_a55_kHz    before=1803000 min=1803000 after=1803000   (policy0, cpus 0 1 2 3, rated 1803000 read from cpuinfo_max_freq; rev 2)
+PENNYSPEAKSH ceil_a55_min_at uptime=30176.80   (rev 2)
+PENNYSPEAKSH rated_kHz       policy0=1803000 policy4=2348000 policy6=2850000   (rev 2: read from cpuinfo_max_freq before the gate)
+PENNYSPEAKSH batt_temp_dC    before=249 after=249   (rev 2: BATTERY, tenths of a degree C -- NOT SoC)
+PENNYSPEAKSH pass_poll_vmhwm_kB       719236   (VmHWM at the 0.2 s poll's last read of the resident process; per-line figures are in the PENNYSPEAK lines)
+PENNYSPEAKSH pass_poll_max_vmrss_kB   717448
+PENNYSPEAKSH pass_poll_max_rssanon_kB 666568   (anonymous -- NOT reclaimable)
+PENNYSPEAKSH pass_poll_max_rssfile_kB 50576   (file-backed -- reclaimable)
+PENNYSPEAKSH pass_poll_rss_samples    117   (sleep 0.2 s between samples, whole pass)
+PENNYSPEAKSH lmk_kill_lines  0
+PENNYSPEAKSH lmk_kill_lines_naming_pennyspeak 0   (NEW: lines of the above containing 'pennyspeak')
+PENNYSPEAKSH model_path      /data/local/tmp/tts/penny-kokoro-fp32/model.fp32.onnx   (rev 3)
+PENNYSPEAKSH model_bytes     325534862   (rev 3: stat -c %s before the run; the file is not read)
+--- pennyspeak stdout, verbatim (/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1.raw) ---
+PENNYSPEAK event=start tag=7a_tts_r1_fp32_x1x1 pid=15930 threads=2 lines=all n_lines=18 idle_ms=0 model=/data/local/tmp/tts/penny-kokoro-fp32/model.fp32.onnx model_bytes=325534862 outdir=/data/local/tmp/tts/out sherpa_version=1.13.8 sherpa_git_sha1=8c8e275d onnxruntime=1.28.2 up_s=30177.339 vmrss_kB=45296 vmhwm_kB=45296 rssanon_kB=7708 rssfile_kB=37284 memavail_kB=3226804
+PENNYSPEAK event=config provider=cpu num_threads=2 debug=0 lang=en length_scale=1.0 max_num_sentences=1 config_silence_scale=0.2 rule_fsts="" rule_fars="" sid=22 speed=1.0 gen_silence_scale=0.2 num_steps=5 extra=NULL callback=NULL voices=/data/local/tmp/tts/penny-kokoro-fp32/voices.bin tokens=/data/local/tmp/tts/penny-kokoro-fp32/tokens.txt data_dir=/data/local/tmp/tts/penny-kokoro-fp32/espeak-ng-data lexicon=/data/local/tmp/tts/penny-kokoro-fp32/lexicon-gb-en.txt
+PENNYSPEAK event=load status=OK load_ms=1847.546 sample_rate=24000 up_before=30177.339 up_after=30179.187 vmrss_kB=475824 vmhwm_kB=475824 rssanon_kB=425500 rssfile_kB=50020 memavail_kB=2822660
+PENNYSPEAK event=line k=1 n=0 status=OK gen_ms=792.912 audio_ms=811.458 samples=19475 sample_rate=24000 rtf=0.9771 up_before=30179.187 up_after=30179.980 wav_ok=1 wav_ms=0.234 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_00.wav vmrss_kB=501212 vmhwm_kB=501212 rssanon_kB=450332 rssfile_kB=50576 memavail_kB=2785792 text="On it."
+PENNYSPEAK event=line k=2 n=1 status=OK gen_ms=687.217 audio_ms=759.083 samples=18218 sample_rate=24000 rtf=0.9053 up_before=30179.980 up_after=30180.667 wav_ok=1 wav_ms=0.194 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_01.wav vmrss_kB=502564 vmhwm_kB=502644 rssanon_kB=451684 rssfile_kB=50576 memavail_kB=2772988 text="Done."
+PENNYSPEAK event=line k=3 n=2 status=OK gen_ms=743.295 audio_ms=819.375 samples=19665 sample_rate=24000 rtf=0.9071 up_before=30180.668 up_after=30181.411 wav_ok=1 wav_ms=0.192 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_02.wav vmrss_kB=502828 vmhwm_kB=502884 rssanon_kB=451948 rssfile_kB=50576 memavail_kB=2811376 text="Yes?"
+PENNYSPEAK event=line k=4 n=3 status=OK gen_ms=1040.281 audio_ms=1124.167 samples=26980 sample_rate=24000 rtf=0.9254 up_before=30181.411 up_after=30182.452 wav_ok=1 wav_ms=0.224 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_03.wav vmrss_kB=510180 vmhwm_kB=510236 rssanon_kB=459300 rssfile_kB=50576 memavail_kB=2785388 text="One second."
+PENNYSPEAK event=line k=5 n=4 status=OK gen_ms=3347.972 audio_ms=4453.833 samples=106892 sample_rate=24000 rtf=0.7517 up_before=30182.452 up_after=30185.800 wav_ok=1 wav_ms=0.530 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_04.wav vmrss_kB=587144 vmhwm_kB=587932 rssanon_kB=536264 rssfile_kB=50576 memavail_kB=2703016 text="Your call is at 3:45 pm on Thursday the 24th of September."
+PENNYSPEAK event=line k=6 n=5 status=OK gen_ms=5171.792 audio_ms=6962.625 samples=167103 sample_rate=24000 rtf=0.7428 up_before=30185.801 up_after=30190.973 wav_ok=1 wav_ms=0.858 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_05.wav vmrss_kB=650576 vmhwm_kB=651892 rssanon_kB=599696 rssfile_kB=50576 memavail_kB=2642484 text="Revenue this month is £12,480.50, up 17.5% on August."
+PENNYSPEAK event=line k=7 n=6 status=OK gen_ms=2913.151 audio_ms=3598.917 samples=86374 sample_rate=24000 rtf=0.8095 up_before=30190.974 up_after=30193.887 wav_ok=1 wav_ms=0.511 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_06.wav vmrss_kB=650744 vmhwm_kB=651892 rssanon_kB=599864 rssfile_kB=50576 memavail_kB=2646480 text="That's 3 of 14 done, and the other 11 are due by Friday."
+PENNYSPEAK event=line k=8 n=7 status=OK gen_ms=4547.132 audio_ms=5924.375 samples=142185 sample_rate=24000 rtf=0.7675 up_before=30193.888 up_after=30198.435 wav_ok=1 wav_ms=0.653 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_07.wav vmrss_kB=652972 vmhwm_kB=654052 rssanon_kB=602092 rssfile_kB=50576 memavail_kB=2638540 text="The API returned a 502, so I retried the webhook and opened a pull request on GitHub."
+PENNYSPEAK event=line k=9 n=8 status=OK gen_ms=3713.517 audio_ms=4631.792 samples=111163 sample_rate=24000 rtf=0.8017 up_before=30198.436 up_after=30202.149 wav_ok=1 wav_ms=0.530 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_08.wav vmrss_kB=657536 vmhwm_kB=658324 rssanon_kB=606656 rssfile_kB=50576 memavail_kB=2636344 text="The OAuth token expired, so I've refreshed it and restarted the MCP server."
+PENNYSPEAK event=line k=10 n=9 status=OK gen_ms=3684.400 audio_ms=4545.333 samples=109088 sample_rate=24000 rtf=0.8106 up_before=30202.150 up_after=30205.834 wav_ok=1 wav_ms=0.602 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_09.wav vmrss_kB=657576 vmhwm_kB=658396 rssanon_kB=606696 rssfile_kB=50576 memavail_kB=2639388 text="CI is green on the staging branch, and the migration ran in under 4 seconds."
+PENNYSPEAK event=line k=11 n=10 status=OK gen_ms=2811.249 audio_ms=3504.875 samples=84117 sample_rate=24000 rtf=0.8021 up_before=30205.835 up_after=30208.646 wav_ok=1 wav_ms=0.457 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_10.wav vmrss_kB=657692 vmhwm_kB=658416 rssanon_kB=606812 rssfile_kB=50576 memavail_kB=2643260 text="Six separate sessions since Saturday suggest something's slipping."
+PENNYSPEAK event=line k=12 n=11 status=OK gen_ms=2726.336 audio_ms=3345.167 samples=80284 sample_rate=24000 rtf=0.8150 up_before=30208.647 up_after=30211.373 wav_ok=1 wav_ms=0.444 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_11.wav vmrss_kB=657732 vmhwm_kB=658416 rssanon_kB=606852 rssfile_kB=50576 memavail_kB=2634132 text="Penny picked the practical path and parked the rest for Thursday."
+PENNYSPEAK event=line k=13 n=12 status=OK gen_ms=2925.877 audio_ms=3658.667 samples=87808 sample_rate=24000 rtf=0.7997 up_before=30211.374 up_after=30214.300 wav_ok=1 wav_ms=0.597 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_12.wav vmrss_kB=657868 vmhwm_kB=658580 rssanon_kB=606988 rssfile_kB=50576 memavail_kB=2637196 text="I read the record this morning, and I'll record the read-through later."
+PENNYSPEAK event=line k=14 n=13 status=OK gen_ms=2565.437 audio_ms=3090.083 samples=74162 sample_rate=24000 rtf=0.8302 up_before=30214.301 up_after=30216.866 wav_ok=1 wav_ms=0.438 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_13.wav vmrss_kB=657976 vmhwm_kB=658580 rssanon_kB=607096 rssfile_kB=50576 memavail_kB=2629656 text="Do you want me to send it now, or wait until you've read it?"
+PENNYSPEAK event=line k=15 n=14 status=OK gen_ms=6853.972 audio_ms=7401.458 samples=177635 sample_rate=24000 rtf=0.9260 up_before=30216.867 up_after=30223.721 wav_ok=1 wav_ms=0.884 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_14.wav vmrss_kB=658352 vmhwm_kB=659576 rssanon_kB=607472 rssfile_kB=50576 memavail_kB=2638968 text="Three things. First, the contract needs signing. Second, the invoice is overdue. Third, your 2 o'clock has moved to 4."
+PENNYSPEAK event=line k=16 n=15 status=OK gen_ms=8249.931 audio_ms=10347.875 samples=248349 sample_rate=24000 rtf=0.7973 up_before=30223.722 up_after=30231.972 wav_ok=1 wav_ms=1.109 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_15.wav vmrss_kB=717128 vmhwm_kB=719236 rssanon_kB=666248 rssfile_kB=50576 memavail_kB=2591364 text="I went through everything that came in overnight, and most of it can wait, but there's one email from the investor you spoke to last week that reads like a soft yes, so I'd reply to that before anything else."
+PENNYSPEAK event=line k=17 n=16 status=OK gen_ms=2991.749 audio_ms=3113.833 samples=74732 sample_rate=24000 rtf=0.9608 up_before=30231.973 up_after=30234.965 wav_ok=1 wav_ms=0.463 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_16.wav vmrss_kB=717320 vmhwm_kB=719236 rssanon_kB=666440 rssfile_kB=50576 memavail_kB=2572724 text="That's everything. Nothing else needs you tonight."
+PENNYSPEAK event=line k=18 n=17 status=OK gen_ms=4238.128 audio_ms=4644.875 samples=111477 sample_rate=24000 rtf=0.9124 up_before=30234.966 up_after=30239.204 wav_ok=1 wav_ms=0.630 wav=/data/local/tmp/tts/out/7a_tts_r1_fp32_x1x1_17.wav vmrss_kB=717436 vmhwm_kB=719236 rssanon_kB=666556 rssfile_kB=50576 memavail_kB=2577360 text="Morning Matt. Two things need you today, and one of them can wait until after lunch."
+PENNYSPEAK event=destroy up_s=30239.414 vmrss_kB=95180 vmhwm_kB=719236 rssanon_kB=44300 rssfile_kB=50576 memavail_kB=3197604
+PENNYSPEAK event=done rc=0 lines_ok=18 n_lines=18 failed_gen_lines=none failed_wav_lines=none
+--- binary stderr (tail) ---
+--- kill lines ---
