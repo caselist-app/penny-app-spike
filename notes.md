@@ -21922,3 +21922,92 @@ RSS or MemAvailable of a resident process; nothing about whether the WAVs match
 (step D); nothing about how large the timing-window difference in §2 is. It
 does not say pennyspeak behaves identically to the CLI beyond the source lines
 quoted. It decides nothing about which file ships or which cores speak.
+
+## 2026-09-21 — BRIEF X STEP C: pennyspeak.sh, the wrapper for one resident pass, made by COPYING pennytts.sh rev 3. sha256 9a30648259f43d7baa552e91731110b4df15360c6af82f91a8146a5547e37788, 321 lines, 17,762 B. sh -n rc=0. Guard tested on the Mac only. NOT RUN ON ANY PHONE; nothing sent to the phone for this entry.
+
+**CORRECTION to notes.md 21761 §1** (that entry is not edited): it says "Matt's
+decision after step A: two files, the C API route". The two-file C API route
+was the REVIEWER's recommendation, passed on by Matt — not Matt's own decision.
+
+### 1. What is copied, unchanged
+
+Checked by hashing blocks between the same anchor lines in both files:
+
+    helpers, CPU CLOCK CEILINGS, COOL GATE, BEFORE   pennytts.sh 120-184 = pennyspeak.sh 118-182   sha256 64ca62b70c7fa655…  (both)
+    pid wait, 0.2 s poll, wait "$SUB", AFTER         pennytts.sh 220-267 = pennyspeak.sh 213-260   sha256 6877254a05f6a5b8…  (both)
+
+The reviewer checked the same blocks independently before the fixes below
+(pennytts.sh 120-185 and 213-265). The LMK block differs by exactly one
+added line, `KILLS_PS=$(grep -c pennyspeak "$OUT.kills")`, which is reported as
+the NEW key lmk_kill_lines_naming_pennyspeak. lmk_kill_lines keeps its meaning.
+
+The poll stops when pennyspeak exits, and nothing is left running, by
+pennytts.sh's own mechanism: `while [ ! -s "$OUT.pid" ] && [ -d "/proc/$SUB" ]`
+(pennytts.sh 220), `while [ -n "$PID" ] && [ -d "/proc/$PID" ]` (229), `done`
+(257), `wait "$SUB"` (258); taskset execs the binary, so $PID is pennyspeak's.
+
+### 2. What is new, removed or renamed
+
+- Args `<tag> <mask|none> <threads> [lines] [idle_ms]`; env TTSDIR, COOL,
+  GATECAP, TMAX, MODELDIR, MODELFILE with pennytts.sh rev 3's defaults.
+- ONE `taskset <mask> pennyspeak <M> <MF> <threads> <outdir> <tag> <lines> <idle_ms>`,
+  stdout to `<tag>.raw`, copied into the report verbatim and unparsed; its rc
+  goes to the report's rc= via the unchanged .wall file.
+- REMOVED: the 18-line text table (pennyspeak embeds the same lines, notes.md
+  21761 §3); the CLI-stderr greps (Elapsed, RTF, duration, threads) and
+  derived_load_ms; the WAV-header parsing of `$OUT.wav`, which no longer exists;
+  `rm -f` of old outputs. Nothing left in the wrapper reads any of these.
+- RENAMED, because the span changed: wall_ms -> pass_wall_ms (exec to exit of
+  the whole pass); peak_rss_kB, max_vmrss_kB, max_rssanon_kB, max_rssfile_kB,
+  rss_samples -> pass_poll_vmhwm_kB, pass_poll_max_vmrss_kB,
+  pass_poll_max_rssanon_kB, pass_poll_max_rssfile_kB, pass_poll_rss_samples.
+  Per-line RSS is in the PENNYSPEAK lines. Report prefix PENNYSPEAKSH. Every
+  other key keeps its name and its position.
+- One changed line inside a copied block: the RUN comment loses "the same size
+  as the load time being derived" — derived_load_ms no longer exists, so the
+  sentence was false. The 0.2 s poll reasoning and the 32-bit mksh note are kept.
+- Shell constructs pennytts.sh does not use: `[ -e ]`, `${#LINES}`, and
+  `${VAR%%,*}` / `${VAR#*,}` splitting, and two `for` loops (the WAV and
+  output-file checks). `for` has run on this phone's shell in every brief V and
+  W pass string (e.g. notes.md 21081). None of the others has yet run on the phone from this
+  script. `grep -c` is a toybox grep option, not a shell feature.
+
+### 3. THE NO-OVERWRITE GUARD (new), after the reviewer's three fixes
+
+Before the gate and before anything runs:
+- The line list is checked against exactly what pennyspeak.cpp's parse_lines()
+  rejects. The RAW string is walked item by item: "all", or comma-separated
+  items that are digits only, 0-17 after leading zeros are dropped (as strtol
+  does), no repeats, no empty item, under 256 characters. Otherwise it exits 2.
+  **Fix 1:** the proposed guard word-split the list, so empty items vanished,
+  and "18", "99", "0,0", "0,,4" and "0,4," all reached the gate. That would
+  have cost up to GATECAP x 5 s = 20 min before pennyspeak's own exit 2.
+- It refuses with **exit 9** (**fix 2**: 3 is pennyspeak's own "create failed")
+  if any `<tag>_NN.wav` for the requested lines, or `<tag>.report`, `.raw`,
+  `.err`, `.kills`, `.pid` or `.wall`, exists.
+
+Tested on the Mac under macOS sh, on a copy of the script that stops right
+after the guard (scratchpad folder, `TTSDIR` pointed there):
+
+    18  99  0,0  0,,4  0,4,  ,0  04,4    -> "usage: pennyspeak.sh: bad line list [...]"  rc=2 each
+    all  0,4  4,0  17,16,...,0  007      -> guard passed; WAV names 00-17 / 00 04 / 04 00 / 17..00 / 07
+    refA_00.wav exists, lines 0          -> "REFUSED: …/out/refA_00.wav exists - nothing run"  rc=9
+    refB.report exists, lines 4          -> "REFUSED: …/out/refB.report exists - nothing run"  rc=9
+
+### 4. STEP D TRAP, recorded now
+
+The guard will REFUSE test (iii) (fp32, lines 4 then 0) if it reuses test
+(i)'s tag, because (i) already wrote `<tag>_00.wav` and `<tag>_04.wav`. So (iii)
+gets its own tag (e.g. 7a_tts_xsmoke_fp32_rev), writes different filenames from
+the forward test, and ITS WAVs are compared with cmp against the same W1
+references. Step D starts with the push, then `pennyspeak.sh 7a_tts_v1_x1x1 c0 2 0`
+on the phone: expected REFUSED naming out/7a_tts_v1_x1x1_00.wav, exit 9,
+nothing run, out/ count the same before and after. Then the reference test.
+
+### What this entry does NOT say
+
+Nothing has run on the phone. The guard was tested on macOS sh, not on the
+phone's mksh. The gate, the poll and the report have only ever run as
+pennytts.sh. The guard's match with pennyspeak's parser is from reading
+pennyspeak.cpp, not from running both on the same inputs. Nothing about timing,
+memory or WAV identity.
