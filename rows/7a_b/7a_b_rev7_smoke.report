@@ -1,0 +1,82 @@
+PENNYBENCH tag=7a_b_rev7_smoke rc=0 mask=c0
+PENNYBENCH bin=/data/local/tmp/pennyload
+PENNYBENCH args=-m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t 2 -c 1024 -lm none -n 64 --user-file /data/local/tmp/penny_user.txt --load-state /data/local/tmp/q17_state.bin --turns 3 --interval-s 5 --tag 7a_b_rev7_smoke
+PENNYBENCH uptime_s        before=16204.80 after=16223.08
+PENNYBENCH memavail_kB     before=3836504 after=3833644
+PENNYBENCH memfree_kB      before=2723776 after=2723940
+PENNYBENCH swapfree_kB     before=2342872 after=2342872
+PENNYBENCH cached_kB       before=1684984 after=1685076
+PENNYBENCH pswpin          before=145330 after=145331   (pages read back IN from swap)
+PENNYBENCH pswpout         before=658299 after=658299   (pages written OUT to swap)
+PENNYBENCH pgmajfault      before=156910 after=156911   (major faults: had to hit storage or swap)
+PENNYBENCH ceil_x1_kHz     before=2850000 min=2507000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+PENNYBENCH ceil_x1_min_at  uptime=16220.47   (16 s into the row)
+PENNYBENCH ceil_a76_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq)
+PENNYBENCH ceil_a76_min_at uptime=16204.80   (0 s into the row)
+PENNYBENCH ceil_a55_kHz    before=1803000 min=1803000 after=1803000   (policy0, cpus 0 1 2 3, rated 1803000 read from cpuinfo_max_freq)
+PENNYBENCH ceil_a55_min_at uptime=16204.80   (0 s into the row)
+PENNYBENCH rated_kHz policy0=1803000 policy4=2348000 policy6=2850000   (read from cpuinfo_max_freq before the row)
+PENNYBENCH oom_score_adj_child pre=-1000 post=200   (target 200; both READ off /proc)
+PENNYBENCH batt_temp_dC    before=274 after=273   (BATTERY, tenths of a degree C -- NOT SoC)
+PENNYBENCH batt_level      before=100 after=100
+PENNYBENCH batt_dumpsys    before=[ AC powered: true status: 5 level: 100 temperature: 274 ] after=[ AC powered: true status: 5 level: 100 temperature: 274 ]   (cross-check on the sysfs figures)
+PENNYBENCH series_file     /data/local/tmp/out/7a_b_rev7_smoke.series   (3 samples, one per 7 s of uptime)
+PENNYBENCH peak_rss_kB     1546208   (VmHWM, monotonic)
+PENNYBENCH max_vmrss_kB    1546192
+PENNYBENCH max_rssanon_kB  1540656   (anonymous -- NOT reclaimable)
+PENNYBENCH max_rssfile_kB  5248   (file-backed -- reclaimable)
+PENNYBENCH rss_samples     30   (sleep 0.2 s between samples; achieved rate is lower)
+PENNYBENCH lmk_kill_lines  0
+--- swap device (is swap zram?) ---
+cat: /proc/swaps: Permission denied
+/sys/block/zram0
+     ZRAM:   318,608K physical used for 1,470,368K in swap (3,820,152K total swap)
+PENNYBENCH series_interval_s 7   (rev 7: was 10; 7 divides neither 60 nor 5 -- notes.md 15557)
+--- series head/tail (full file at /data/local/tmp/out/7a_b_rev7_smoke.series) ---
+uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level
+16205.62 2850000 2348000 1803000 3765324 2655052 2342872 1685004 11168 14148 658299 156910 274 100
+16212.40 2630000 2348000 1803000 2272012 1174052 2342872 1685076 1545784 1545788 658299 156911 273 100
+...
+16205.62 2850000 2348000 1803000 3765324 2655052 2342872 1685004 11168 14148 658299 156910 274 100
+16212.40 2630000 2348000 1803000 2272012 1174052 2342872 1685076 1545784 1545788 658299 156911 273 100
+16219.53 2630000 2348000 1803000 2281768 1173084 2342872 1685076 1546104 1546112 658299 156911 273 100
+--- llama-bench stdout ---
+PENNYLOAD prefix_snapshot_bytes=46683597 got=46683597 t_snapshot_ms=14.83
+PENNYLOAD turns=3 interval_s=5 n_gen_per_turn=64
+PENNYLOAD TURN k=1 uptime_s=16208.03 t_restore_ms=8.16 t_user_decode_ms=328.90 ttft_turn_ms=337.69 gen_tokens=64 gen_ms=4019.41 gen_tps=15.67 fnv=0xcba17a2fcbba49f4 busy_ms=4357.16 overrun=0
+PENNYLOAD TURN k=2 uptime_s=16213.03 t_restore_ms=17.17 t_user_decode_ms=344.84 ttft_turn_ms=362.22 gen_tokens=64 gen_ms=4033.69 gen_tps=15.62 fnv=0xcba17a2fcbba49f4 busy_ms=4396.04 overrun=0
+PENNYLOAD TURN k=3 uptime_s=16218.03 t_restore_ms=16.82 t_user_decode_ms=341.95 ttft_turn_ms=358.97 gen_tokens=64 gen_ms=4098.89 gen_tps=15.37 fnv=0xcba17a2fcbba49f4 busy_ms=4457.90 overrun=0
+PENNYLOAD tag=7a_b_rev7_smoke run_type=cached rc=0
+PENNYLOAD model=/data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf model_bytes=1107409472
+PENNYLOAD threads=2 n_ctx=1024 n_batch=2048 n_ubatch=512 n_gpu_layers=99
+PENNYLOAD load_mode=none extra_bufts=1 sampler=greedy
+PENNYLOAD chat_template=NONE   (both prompt files tokenised verbatim; no template applied)
+PENNYLOAD sys_file=(none) sys_bytes=-1 sys_tokens=-1 sys_add_special=1 sys_parse_special=1
+PENNYLOAD user_file=/data/local/tmp/penny_user.txt user_bytes=95 user_tokens=20 user_add_special=0 user_parse_special=1
+PENNYLOAD progress_calls=312
+PENNYLOAD t_backend_ms      2.02   (T1-T0,  ggml_backend_load_all)
+PENNYLOAD t_model_open_ms   419.68   (T2-T1,  header+hparams+vocab+alloc)
+PENNYLOAD t_tensor_band_ms  2190.54   (T3-T2,  tensor data read + repack)
+PENNYLOAD t_model_tail_ms   2.44   (T4-T3)
+PENNYLOAD t_model_total_ms  2612.66   (T4-T1,  llama_model_load_from_file)
+PENNYLOAD t_ctx_create_ms   32.35   (T5-T4,  llama_init_from_model)
+PENNYLOAD t_ready_ms        2647.03   (T5-T0,  READY TO GENERATE)
+PENNYLOAD t_tokenize_ms     0.31   (T6-T5)
+PENNYLOAD t_state_load_ms   19.36   (T7-T6)
+PENNYLOAD state_file=/data/local/tmp/q17_state.bin state_bytes=46685237 state_tokens_restored=407
+PENNYLOAD turns_done=3 turns_requested=3 turns_overrun=0 fnv_all_equal=1
+PENNYLOAD first_token_id=32313 token_fnv1a64=0xcba17a2fcbba49f4   (turn 1)
+PENNYLOAD ttft_turn_ms   min=337.69 median=358.97 max=362.22
+PENNYLOAD gen_tps        min=15.37 median=15.62 max=15.67
+PENNYLOAD quarters       n/a   turns_done=3 is fewer than 4, so no quarter exists
+PENNYLOAD SETTLED ttft_turn_ms q1_median=n/a q4_median=n/a decline_pct=n/a   (turns_done=3)
+PENNYLOAD SETTLED gen_tps      q1_median=n/a q4_median=n/a decline_pct=n/a   (turns_done=3)
+PENNYLOAD SETTLED gen_tps_turn1=15.67 settled_pct_of_turn1=n/a   (turns_done=3)
+PENNYLOAD DUTY busy_median_ms=4396.04 interval_ms=5000 duty_pct=87.92
+--- llama-bench stderr (tail) ---
+state_read_data: - reading memory module
+state_read_data: reading state
+state_read_data: - reading model info
+state_read_data: - reading memory module
+~llama_context:        CPU compute buffer size is 304.7520 MiB, matches expectation of 304.7520 MiB
+--- kill lines ---

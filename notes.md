@@ -16694,3 +16694,179 @@ It does not say the newer build is equivalent in general: six days apart, one
 model, one quant, one prompt length, one mask, one thread count, one boot.
 It does not establish what rebooted the phone. It does not say where the 42
 pulled files should live, and they are not durable as things stand.
+
+## 2026-09-21 — BRIEF U, STEP B: pennybench.sh REVISION 7, applied, pushed and smoke-tested. Series interval 10 s -> 7 s so samples stop landing at one phase of every turn; policy0 joins the 0.2 s poll with before/min/after and min_at. Additions only — 27 report keys become 30, same order, nothing renamed. rev 7 sha256 ca3f8414c3295ff953c96591dd61b46de2008fac7563311703d8491826e484d7, 17,519 B. Smoke rc=0, 3/3 turns, fnv 0xcba17a2fcbba49f4.
+
+**21 Sept 07:39 boot, spent by Step A2, page-cached, NOT a row-boot figure.**
+Proposed in full and reviewed before any edit; the four rulings the reviewer
+returned are all applied. The complete diff of committed rev 6 against rev 7 is
+in the commit this entry ships with — it is not reproduced here because the
+file is the record.
+
+### 1. WHAT CHANGED, and the three comment additions the reviewer asked for
+
+    1. SER_INT=7, was a written-in 10 in NEXT_SER=$((UI + 10)).
+    2. policy0: C0_B / C0_MIN / C0_MIN_UP / C0_A, a K0 read inside the 0.2 s
+       poll, and the same min-tracking block policy6 and policy4 have.
+    3. Two report lines added: ceil_a55_kHz and ceil_a55_min_at, in the same
+       format and the same place relative to the a76 pair.
+    4. One report line added: series_interval_s.
+    5. One EXISTING line's text changed, not its key: series_file now says
+       "one per $SER_INT s of uptime" instead of "one per 10 s of uptime".
+    6. Series column 4 now prints ${K0:--1} — the value the poll already read —
+       instead of re-reading $CEIL0 when the line is emitted.
+
+Ruled and recorded in the header comment, per the reviewer:
+
+- **Column 4 is read at poll time.** Named explicitly in the rev 7 header block
+  so nobody later reads the two as the same moment: `ceil_a55` is now sampled a
+  few milliseconds earlier than it was, from the same read the minimum is
+  tracked from. Column, name and meaning unchanged; policy0 now behaves as
+  policy6 and policy4 already did.
+- **rev 7 `rss_samples` counts are NOT comparable with rev 6 counts.** Stated
+  in the header in those words, with the instruction to compare rates and never
+  raw counts across the revision boundary.
+- **Where the residual aliasing risk bites.** Added to the SER_INT comment: in
+  a back-to-back row (`--interval-s 0`) the chip has no idle phase between
+  turns, so phase aliasing matters far less there than in a paced row; and in
+  ANY row it is the 0.2 s poll minimum, not the series, that catches a dip
+  shorter than the sample interval.
+
+### 2. THE PUSH — the rev 6 copy was read first, and this is the one permitted overwrite
+
+On the phone BEFORE the push, quoted as read:
+
+    -rwxrwxrwx 1 shell shell 13820 2026-09-19 13:52 pennybench.sh
+    ddb39f3c68c32f4a8cc30fc4aa0cf6d374b8377e805cf062e0318fdd34a8aa24  pennybench.sh
+    uptime_s=16178.19 wallclock=12:09:11
+
+That is rev 6, the hash CLAUDE.md recorded. **It was overwritten deliberately,
+under the brief's authorisation, and it is the only file in brief U pushed over
+an existing name.** After the push and `chmod 755`:
+
+    -rwxr-xr-x 1 shell shell 17519 2026-09-21 12:08 pennybench.sh
+    PHONE sh -n: OK
+    ca3f8414c3295ff953c96591dd61b46de2008fac7563311703d8491826e484d7  pennybench.sh
+    uptime_s=16188.72 wallclock=12:09:21
+
+Mac side: `shasum -a 256 pennybench.sh` = `ca3f8414…`, `wc -c` = 17,519.
+**Both sides identical.** `sh -n` passes on the Mac AND on the phone's own
+`/system/bin/sh`.
+
+### 3. THE SMOKE TEST — `7a_b_rev7_smoke`, rc=0
+
+Gate passed on its first poll, all three policies at rated, uptime 16204.47,
+12:09:37, battery 274 dC. Then, through the wrapper, mask `c0`:
+
+    -m Qwen3-1.7B-Q4_K_M.gguf -t 2 -c 1024 -lm none -n 64
+    --user-file penny_user.txt --load-state q17_state.bin --turns 3 --interval-s 5
+
+    PENNYLOAD TURN k=1 ttft_turn_ms=337.69 gen_tps=15.67 fnv=0xcba17a2fcbba49f4
+    PENNYLOAD TURN k=2 ttft_turn_ms=362.22 gen_tps=15.62 fnv=0xcba17a2fcbba49f4
+    PENNYLOAD TURN k=3 ttft_turn_ms=358.97 gen_tps=15.37 fnv=0xcba17a2fcbba49f4
+    PENNYLOAD turns_done=3 turns_requested=3 turns_overrun=0 fnv_all_equal=1
+    PENNYLOAD state_file=q17_state.bin state_bytes=46685237 state_tokens_restored=407
+    PENNYBENCH rc=0   lmk_kill_lines 0   oom pre=-1000 post=200
+    PENNYBENCH peak_rss_kB 1546208   swapfree 2,342,872 unchanged either side
+
+**`0xcba17a2fcbba49f4` on all three turns — the expected value.**
+
+**The new report lines, as printed:**
+
+    PENNYBENCH ceil_a55_kHz    before=1803000 min=1803000 after=1803000   (policy0, cpus 0 1 2 3, rated 1803000 read from cpuinfo_max_freq)
+    PENNYBENCH ceil_a55_min_at uptime=16204.80   (0 s into the row)
+    PENNYBENCH series_interval_s 7   (rev 7: was 10; 7 divides neither 60 nor 5 -- notes.md 15557)
+
+**policy0 did not move in this row.** `min` = `before` = `after` = rated, and
+`min_at` is the row's start, which is the wrapper's way of saying "never fell".
+An 18-second row at 87.92% duty is not a test of whether the A55s throttle; it
+is a test that the instrument reads and prints them.
+
+**The series, all three lines, showing the interval:**
+
+    uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level
+    16205.62 2850000 2348000 1803000 3765324 2655052 2342872 1685004   11168   14148 658299 156910 274 100
+    16212.40 2630000 2348000 1803000 2272012 1174052 2342872 1685076 1545784 1545788 658299 156911 273 100
+    16219.53 2630000 2348000 1803000 2281768 1173084 2342872 1685076 1546104 1546112 658299 156911 273 100
+
+Gaps **6.78 s and 7.13 s**. Not exactly 7.00 because the deadline is carried in
+integer seconds (Android's `sh` has no floating-point arithmetic) and the poll
+loop reaches the check when it reaches it — the same behaviour rev 5 had at
+10 s. **The header row is unchanged: 14 columns, same names, same order.**
+
+### 4. KEY-BY-KEY AGAINST A REV 6 REPORT — additions only, confirmed
+
+Reference: `7a_t0_smoke_b`, the nearest rev 6 row of the same shape (`--turns 3
+--interval-s 5`, `c0`, `-t 2`, same model, same state file), notes.md 14306.
+Every `^PENNYBENCH <key>` extracted in order from each report and diffed:
+
+    rev 6 keys: 27      rev 7 keys: 30
+    diff:
+      15a16,17
+      > PENNYBENCH ceil_a55_kHz
+      > PENNYBENCH ceil_a55_min_at
+      27a30
+      > PENNYBENCH series_interval_s
+
+**Every line is a `>`. Nothing removed, nothing renamed, nothing reordered —
+three keys added, two of them immediately after `ceil_a76_min_at` and one
+before the series head/tail block.**
+
+### 5. THE COST OF THE THIRD `cat`, MEASURED
+
+    row                 rev   rss_samples   uptime before -> after   wall s   samples/s
+    7a_t0_smoke_b       6              32   1589.80 -> 1608.22        18.42     1.7372
+    7a_b_rev7_smoke     7              30   16204.80 -> 16223.08      18.28     1.6411
+
+    1.6411 / 1.7372 = 0.9447  ->  rev 7 samples 5.53% slower
+
+**That is one rev 7 row against one rev 6 row, on DIFFERENT BOOTS** — the rev 6
+row ran on the bring-up boot of 19 Sept at uptime 1,589.80 s, the rev 7 row on
+the 21 Sept boot at uptime 16,204.80 s, with a warmer chassis (274 dC against
+that row's conditions). **It is not a controlled measurement of the `cat`'s
+cost and nothing isolates the third read from boot state.** It is the figure
+the header comment tells readers to use instead of raw counts, and it is the
+right order of magnitude for one extra sysfs read in a loop that already does
+two plus a `/proc/<pid>/status` grep.
+
+The series gained lines as intended: **3 samples in 18.28 s against rev 6's 2
+in 18.42 s.**
+
+### 6. CLAUDE.md, AND WHERE THE OUTPUT FILES LIVE NOW
+
+The 7a block's `pennybench.sh` line now reads rev 7, 17,519 B, `ca3f8414…`,
+with a note that rev 6 `ddb39f3c…` was overwritten on 21 Sept. **One line
+changed; `git diff --stat CLAUDE.md` = 1 insertion, 1 deletion.** The 6a block
+still hashes `effd849c2f3f0414369b926bf9035cebb6c644c93284b36ce2e99d885d0b619d`
+over 79 lines.
+
+**Matt's decision, now standing: every 7a_ row's pulled files go under
+`rows/<step>/` in this repo and are committed with that row's write-up, raw
+output only, no edits.** Step A2's 42 files landed at `rows/7a_a2/` (commit
+9e02802, all 42 re-hashed in the repo against the phone list at notes.md 16542,
+diff empty). This row's five files are at `rows/7a_b/`.
+
+### WHAT STEP B DOES NOT SAY
+
+**The smoke test proves the instrument runs and prints; it measures nothing
+about the phone.** Three turns, 18.28 s, one row, on a spent page-cached boot.
+policy0 not moving here says nothing about whether it moves under a 100-turn
+row — that is what U1-U4 are for.
+
+**Rev 7 has never run a long row.** The whole point of the 7 s interval is what
+it does against a 60 s turn over an hour, and no such row has been run under
+it. The phase-walking argument is arithmetic, not a measurement.
+
+**It does not fix what T-C1 exposed, it widens it.** A walking phase means the
+ROW as a whole gets sampled across the turn; it does not guarantee any single
+turn is sampled while busy. The brief T proposal's option 2 — a reading taken
+at a fixed offset inside each turn — is the only one that would, and it needs
+the wrapper to know when a turn starts, which it still does not.
+
+**The sample-rate figure is one row against one row on different boots.** It is
+not a controlled cost measurement.
+
+**AND FOR U1'S WRITE-UP LATER: U1 runs under rev 7; T2 ran under rev 6.** The
+repeatability comparison between U1's first 100 turns and T2's must name that
+as an instrument difference — different series interval, an extra sysfs read
+per poll iteration, and `rss_samples` counts that are not comparable.

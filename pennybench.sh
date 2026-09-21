@@ -17,6 +17,33 @@
 # the row, and printed UNREAD if a read fails. One report line added,
 # rated_kHz. No measurement, poll interval, column, file or key name changed.
 #
+# REVISION 7, 21 Sept, for brief U. TWO additions, no removals. Every column,
+# key name, file name and measurement above stays exactly as it was.
+#   1. THE SERIES SAMPLE INTERVAL IS NOW 7 s, NOT 10 s. At 10 s against a 60 s
+#      turn interval the ratio is 1:6, so every sample landed at the SAME PHASE
+#      of every turn -- brief T's T1 reported "X1 100.00% at rated" for a whole
+#      hour without one sample having been taken while the CPU was busy. The
+#      finding, and the proof from T3's sample offsets, is at notes.md 15557
+#      (section 1, "T-C1(a) IS RECORDED AS NOT JUDGEABLE"). 7 divides neither
+#      60 nor 5, so the phase walks across the turn instead of standing still.
+#   2. policy0 (the A55 cluster) JOINS THE 0.2 s POLL with before/min/after and
+#      min_at, exactly as policy6 and policy4 have had since rev 4. It was
+#      series-only, so its minimum was bounded by the 10 s grid and a dip
+#      shorter than that was invisible -- which is the same instrument defect
+#      that hid the X1 dip (notes.md 15557, finding (b)).
+#      SERIES COLUMN 4 (ceil_a55) IS NOW READ AT POLL TIME, from the same $K0
+#      the minimum is tracked from, instead of being re-read a few ms later
+#      when the line is emitted. The column, its name and its meaning are
+#      unchanged; policy0 now behaves exactly as policy6 and policy4 already
+#      did.
+#
+# THE COST, MEASURED, NOT ASSUMED: the poll loop now does a THIRD `cat` per
+# iteration, so the achieved sample rate is lower than rev 6's.
+# **REV 7 rss_samples COUNTS ARE NOT COMPARABLE WITH REV 6 COUNTS.** The rev 7
+# smoke test records samples-per-second for a rev 7 row and for the nearest
+# rev 6 row of the same shape, side by side, in the brief U step B entry in
+# notes.md. Compare rates, never raw counts, across the revision boundary.
+#
 # usage:  pennybench.sh <tag> <taskset-mask|none> -- <llama-bench args...>
 # e.g.    pennybench.sh smoke c0 -- -m /data/local/tmp/model.gguf -t 2 -p 16 -n 16
 
@@ -58,9 +85,11 @@ upt()  { cut -d' ' -f1 /proc/uptime; }
 # at which each minimum was first seen says WHERE in the row it happened.
 CEIL6=/sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq
 CEIL4=/sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
-# policy0 is the A55 cluster, rated 1,803,000. It has NEVER been sampled during
-# a row in this repo -- CLAUDE.md names that gap twice. It is carried in the
-# series only; its before/min/after are computable from that file.
+# policy0 is the A55 cluster, rated 1,803,000. Rev 5 carried it in the series
+# only, so its before/min/after were computable from that file but bounded by
+# the series grid. REV 7 POLLS IT AT 0.2 s LIKE THE OTHER TWO: the A55 figure
+# brief T reported for T2 (148 of 149 samples at rated, notes.md 15283) came
+# off the 10 s grid and cannot exclude a shorter dip.
 CEIL0=/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
 # Rev 6: rated clock and cpu list per policy, READ, not written in. On the 6a
 # policy6/4 were 2802000/2253000; on the 7a they are 2850000/2348000.
@@ -88,6 +117,7 @@ MA_B=$(mem MemAvailable); MF_B=$(mem MemFree)
 SF_B=$(mem SwapFree);     CA_B=$(mem Cached)
 PSI_B=$(vmst pswpin); PSO_B=$(vmst pswpout); PGM_B=$(vmst pgmajfault)
 C6_B=$(cat $CEIL6 2>/dev/null); C4_B=$(cat $CEIL4 2>/dev/null)
+C0_B=$(cat $CEIL0 2>/dev/null)                      # rev 7
 BT_B=$(batt $BATT_T); BL_B=$(batt $BATT_L)
 BDUMP_B=$(dumpsys battery 2>/dev/null | grep -iE '^  (temperature|level|status|AC powered)' | tr -s ' \n' ' ')
 LOGSTART=$(date +'%m-%d %H:%M:%S.000')
@@ -139,13 +169,27 @@ OOM_POST=$(cat /proc/$PID/oom_score_adj 2>/dev/null)
 # 453 samples over 162.19 s, i.e. 2.79 Hz. Earlier entries called this "5 Hz"
 # and that was the sleep interval, not the rate. The achieved rate is printed.
 #
-# THE SERIES, added in rev 5. One line every 10 s of UPTIME -- not every Nth
-# iteration, because the poll loop's achieved rate is ~2.79 Hz and varies with
-# load, so an iteration count would drift. The deadline is carried in integer
-# seconds; Android's sh has no floating-point arithmetic.
+# THE SERIES, added in rev 5. One line every SER_INT s of UPTIME -- not every
+# Nth iteration, because the poll loop's achieved rate is ~2.79 Hz and varies
+# with load, so an iteration count would drift. The deadline is carried in
+# integer seconds; Android's sh has no floating-point arithmetic.
+#
+# REV 7: SER_INT is 7, was 10. See the header. 7 is coprime with 60, so against
+# a 60 s turn the sample offset advances 7 s per sample and visits all 60
+# one-second offsets in 60 samples (7 min). RESIDUAL RISK, stated: a fixed
+# interval can still alias against a turn period it happens to equal, and
+# brief T's T2 settled at busy_median 7,914.82 ms (notes.md 15219) -- if a
+# future back-to-back row settles at a ~7.0 s period, 7 s sampling aliases
+# against THAT. A jittered interval would remove it and is not proposed here,
+# because it would make the sample times irreproducible between rows.
+# BUT NOTE WHERE IT BITES: in a back-to-back row (--interval-s 0) the chip has
+# no idle phase between turns, so phase aliasing matters far less there than in
+# a paced row; and in ANY row it is the 0.2 s poll minimum, not the series,
+# that catches a dip shorter than the sample interval.
+SER_INT=7
 HWM=0; RSS_MAX=0; ANON_MAX=0; FILE_MAX=0; SAMPLES=0
-C6_MIN=$C6_B; C4_MIN=$C4_B
-C6_MIN_UP=$UP_B; C4_MIN_UP=$UP_B
+C6_MIN=$C6_B; C4_MIN=$C4_B; C0_MIN=$C0_B                       # rev 7: C0_MIN
+C6_MIN_UP=$UP_B; C4_MIN_UP=$UP_B; C0_MIN_UP=$UP_B              # rev 7: C0_MIN_UP
 SER="$OUT.series"
 echo "uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level" > "$SER"
 NEXT_SER=${UP_B%.*}
@@ -163,18 +207,23 @@ while [ -d "/proc/$PID" ]; do
         [ -n "$F" ] && [ "$F" -gt "$FILE_MAX" ] && FILE_MAX=$F
     fi
     K6=$(cat $CEIL6 2>/dev/null); K4=$(cat $CEIL4 2>/dev/null)
+    K0=$(cat $CEIL0 2>/dev/null)                                # rev 7
     [ -z "$C6_MIN" ] && C6_MIN=$K6
     [ -z "$C4_MIN" ] && C4_MIN=$K4
+    [ -z "$C0_MIN" ] && C0_MIN=$K0                              # rev 7
     if [ -n "$K6" ] && [ -n "$C6_MIN" ] && [ "$K6" -lt "$C6_MIN" ]; then
         C6_MIN=$K6; C6_MIN_UP=$(upt)
     fi
     if [ -n "$K4" ] && [ -n "$C4_MIN" ] && [ "$K4" -lt "$C4_MIN" ]; then
         C4_MIN=$K4; C4_MIN_UP=$(upt)
     fi
+    if [ -n "$K0" ] && [ -n "$C0_MIN" ] && [ "$K0" -lt "$C0_MIN" ]; then   # rev 7
+        C0_MIN=$K0; C0_MIN_UP=$(upt)
+    fi
     U=$(upt); UI=${U%.*}
     if [ -n "$UI" ] && [ "$UI" -ge "$NEXT_SER" ]; then
-        echo "$U ${K6:--1} ${K4:--1} $(cat $CEIL0 2>/dev/null || echo -1) $(mem MemAvailable) $(mem MemFree) $(mem SwapFree) $(mem Cached) ${R:--1} ${V:--1} $(vmst pswpout) $(vmst pgmajfault) $(batt $BATT_T) $(batt $BATT_L)" >> "$SER"
-        NEXT_SER=$((UI + 10))
+        echo "$U ${K6:--1} ${K4:--1} ${K0:--1} $(mem MemAvailable) $(mem MemFree) $(mem SwapFree) $(mem Cached) ${R:--1} ${V:--1} $(vmst pswpout) $(vmst pgmajfault) $(batt $BATT_T) $(batt $BATT_L)" >> "$SER"
+        NEXT_SER=$((UI + SER_INT))
     fi
     sleep 0.2
 done
@@ -186,6 +235,7 @@ MA_A=$(mem MemAvailable); MF_A=$(mem MemFree)
 SF_A=$(mem SwapFree);     CA_A=$(mem Cached)
 PSI_A=$(vmst pswpin); PSO_A=$(vmst pswpout); PGM_A=$(vmst pgmajfault)
 C6_A=$(cat $CEIL6 2>/dev/null); C4_A=$(cat $CEIL4 2>/dev/null)
+C0_A=$(cat $CEIL0 2>/dev/null)                      # rev 7
 BT_A=$(batt $BATT_T); BL_A=$(batt $BATT_L)
 BDUMP_A=$(dumpsys battery 2>/dev/null | grep -iE '^  (temperature|level|status|AC powered)' | tr -s ' \n' ' ')
 SER_LINES=$(( $(wc -l < "$SER") - 1 ))
@@ -219,12 +269,14 @@ echo "PENNYBENCH ceil_x1_kHz     before=$C6_B min=$C6_MIN after=$C6_A   (policy6
 echo "PENNYBENCH ceil_x1_min_at  uptime=$C6_MIN_UP   ($((${C6_MIN_UP%.*} - ${UP_B%.*})) s into the row)"
 echo "PENNYBENCH ceil_a76_kHz    before=$C4_B min=$C4_MIN after=$C4_A   (policy4, cpus $P4, rated $R4 read from cpuinfo_max_freq)"
 echo "PENNYBENCH ceil_a76_min_at uptime=$C4_MIN_UP   ($((${C4_MIN_UP%.*} - ${UP_B%.*})) s into the row)"
+echo "PENNYBENCH ceil_a55_kHz    before=$C0_B min=$C0_MIN after=$C0_A   (policy0, cpus $P0, rated $R0 read from cpuinfo_max_freq)"
+echo "PENNYBENCH ceil_a55_min_at uptime=$C0_MIN_UP   ($((${C0_MIN_UP%.*} - ${UP_B%.*})) s into the row)"
 echo "PENNYBENCH rated_kHz policy0=$R0 policy4=$R4 policy6=$R6   (read from cpuinfo_max_freq before the row)"
 echo "PENNYBENCH oom_score_adj_child pre=$OOM_PRE post=$OOM_POST   (target $OOM_TARGET; both READ off /proc)"
 echo "PENNYBENCH batt_temp_dC    before=$BT_B after=$BT_A   (BATTERY, tenths of a degree C -- NOT SoC)"
 echo "PENNYBENCH batt_level      before=$BL_B after=$BL_A"
 echo "PENNYBENCH batt_dumpsys    before=[$BDUMP_B] after=[$BDUMP_A]   (cross-check on the sysfs figures)"
-echo "PENNYBENCH series_file     $SER   ($SER_LINES samples, one per 10 s of uptime)"
+echo "PENNYBENCH series_file     $SER   ($SER_LINES samples, one per $SER_INT s of uptime)"
 echo "PENNYBENCH peak_rss_kB     $HWM   (VmHWM, monotonic)"
 echo "PENNYBENCH max_vmrss_kB    $RSS_MAX"
 echo "PENNYBENCH max_rssanon_kB  $ANON_MAX   (anonymous -- NOT reclaimable)"
@@ -241,6 +293,7 @@ echo "--- swap device (is swap zram?) ---"
 cat /proc/swaps 2>&1 | head -3
 ls -d /sys/block/zram0 2>&1
 dumpsys meminfo 2>/dev/null | grep -iE "zram|swap"
+echo "PENNYBENCH series_interval_s $SER_INT   (rev 7: was 10; 7 divides neither 60 nor 5 -- notes.md 15557)"
 echo "--- series head/tail (full file at $SER) ---"
 head -3 "$SER"; echo "..."; tail -3 "$SER"
 echo "--- llama-bench stdout ---"; cat "$OUT.bench"

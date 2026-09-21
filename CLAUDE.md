@@ -167,7 +167,7 @@ one), 14252 (stay awake, rev 6), 14306 (gate, push, smoke tests).
 `/data/local/tmp` on the 7a, pushed and hashed 19 Sept (notes.md 14306):
 
     pennyload               3,836,992 B      sha256 f52fc60411b55e5ed9eb34e8307f32b45d6bed6f06de85a5347bc02ec2f4ffe9  (= build/pennyload-stripped; 0 smmla / 0 SVE / 898 sdot over 735,079 lines)
-    pennybench.sh rev 6     13,820 B         sha256 ddb39f3c68c32f4a8cc30fc4aa0cf6d374b8377e805cf062e0318fdd34a8aa24
+    pennybench.sh rev 7     17,519 B         sha256 ca3f8414c3295ff953c96591dd61b46de2008fac7563311703d8491826e484d7  (rev 6 ddb39f3c… overwritten 21 Sept; series interval 7 s, policy0 polled at 0.2 s — notes.md 16698)
     Qwen3-1.7B-Q4_K_M.gguf  1,107,409,472 B  sha256 b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897  (= MANIFEST.txt's HF-LFS value)
     penny_system.txt        1,911 B          sha256 9496977025bffba32886e447cf10ab2281c439dc7c4811124827762fdb730ff4
     penny_user.txt          95 B             sha256 b61e0a992e5e8b4cd479c8596c63381b95372ee8b0c3982b895259f9b7a4121b  (first recorded hash, Mac copy)
