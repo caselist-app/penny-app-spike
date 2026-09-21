@@ -17429,3 +17429,101 @@ say the gate will pass on the fresh boot, or how long it will wait.
 It says nothing about masks `30`, `d0` or `f0`, about `-t 3` or `-t 4`, or about
 whether the fnv survives a change of thread count — U-A4 remains open with no
 data either way.
+
+## 2026-09-21 — BRIEF U, THE MATRIX BOOT AND ITS ~5 MINUTE PROTOCOL READING. The 7a's second row boot. Mac on AC, caffeinate pid 54802. Nothing has read the GGUF or q17_state.bin on this boot.
+
+Mac on AC BEFORE the reboot, quoted unedited from `pmset -g batt` at 12:41:0x:
+
+    Now drawing from 'AC Power'
+     -InternalBattery-0 (id=23003235)	65%; AC attached; not charging present: true
+
+**The first read of `pmset -g batt` this session, at 12:40, said `Now drawing
+from 'Battery Power'` — 65%, discharging, 5:31 remaining.** The matrix was
+stopped there and not started until Matt plugged the Mac in. `caffeinate -i -s`
+was started only after AC was confirmed, **pid 54802 at 12:41:15**, presence
+checked with `ps -o pid,stat,command -p 54802` (`SN  caffeinate -i -s`).
+`caffeinate -s` has no effect on battery power, which is why the order matters.
+
+    PRE-REBOOT uptime_s=18119.71 wallclock=12:41:32     (the spent 21 Sept 07:39 boot)
+    adb -s 37291JEHN04619 reboot   issued 12:41:33
+    ADB UP  uptime_s=40.78 wallclock=12:42:29           (one invocation, adb devices -l listed only 37291JEHN04619)
+
+Matt entered the PIN before adb returned. Power-on was therefore about
+**12:41:48** (40.78 s before the 12:42:29 read, both from the one invocation).
+
+### THE DRY RUN OF THE READING INVOCATION — not a protocol reading
+
+Per the trap at notes.md 12015, the exact reading invocation was run once in
+the foreground before anything was armed to fire later. It is labelled a dry
+run and is **not** the ~5 minute reading:
+
+    READING_5MIN uptime_s=87.49 wallclock=12:43:16
+    MemTotal: 7640312 kB MemFree: 2030256 kB MemAvailable: 3394228 kB Cached: 1895072 kB SwapTotal: 3820152 kB SwapFree: 1935224 kB AnonPages: 1878520 kB
+    p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000
+    batt_temp_dC=263 batt_level=100 dumpsys=[ AC powered: true status: 4 level: 100 temperature: 263 ]
+    stay_on=15 screen_off_timeout=30000 keyguard= isKeyguardShowing=false wake= mWakefulness=Awake
+    vmstat pswpin=9133 pswpout=481012 pgmajfault=20254
+    ls: Qwen3-1.7B-Q4_K_M.gguf out penny_system.txt penny_user.txt pennybench.sh pennyload q17_state.bin
+    READING_5MIN_END uptime_s=88.12
+
+The label reads `READING_5MIN` because the label is a shell variable in the
+string and the string was not altered for the dry run. **Read it as
+`DRYRUN uptime_s=87.49`.**
+
+### THE ~5 MINUTE READING — one invocation, value and wallclock together
+
+    READING_5MIN uptime_s=299.34 wallclock=12:46:48
+    MemTotal: 7640312 kB MemFree: 2133280 kB MemAvailable: 3489176 kB Cached: 1886960 kB SwapTotal: 3820152 kB SwapFree: 1813368 kB AnonPages: 1754248 kB
+    p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000
+    batt_temp_dC=262 batt_level=100 dumpsys=[ AC powered: true status: 4 level: 100 temperature: 263 ]
+    stay_on=15 screen_off_timeout=30000 keyguard= isKeyguardShowing=false wake= mWakefulness=Awake
+    vmstat pswpin=9133 pswpout=511453 pgmajfault=20254
+    ls: Qwen3-1.7B-Q4_K_M.gguf out penny_system.txt penny_user.txt pennybench.sh pennyload q17_state.bin
+    READING_5MIN_END uptime_s=299.98
+
+Quoted unedited, 4.99 min after power-on.
+
+    MemAvailable   3,489,176 kB at 4.99 min
+    MemFree        2,133,280 kB
+    Cached         1,886,960 kB
+    SwapFree       1,813,368 kB = 47.47% of SwapTotal 3,820,152
+    AnonPages      1,754,248 kB
+    ceilings       all three at rated (each scaling_max_freq = its own cpuinfo_max_freq)
+    battery        262 dC sysfs, 263 dumpsys, level 100, AC powered, status 4
+    screen         stay_on 15, screen_off_timeout 30000, keyguard not showing, Awake
+
+**`MemTotal` 7,640,312 kB and `SwapTotal` 3,820,152 kB** — the same values as
+the 19 Sept row boot (notes.md 14975), 4 kB more each than the bring-up boot's
+7,640,308 / 3,820,148 recorded in CLAUDE.md's 7a block. Percentages of
+`SwapTotal` on this boot use 3,820,152.
+
+Against the 19 Sept row boot's own ~5 minute reading (notes.md 14975), same
+handset, same conditions class (idle, unlocked, AC, nothing of ours run):
+
+    MemAvailable   3,408,164 -> 3,489,176 kB   (+81,012)
+    SwapFree       1,868,920 -> 1,813,368 kB   (-55,552; 48.92% -> 47.47%)
+    battery        297 -> 262 dC               (29.7 C -> 26.2 C)
+
+**This is the second boot on which MemAvailable has been read at ~5 min, and
+the two are 81,012 kB apart. That is a reading, not a baseline, and no budget
+or floor is declared from it.** The battery is 3.5 C cooler than 19 Sept's row
+boot was at the same point, which is a starting condition for U1 and is
+recorded as such, not as a result. `dumpsys battery status 4` is
+not-charging-while-AC-attached; 19 Sept read status 2 (charging) at the same
+point. Level is 100 in both.
+
+`SwapFree` at 47.47% means **2,006,784 kB of swap is already in use on a boot
+where nothing of ours has run** — the same shape as 19 Sept's, and well clear
+of the 10% contamination limb.
+
+The `ls` lists all seven entries by name. **Nothing opened the GGUF or
+`q17_state.bin`**; per the reviewer's condition 2 the six-file re-hash happens
+after U4, not before U1.
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+It is one reading on one boot; the ~25 minute reading is not in it and U1 has
+not run. Nothing here is a baseline, a budget or a ceiling. The battery figure
+is battery temperature, not SoC temperature, and the chassis history of this
+boot is not known beyond the fact that the phone had been idle on the previous
+boot since 12:35. It says nothing about what U1 will do.
