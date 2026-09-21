@@ -145,7 +145,7 @@ one), 14252 (stay awake, rev 6), 14306 (gate, push, smoke tests).
     Boot key      508d75dea10c5cbc3e7632260fc0b59f6055a8a49dd84e693b6d8899edbb01e4 — compared on screen by Matt; not read by the builder
     OEM unlocking ON per Matt's on-screen reading; not readable from shell (sys.oem_unlock_allowed empty, dumpsys oem_lock empty)
     Memory        MemTotal 7,640,308 kB; SwapTotal 3,820,148 kB, zram
-    Boot          bring-up boot SPENT (push, smoke a, smoke b; smoke a met the Cached contamination limb). ROW BOOT SPENT: T1 (notes.md 15016), T2 (15163), T3 (15333), the pulls and the post-T3 re-hash (15521). Brief T is CLOSED (15557). THAT ROW BOOT ENDED UNOBSERVED — on 21 Sept the phone was found on a NEW boot of ~07:39, cause not established, Matt states he did not reboot it (notes.md 15860, 16057). That 21 Sept boot is SPENT by brief U step A2 (notes.md 16241) and by the step D rehearsal (17317). MATRIX BOOT, 21 Sept ~12:41:48, IS SPENT: protocol readings (notes.md 17433, 17531), U1 (17584), U2 (17821), U3 (18087), U4 (18353). U2, U3 and U4 were all LAUNCHED WARM — each gate ran its full 240 polls without reaching TMAX=267. Left at uptime 8617.02, battery 361 dC, 15:05:25; caffeinate stopped. Brief V step B smoke (notes.md 19086), V1 (19620) and V2 (19842) also ran on it; left at uptime 12825.46, battery 288 dC, 16:15:34.
+    Boot          bring-up boot SPENT (push, smoke a, smoke b; smoke a met the Cached contamination limb). ROW BOOT SPENT: T1 (notes.md 15016), T2 (15163), T3 (15333), the pulls and the post-T3 re-hash (15521). Brief T is CLOSED (15557). THAT ROW BOOT ENDED UNOBSERVED — on 21 Sept the phone was found on a NEW boot of ~07:39, cause not established, Matt states he did not reboot it (notes.md 15860, 16057). That 21 Sept boot is SPENT by brief U step A2 (notes.md 16241) and by the step D rehearsal (17317). MATRIX BOOT, 21 Sept ~12:41:48, IS SPENT: protocol readings (notes.md 17433, 17531), U1 (17584), U2 (17821), U3 (18087), U4 (18353). U2, U3 and U4 were all LAUNCHED WARM — each gate ran its full 240 polls without reaching TMAX=267. Left at uptime 8617.02, battery 361 dC, 15:05:25; caffeinate stopped. Brief V step B smoke (notes.md 19086), V1 (19620) and V2 (19842) also ran on it — Brief V CLOSED (20053); left at uptime 12825.46, battery 288 dC, 16:15:34.
     Stay awake    stay_on_while_plugged_in=15 (set by Matt by hand), screen_off_timeout=30000
     Charging      no charge-limit settings key; dumpsys battery "Charging policy: 1" (= default, builder's memory)
     adb shell     oom_score_adj -1000
@@ -300,7 +300,11 @@ root.
   X1 pair. **`settled_pct_of_turn1` is retired as a headline metric** for any
   row whose turn 1 is not its peak; absolute last-10 medians and wall times
   lead.
-- **NEXT: stage 2 / 3a per the plan.**
+- **Brief V (stage 3a step 1, Kokoro int8 on the 7a) is CLOSED** (notes.md 20053).
+  V1 X1 pair c0 2t, spent boot, model page-cached, NOT a row-boot figure: RTF 1.005-1.309, median 1.081, 0 of 18 under 1.0, elapsed sum 79,357 ms, X1 min 87.96%.
+  V2 A78 pair 30 2t, spent boot, model page-cached, NOT a row-boot figure, RAN SECOND 1.5 C warmer: RTF 1.280-1.740, median 1.367, elapsed sum 100,262 ms (1.263x V1, not a full-clock ratio), A78 never left rated.
+  Phone WAVs differ from the Mac's on line 12 (-170 ms) and line 17 (+12 ms); P-T5 held on 3 lines only; a listen to line 12 is owed.
+- **NEXT: stage 3a step 2 (fp32).** It needs a download, and **Matt approves each file** before it is fetched.
 - **Not done, in the order Brief S left them:** the `-ub` test that separates
   batch size from micro-batch size; the on-device VOICE bake-off — Kokoro-82M
   `bf_isabella` and `kokoro-onnx` int8 under sherpa-onnx (**Matt's decision,

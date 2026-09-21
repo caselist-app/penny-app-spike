@@ -20049,3 +20049,208 @@ changed; the 6a block (55-133) re-hashed after the edit:
   not measured.
 - It does not decide E3 or where Kokoro runs. That judgement is not the
   builder's, and **brief V is not closed here — that entry is the reviewer's.**
+
+## 2026-09-21 — BRIEF V, CLOSED.
+
+Written on the reviewer's eight-part instruction after the reviewer re-checked
+V1 and V2 against `rows/7a_v/*.report`. **No new measurement. Nothing was
+sent to the phone for this entry.** Every figure below was re-read this session
+from the 36 pulled reports and WAVs (script parse of `rows/7a_v/7a_tts_v1_x1x1_NN.report`
+and `…_v2_a78a78_NN.report`), or is quoted with its notes.md line.
+
+### 1. WHAT WAS ASKED, AND THE FIVE COMMITS
+
+Stage 3a step 1: run Kokoro int8 (`penny-kokoro-int8`, sid 22, under
+`sherpa-onnx-offline-tts` bd7d26e8…) on the Pixel 7a. Two pinned 2-thread
+passes of the same 18 lines in a fixed order: V1 on the X1 pair (mask c0),
+then V2 on the A78 pair (mask 30). A fresh process per line, a cooling gate
+before line 0 only, predictions written before either pass. Four questions:
+V-A1 (any X1 line under RTF 1.0), V-A2 (A78/X1 elapsed-sum ratio inside
+1.3-1.7), V-A3 (does the A78 ceiling leave rated) and V-B1 (no kills,
+MemAvailable over 1 GB).
+
+    2be6395  step A  pennytts.sh rev 2 (3200e06c…): three-policy gate against each policy's own cpuinfo_max_freq, GATECAP 240, optional TMAX, LAUNCHED WARM on timeout (notes.md 18977)
+    434925a  step B  tts/ pushed to the 7a from the Mac's existing files, 363 files hashed both sides, two smoke lines (notes.md 19086)
+    6ae4235  step C  predictions, judging rule and both pass strings, before any row (notes.md 19359)
+    560be28  V1      X1 pair, 18 reports, write-up and judgement (notes.md 19620)
+    35cc39f  V2      A78 pair, 18 reports, write-up, V2/V1 comparison, the four questions judged (notes.md 19842)
+
+### 2. RESULTS, V1 BESIDE V2
+
+    V1: spent boot, model page-cached, NOT a row-boot figure.
+    V2: spent boot, model page-cached, NOT a row-boot figure. RAN SECOND — launched 1.5 C warmer than V1, 243 s + a 337 s gate wait after V1 ended.
+
+                                       V1 — X1 pair, mask c0, 2 threads          V2 — A78 pair, mask 30, 2 threads
+    gate result                        GATE PASSED                               GATE PASSED (battery limb; clocks rated at first poll)
+      polls_failed / wait_s            0 / 0.21                                  65 / 337.09  (tref 270, tmax 285)
+      launch battery (line 00 before)  270 dC                                    285 dC  (290 at the gate's first poll)
+    reports / rc=0 / kill lines        18 / 18 / 0                               18 / 18 / 0
+    RTF min / median / max             1.005 (l04) / 1.081 / 1.309 (l00)         1.280 (l05) / 1.367 / 1.740 (l00)
+    RTF line 15                        1.037                                     1.297
+    lines under RTF 1.0                0                                         0
+    elapsed_ms sum                     79,357                                    100,262
+    wall_ms sum                        114,960                                   149,666
+    audio sum (binary's Audio duration) 72.749 s                                 72.749 s
+    derived load median (range)        1,982 ms (1,890 l02 - 2,057 l10)          2,749 ms (2,691 l17 - 2,807 l15)
+    peak RSS max                       576,772 kB (l15)                          576,656 kB (l15)
+    MemAvailable min, 36 readings      3,327,452 kB (l05 before)                 3,328,040 kB (l04 after)
+    policy6 X1  before/min/after       2,850,000 / 2,507,000 (87.96%; first l10, also l12, l15) / 2,850,000     2,850,000 / 2,850,000 (never moved) / 2,850,000
+    policy4 A78 before/min/after       2,348,000 / 2,348,000 (never moved) / 2,348,000                            2,348,000 / 2,348,000 (never moved) / 2,348,000
+    policy0 A55 before/min/after       1,803,000 / 1,803,000 (never moved) / 1,803,000                            1,803,000 / 1,803,000 (never moved) / 1,803,000
+    battery first -> last              270 -> 272 dC                             285 -> 286 dC
+    pass span, uptime s                11871.87 -> 12019.02 = 147.15             12600.79 -> 12783.52 = 182.73
+
+"before" is line 00's `before=`, "after" is line 17's `after=`, "min" is the
+minimum of the 18 reports' `min=`. The gap figures are from the LAUNCH/DONE
+lines: V1 DONE uptime 12019.95, V2 LAUNCH 12263.18 (243.23 s), gate
+12263.57 -> 12600.66 (notes.md 19851-19889).
+
+### 3. THE FOUR QUESTIONS, AND THE FULL SCORE
+
+    question                                                   predicted (notes.md)                 measured                         verdict
+    V-A1  any X1 line under RTF 1.0 in V1?                     NO, ~55%; band 0-3 lines (19489)     NO, 0 lines; min 1.005 (l04)     HIT
+    V-A2  A78/X1 elapsed-sum ratio inside 1.3-1.7?             YES, 1.52, ~70% (19497)              1.2634                           MISS (LOW)
+    V-A3  A78 ceiling leaves rated during V2?                  YES, ~60%; poll-min 2,253,000 (19500) NO, 2,348,000 on all 18 lines   MISS
+    V-B1  no tts kill line, MemAvailable >= 1,048,576 kB?      HIT both limbs (19515)               0 kill lines; mins 3,327,452 / 3,328,040   HIT, both passes
+
+**V1: 16 of 18 HIT** (table at notes.md 19778). The misses:
+- X1 poll-min: predicted 1,826,000, band 1,426,000-2,252,000. Measured
+  2,507,000. **MISS HIGH.**
+- Sample counts, all 18 within 5 ms of the Mac: **MISS.** Line 12 was
+  -170.167 ms, line 17 +11.833 ms.
+
+**V2: 9 of 17 HIT** (table at notes.md 19976). The misses:
+- Gate polls: predicted 0-12, measured 65. **MISS HIGH.** It passed, but not
+  in band.
+- RTF min 1.280, band 1.40-1.78. **MISS LOW.**
+- RTF median 1.367, band 1.50-1.92. **MISS LOW.**
+- RTF max 1.740, band 1.90-2.50. **MISS LOW.**
+- RTF line 15 1.297, band 1.40-1.80. **MISS LOW.**
+- Elapsed sum 100,262, band 108,000-142,000. **MISS LOW.**
+- Span 182.73 s, band 185-230. **MISS LOW.**
+- R 1.2634, point 1.52, band 1.35-1.75. **MISS LOW.**
+
+**The A78/X1 per-clock factor of 1.25 was reasoning, not data** (notes.md
+19416: "I take **1.25**, between the two"). It set R = 1.2138 × 1.25 = 1.52
+and, through k2, every V2 time prediction. **It was wrong in the pessimistic
+direction:** the A78 pair came in faster than predicted. The measured ratio,
+1.2634, is barely above the rated-clock ratio of 1.2138 on its own, and
+V1's X1 was not at rated (section 5).
+
+### 4. WHAT IT SAYS FOR THE PLAN — findings, not decisions (the decisions are Matt's)
+
+a. **On this file and this method, neither pair generated under real time on
+   any of the 18 lines.** RTF was 1.005-1.309 on the X1 pair and 1.280-1.740
+   on the A78 pair. The method is generate-only RTF, a fresh process per line.
+b. **The A78 pair's elapsed sum was 1.263× the X1 pair's** (100,262 /
+   79,357). The 6a's A76 pair was 1.680× its X1 pair (notes.md 13914). That
+   6a figure was a prediction input, and it did not carry over to this chip.
+c. **The X1 ceiling left rated during V1** (to 2,507,000 = 87.96%). **The A78
+   ceiling did not leave rated during V2.**
+d. **Every line also paid a derived load outside RTF**: 1,890-2,057 ms on the
+   X1 pair and 2,691-2,807 ms on the A78 pair (wall minus elapsed: process
+   start, model load, WAV write, two date forks). `wall_ms` includes it; RTF
+   does not.
+
+### 5. THE CAVEATS ON 1.263, AND ON "THE A78 CEILING NEVER MOVED"
+
+- **V2 ran second, and warmer.** Its launch battery was 285 dC against V1's
+  270, and it started 243.23 s plus a 337.09 s gate after V1's DONE.
+- **V1's X1 pair was below rated for part of its pass.** Its per-line minimum
+  was 2,704,000 from line 01 and 2,630,000 or lower from line 03 (V1 table,
+  notes.md 19655). So **1.263 is NOT a full-clock ratio.** With both pairs at
+  rated the gap would be larger, by an amount not measured here.
+- **One pass per pair.**
+- **Fixed order**, X1 first. Order and pair are not separable.
+- **On "the A78 ceiling never moved":** V2 was 182.73 s of pass, with a
+  process exit and restart between lines. In U2, under CONTINUOUS decode on
+  the same pair, the A78 ceiling first read below rated at uptime 3709.11
+  (notes.md 17921), 140.8 s into the row (19503), and fell to 63.50% by the
+  row's end. **V2 does not say the A78 pair holds rated under long speech.**
+
+### 6. THE WAV LENGTH FINDING
+
+The phone's sample counts are the same in V1 and V2 (all 18 WAVs
+byte-identical). Here they are against the Mac's
+`~/kokoro-models/abtest-penny/NN-int8.wav` (sherpa-onnx 1.13.8 Python wheel),
+read with python `wave`. All 24 kHz mono 16-bit.
+
+    line  7a (V1 = V2)  Mac        difference
+    00      19,899      19,812        +87 =   +3.625 ms
+    01      18,184      18,184         +0 =   +0.000 ms
+    02      19,526      19,510        +16 =   +0.667 ms
+    03      27,821      27,820         +1 =   +0.042 ms
+    04     109,089     109,090         -1 =   -0.042 ms
+    05     165,773     165,742        +31 =   +1.292 ms
+    06      86,222      86,218         +4 =   +0.167 ms
+    07     139,567     139,549        +18 =   +0.750 ms
+    08     112,893     112,892         +1 =   +0.042 ms
+    09     108,483     108,489         -6 =   -0.250 ms
+    10      82,797      82,854        -57 =   -2.375 ms
+    11      81,489      81,443        +46 =   +1.917 ms
+    12      84,311      88,395     -4,084 = -170.167 ms   <- line 12, 170 ms SHORT on the phone
+    13      73,565      73,565         +0 =   +0.000 ms
+    14     178,788     178,768        +20 =   +0.833 ms
+    15     249,994     250,017        -23 =   -0.958 ms
+    16      74,607      74,724       -117 =   -4.875 ms
+    17     112,956     112,672       +284 =  +11.833 ms   <- line 17, ~12 ms LONG on the phone
+
+**CORRECTION TO THE RECORD — P-T5 on the 6a.** Notes.md 13791 reads
+"**P-T5, sample counts within 5 ms of the Mac: HELD.**" It was judged on three
+lines only: 00, 05 and 15 (the table at 13720-13722). Those were the only 6a
+WAVs pulled to the Mac. **On the full 18 lines, "within 5 ms of the Mac" does
+NOT hold** for the phone binary: lines 12 and 17 fall outside it on the 7a.
+P-T5 stands as HELD on the three lines it was judged on, and no more.
+
+**The 6a's lines 12 and 17 as WAVs: NOT CHECKED — the files do not exist on
+the Mac.** `ls -la ~/kokoro-models/phone-6a-rung1/` lists four files only.
+Each was read with python `wave`: `ack-1.wav` 19,899, `p2-00.wav` 19,899,
+`p2-05.wav` 165,773, `p2-15.wav` 249,994 — equal to the 7a's lines 00, 05 and
+15. The only 6a figure for lines 12 and 17 is the binary's own `Audio
+duration` in the 6a's 4b report: 3,513 ms and 4,707 ms (notes.md 13639,
+13644). Those equal the 7a's 3.513 s and 4.707 s at millisecond resolution,
+and differ from the Mac's 3,683 ms (88,395 / 24,000) and 4,695 ms (112,672 /
+24,000). **At ms resolution the 6a matched the 7a, not the Mac.** That rests
+on a printed duration, not on WAV sample counts.
+
+**No cause is claimed. Nothing was listened to.** Line 12 is "I read the record
+this morning, and I'll record the read-through later." **A listen to line 12,
+Mac against phone, is owed before the phone's output is called the same voice
+as the Mac's.**
+
+### 7. UNEXPLAINED — recorded, no cause claimed
+
+- **The X1 ceiling dipped inside single short lines on a rested phone** in the
+  step B smoke: 2,802,000 at 10893.23 during line 0 (3.1 s wall), and
+  2,704,000 = 94.88% at 10928.74 during line 4 (6.5 s wall), back to rated
+  after each (notes.md 19323-19324). V1's line 00 did the same: 2,802,000 at
+  11874.49.
+- **Two `caffeinate -i -t 300` processes on the Mac**, one seen after each
+  pass: **pid 12020**, elapsed 01:38 when read after V1 (notes.md 19765
+  section), and **pid 15957**, elapsed 00:41 when read after V2 (20018
+  section). The command was `ps -axo pid,etime,command`, so **the parent was
+  not recorded.** Neither was started by any command of the builder's.
+- **"Not charging" at level 100 on mains**: `dumpsys battery` at uptime
+  10880.06, `AC powered: true`, `level: 100`, `status: 4` (notes.md 19098).
+  Not explained.
+- Battery rose from 272 dC at V1 DONE to 282 at uptime 12118.70 and 290 at V2
+  LAUNCH, with no pass running (notes.md 19851 section). Not explained.
+
+### 8. WHAT THIS BRIEF DOES NOT SAY
+
+- Nothing about fp32 (stage 3a step 2), a resident Kokoro (step 3), time to
+  first audio, the app, AudioTrack, pronunciation, or TTS beside the LLM.
+- Nothing about thread placement beyond these two pairs at 2 threads.
+- A fresh-process-per-line RTF is not a product figure in either direction.
+  It does not say real time is out of reach, and it does not say it is near.
+- Battery temperature is not chip temperature.
+- A shell process over adb, on mains, with the screen on, is not a product
+  process.
+- It does not decide where Kokoro runs.
+
+(CLAUDE.md, changed in the same commit. Two edits only. "What is next" gains a
+Brief V CLOSED bullet, with V1 and V2 one line each and their labels. "NEXT:
+stage 2 / 3a per the plan" becomes "NEXT: stage 3a step 2 (fp32)", noting that
+it needs a download Matt approves file by file. The 7a Boot line gains "Brief V
+CLOSED (20053)". The 6a block, lines 55-133, re-hashed after the edit:
+`effd849c…`, 79 lines, byte-identical.)
