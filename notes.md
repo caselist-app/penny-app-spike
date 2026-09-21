@@ -19838,3 +19838,214 @@ re-hashed after the edit: `effd849c…`, 79 lines, byte-identical.
   boot with ~3.3 GB available is not a claim about memory pressure.
 - Battery temperature is not SoC temperature. The poll covers each line's run,
   not the gaps between lines.
+
+## 2026-09-21 — BRIEF V, V2 `7a_tts_v2_a78a78`: Kokoro int8, the A78 pair (mask 30), 2 threads, 18 lines, RUN SECOND after V1. GATE PASSED polls_failed=65 wait_s=337.09, held by the BATTERY limb (tref 270, tmax 285); the clocks were rated from the first poll. 18 reports, 18 x rc=0, ZERO kill lines. RTF 1.280-1.740, median 1.367; elapsed sum 100,262 ms. V2/V1 elapsed-sum ratio 1.263 — BELOW every band: V-A2 MISSED. The A78 ceiling NEVER left rated: V-A3 MISSED. Seven V2 figures MISSED LOW. Spent boot, model page-cached, NOT a row-boot figure.
+
+**Every figure in this entry: spent 21 Sept matrix boot, model page-cached,
+NOT a row-boot figure. V2 RAN SECOND, on a phone that had just run V1 (entry at
+notes.md 19620).** Launch battery, both passes, line 00 `batt_temp_dC before=`:
+**V1 270 dC, V2 285 dC.** On mains, screen on, unlocked, nothing touched.
+Pinned to the A78 pair (mask 30), 2 threads, a fresh process per line. Parsed by
+script from the 18 pulled `rows/7a_v/7a_tts_v2_a78a78_NN.report` files.
+
+### THE STRING AS RUN
+
+Extracted from notes.md 19569 with the four leading spaces stripped, nothing
+else (1013 B, sha256 `70988282f23b32cac44feb9a8432ed60281b70470ec3199ab790e6ae16891f0e`;
+the reviewer's independent extraction gave the same bytes and hash). Run from the
+Mac as `/bin/sh v2.cmd` at Mac clock 16:06:09, straight after the V1 commit
+`560be28`:
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; X=$(grep "^PENNYTTS batt_temp_dC" out/7a_tts_v1_x1x1_00.report | tr -s " " | cut -d" " -f3); TREF=${X#before=}; case "$TREF" in ""|*[!0-9]*) echo "TREF UNREADABLE [$X] - V2 NOT LAUNCHED"; exit 1 ;; esac; TMAX=$((TREF + 15)); echo "LAUNCH V2 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) tref_dC=$TREF tmax_dC=$TMAX"; RCS=""; for N in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17; do case $N in ?) T=0$N ;; *) T=$N ;; esac; if [ $N = 0 ]; then C=1; else C=0; fi; COOL=$C TMAX=$TMAX sh /data/local/tmp/tts/pennytts.sh 7a_tts_v2_a78a78_$T 30 2 $N > /dev/null 2> /dev/null; RCS="$RCS $T:$?"; done; echo "DONE V2 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) rcs=$RCS"'
+
+As printed (Mac-side rc 0):
+
+    LAUNCH V2 uptime_s=12263.18 wallclock=16:06:11 batt_temp_dC=290 memavail_kB=3381408 tref_dC=270 tmax_dC=285
+    DONE V2 uptime_s=12784.34 wallclock=16:14:53 batt_temp_dC=286 memavail_kB=3355576 rcs= 00:0 01:0 02:0 03:0 04:0 05:0 06:0 07:0 08:0 09:0 10:0 11:0 12:0 13:0 14:0 15:0 16:0 17:0
+
+`tref_dC=270` equals V1 line 00's `batt_temp_dC before=270`, as read on the
+phone by the string itself. **Nothing of mine was alive during the gate or the
+pass**: it was the only command running, in the background, and nothing else
+was issued until it exited.
+
+**The time between the passes was shorter than step C assumed.** Step C's gate
+reasoning assumed "~10+ minutes after V1 ends" (notes.md 19535-19536). V1's
+DONE read uptime 12019.95; V2's LAUNCH read 12263.18, **243.23 s later**. In
+between: the pull, the hashing on the phone and Mac, one read-only adb shell
+(uptime 12118.70, battery 282 dC), the write-up and the commit. The battery
+read 272 at V1 DONE, 282 at 12118.70 and 290 at V2 LAUNCH, all with no pass
+running. No cause for that rise is claimed.
+
+### THE GATE — line 00's report, exactly as printed
+
+    PENNYTTS cool_wait_s     uptime 12263.57 -> 12600.66
+    PENNYTTS cool_gate_first p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=290 uptime_s=12263.57   (rev 2: the gate's first poll, scaling/cpuinfo per policy)
+    PENNYTTS cool_gate_result GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=285 tmax_dC=285 polls_failed=65 cap=240 wait_s=337.09   (rev 2)
+
+**GATE PASSED, polls_failed=65, wait_s=337.09, tref 270, tmax 285. NOT
+LAUNCHED WARM.** All three clocks were rated at the first poll. What held the
+gate was the battery: 290 dC at the first poll, 285 when it passed. Line 00
+started at uptime 12600.79, 580.84 s after V1's DONE.
+
+### THE 18 LINES
+
+    line  audio_s  elapsed_ms  RTF    wall_ms  derived_load_ms  peak_rss_kB  a78_min_kHz  memavail_kB before -> after  batt b/a  rc  kills
+    00     0.829      1,443   1.740    4,208       2,765        286,480   2,348,000   3,374,784 -> 3,361,264   285/285   0   0
+    01     0.758      1,270   1.676    4,018       2,748        282,760   2,348,000   3,342,676 -> 3,345,088   285/285   0   0
+    02     0.814      1,346   1.654    4,049       2,703        283,600   2,348,000   3,346,192 -> 3,350,336   285/285   0   0
+    03     1.159      1,855   1.600    4,605       2,750        290,420   2,348,000   3,331,132 -> 3,349,108   285/285   0   0
+    04     4.545      5,842   1.285    8,545       2,703        362,024   2,348,000   3,345,012 -> 3,328,040   285/285   0   0
+    05     6.907      8,843   1.280   11,602       2,759        439,056   2,348,000   3,344,828 -> 3,343,320   285/285   0   0
+    06     3.593      5,016   1.396    7,747       2,731        350,364   2,348,000   3,347,228 -> 3,344,652   285/285   0   0
+    07     5.815      7,513   1.292   10,265       2,752        437,012   2,348,000   3,334,044 -> 3,341,692   285/284   0   0
+    08     4.704      6,332   1.346    9,090       2,758        400,872   2,348,000   3,352,644 -> 3,359,588   284/284   0   0
+    09     4.520      6,129   1.356    8,864       2,735        366,768   2,348,000   3,341,472 -> 3,337,432   284/284   0   0
+    10     3.450      4,641   1.345    7,344       2,703        343,780   2,348,000   3,335,448 -> 3,331,288   284/284   0   0
+    11     3.395      4,598   1.354    7,329       2,731        343,600   2,348,000   3,368,160 -> 3,337,752   284/284   0   0
+    12     3.513      4,800   1.366    7,560       2,760        346,572   2,348,000   3,341,480 -> 3,340,172   284/284   0   0
+    13     3.065      4,192   1.368    6,934       2,742        338,552   2,348,000   3,353,976 -> 3,349,548   284/284   0   0
+    14     7.450     11,207   1.504   13,993       2,786        327,600   2,348,000   3,333,600 -> 3,340,004   284/284   0   0
+    15    10.416     13,510   1.297   16,317       2,807        576,656   2,348,000   3,347,032 -> 3,331,156   284/285   0   0
+    16     3.109      4,815   1.549    7,595       2,780        322,520   2,348,000   3,343,888 -> 3,342,288   285/285   0   0
+    17     4.707      6,910   1.468    9,601       2,691        350,220   2,348,000   3,347,148 -> 3,332,888   285/286   0   0
+
+RTF is generate-only, for a fresh process per line. Every line also paid
+2,691-2,807 ms of derived load, which is in `wall_ms` and not in RTF.
+
+    RTF             min 1.280 (line 05)   median 1.367   max 1.740 (line 00)   lines under 1.0: 0
+    elapsed sum     100,262 ms            wall sum 149,666 ms                  derived load sum 49,404 ms
+    derived load    min 2,691 (l17)       median 2,749   max 2,807 (l15)
+    peak RSS        min 282,760 kB (l01)  max 576,656 kB (l15)
+    span            line 00 uptime before 12600.79 -> line 17 after 12783.52 = 182.73 s
+
+### THE CEILINGS, the 0.2 s poll
+
+    policy4 A78   line 00 before 2,348,000   min over 18 = 2,348,000 — NEVER LEFT RATED on any line   line 17 after 2,348,000
+    policy6 X1    line 00 before 2,850,000   min over 18 = 2,850,000 — never moved                     line 17 after 2,850,000
+    policy0 A55   line 00 before 1,803,000   min over 18 = 1,803,000 — never moved                     line 17 after 1,803,000
+
+The poll covers each line's run, not the gaps between lines.
+
+### BATTERY, MEMORY, KILLS
+
+- **Battery** (NOT SoC): line 00 `before=285` -> line 17 `after=286`, +1 dC.
+  The per-line readings ran 285, 284 from line 07's after, then back to 285-286.
+- **MemAvailable, 36 before/after readings:** minimum 3,328,040 kB (line 04
+  after), maximum 3,374,784 kB (line 00 before). Not measured during a line.
+- **Kills:** 0 on all 18 (`lmk_kill_lines 0`, every `.kills` 0 B), with
+  MemAvailable before each line between 3,331,132 and 3,374,784 kB.
+
+### SAMPLE COUNTS AND WAVs
+
+**All 18 V2 WAVs are byte-identical to V1's** (sha256, phone list against
+phone list), so the sample counts are identical to V1's on all 18. They
+therefore differ from the Mac's exactly as V1's did: 16 within 5 ms, line 12
+-170.167 ms, line 17 +11.833 ms (table in notes.md 19620's entry). 108 files
+pulled; phone `sha256sum` against Mac `shasum -a 256`, 108 lines each, diff
+rc=0. The phone list is committed as `rows/7a_v/7a_tts_v2_phone.sha256`.
+**The 18 WAVs (3.4 MB) are NOT committed.**
+
+### V2 AGAINST V1 — V2 RAN SECOND, ON A PHONE THAT HAD ALREADY RUN V1
+
+**Launch battery: V1 270 dC, V2 285 dC (line 00 `before=`).** V2 started
+580.84 s after V1 ended. V1's X1 ceiling fell to 87.96% of rated during V1
+(poll-min 2,507,000). V2's A78 ceiling never left rated. **So the per-line
+ratios below are not at the rated-clock ratio of 1.2138
+(2,850,000/2,348,000): V1's X1 was below rated for most of V1.**
+
+    line   V1 elapsed  V2 elapsed  V2/V1       line   V1 elapsed  V2 elapsed  V2/V1
+    00        1,085       1,443    1.330       09        4,860       6,129    1.261
+    01          947       1,270    1.341       10        3,672       4,641    1.264
+    02        1,013       1,346    1.329       11        3,622       4,598    1.269
+    03        1,420       1,855    1.306       12        3,815       4,800    1.258
+    04        4,568       5,842    1.279       13        3,297       4,192    1.271
+    05        7,024       8,843    1.259       14        8,988      11,207    1.247
+    06        3,956       5,016    1.268       15       10,798      13,510    1.251
+    07        5,911       7,513    1.271       16        3,820       4,815    1.260
+    08        5,017       6,332    1.262       17        5,544       6,910    1.246
+
+    elapsed sum      V1 79,357    V2 100,262   ratio 1.2634   (per line 1.246 l17 - 1.341 l01, median 1.266)
+    wall sum         V1 114,960   V2 149,666   ratio 1.3019
+    derived load sum V1 35,603    V2 49,404    ratio 1.3876   (per line 1.314-1.430)
+
+The V2/V1 ratio is highest on the first four lines (1.306-1.341), where V1's
+X1 was nearest rated (2,802,000-2,630,000). From line 04 on it is 1.246-1.279.
+That is recorded as it fell; no cause is claimed, and the passes are not
+separable from their order or their launch temperatures.
+
+### EVERY V2 PREDICTION, judged (notes.md 19455-19473; the rule is at 19427)
+
+    prediction                               point         band                  measured                          verdict
+    gate before line 0 (TMAX = TREF+15)      PASSED 0      0-12 polls failed     GATE PASSED polls_failed=65       MISS HIGH (passed, but 65 polls)
+    RTF min                                  1.572 (l05)   1.40-1.78             1.280 (l05)                       MISS LOW
+    RTF median                               1.702         1.50-1.92             1.367                             MISS LOW
+    RTF max                                  2.178 (l00)   1.90-2.50             1.740 (l00)                       MISS LOW
+    RTF line 15                              1.580         1.40-1.80             1.297                             MISS LOW
+    lines under RTF 1.0                      0             0                     0                                 HIT
+    elapsed sum                              123,900       108,000-142,000       100,262                           MISS LOW
+    derived load median                      2,930         2,600-3,300           2,749                             HIT
+    peak RSS max (l15)                       577,300       570,000-585,000       576,656 (l15)                     HIT
+    X1 poll-min                              2,802,000     2,600,000-2,850,000   2,850,000                         HIT
+    A78 poll-min                             2,253,000     2,048,000-2,348,000   2,348,000                         HIT (at the top bound)
+    A55 poll-min                             1,803,000     1,600,000-1,803,000   1,803,000                         HIT
+    battery rise                             +5            0 to +15              +1                                HIT
+    span                                     204 s         185-230               182.73                            MISS LOW
+    MemAvailable min, 36 readings            3,300,000     3,000,000-3,450,000   3,328,040                         HIT
+    sample counts identical to V1 on all 18  yes           —                     yes, all 18 WAVs byte-identical   HIT
+    V2/V1 elapsed-sum ratio (R)              1.52          1.35-1.75             1.2634                            MISS LOW
+
+**9 of 17 HIT, 8 MISSED.** Six of the misses (RTF min/median/max/line 15,
+elapsed sum, span) follow from R. The prediction scaled the 6a's A76 figures
+by k2 = 0.863, built on R = 1.52 (19398-19418). The 7a's A78 pair came in at
+1.263 of V1.
+
+### THE FOUR QUESTIONS, judged
+
+- **V-A1** (19489): any line under RTF 1.0 on the X1 pair? Predicted NO —
+  **NO, HIT** (V1, notes.md 19620).
+- **V-A2** (19497): A78/X1 elapsed-sum ratio inside 1.3-1.7? Predicted YES,
+  1.52 — **measured 1.2634, NO. MISSED LOW.** V2 ran second, launched 1.5 C
+  warmer by battery, and V1's X1 was below rated for most of V1.
+- **V-A3** (19500): does the A78 ceiling leave rated during V2? Predicted YES,
+  ~60% — **NO, MISSED.** Poll-min 2,348,000 on all 18 lines, over a 182.73 s
+  pass. U2's first A78 dip came 140.8 s into continuous decode (19503); this
+  pass was not continuous, and it did not step down.
+- **V-B1** (19515): no kill line naming `sherpa-onnx-offline-tts`, and
+  MemAvailable never under 1,048,576 kB — **HIT on both limbs in both passes**
+  (V1 min 3,327,452, V2 min 3,328,040), judged on the 36 before/after readings
+  per pass. No kill line of any kind in either pass.
+
+### THE PHONE AND MAC AFTER, one invocation (read-only)
+
+    uptime_s=12825.46 wallclock=2026-09-21_16:15:34 p0=1803000 p4=2348000 p6=2850000 batt_dC=288 MemAvailable: 3380800 kB
+    dumpsys power: mWakefulness=Awake  mStayOn=true  mLastSleepTime=0 (12825667 ms ago)  mLastWakeTime=0 (12825667 ms ago)
+
+**No lock or screen-off in V2:** `mLastSleepTime` is still at boot. Mac `ps`:
+the adb server, and a `caffeinate -i -t 300` 41 s old that is not mine (a
+different pid from the one seen after V1; my `caffeinate -i adb …` had exited).
+Nothing on the phone was pushed, deleted or overwritten. The only writes were
+pennytts.sh's own `tts/out/` files.
+
+### CLAUDE.md, CHANGED IN THE SAME STEP
+
+The 7a block's `tts/out/` line and Boot line now include V2. Nothing else
+changed; the 6a block (55-133) re-hashed after the edit:
+`effd849c…`, 79 lines, byte-identical.
+
+### WHAT THIS DOES NOT SAY
+
+- It is one pass per pair, in a fixed order, on a spent boot, model cached.
+  V2 ran second, 580.84 s after V1, launched at 285 dC against V1's 270. The
+  A78-vs-X1 ratio is not separable from that order, and the per-line ratio is
+  not at rated clocks on V1's side.
+- RTF is generate-only for a fresh process per line; ~2.0 s (X1) and ~2.75 s
+  (A78) of load per line sit outside it. No line in either pass went under
+  1.0, and neither pass says anything about real time on the 7a.
+- It does not say the A78 pair never throttles under Kokoro. It did not in
+  one 182.73 s pass of short lines with gaps. U2's continuous decode did.
+- Nothing about a resident Kokoro, time to first audio, the app, fp32,
+  pronunciation, or TTS beside the LLM. Nothing was listened to.
+- Battery temperature is not SoC temperature. MemAvailable during a line is
+  not measured.
+- It does not decide E3 or where Kokoro runs. That judgement is not the
+  builder's, and **brief V is not closed here — that entry is the reviewer's.**

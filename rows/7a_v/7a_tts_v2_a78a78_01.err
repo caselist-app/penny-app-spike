@@ -1,0 +1,8 @@
+/Users/mattstevenson/Documents/sherpa-onnx/sherpa-onnx/csrc/parse-options.cc:Read:374 /data/local/tmp/tts/sherpa-onnx-offline-tts --num-threads=2 --kokoro-model=/data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx --kokoro-voices=/data/local/tmp/tts/penny-kokoro-int8/voices.bin --kokoro-tokens=/data/local/tmp/tts/penny-kokoro-int8/tokens.txt --kokoro-data-dir=/data/local/tmp/tts/penny-kokoro-int8/espeak-ng-data --kokoro-lexicon=/data/local/tmp/tts/penny-kokoro-int8/lexicon-gb-en.txt --kokoro-lang=en --sid=22 --speed=1.0 --output-filename=/data/local/tmp/tts/out/7a_tts_v2_a78a78_01.wav Done. 
+
+Number of threads: 2
+Elapsed seconds: 1.270 s
+Audio duration: 0.758 s
+Real-time factor (RTF): 1.270/0.758 = 1.676
+The text is: Done.. Speaker ID: 22
+Saved to /data/local/tmp/tts/out/7a_tts_v2_a78a78_01.wav successfully!

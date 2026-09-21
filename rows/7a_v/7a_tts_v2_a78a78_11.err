@@ -1,0 +1,8 @@
+/Users/mattstevenson/Documents/sherpa-onnx/sherpa-onnx/csrc/parse-options.cc:Read:374 /data/local/tmp/tts/sherpa-onnx-offline-tts --num-threads=2 --kokoro-model=/data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx --kokoro-voices=/data/local/tmp/tts/penny-kokoro-int8/voices.bin --kokoro-tokens=/data/local/tmp/tts/penny-kokoro-int8/tokens.txt --kokoro-data-dir=/data/local/tmp/tts/penny-kokoro-int8/espeak-ng-data --kokoro-lexicon=/data/local/tmp/tts/penny-kokoro-int8/lexicon-gb-en.txt --kokoro-lang=en --sid=22 --speed=1.0 --output-filename=/data/local/tmp/tts/out/7a_tts_v2_a78a78_11.wav 'Penny picked the practical path and parked the rest for Thursday.' 
+
+Number of threads: 2
+Elapsed seconds: 4.598 s
+Audio duration: 3.395 s
+Real-time factor (RTF): 4.598/3.395 = 1.354
+The text is: Penny picked the practical path and parked the rest for Thursday.. Speaker ID: 22
+Saved to /data/local/tmp/tts/out/7a_tts_v2_a78a78_11.wav successfully!

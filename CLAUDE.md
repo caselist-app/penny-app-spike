@@ -145,7 +145,7 @@ one), 14252 (stay awake, rev 6), 14306 (gate, push, smoke tests).
     Boot key      508d75dea10c5cbc3e7632260fc0b59f6055a8a49dd84e693b6d8899edbb01e4 — compared on screen by Matt; not read by the builder
     OEM unlocking ON per Matt's on-screen reading; not readable from shell (sys.oem_unlock_allowed empty, dumpsys oem_lock empty)
     Memory        MemTotal 7,640,308 kB; SwapTotal 3,820,148 kB, zram
-    Boot          bring-up boot SPENT (push, smoke a, smoke b; smoke a met the Cached contamination limb). ROW BOOT SPENT: T1 (notes.md 15016), T2 (15163), T3 (15333), the pulls and the post-T3 re-hash (15521). Brief T is CLOSED (15557). THAT ROW BOOT ENDED UNOBSERVED — on 21 Sept the phone was found on a NEW boot of ~07:39, cause not established, Matt states he did not reboot it (notes.md 15860, 16057). That 21 Sept boot is SPENT by brief U step A2 (notes.md 16241) and by the step D rehearsal (17317). MATRIX BOOT, 21 Sept ~12:41:48, IS SPENT: protocol readings (notes.md 17433, 17531), U1 (17584), U2 (17821), U3 (18087), U4 (18353). U2, U3 and U4 were all LAUNCHED WARM — each gate ran its full 240 polls without reaching TMAX=267. Left at uptime 8617.02, battery 361 dC, 15:05:25; caffeinate stopped. Brief V step B smoke (notes.md 19086) and V1 (19620) also ran on it.
+    Boot          bring-up boot SPENT (push, smoke a, smoke b; smoke a met the Cached contamination limb). ROW BOOT SPENT: T1 (notes.md 15016), T2 (15163), T3 (15333), the pulls and the post-T3 re-hash (15521). Brief T is CLOSED (15557). THAT ROW BOOT ENDED UNOBSERVED — on 21 Sept the phone was found on a NEW boot of ~07:39, cause not established, Matt states he did not reboot it (notes.md 15860, 16057). That 21 Sept boot is SPENT by brief U step A2 (notes.md 16241) and by the step D rehearsal (17317). MATRIX BOOT, 21 Sept ~12:41:48, IS SPENT: protocol readings (notes.md 17433, 17531), U1 (17584), U2 (17821), U3 (18087), U4 (18353). U2, U3 and U4 were all LAUNCHED WARM — each gate ran its full 240 polls without reaching TMAX=267. Left at uptime 8617.02, battery 361 dC, 15:05:25; caffeinate stopped. Brief V step B smoke (notes.md 19086), V1 (19620) and V2 (19842) also ran on it; left at uptime 12825.46, battery 288 dC, 16:15:34.
     Stay awake    stay_on_while_plugged_in=15 (set by Matt by hand), screen_off_timeout=30000
     Charging      no charge-limit settings key; dumpsys battery "Charging policy: 1" (= default, builder's memory)
     adb shell     oom_score_adj -1000
@@ -186,7 +186,7 @@ one), 14252 (stay awake, rev 6), 14306 (gate, push, smoke tests).
       tokens.txt            687 B            sha256 6ebb6bb288f20f3ae8d004d3c2ca27697da27c037d75e81a60e2a6a663f95425
       lexicon-gb-en.txt     6,366,635 B      sha256 c4cbb37316f62210dff52718a7afcaae24f50c032cc75ab47ae67b831d1049e7
       lexicon-us-en.txt     5,956,885 B      sha256 7daaab53a181be9885b853a8582bf1838186317e5dadacbcef9c426d6fa0da14
-    tts/out/                7a_tts_smoke_00.*, 7a_tts_smoke_04.*, 7a_tts_v1_x1x1_00..17.* (108 files, pulled to rows/7a_v/, notes.md 19620)
+    tts/out/                7a_tts_smoke_00.*, 7a_tts_smoke_04.*, 7a_tts_v1_x1x1_00..17.* and 7a_tts_v2_a78a78_00..17.* (108 files each, pulled to rows/7a_v/, notes.md 19620, 19842)
 
 Verify with: `adb -s 37291JEHN04619 shell 'pm path com.pennyspike.probe2a'` (expect empty).
 
