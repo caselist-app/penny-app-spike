@@ -17580,3 +17580,240 @@ Two readings on one boot are not a baseline, a budget or a ceiling. The
 identical SwapFree and vmstat figures say the counters did not move between two
 samples; they do not say the phone did nothing. Battery temperature is not SoC
 temperature. Nothing here says what U1 will do.
+
+## 2026-09-21 — BRIEF U, U1 `7a_q17_u1_x1x1`: the X1 pair, 2 threads, 100 turns back to back on a fresh boot. rc=0, 100 of 100, fnv_all_equal=1, ZERO kill lines, GATE PASSED on the first poll. Settled 72.56% of turn 1 — and the last-10 median is 1.2396x T2's, on an X1 ceiling that stopped at 1,426,000 instead of T2's 984,000. FOUR OF EIGHT U1 PREDICTIONS MISS, all in the same direction.
+
+### THE STRING AS RUN — one line, verbatim
+
+    adb -s 37291JEHN04619 shell 'cd /data/local/tmp; P=/sys/devices/system/cpu/cpufreq; B=/sys/class/power_supply/battery/temp; CAP=240; g0=$(cut -d" " -f1 /proc/uptime); n=0; warm=0; while :; do s0=$(cat $P/policy0/scaling_max_freq); r0=$(cat $P/policy0/cpuinfo_max_freq); s4=$(cat $P/policy4/scaling_max_freq); r4=$(cat $P/policy4/cpuinfo_max_freq); s6=$(cat $P/policy6/scaling_max_freq); r6=$(cat $P/policy6/cpuinfo_max_freq); bt=$(cat $B); [ $n = 0 ] && echo "GATE FIRST p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 batt=$bt uptime_s=$g0"; [ -n "$r0" ] && [ -n "$r4" ] && [ -n "$r6" ] && [ "$s0" = "$r0" ] && [ "$s4" = "$r4" ] && [ "$s6" = "$r6" ] && break; n=$((n+1)); [ $n -ge $CAP ] && warm=1 && break; sleep 5; done; if [ $warm = 1 ]; then G="GATE TIMED OUT - LAUNCHED WARM"; else G="GATE PASSED"; fi; echo "$G p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 batt_temp_dC=$bt TREF_dC=$bt polls_failed=$n gate_start_uptime_s=$g0 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"; PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh 7a_q17_u1_x1x1 c0 -- -m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t 2 -c 1024 -lm none -n 64 --user-file /data/local/tmp/penny_user.txt --load-state /data/local/tmp/q17_state.bin --turns 100 --interval-s 0 --tag 7a_q17_u1_x1x1 > /dev/null 2>&1; echo "ROW_DONE uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B)"'
+
+**Token diff against notes.md 17258: NONE.** U1 *is* the recorded form — same
+tag, mask `c0`, `-t 2`, no `TMAX`. The run file and line 17258 (indent
+stripped) are byte-identical; `diff` printed nothing. The allowed-difference
+list (tag twice, mask, `-t`, `TMAX`) first bites at U2.
+
+### THE SEVEN LINES
+
+    GATE          PASSED on the first poll, polls_failed=0, 0.17 s from gate start to launch
+                  GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_temp_dC=252 TREF_dC=252 polls_failed=0 gate_start_uptime_s=1540.15 uptime_s=1540.32 wallclock=13:07:29
+    rc            0
+    turns_done    100 of 100 requested, turns_overrun=0
+    oom_score_adj pre=-1000 post=200   (both READ off /proc)
+    kills         lmk_kill_lines 0, .kills is 0 bytes, with MemAvailable BEFORE the row = 3,476,824 kB
+    SwapFree      min 1,813,368 kB = 47.47% of SwapTotal 3,820,152, at every one of 79 series samples; uptime 1540.59-2093.80
+    contamination NOT MET on either limb. Cached ROSE 1,895,248 -> 2,248,332 (+353,084 kB); SwapFree 47.47%, limb is 10%
+
+**`TREF_dC=252`.** U2, U3 and U4 run with `TMAX = 252 + 15 = 267`.
+
+### SETTLED, verbatim from .bench
+
+    PENNYLOAD turns_done=100 turns_requested=100 turns_overrun=0 fnv_all_equal=1
+    PENNYLOAD first_token_id=32313 token_fnv1a64=0xcba17a2fcbba49f4   (turn 1)
+    PENNYLOAD ttft_turn_ms   min=348.28 median=486.63 max=620.89
+    PENNYLOAD gen_tps        min=11.06 median=12.92 max=15.53
+    PENNYLOAD quarters       n_per_quarter=25  q1=turns 1-25  q4=turns 76-100
+    PENNYLOAD SETTLED ttft_turn_ms q1_median=408.38 q4_median=614.99 decline_pct=50.59   (positive = SLOWER)
+    PENNYLOAD SETTLED gen_tps      q1_median=14.86 q4_median=11.27 decline_pct=24.21   (positive = SLOWER)
+    PENNYLOAD SETTLED gen_tps_turn1=15.53 settled_pct_of_turn1=72.56
+    PENNYLOAD DUTY busy_median_ms=5355.51 interval_ms=0 duty_pct=-1.00
+    PENNYLOAD prefix_snapshot_bytes=46683597 got=46683597 t_snapshot_ms=17.38
+    PENNYLOAD t_ready_ms 3831.62   t_tensor_band_ms 3363.82   t_state_load_ms 84.70
+    PENNYLOAD state_file=... state_bytes=46685237 state_tokens_restored=407
+
+**100 of 100 turns carry `fnv=0xcba17a2fcbba49f4`** — every turn, one distinct
+value in the whole file, and `fnv_all_equal=1`. Same value as the 6a's S0, all
+260 S restores, every T row and the Step D rehearsal.
+
+### PER-TURN, every 10th plus the first and last five (from .bench)
+
+      k  uptime_s  restore  user_dec   ttft_ms  gen_ms  gen_tps  busy_ms  ovr  fnv
+      1    1545.00   12.02    333.95    348.28  4057.73   15.53  4406.05  0  0xcba17a2fcbba49f4
+      2    1549.41    8.71    341.19    350.08  4068.51   15.48  4418.62  0  0xcba17a2fcbba49f4
+      3    1553.83    8.40    364.70    373.28  4125.30   15.27  4498.62  0  0xcba17a2fcbba49f4
+      4    1558.33    8.42    370.07    378.68  4195.39   15.02  4574.12  0  0xcba17a2fcbba49f4
+      5    1562.90    9.13    384.40    393.72  4110.46   15.33  4504.21  0  0xcba17a2fcbba49f4
+     10    1585.84    8.34    390.42    398.96  4239.01   14.86  4638.01  0  0xcba17a2fcbba49f4
+     20    1632.34   11.48    504.75    516.49  4691.01   13.43  5207.55  0  0xcba17a2fcbba49f4
+     30    1683.26   10.16    457.38    467.74  4541.11   13.87  5008.88  0  0xcba17a2fcbba49f4
+     40    1734.59    8.65    464.67    473.58  4751.89   13.26  5225.50  0  0xcba17a2fcbba49f4
+     50    1786.80    9.36    472.72    482.28  4766.13   13.22  5248.45  0  0xcba17a2fcbba49f4
+     60    1844.32   11.52    552.83    564.64  5370.00   11.73  5934.71  0  0xcba17a2fcbba49f4
+     70    1903.09   11.08    555.86    567.20  5226.59   12.05  5793.84  0  0xcba17a2fcbba49f4
+     80    1962.75   11.70    608.28    620.27  5578.77   11.29  6199.08  0  0xcba17a2fcbba49f4
+     90    2024.29   12.30    606.03    618.60  5649.54   11.15  6268.21  0  0xcba17a2fcbba49f4
+     96    2061.65   10.15    602.80    613.24  5609.90   11.23  6223.19  0  0xcba17a2fcbba49f4
+     97    2067.87   12.20    603.56    616.06  5679.23   11.09  6295.34  0  0xcba17a2fcbba49f4
+     98    2074.17   11.30    604.62    616.22  5694.14   11.06  6310.43  0  0xcba17a2fcbba49f4
+     99    2080.48   11.49    604.59    616.37  5637.28   11.18  6253.70  0  0xcba17a2fcbba49f4
+    100    2086.73   12.97    603.56    616.84  5639.22   11.17  6256.12  0  0xcba17a2fcbba49f4
+
+    last-10 median (turns 91-100)  11.175 t/s, from
+    [11.34 11.36 11.11 11.10 11.21 11.23 11.09 11.06 11.18 11.17]
+    as % of own turn 1 (15.53)     71.96%
+
+### WALL TIME — three windows, all read, all stated
+
+    turn 1 start to turn 100 end     1545.00 -> 2092.99      547.99 s
+    pennybench before -> after       1540.59 -> 2093.80      553.21 s   (includes the 3.83 s model load)
+    gate pass -> ROW_DONE            1540.32 -> 2097.53      557.21 s
+
+The prediction's "wall, 100 turns" was framed as row start to end of turn 100,
+i.e. the middle window: **553.21 s.**
+
+### CEILINGS — poll loop AND series, all THREE policies
+
+    X1  (policy6)  poll:   before 2,850,000  min 1,426,000 = 50.04% of rated, min_at 1962.31 (422 s in)  after 1,426,000
+                   series: 1 of 79 at rated = 1.27% (the first sample); first below rated at 1548.50 (2,704,000, ~8 s in); min 1,426,000
+    A78 (policy4)  poll:   never moved, 2,348,000 throughout, min_at 1540.59 (0 s in);  series 79 of 79 at rated = 100.00%
+    A55 (policy0)  poll:   NEVER MOVED, 1,803,000 throughout, min_at 1540.59 (0 s in);  series 79 of 79 at rated = 100.00%
+
+**`ceil_a55` polled at 0.2 s is new in rev 7 and has no rev 6 counterpart.** It
+did not leave rated once in 553 s, on 806 poll samples. On T2, under rev 6, the
+10 s series caught exactly one A55 sample below rated (94.51%, notes.md 15283);
+U1's finer instrument caught none. **That is one row against one row and does
+not establish that policy0 never dips.**
+
+**The X1 floor is the row's headline clock finding: 1,426,000 kHz, where T2
+stopped at 984,000.** 1,426,000 is 50.04% of rated against T2's 34.53%. U1
+reached its floor at 422 s in and held it to the end (`after` = the min).
+
+### BATTERY — BATTERY, NOT SoC
+
+    start   252 dC  (report before; first series sample 1541.34 also 252)
+    max     331 dC  (report after, at 2093.80)
+    end     331 dC  sysfs; dumpsys 327; last series sample 327 at 2087.06
+    rise    +79 dC = +7.9 C over 553.21 s (9.220 min) = +0.8568 C/min
+    dumpsys before [ AC powered: true status: 4 level: 100 temperature: 252 ]
+            after  [ AC powered: true status: 4 level: 100 temperature: 327 ]
+
+T2's slope was **+0.2551 C/min** (notes.md 15297) — but T2 began at 33.0 C with
+little headroom and U1 began at 25.2 C. **A phone that starts cooler climbs
+faster and ends lower: U1 ended at 33.1 C, which is where T2 STARTED.** No
+claim is made about which is the better steady state; one row each.
+
+### MEMORY AND COUNTERS
+
+    peak_rss_kB     1,548,540 (VmHWM)     max_rssanon_kB 1,543,532 (99.68%)   max_rssfile_kB 4,712
+    memavail_kB     before 3,476,824  after 3,510,816      series min 1,949,704
+    memfree_kB      before 2,108,020  after 1,843,116
+    swapfree_kB     before 1,813,368  after 1,813,368      (unchanged to the byte)
+    cached_kB       before 1,895,248  after 2,248,332      (+353,084 -- ROSE)
+    pswpin          9,133 -> 9,133     pswpout 511,453 -> 511,453   (NEITHER MOVED)
+    pgmajfault      20,254 -> 20,271   (+17)
+    rss_samples     806
+    zram            470,340K physical for 1,775,872K in swap
+
+**Nothing swapped in or out during a 553 s row that peaked at 1.48 GiB
+resident.** `pswpin` and `pswpout` are identical before and after, and
+`SwapFree` did not move by one byte across all 79 series samples.
+
+**Last series line, NOT a teardown sample** — `VmRSS` 1,548,512 against `VmHWM`
+1,548,520, eight kB apart, so the trap at notes.md 12015 does not apply and the
+line is usable as read:
+
+    2087.06 1426000 2348000 1803000 1973228 294408 1813368 2248328 1548512 1548520 511453 20271 327 100
+
+### THE PREDICTIONS, JUDGED — committed at notes.md 16874 before the reboot, not revised
+
+    figure                     predicted   band          read        verdict
+    turn-1 gen_tps             15.5        14.0-16.5     15.53       HIT
+    last-10 median             9.0         8.0-10.5      11.175      MISS (high)
+    that as % of own turn 1    58%         50-70         71.96%      MISS (high)
+      (pennyload's own settled_pct_of_turn1, q4 median / turn 1)     72.56%      MISS (high)
+    wall, 100 turns            690 s       600-800       553.21 s    MISS (low)
+    poll-min policy6           34.5%       30-45         50.04%      MISS (high)
+    poll-min policy4           100%        95-100        100.00%     HIT
+    poll-min policy0           90%         75-100        100.00%     HIT
+    battery rise               +4.5 C      +2.5 to +8.0  +7.9 C      HIT (top of band)
+
+**Four of eight miss, and every one of them misses in the same direction: the
+phone did better than predicted.** It held a higher clock floor, so it was
+faster at the end, so it finished sooner, so it retained more of turn 1. The
+four are not four independent errors — they are one error seen four times,
+and its root is the X1 floor: **1,426,000 kHz where anchor e said 984,000.**
+
+Every one of those four predictions was anchored on T2 (anchors b, c, d, e at
+notes.md 16874 section 4). **The anchor that failed is the one that assumed T2's
+thermal history would repeat.** T2 ran 99 s after T1 on a boot that had already
+been generating for an hour; U1 ran 9.4 minutes after a cold boot's 25-minute
+idle reading. Section 7 of the predictions entry named exactly this exposure for
+rows WITHIN the matrix and said the between-boot case was not what it was
+about — it is now the largest single effect in the row.
+
+U-A4 and U-B1, judged for this row only:
+
+    U-A4  token_fnv1a64 = 0xcba17a2fcbba49f4        HIT (predicted YES at ~90% confidence)
+          fnv_all_equal = 1                          HIT (predicted 1 at ~95%)
+    U-B1  no kill line naming pennyload              HIT -- zero kill lines of any kind
+          SwapFree min >= 45% of SwapTotal           HIT  47.47% (band 25-60)
+          Cached RISES, +150,000 kB, band -300,000 to +500,000
+                                                     HIT  +353,084 kB
+          void limb (fall >= 865,163 kB) NOT met     HIT
+
+### U1 AGAINST T2's FIRST 100 TURNS — rev 7 against rev 6
+
+T2's `.bench` still exists on the phone and was pulled to compare;
+sha256 `3d8c12b00f56be9d5ba16186be5b2b30b9a99ab1cb2686513534f02f68ce6677`,
+40,384 B, 200 turns parsed. Its turns 91-100 are
+[9.29 9.16 8.88 9.38 8.95 8.94 9.08 9.22 8.90 8.94], median **9.015 t/s**.
+
+    U1 turn-1 / T2 turn-1                15.53 / 15.47 = 1.0039   pred 1.01, band 0.95-1.07   HIT
+    U1 last-10 median / T2 turns 91-100  11.175 / 9.015 = 1.2396  pred 1.00, band 0.92-1.09   MISS (high)
+
+**Turn 1 repeats to within 0.4%. Turn 91-100 does not repeat at all — U1 is
+23.96% faster at the same turn number.** Same binary (`f52fc604…`, unchanged),
+same model, same state file, same mask, same thread count, same `--interval-s
+0`, same 407-token prefix. What differs is the thermal history of the boot and
+the instrument.
+
+**THE INSTRUMENT IS NOT THE SAME: T2 RAN UNDER pennybench.sh REV 6
+(`ddb39f3c…`), U1 UNDER REV 7 (`ca3f8414…`).** `gen_tps`, `ttft` and the turn
+uptimes come from `pennyload`, which did not change between the two, so those
+ARE comparable. **`rss_samples` counts are NOT comparable and are not compared**
+(806 here against T2's count under a 2-read poll loop). **`ceil_a55`'s poll
+figures have no rev 6 counterpart at all.** The rev 7 poll loop does three sysfs
+reads where rev 6 did two and was measured 5.53% slower per sample (notes.md
+16698); that changes sampling density, not what `pennyload` timed.
+
+**No causal claim is made here.** The candidates are the cooler start (25.2 C
+against 33.0 C), the fresh boot, and the extra sysfs read per poll. **This row
+cannot separate them**, and one row against one row is not a repeatability
+result either way. What can be said: **the repo's own 57.51% settled figure did
+not reproduce on a cold boot, and the X1 floor that produced it did not
+reproduce either.**
+
+### THE FILES
+
+Pulled raw to `rows/7a_u/`, no edits. Each hashes identically on the Mac and on
+the phone:
+
+    ce3a375a891c9dc8c67c6e733a13e9ead5de53e7ba0a968cf4994acadbb71eb7  7a_q17_u1_x1x1.report   24,947 B
+    d4530e9132fd0f923f10bc311e3da21a86c21c808080c50937315f68c1e5610f  7a_q17_u1_x1x1.bench    21,200 B
+    9554b774a38addb050e7c807c9a27d566aad55c528e392fadb06a93b4d96eb1b  7a_q17_u1_x1x1.series    8,042 B
+    c66197ab8d30eeedb7631abba4b1f6cd115f6bf7e507779daaf32ccf4d637c19  7a_q17_u1_x1x1.err      80,048 B
+    e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  7a_q17_u1_x1x1.kills         0 B
+
+### WHAT U1 DOES NOT SAY
+
+**It does not say the 7a is faster than brief T found.** It says one row on a
+cold boot held a higher clock floor than one row on a warm one. Two rows, one
+each, no error bars, and the difference between them has at least three
+candidate causes that this row cannot separate.
+
+**It says NOTHING about prompt processing.** Every turn restores the same
+407-token prefix and decodes the same 20-token user turn; nothing in it
+prefills. The `t_user_decode_ms` column rose from 333.95 to 603.56 ms across
+the row, which is the same 20 tokens getting slower, not a prefill measurement.
+
+It does not say what the A78 pair does — nothing was scheduled on policy4 and
+its ceiling never moved, which is a statement about the governor, not about
+speed. It does not say the fnv survives a change of thread count; U1 is `-t 2`
+like every row before it.
+
+It does not say policy0 never dips: 806 samples over 553 s on one row found
+none, and the one A55 dip on record (T2, 94.51%) was caught by a coarser
+instrument on a different row.
+
+It says nothing about battery life, the screen being off, a boot-started
+service, a growing context, or answer quality. Battery temperature is not SoC
+temperature.
