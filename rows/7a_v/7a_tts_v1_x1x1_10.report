@@ -1,0 +1,45 @@
+PENNYTTS tag=7a_tts_v1_x1x1_10 rc=0 mask=c0 threads=2 cool_gate=0
+PENNYTTS text=Six separate sessions since Saturday suggest something's slipping.
+PENNYTTS bin=/data/local/tmp/tts/sherpa-onnx-offline-tts
+PENNYTTS cool_wait_s     uptime 11945.21 -> 11945.25
+PENNYTTS cool_gate_first not run   (rev 2: the gate's first poll, scaling/cpuinfo per policy)
+PENNYTTS cool_gate_result GATE NOT RUN (COOL=0) wait_s=0.04   (rev 2)
+PENNYTTS uptime_s        before=11945.37 after=11951.91
+PENNYTTS wall_ms         5729   (exec to exit, taken in the launching subshell)
+PENNYTTS elapsed_ms      3672   (the binary's own Elapsed: generate only)
+PENNYTTS derived_load_ms 2057   (wall - elapsed: process start + load + WAV write + 2 date forks)
+PENNYTTS Number of threads: 2
+PENNYTTS Audio duration: 3.450 s
+PENNYTTS Real-time factor (RTF): 3.672/3.450 = 1.064
+PENNYTTS wav             sr=24000 ch=1 bytes=165594 samples=82797 ms=3449
+PENNYTTS memavail_kB     before=3360240 after=3331340
+PENNYTTS memfree_kB      before=1604756 after=1573876
+PENNYTTS swapfree_kB     before=2039160 after=2039160
+PENNYTTS cached_kB       before=2325536 after=2325728
+PENNYTTS pswpin          before=149642 after=149642
+PENNYTTS pswpout         before=596783 after=596783
+PENNYTTS pgmajfault      before=161276 after=161276
+PENNYTTS ceil_x1_kHz     before=2850000 min=2507000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+PENNYTTS ceil_x1_min_at  uptime=11951.09
+PENNYTTS ceil_a78_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq; key was ceil_a76_kHz in rev 1)
+PENNYTTS ceil_a78_min_at uptime=11945.37   (key was ceil_a76_min_at in rev 1)
+PENNYTTS ceil_a55_kHz    before=1803000 min=1803000 after=1803000   (policy0, cpus 0 1 2 3, rated 1803000 read from cpuinfo_max_freq; rev 2)
+PENNYTTS ceil_a55_min_at uptime=11945.37   (rev 2)
+PENNYTTS rated_kHz       policy0=1803000 policy4=2348000 policy6=2850000   (rev 2: read from cpuinfo_max_freq before the gate)
+PENNYTTS batt_temp_dC    before=270 after=270   (rev 2: BATTERY, tenths of a degree C -- NOT SoC)
+PENNYTTS peak_rss_kB     344784   (VmHWM, monotonic)
+PENNYTTS max_vmrss_kB    344260
+PENNYTTS max_rssanon_kB  293320   (anonymous -- NOT reclaimable)
+PENNYTTS max_rssfile_kB  50620   (file-backed -- reclaimable)
+PENNYTTS rss_samples     12   (sleep 0.2 s between samples; a short run may get very few; rev 2 counts not comparable with rev 1)
+PENNYTTS lmk_kill_lines  0
+--- binary stderr (tail) ---
+/Users/mattstevenson/Documents/sherpa-onnx/sherpa-onnx/csrc/parse-options.cc:Read:374 /data/local/tmp/tts/sherpa-onnx-offline-tts --num-threads=2 --kokoro-model=/data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx --kokoro-voices=/data/local/tmp/tts/penny-kokoro-int8/voices.bin --kokoro-tokens=/data/local/tmp/tts/penny-kokoro-int8/tokens.txt --kokoro-data-dir=/data/local/tmp/tts/penny-kokoro-int8/espeak-ng-data --kokoro-lexicon=/data/local/tmp/tts/penny-kokoro-int8/lexicon-gb-en.txt --kokoro-lang=en --sid=22 --speed=1.0 --output-filename=/data/local/tmp/tts/out/7a_tts_v1_x1x1_10.wav "Six separate sessions since Saturday suggest something's slipping." 
+
+Number of threads: 2
+Elapsed seconds: 3.672 s
+Audio duration: 3.450 s
+Real-time factor (RTF): 3.672/3.450 = 1.064
+The text is: Six separate sessions since Saturday suggest something's slipping.. Speaker ID: 22
+Saved to /data/local/tmp/tts/out/7a_tts_v1_x1x1_10.wav successfully!
+--- kill lines ---

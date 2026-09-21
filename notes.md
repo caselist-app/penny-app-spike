@@ -19616,3 +19616,225 @@ the phone during a pass, and no other adb command runs while a pass is alive.
 - Battery temperature is not SoC temperature.
 - Nothing here is a row-boot figure; both passes are on the spent 21 Sept
   matrix boot, model cached, V2 second.
+
+## 2026-09-21 — BRIEF V, V1 `7a_tts_v1_x1x1`: Kokoro int8, the X1 pair (mask c0), 2 threads, 18 lines. GATE PASSED polls_failed=0 wait_s=0.21. 18 reports, 18 x rc=0, ZERO kill lines. RTF 1.005-1.309, median 1.081, 0 of 18 under 1.0; elapsed sum 79,357 ms. X1 poll-min 2,507,000 (87.96%) — prediction MISSED HIGH. Line 12 is 170 ms SHORTER than the Mac's WAV — the all-18-within-5-ms prediction MISSED. 16 of 18 V1 figures HIT. Spent boot, model page-cached after line 0, NOT a row-boot figure.
+
+**Every figure in this entry: spent 21 Sept matrix boot (~12:41:48), model
+page-cached after line 0, NOT a row-boot figure.** The phone had last run the
+step B smoke (ended 11001.29) and was otherwise idle. On mains, screen on,
+unlocked, nothing touched. Pinned to the X1 pair (c0), 2 threads, a fresh
+process per line. Every figure was parsed by script from the 18 pulled
+`rows/7a_v/7a_tts_v1_x1x1_NN.report` files, not from scrollback.
+
+### THE STRING AS RUN
+
+Extracted from notes.md 19565 with the four leading spaces stripped, nothing
+else (747 B, sha256 `027537695e30e7a66879e1dfec9404fee4c9a20491756e173c975e7bd41cbfe5`;
+the reviewer's independent extraction gave the same bytes and hash). Run from the
+Mac as `/bin/sh v1.cmd`, the file in the session scratchpad, outside the repo:
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; echo "LAUNCH V1 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2)"; RCS=""; for N in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17; do case $N in ?) T=0$N ;; *) T=$N ;; esac; if [ $N = 0 ]; then C=1; else C=0; fi; COOL=$C sh /data/local/tmp/tts/pennytts.sh 7a_tts_v1_x1x1_$T c0 2 $N > /dev/null 2> /dev/null; RCS="$RCS $T:$?"; done; echo "DONE V1 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) rcs=$RCS"'
+
+As printed (Mac-side rc 0):
+
+    LAUNCH V1 uptime_s=11871.20 wallclock=15:59:39 batt_temp_dC=270 memavail_kB=3386464
+    DONE V1 uptime_s=12019.95 wallclock=16:02:08 batt_temp_dC=272 memavail_kB=3353772 rcs= 00:0 01:0 02:0 03:0 04:0 05:0 06:0 07:0 08:0 09:0 10:0 11:0 12:0 13:0 14:0 15:0 16:0 17:0
+
+**Nothing of mine was alive during the pass.** It was the only command running,
+launched in the background, and no other command of any kind was issued until
+it exited. Read before the pass (uptime 11786.44, 15:58:15): all three policies
+rated, battery 271 dC, MemAvailable 3,384,944 kB, phone's `pennytts.sh` =
+`3200e06c…`.
+
+### THE GATE — line 00's report, exactly as printed
+
+    PENNYTTS cool_gate_result GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=270 tmax_dC=unset polls_failed=0 cap=240 wait_s=0.21   (rev 2)
+
+Lines 01-17 each print `cool_gate_result GATE NOT RUN (COOL=0)`, as intended.
+
+### THE 18 LINES
+
+    line  audio_s  elapsed_ms  RTF    wall_ms  derived_load_ms  peak_rss_kB  x1_min_kHz (at uptime)  memavail_kB before -> after  batt b/a  rc  kills
+    00     0.829      1,085   1.309    3,049       1,964        286,972   2,802,000 (11874.49)   3,359,588 -> 3,352,604   270/270   0   0
+    01     0.758        947   1.250    2,888       1,941        280,376   2,704,000 (11880.12)   3,355,960 -> 3,338,452   270/270   0   0
+    02     0.814      1,013   1.245    2,903       1,890        281,348   2,704,000 (11884.17)   3,356,648 -> 3,329,000   270/270   0   0
+    03     1.159      1,420   1.225    3,349       1,929        290,052   2,630,000 (11889.71)   3,351,620 -> 3,345,356   270/270   0   0
+    04     4.545      4,568   1.005    6,498       1,930        361,728   2,630,000 (11894.84)   3,365,420 -> 3,329,644   270/270   0   0
+    05     6.907      7,024   1.017    9,017       1,993        438,664   2,630,000 (11902.78)   3,327,452 -> 3,328,256   270/270   0   0
+    06     3.593      3,956   1.101    5,933       1,977        349,840   2,630,000 (11913.33)   3,347,152 -> 3,343,436   270/270   0   0
+    07     5.815      5,911   1.016    7,952       2,041        436,448   2,630,000 (11921.09)   3,340,736 -> 3,347,244   270/270   0   0
+    08     4.704      5,017   1.067    6,979       1,962        401,088   2,630,000 (11934.00)   3,355,152 -> 3,337,504   270/270   0   0
+    09     4.520      4,860   1.075    6,799       1,939        365,416   2,630,000 (11940.75)   3,373,480 -> 3,343,420   270/270   0   0
+    10     3.450      3,672   1.064    5,729       2,057        344,784   2,507,000 (11951.09)   3,360,240 -> 3,331,340   270/270   0   0
+    11     3.395      3,622   1.067    5,571       1,949        343,604   2,630,000 (11957.35)   3,363,452 -> 3,349,268   270/270   0   0
+    12     3.513      3,815   1.086    5,814       1,999        347,276   2,507,000 (11965.92)   3,341,824 -> 3,354,904   270/270   0   0
+    13     3.065      3,297   1.076    5,329       2,032        338,464   2,630,000 (11972.10)   3,337,292 -> 3,353,264   270/270   0   0
+    14     7.450      8,988   1.207   10,995       2,007        327,044   2,630,000 (11978.18)   3,352,776 -> 3,345,520   270/270   0   0
+    15    10.416     10,798   1.037   12,793       1,995        576,772   2,507,000 (11997.23)   3,349,968 -> 3,336,296   270/270   0   0
+    16     3.109      3,820   1.229    5,831       2,011        322,676   2,630,000 (12006.57)   3,360,132 -> 3,346,352   270/270   0   0
+    17     4.707      5,544   1.178    7,531       1,987        350,048   2,630,000 (12013.34)   3,335,896 -> 3,361,136   270/272   0   0
+
+**RTF is generate-only, for a fresh process per line.** Every line also paid
+1,890-2,057 ms of derived load (wall minus elapsed: process start, model load,
+WAV write, two date forks), which is in `wall_ms` and NOT in RTF. Both are
+reported; neither is concluded from.
+
+    RTF             min 1.005 (line 04)   median 1.081   max 1.309 (line 00)   lines under 1.0: 0
+    elapsed sum     79,357 ms             wall sum 114,960 ms                  derived load sum 35,603 ms
+    derived load    min 1,890 (l02)       median 1,982   max 2,057 (l10)
+    peak RSS        min 280,376 kB (l01)  max 576,772 kB (l15)
+    span            line 00 uptime before 11871.87 -> line 17 after 12019.02 = 147.15 s
+
+### THE CEILINGS, the 0.2 s poll inside pennytts.sh
+
+    policy6 X1    line 00 before 2,850,000   min over 18 = 2,507,000 = 87.96% of rated, on lines 10 (11951.09), 12 (11965.92), 15 (11997.23)   line 17 after 2,850,000
+    policy4 A78   line 00 before 2,348,000   min over 18 = 2,348,000 (never moved)                                                            line 17 after 2,348,000
+    policy0 A55   line 00 before 1,803,000   min over 18 = 1,803,000 (never moved)                                                            line 17 after 1,803,000
+
+X1 per-line minimum: 2,802,000 on line 00; 2,704,000 on 01-02; 2,630,000
+(92.28%) from line 03 onward, with 2,507,000 on 10, 12 and 15. The X1 ceiling
+was back at rated at line 17's `after=`. The polls read each line's run only,
+so the gaps between lines are not covered.
+
+### BATTERY AND MEMORY
+
+- **Battery** (sysfs, NOT SoC): line 00 `before=270` -> line 17 `after=272`,
+  +2 dC. Every line's before and after read 270 except line 17's after.
+- **MemAvailable, 36 before/after readings:** minimum 3,327,452 kB (line 05
+  before), maximum 3,373,480 kB (line 09 before). During-line values are not
+  measured by this instrument.
+- **Kills:** 0 on every line (`lmk_kill_lines 0` in all 18 reports; all 18
+  `.kills` files 0 B), with MemAvailable before each line between 3,327,452 and
+  3,373,480 kB. On a spent boot this is not "Kokoro causes no kills".
+
+### SAMPLE COUNTS AGAINST THE MAC
+
+The Mac's reference is `~/kokoro-models/abtest-penny/NN-int8.wav`, written by
+the sherpa-onnx 1.13.8 Python wheel with the same model, voice (sid 22),
+lexicon-gb-en and `lang=en` (`abtest_penny.py` lines 7 and 34). Counts read
+with python `wave`; all 36 files are 24 kHz mono 16-bit, and the header count
+equals the report's `samples=` on all 18.
+
+    line  7a samples  Mac samples  difference
+    00      19,899      19,812        +87 =   +3.625 ms
+    01      18,184      18,184         +0 =   +0.000 ms
+    02      19,526      19,510        +16 =   +0.667 ms
+    03      27,821      27,820         +1 =   +0.042 ms
+    04     109,089     109,090         -1 =   -0.042 ms
+    05     165,773     165,742        +31 =   +1.292 ms
+    06      86,222      86,218         +4 =   +0.167 ms
+    07     139,567     139,549        +18 =   +0.750 ms
+    08     112,893     112,892         +1 =   +0.042 ms
+    09     108,483     108,489         -6 =   -0.250 ms
+    10      82,797      82,854        -57 =   -2.375 ms
+    11      81,489      81,443        +46 =   +1.917 ms
+    12      84,311      88,395     -4,084 = -170.167 ms
+    13      73,565      73,565         +0 =   +0.000 ms
+    14     178,788     178,768        +20 =   +0.833 ms
+    15     249,994     250,017        -23 =   -0.958 ms
+    16      74,607      74,724       -117 =   -4.875 ms
+    17     112,956     112,672       +284 =  +11.833 ms
+
+**16 lines within 5 ms; line 12 is 170.167 ms short and line 17 11.833 ms
+long.** The texts match: line 12's `.err` reads `The text is: I read the record
+this morning, and I'll record the read-through later.`, which is
+`abtest_sherpa.py` line 22 as written; line 17 likewise matches line 27.
+**This is a phone-vs-Mac difference, not a 7a-vs-6a one.** The 6a's row 4b
+`audio_ms` column (notes.md 13627-13644) gives 3,513 ms for line 12 and 4,707
+ms for line 17, and all 18 of its audio_ms equal this pass's `ms=` figures.
+The 6a entry compared only lines 00, 05 and 15 with the Mac (13720-13722), so
+this is the first time lines 12 and 17 have been set against the Mac's WAVs. No
+cause is claimed. Line 12 is the homograph line (read/record), and a different
+reading of it would change its length, but that is not checked: **nothing was
+listened to.**
+
+**Four V1 WAVs are byte-identical to earlier phone WAVs:** line 00 =
+`4d7c10b9…` (= smoke_00 and the 6a's p2-00), line 04 = `f424f065…` (=
+smoke_04), line 05 = `5d6cf043…` (= the 6a's p2-05), line 15 = `c24121e1…` (=
+the 6a's p2-15).
+
+### THE PULL
+
+108 files (18 each of .report .err .kills .pid .wall .wav) pulled to
+`rows/7a_v/`. `sha256sum` on the phone against `shasum -a 256` on the Mac,
+both sorted by name: **108 lines each, diff rc=0.** The phone list is
+committed as `rows/7a_v/7a_tts_v1_phone.sha256` (sha256 `3419f276…`), with
+every WAV's hash in it. **The 18 WAVs total 3.4 MB and are NOT committed**;
+they stay in `rows/7a_v/` untracked. Everything else is committed.
+
+### THE PHONE AFTER, one invocation (read-only), and the Mac
+
+    uptime_s=12118.70 wallclock=2026-09-21_16:03:47 p0=1803000 p4=2348000 p6=2850000 batt_dC=282 MemAvailable: 3382896 kB
+    dumpsys power: mWakefulness=Awake  mIsPowered=true  mStayOn=true  mScreenOffTimeoutSetting=30000  mLastSleepTime=0 (12118889 ms ago)  mLastWakeTime=0 (12118889 ms ago)
+
+**No lock or screen-off during the pass:** `mLastSleepTime` has not moved
+since boot (12,118,889 ms ago is uptime), so the phone has not gone to sleep on
+this boot. Battery read 282 dC here, 1.0 C above DONE's 272 about 100 s
+earlier, with the pull and the hashing in between. No cause is claimed.
+Mac `ps` after the pass showed the adb server and a `caffeinate -i -t 300`
+started 1 min 38 s before the read. Neither is mine: my `caffeinate -i adb …`
+had exited, and I did not start the `-t 300` one.
+
+### EVERY V1 PREDICTION, judged (notes.md 19435-19453; the rule is at 19427)
+
+    prediction                               point         band                  measured                          verdict
+    gate before line 0                       PASSED 0      0-2 polls failed      GATE PASSED polls_failed=0        HIT
+    RTF min                                  1.018 (l05)   0.95-1.10             1.005 (l04)                       HIT
+    RTF median                               1.115         1.05-1.20             1.081                             HIT
+    RTF max                                  1.310 (l16)   1.22-1.42             1.309 (l00)                       HIT (the value, not the line)
+    RTF line 15                              1.074         1.00-1.16             1.037                             HIT
+    lines under RTF 1.0                      0             0-3                   0                                 HIT
+    elapsed sum                              81,500        76,000-87,000         79,357                            HIT
+    derived load median                      1,990         1,900-2,100           1,982                             HIT
+    derived load all 18 in 1,800-2,250       yes           —                     yes, 1,890-2,057                  HIT
+    peak RSS max (l15)                       577,200       570,000-585,000       576,772 (l15)                     HIT
+    peak RSS min (l01)                       283,700       280,000-288,000       280,376 (l01)                     HIT
+    X1 poll-min                              1,826,000     1,426,000-2,252,000   2,507,000 (87.96%)                MISS HIGH
+    A78 poll-min                             2,348,000     2,253,000-2,348,000   2,348,000                         HIT
+    A55 poll-min                             1,803,000     1,704,000-1,803,000   1,803,000                         HIT
+    battery rise                             +4            0 to +12              +2                                HIT
+    span                                     143 s         130-160               147.15                            HIT
+    MemAvailable min, 36 readings            3,300,000     3,000,000-3,450,000   3,327,452                         HIT
+    sample counts, all 18 within 5 ms        yes           —                     NO: l12 -170.167, l17 +11.833     MISS
+
+**16 of 18 HIT.** **V-A1** (notes.md 19489): predicted NO line under 1.0 on the
+X1 pair — **measured NO, HIT.** The lowest line was 04 at 1.005,
+generate-only, fresh process, one line. The line-4 point was 1.025, band
+0.97-1.10 (19494): 1.005, HIT. **V-B1, V1 limb** (19515): no kill line naming
+`sherpa-onnx-offline-tts`, and the 36-reading minimum 3,327,452 kB is above
+1,048,576 — **HIT on both**, judged on the 36 readings only.
+
+**The X1 miss, from the report figures.** Step C pointed the X1 at U1's
+continuous-decode level (1,826,000) and gave that ~83% duty. It went no lower
+than 2,507,000. This pass held the X1 pair ~147 s against U1's 553 s. No cause
+beyond that is claimed.
+
+**k1 as measured** (7a V1 elapsed / 6a 4b elapsed, same line; 6a figures from
+13627-13644, a PREDICTION INPUT, not a baseline): sum 79,357 / 85,431 =
+**0.9289** against the predicted 0.954 (band 0.89-1.02). Per line 0.895 (l16)
+to 0.987 (l01), median 0.936. The ratio falls through the pass — 0.958 on line
+00, 0.918 on line 17 — while the 6a's X1 fell further than the 7a's (6a 4b
+min 73.09%, 13647).
+
+### CLAUDE.md, CHANGED IN THE SAME STEP
+
+Two lines in the 7a block, both of which had become incomplete: the `tts/out/`
+line now lists the V1 files, and the Boot line adds that the step B smoke and V1
+also ran on the matrix boot. Nothing else changed. The 6a block (lines 55-133)
+re-hashed after the edit: `effd849c…`, 79 lines, byte-identical.
+
+### WHAT THIS DOES NOT SAY
+
+- It is one pass, on a spent boot, model page-cached after line 0. Nothing
+  here is a row-boot figure, a cold-load figure or a load-from-flash figure.
+- RTF is generate-only for a fresh process per line. It does not say Kokoro
+  runs in real time on the 7a: no line went under 1.0, and every line paid
+  ~2 s of load outside RTF.
+- Nothing about a resident Kokoro, time to first audio, the app, fp32, TTS
+  beside the LLM, or the A78 pair (that is V2).
+- It does not say why line 12 is 170 ms shorter on the phone than on the Mac,
+  and nothing was listened to, so it says nothing about pronunciation.
+- MemAvailable during a line is not measured. A zero kill count on a spent
+  boot with ~3.3 GB available is not a claim about memory pressure.
+- Battery temperature is not SoC temperature. The poll covers each line's run,
+  not the gaps between lines.

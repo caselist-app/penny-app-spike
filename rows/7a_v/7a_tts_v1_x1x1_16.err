@@ -1,0 +1,8 @@
+/Users/mattstevenson/Documents/sherpa-onnx/sherpa-onnx/csrc/parse-options.cc:Read:374 /data/local/tmp/tts/sherpa-onnx-offline-tts --num-threads=2 --kokoro-model=/data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx --kokoro-voices=/data/local/tmp/tts/penny-kokoro-int8/voices.bin --kokoro-tokens=/data/local/tmp/tts/penny-kokoro-int8/tokens.txt --kokoro-data-dir=/data/local/tmp/tts/penny-kokoro-int8/espeak-ng-data --kokoro-lexicon=/data/local/tmp/tts/penny-kokoro-int8/lexicon-gb-en.txt --kokoro-lang=en --sid=22 --speed=1.0 --output-filename=/data/local/tmp/tts/out/7a_tts_v1_x1x1_16.wav "That's everything. Nothing else needs you tonight." 
+
+Number of threads: 2
+Elapsed seconds: 3.820 s
+Audio duration: 3.109 s
+Real-time factor (RTF): 3.820/3.109 = 1.229
+The text is: That's everything. Nothing else needs you tonight.. Speaker ID: 22
+Saved to /data/local/tmp/tts/out/7a_tts_v1_x1x1_16.wav successfully!
