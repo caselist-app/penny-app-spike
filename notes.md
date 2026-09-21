@@ -17527,3 +17527,56 @@ not run. Nothing here is a baseline, a budget or a ceiling. The battery figure
 is battery temperature, not SoC temperature, and the chassis history of this
 boot is not known beyond the fact that the phone had been idle on the previous
 boot since 12:35. It says nothing about what U1 will do.
+
+## 2026-09-21 — BRIEF U, THE MATRIX BOOT'S ~25 MINUTE PROTOCOL READING. MemAvailable 3,497,252 kB at 25.00 min against 3,489,176 at 4.99 min — 8,076 kB apart. SwapFree and all three vmstat counters IDENTICAL to the 5 minute reading. Battery shed 1.0 C. U1 is next.
+
+    READING_25MIN uptime_s=1500.05 wallclock=13:06:48
+    MemTotal: 7640312 kB MemFree: 2131596 kB MemAvailable: 3497252 kB Cached: 1895248 kB SwapTotal: 3820152 kB SwapFree: 1813368 kB AnonPages: 1755272 kB
+    p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000
+    batt_temp_dC=252 batt_level=100 dumpsys=[ AC powered: true status: 4 level: 100 temperature: 253 ]
+    stay_on=15 screen_off_timeout=30000 keyguard= isKeyguardShowing=false wake= mWakefulness=Awake
+    vmstat pswpin=9133 pswpout=511453 pgmajfault=20254
+    ls: Qwen3-1.7B-Q4_K_M.gguf out penny_system.txt penny_user.txt pennybench.sh pennyload q17_state.bin
+    READING_25MIN_END uptime_s=1500.70
+
+Quoted unedited, 25.00 min after power-on.
+
+    MemAvailable   3,497,252 kB   (5 min: 3,489,176 kB -- 8,076 kB apart)
+    MemFree        2,131,596 kB   (5 min: 2,133,280)
+    Cached         1,895,248 kB   (5 min: 1,886,960)
+    SwapFree       1,813,368 kB = 47.47% of SwapTotal  (IDENTICAL to the 5 min reading)
+    AnonPages      1,755,272 kB   (5 min: 1,754,248)
+    ceilings       all three at rated
+    battery        252 dC (262 at 5 min): the phone shed 1.0 C over 20 min at idle
+    screen         awake, keyguard not showing, stay_on 15
+
+**MemAvailable read twice on this boot, 20 min apart, under the same conditions
+(idle, unlocked, AC, nothing of ours run): 3,489,176 and 3,497,252 kB.** Two
+readings on ONE boot; per the reporting rules that is still not called a budget.
+
+**`SwapFree` is byte-for-byte identical across the two readings, and so are all
+three vmstat counters** — `pswpin=9133`, `pswpout=511453`, `pgmajfault=20254`
+at 4.99 min and again at 25.00 min. **Nothing swapped and nothing took a major
+fault in those 20 minutes.** On the 19 Sept row boot `SwapFree` was also
+identical across its two readings (1,868,920 both times, notes.md 14975 and
+15000) while `pswpout` did move. Recorded; no cause claimed.
+
+The two boots side by side at ~25 min, same handset, same conditions class:
+
+    MemAvailable   19 Sept 3,405,124  ->  21 Sept 3,497,252 kB   (+92,128)
+    SwapFree       19 Sept 1,868,920  ->  21 Sept 1,813,368 kB   (-55,552)
+    battery        19 Sept 280 dC     ->  21 Sept 252 dC         (28.0 C -> 25.2 C)
+
+**U1 starts 2.8 C cooler than T1 did** — a starting condition, not a result,
+and the row-order confound at notes.md 16874 section 7 is about heat WITHIN
+this boot, not between boots.
+
+Nothing has read the GGUF or `q17_state.bin` on this boot. The `ls` lists all
+seven entries by name.
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+Two readings on one boot are not a baseline, a budget or a ceiling. The
+identical SwapFree and vmstat figures say the counters did not move between two
+samples; they do not say the phone did nothing. Battery temperature is not SoC
+temperature. Nothing here says what U1 will do.
