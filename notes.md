@@ -22011,3 +22011,51 @@ phone's mksh. The gate, the poll and the report have only ever run as
 pennytts.sh. The guard's match with pennyspeak's parser is from reading
 pennyspeak.cpp, not from running both on the same inputs. Nothing about timing,
 memory or WAV identity.
+
+## 2026-09-21 — BRIEF X STEP C2: pennyspeak.sh's line-list variable renamed LINES -> LINELIST, nothing else changed. On the phone, mksh R59 treats LINES as a built-in: assigning "0" or "all" read back 24. The first REFUSED check on the phone exited 2 with "bad line list [24]" and ran nothing. New pennyspeak.sh sha256 dc2706fdd1b497fbc2528a00a90e71a936ef014c08c4ed723ce3f598ba48c698, 327 lines, 18,157 B. Mac only; nothing sent to the phone for this entry.
+
+The full step D record goes in the step D entry: the push, the failed check
+verbatim, every adb command, the name test and the re-push. This entry records
+only the fix and why.
+
+**What happened.** Step D's first check on the phone, after the push of
+pennyspeak (9be8e0e4…) and pennyspeak.sh 2b34627 (9a306482…):
+`sh /data/local/tmp/tts/pennyspeak.sh 7a_tts_v1_x1x1 c0 2 0` printed
+`usage: pennyspeak.sh: bad line list [24]` and exited 2 (REFUSED, exit 9, was
+expected). It stopped before the file check, the gate and pennyspeak:
+out/ 570 files before and after, out/7a_tts_v1_x1x1_00.wav 4d7c10b9…
+before and after.
+
+**Cause, read on the phone** (one read-only adb shell): `KSH_VERSION=@(#)MIRBSD
+KSH R59 2020/10/31 Android`; `LINES=0` then `echo $LINES` -> 24; `LINES="all"`
+-> 24; `LLIST=0` -> 0; a fresh `sh -c` gives 24 too. LINES (and COLUMNS) are
+mksh built-ins set from the terminal size. pennytts.sh never used the name.
+**If it had got past the guard**, every pass would have handed pennyspeak the
+list "24" (pennyspeak exits 2) and reported lines=24.
+
+**Why no test caught it.** Both Mac test suites passed: mine (13 lists plus
+two REFUSED cases, notes.md 21926 §3) and the reviewer's (22 lists). They ran
+under macOS sh and bash --posix, which have no LINES built-in. The reviewer
+could not reproduce it either (the Cowork VM has only dash and busybox) and
+accepts it on the phone evidence. **A Mac pass proves the parser's logic, not
+the shell that runs it.**
+
+**The fix.** perl `s/\bLINES\b/LINELIST/g` on pennyspeak.sh: all 8 uses (lines
+62, 94, 95, 98, 99, 198, 201, 287 of 2b34627). The report key stays `lines=`.
+Plus a 6-line header comment recording this. `git diff` shows only those lines.
+sh -n and bash --posix -n rc=0. The binary is unaffected and is not rebuilt or
+re-pushed.
+
+**Still unproven on the phone:** the seven variable names this script assigns
+that pennytts.sh does not: IDLE_MS, KILLS_PS, L, NNS, REST, SEEN and LINELIST
+(the reviewer's list after the rename). Step D2 echo-tests each on the phone
+before the re-push.
+
+**Named exception, granted by Matt for this one file:** the phone's
+/data/local/tmp/tts/pennyspeak.sh (9a306482…, pushed ~18:38 today, never
+produced any output, its bytes kept in git at 2b34627) will be OVERWRITTEN by
+this version. "Nothing on the phone is overwritten" stands for everything else.
+The before/after sha256 goes in the step D entry.
+
+What this entry does NOT say: that the renamed script works on the phone. It
+has not run there. Nothing about the binary, timing or WAVs.

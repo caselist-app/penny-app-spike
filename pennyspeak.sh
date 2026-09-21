@@ -26,6 +26,12 @@
 #   - from the copied RUN comment, "the same size as the load time being
 #     derived": derived_load_ms no longer exists, so the sentence was false.
 #
+# THE LINE-LIST VARIABLE IS LINELIST, NOT LINES (21 Sept, brief X step D). The
+# phone's /system/bin/sh is mksh R59, where LINES is a built-in (terminal
+# height): assigning "0" or "all" read back 24, so the first version sent every
+# list to the guard as "24". macOS sh and bash --posix have no such built-in,
+# so every Mac test passed. A Mac pass proves logic only.
+#
 # EXIT CODES of this script, before anything runs: 2 bad arguments (including
 # any line list pennyspeak would reject); 9 REFUSED, an output of this tag
 # already exists. Otherwise the report's rc= is pennyspeak's own exit code
@@ -59,7 +65,7 @@
 # <tag>.err, <tag>.kills, <tag>.pid, <tag>.wall, and one <tag>_NN.wav per line
 # (written by pennyspeak itself).
 
-TAG="$1"; MASK="$2"; THREADS="$3"; LINES="${4:-all}"; IDLE_MS="${5:-0}"
+TAG="$1"; MASK="$2"; THREADS="$3"; LINELIST="${4:-all}"; IDLE_MS="${5:-0}"
 if [ -z "$TAG" ] || [ -z "$MASK" ] || [ -z "$THREADS" ]; then
     echo "usage: pennyspeak.sh <tag> <taskset-mask|none> <threads> [lines: all|0,4,...] [idle_ms]" >&2
     exit 2
@@ -91,12 +97,12 @@ export LD_LIBRARY_PATH="$TTSDIR"
 # dropped, no repeats, no empty item (so no leading, trailing or double
 # comma), under 256 characters. NNS collects the two-digit names pennyspeak
 # gives the WAVs (%02d of the number).
-bad_lines() { echo "usage: pennyspeak.sh: bad line list [$LINES]" >&2; exit 2; }
-if [ "$LINES" = "all" ]; then
+bad_lines() { echo "usage: pennyspeak.sh: bad line list [$LINELIST]" >&2; exit 2; }
+if [ "$LINELIST" = "all" ]; then
     NNS="00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17"
 else
-    [ ${#LINES} -ge 256 ] && bad_lines
-    NNS=""; SEEN=" "; REST="$LINES,"
+    [ ${#LINELIST} -ge 256 ] && bad_lines
+    NNS=""; SEEN=" "; REST="$LINELIST,"
     while [ -n "$REST" ]; do
         L=${REST%%,*}; REST=${REST#*,}
         case "$L" in ''|*[!0-9]*) bad_lines ;; esac
@@ -195,10 +201,10 @@ LOGSTART=$(date +'%m-%d %H:%M:%S.000')
     # lexicon-gb-en.txt from $M itself, and sets sid 22, lang en, speed 1.0
     # (pennyspeak.cpp). Its stdout -- the PENNYSPEAK lines -- goes to $OUT.raw.
     if [ "$MASK" = "none" ]; then
-        "$BIN" "$M" "$MF" "$THREADS" "$OUTDIR" "$TAG" "$LINES" "$IDLE_MS" \
+        "$BIN" "$M" "$MF" "$THREADS" "$OUTDIR" "$TAG" "$LINELIST" "$IDLE_MS" \
             > "$OUT.raw" 2> "$OUT.err" &
     else
-        taskset "$MASK" "$BIN" "$M" "$MF" "$THREADS" "$OUTDIR" "$TAG" "$LINES" "$IDLE_MS" \
+        taskset "$MASK" "$BIN" "$M" "$MF" "$THREADS" "$OUTDIR" "$TAG" "$LINELIST" "$IDLE_MS" \
             > "$OUT.raw" 2> "$OUT.err" &
     fi
     P=$!
@@ -284,7 +290,7 @@ KILLS_PS=$(grep -c pennyspeak "$OUT.kills")                    # NEW: kill lines
 # No `dumpsys meminfo` here, as pennytts.sh: it costs seconds of CPU and would
 # heat the package just before the next pass's gate.
 {
-echo "PENNYSPEAKSH tag=$TAG rc=$RC mask=$MASK threads=$THREADS cool_gate=$COOL lines=$LINES idle_ms=$IDLE_MS"
+echo "PENNYSPEAKSH tag=$TAG rc=$RC mask=$MASK threads=$THREADS cool_gate=$COOL lines=$LINELIST idle_ms=$IDLE_MS"
 echo "PENNYSPEAKSH bin=$BIN"
 echo "PENNYSPEAKSH cool_wait_s     uptime $COOL_WAIT_UP0 -> $COOL_WAIT_UP1"
 echo "PENNYSPEAKSH cool_gate_first $GATE_FIRST   (rev 2: the gate's first poll, scaling/cpuinfo per policy)"
