@@ -15856,3 +15856,200 @@ with these sustained figures.
 
 **And: nothing here re-measures the 6a, nothing here touches TTS, STT or a
 second model in memory, and no row on the 7a has used any mask but `c0`.**
+
+## 2026-09-21 — BRIEF U, STEP A (1b-i): THE OpenCL CHECK on the 7a. Read-only — ls, cat and `cmd gpu vkjson`, nothing built, nothing loaded, nothing installed. `libOpenCL.so` and `libOpenCL-pixel.so` are present in `/vendor/lib64` AND named in `/vendor/etc/public.libraries.txt`. The GPU is Mali-G710, Vulkan driver `v1.r54p3-00eac0`. `current_now` and `voltage_now` are both readable and were each read once. ALSO: the phone is on a NEW boot, not the 19 Sept row boot.
+
+Pixel 7a (lynx), serial 37291JEHN04619. Every command `adb -s 37291JEHN04619
+shell` with the whole remote command in one single-quoted string. Five
+invocations, all read-only. Screen on, unlocked, AC. **Nothing here is a
+measurement of anything running; no row, no binary, no `dlopen`.**
+
+Uptime and wall clock read in the same invocation as the values beside them:
+
+    invocation 1 (manifests)     uptime_s=13929.66 wallclock=11:31:42
+    invocation 2 (libraries)     uptime_s=13937.50 wallclock=11:31:50
+    invocation 3 (vkjson)        uptime_s=13944.67 wallclock=11:31:57
+    invocation 4 (vkjson grep)   uptime_s=13954.29 wallclock=11:32:07
+    invocation 5 (battery)       uptime_s=13960.47 wallclock=11:32:13
+
+### 1. THE PUBLIC-LIBRARY MANIFESTS — `ls -l` then `cat`, verbatim
+
+    -rw-r--r-- 1 root root 549 2009-01-01 00:00 /system/etc/public.libraries.txt
+    -rw-r--r-- 1 root root 130 2009-01-01 00:00 /vendor/etc/public.libraries.txt
+
+`cat /vendor/etc/public.libraries.txt`, all seven lines, unedited:
+
+    libOpenCL.so
+    libOpenCL-pixel.so
+    libedgetpu_client.google.so
+    libedgetpu_util.so
+    lib_aion_buffer.so
+    libgxp.so
+    gxp_metrics_logger.so
+
+`cat /system/etc/public.libraries.txt` — 30 lines, quoted in full because the
+question is what is NOT in it as much as what is:
+
+    # See https://android.googlesource.com/platform/ndk/+/main/docs/PlatformApis.md
+    libandroid.so
+    libaaudio.so
+    libamidi.so
+    libbinder_ndk.so
+    libc.so
+    libcamera2ndk.so
+    libclang_rt.hwasan-aarch64-android.so 64 nopreload
+    libdl.so
+    libEGL.so
+    libGLESv1_CM.so
+    libGLESv2.so
+    libGLESv3.so
+    libicu.so
+    libicui18n.so
+    libicuuc.so
+    libjnigraphics.so
+    liblog.so
+    libmediandk.so
+    libm.so
+    libnativehelper.so
+    libnativewindow.so
+    libneuralnetworks.so nopreload
+    libOpenMAXAL.so
+    libOpenSLES.so
+    libRS.so
+    libstdc++.so
+    libsync.so
+    libvulkan.so
+    libwebviewchromium_plat_support.so
+    libz.so
+
+The shell glob `/system/etc/public.libraries*.txt` matched exactly one file;
+there is no `public.libraries-<company>.txt` beside it. **`libOpenCL` appears
+in the VENDOR manifest, not the system one.** `libvulkan.so` appears in the
+system one.
+
+### 2. THE LIBRARY FILES — `ls -l`, verbatim
+
+    -rw-r--r-- 1 root root 14440 2009-01-01 00:00 /vendor/lib64/libOpenCL-pixel.so
+    -rw-r--r-- 1 root root 82808 2009-01-01 00:00 /vendor/lib64/libOpenCL.so
+    -rw-r--r-- 1 root root 14440 2009-01-01 00:00 /system/vendor/lib64/libOpenCL-pixel.so
+    -rw-r--r-- 1 root root 82808 2009-01-01 00:00 /system/vendor/lib64/libOpenCL.so
+    ls: /system/lib64/libOpenCL*: No such file or directory
+    ls: /vendor/lib64/egl/libOpenCL*: No such file or directory
+
+The two paths are the same two files: `ls -ld /system/vendor` reads
+
+    lrw-r--r-- 1 root root 7 2009-01-01 00:00 /system/vendor -> /vendor
+
+so `/system/vendor/lib64` IS `/vendor/lib64`. **Two files, not four.** 82,808 B
+and 14,440 B. Both `-rw-r--r--`, i.e. world-readable; neither was opened.
+
+`ls /vendor/lib64/egl` and `ls /vendor/lib64/hw | grep -i -e mali -e vulkan`:
+
+    /vendor/lib64/egl:  libGLES_mali.so
+    /vendor/lib64/hw:   vulkan.mali.so     (grep_rc=0)
+
+### 3. `cmd gpu vkjson` — it ran; no Permission denied
+
+The shell WAS permitted to run it. First 60 lines of output opened with:
+
+    {
+    	"apiVersion" : 4210688.0,
+    	"deviceGroups" :
+    	[
+    		{
+    			"devices" :
+    			[
+    				0.0
+    			],
+    			"subsetAllocation" : 0.0
+    		}
+    	],
+    	"devices" :
+    	[
+    		{
+    			"VK_ANDROID_external_format_resolve" : …
+
+The first 60 lines carried `apiVersion` but reached only as far as
+`VK_ARM_shader_core_builtins` before the cut, so a second invocation grepped
+the named fields out of the same command's output:
+
+    	"apiVersion" : 4210688.0,
+    					"driverInfo" : "v1.r54p3-00eac0.1848e3b066182d5bb5a345ab256f13ee",
+    					"driverName" : "Mali-G710"
+    				"apiVersion" : 4211031.0,
+    				"deviceID" : 2824994816.0,
+    				"deviceName" : "Mali-G710",
+    				"deviceType" : 1.0,
+    				"driverVersion" : 226504704.0,
+    				"vendorID" : 5045.0
+
+From the first 60 lines, also read: `"shaderCoreCount" : 7.0`,
+`"shaderCoreMask" : "0x0000000001110055"`, `"shaderWarpsPerCore" : 64.0`
+(under `shaderCoreBuiltinsPropertiesARM`).
+
+**Device name `Mali-G710`. driverVersion `226504704` as printed; the human
+form is the `driverInfo` string `v1.r54p3-00eac0`.** The instance `apiVersion`
+4210688 decodes as Vulkan 1.4.0 and the device's 4211031 as 1.4.343 under
+Vulkan's `(major<<22)|(minor<<12)|patch` — **that decode is the builder's
+arithmetic on the printed integers, not something the tool printed.**
+`vendorID` 5045 = 0x13B5, Arm's PCI vendor id (builder's memory, not a checked
+source). `deviceType` 1.0 = INTEGRATED_GPU under Vulkan's enum (same caveat).
+
+### 4. THE CONCLUSION LINE — one of the four wordings, and no more
+
+**OpenCL: a libOpenCL is present AND listed as a public library.**
+
+The two readings that and only that rests on: `ls -l` shows
+`/vendor/lib64/libOpenCL.so`, 82,808 B (section 2), and
+`cat /vendor/etc/public.libraries.txt` line 1 is `libOpenCL.so` (section 1).
+`libOpenCL-pixel.so` is the same on both counts.
+
+### 5. BATTERY `current_now` AND `voltage_now` — READABLE. Recorded, used for nothing.
+
+    -r--r--r-- 1 root root 4096 2026-09-21 07:39 /sys/class/power_supply/battery/current_now
+    -r--r--r-- 1 root root 4096 2026-09-21 07:39 /sys/class/power_supply/battery/voltage_now
+
+One reading each, with `temp` and the clock from the SAME invocation:
+
+    current_now=286875 voltage_now=4423906 batt_temp_dC=246 uptime_s=13960.47 wallclock=11:32:13
+
+**No units are established here** — the files carry none and none were looked
+up on the device. Nothing is derived from these two numbers, and they are not a
+baseline: one reading each, on an idle phone, on mains.
+
+### 6. A DEVICE-STATE READING THAT CONTRADICTS CLAUDE.md's 7a BLOCK
+
+**The phone is NOT on the 19 Sept row boot.** Uptime 13,929.66 s at 11:31:42 on
+21 Sept is 3 h 52 min, which puts this boot at about **07:39 on 21 Sept** —
+arithmetic on two values read in the one invocation. The sysfs mtimes in
+section 5 read `2026-09-21 07:39`, independently. The 19 Sept row boot ended at
+some point not observed here; how the phone was rebooted, and by whom or what,
+is not established by anything in this entry.
+
+Consequence for brief U: **the boot Step A ran on is a fresh-ish idle boot of
+21 Sept, ~3.9 h old, not the spent row boot the brief assumed.** Step A is
+read-only so nothing is voided. CLAUDE.md's 7a block line "Boot … ROW BOOT ALSO
+SPENT" describes a boot that no longer exists; the block is not edited by this
+entry, and the correction belongs with whatever step next needs a boot state.
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+**Nothing here says OpenCL would work.** No program was compiled, no `dlopen`
+was attempted, no OpenCL call was made, no platform or device was enumerated
+through it, and neither `.so` file was opened or read. "Listed as a public
+library" means the name appears in `/vendor/etc/public.libraries.txt`; whether
+the linker namespace would actually hand `libOpenCL.so` to a sideloaded app's
+native code, whether the vendor stub resolves to a working ICD, and whether an
+app without our `pm grant`s could use it are all untested. **The 82,808 B
+`libOpenCL.so` is the size of a dispatch stub, not of a driver** — that is an
+observation about a number, and the file's contents were not examined.
+
+Nothing here says anything about llama.cpp: no OpenCL backend has been built,
+and this repo's decisions record no route by which one would be. **It does not
+say GPU inference is faster, slower, possible or worth doing.** It says nothing
+about Vulkan compute either, beyond `libvulkan.so` being in the system manifest
+and the driver naming itself Mali-G710.
+
+It measures nothing thermal, nothing timed, and nothing about the A78s, the X1
+pair or the matrix. `current_now` and `voltage_now` being readable is not a
+power measurement and is not a claim that they can be used as one.
