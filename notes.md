@@ -18701,3 +18701,275 @@ argues that away.
 **Nothing in the matrix measured prompt processing**, and no row captured or
 compared output text, so the three token hashes describe streams, not quality.
 Battery temperature is not SoC temperature.
+
+## 2026-09-21 — BRIEF U, CLOSED.
+
+Written by the builder to the reviewer's instruction, after the reviewer verified
+the matrix against the repo: `fccecfb` HEAD, all eight commits accounted for, all
+four row strings byte-identical to notes.md 17258 / 17265 apart from tag, mask,
+`-t` and `TMAX=267`, every figure recomputed from `rows/7a_u/*.report`. **Nothing
+on the phone was touched for this entry.** Every figure below is re-read from the
+row files or the row entries with its notes.md line; none is quoted from memory.
+
+**ONE CORRECTION TO THE INSTRUCTION, MADE BEFORE USING THE FIGURE.** The
+reviewer's item 2 gives T2's launch battery as 280 dC. **T2 launched at 330 dC**
+(notes.md 15292, `start 330 dC (first series sample 5172.85; report before=330)`;
+and 15301, "T2 began at 33.0 C, T1's end temperature"). **280 dC is the 19 Sept
+row boot's ~25 minute idle protocol reading** (notes.md 14993), not T2's launch.
+The comparison below uses 330 dC. The direction of the reviewer's point is
+unchanged and strengthened: the gap between U1's and T2's launch temperature is
+7.8 C, not 2.8 C.
+
+### 1. THE FOUR ROWS
+
+    row  mask -t  turn 1  last-10  wall (s)   X1 / A78 / A55 poll-min as % of rated   batt at launch  batt before -> after  warm  token_fnv1a64
+    U1   c0   2   15.53   11.175    553.21    50.04% / 100.00% / 100.00%              252 dC          252 -> 331 (+7.9 C)   no    0xcba17a2fcbba49f4
+    U2   30   2   10.74    7.995    764.54    94.88% /  63.50% /  94.51%              283 dC          283 -> 355 (+7.2 C)   YES   0xcba17a2fcbba49f4
+    U3   d0   3   11.33    9.835    636.02    34.53% /  63.50% /  60.90%              291 dC          291 -> 354 (+6.3 C)   YES   0x9f67352b7af035d5
+    U4   f0   4    9.90   10.510    603.76    34.53% /  56.56% /  60.90%              292 dC          292 -> 353 (+6.1 C)   YES   0x1c724a99200e0d0d
+
+    sources  U1 notes.md 17584   U2 17821   U3 18087   U4 18353
+    wall     `pennybench before= -> after=`, which includes each row's model load
+    poll-min the 0.2 s poll loop, NOT the 7 s series. policy0's poll figures are
+             new in rev 7 and have no rev 6 counterpart anywhere in this repo.
+    batt     sysfs `/sys/class/power_supply/battery/temp`, dC. BATTERY, NOT SoC.
+    masks    c0 = cpus 6,7 (X1 pair)   30 = cpus 4,5 (A78 pair)
+             d0 = cpus 4,6,7 (both X1 + ONE A78)   f0 = cpus 4,5,6,7
+
+Every row: `rc=0`, `turns_done=100`, `turns_requested=100`, `turns_overrun=0`,
+`fnv_all_equal=1`, `lmk_kill_lines=0`, `.kills` 0 bytes, `oom_score_adj_child`
+pre -1000 / post 200, contamination NOT met on either limb.
+
+**All four rows ended within 0.4 C of each other (35.3-35.5 C, U1 33.1 C) from
+launch temperatures 4.0 C apart.**
+
+### 2. THE PREDICTIONS, JUDGED — committed at notes.md 16874 before the reboot, never revised
+
+    U-A1  Does the A78 pair (U2) hold >= 90% of its own turn 1 to the end?
+          Predicted YES at 93%, confidence ~55%.  **READ 75.26%. MISSED.**   (17821)
+    U-A2  Which row has the fastest last-10 median?
+          Predicted U2 at ~11.6, order U2 > U1 > U3 > U4.
+          **MEASURED U1 11.175 > U4 10.510 > U3 9.835 > U2 7.995. MISSED** —
+          U1 and U2 exactly swapped ends.                                    (18353)
+    U-A3  Which finishes the 100 turns soonest?
+          Predicted U2 at ~600 s, order U2 < U1 < U3 < U4.
+          **MEASURED U1 553.21 < U4 603.76 < U3 636.02 < U2 764.54. MISSED** —
+          again reversed at both ends.                                       (18353)
+    U-A4  token_fnv1a64 unchanged at every thread count?  **PART-MISSED.**
+            -t 2  U1, U2   0xcba17a2fcbba49f4   predicted YES ~90%   HIT
+            -t 3  U3       0x9f67352b7af035d5   predicted YES ~60%   MISSED
+            -t 4  U4       0x1c724a99200e0d0d   predicted YES ~60%   MISSED
+          **THREE VALUES ACROSS THREE THREAD COUNTS. `first_token_id=32313` IN ALL
+          FOUR ROWS. `fnv_all_equal=1` IN ALL FOUR ROWS** — 100 of 100 turns one
+          value within each row, so the restore path is deterministic and what
+          moved is the thread count.                          (18087, 18353)
+    U-B1  no kill line naming pennyload    HIT in all four — zero kill lines of any kind
+          SwapFree min >= 45% of SwapTotal HIT in all four — 47.47 / 48.78 / 51.29 / 51.63%
+          Cached direction                 HIT U1 (+353,084), U2 (-236,516), U4 (-98,172);
+                                           **MISSED U3, which ROSE +101,968 where a fall was predicted**
+          void limb (fall >= 865,163 kB)   NOT MET in any row — HIT
+
+**Row figures: 21 of 32 hit** — U1 4/8, U2 7/8, U3 6/8, U4 4/8. **Six of U2's
+eight bands were 40 points wide or more** because the entry stated plainly there
+was no A78 decode figure on this handset; that is weak evidence and was recorded
+as such at 17821.
+
+**U1 against T2's first 100 turns** (notes.md 16874 section 8):
+
+    turn-1 ratio     15.53 / 15.47 = 1.0039   pred 1.01, band 0.95-1.07   HIT
+    last-10 ratio    11.175 / 9.015 = 1.2396  pred 1.00, band 0.92-1.09   MISSED
+
+**THE TWO LAST-10 FIGURES ARE NOT THE SAME MINUTE OF EXPOSURE.** U1 is **100
+turns over 553.21 s under rev 7, launched from 252 dC** (17584). T2 is **200
+turns over 1,482.14 s = 24.70 min under rev 6, launched from 330 dC** (15195,
+15292). U1's turns 91-100 sit at ~9.1 minutes of continuous load; T2's turns
+91-100 sit at roughly the same turn number but on a phone that had already run
+an hour of T1 and started 7.8 C hotter, and that went on to run 100 more turns.
+**No cause is claimed for the 1.2396.** The candidates — launch temperature,
+fresh boot, and the rev 6 / rev 7 instrument change (10 s -> 7 s series,
+policy0 added to the poll, 5.53% fewer poll samples per second, notes.md 16698)
+— **cannot be separated by one row against one row.** `gen_tps`, `ttft` and the
+turn uptimes come from `pennyload`, unchanged at `f52fc604…` throughout, so
+those ARE comparable; `rss_samples` counts are not and were not compared.
+
+### 3. TWO REVIEWER CORRECTIONS TO THE BUILDER'S SUMMARY WORDING
+
+Recorded as corrections to what the builder wrote in its closing message, not as
+new measurements.
+
+**(a) "Two threads on the X1 pair won everything / adding cores never helped at
+any matched minute" IS WITHDRAWN AS WORDED.** The defensible statement is: **U1
+was not beaten on any absolute measure.** Recomputed here by the builder from
+the `TURN` lines, 120 s windows measured from each row's own first-turn uptime
+(U1 1545.00, U4 7844.30):
+
+    window        U1 median (n)      U4 median (n)      U4/U1     difference
+    240-360 s     11.790 (21)        11.680 (21)        0.9907    -0.93%
+    360-480 s     11.440 (20)        11.090 (19)        0.9694    -3.06%
+    480-600 s     11.175 (10)        10.595 (18)        0.9481    -5.19%
+
+**The builder's recomputation agrees with the reviewer's quoted figures to the
+digits given** (the reviewer's 11.18 and 10.59 are 11.175 and 10.595 rounded).
+
+**From minute 4 on, U4 sits within 0.93% to 5.19% of U1 while having launched
+4.0 C warmer at the battery (292 dC against 252 dC). U1 versus U4 once settled
+is NOT SEPARABLE by this matrix.** One caveat the builder adds: **the 480-600 s
+window holds 10 U1 turns against 18 U4 turns**, because U1 finished its 100
+turns sooner — the medians are over unequal samples and the last window is the
+thinnest evidence of the three.
+
+**(b) THE ROW-ORDER CONFOUND DOES NOT COVER U2'S RESULT.** U2 launched at
+**283 dC, COOLER than U3 (291) and U4 (292)**, ran second of four, and still
+produced **the lowest last-10 median of the matrix (7.995 against 9.835 and
+10.510) and the longest wall (764.54 s against 636.02 and 603.76).** The
+confound runs the other way — it would flatter U2 relative to those two rows —
+so **"the A78 pair alone is the slowest of the four shapes for decode" STANDS.**
+
+**U2 against U1 remains confounded in SIZE, not in direction.** U2 launched
+3.1 C warmer than U1 and second in order, so the matched-minute ratio of 0.709
+to 0.767 (17821) is a floor on the A78 pair's disadvantage against the X1 pair,
+not a measurement of it.
+
+### 4. WHAT THE MATRIX FOUND
+
+**The A78 pair is not exempt from the limiter.** Loaded with two threads its
+ceiling fell to **1,491,000 kHz = 63.50% of rated** (U2, 17821), and with both
+A78 cores loaded in U4 to **1,328,000 = 56.56%** (18353). **Brief T's "the A78
+pair never moved" described an IDLE cluster** — T2 ran under `taskset c0`, which
+scheduled nothing onto policy4 (notes.md 15282). The prediction entry named both
+candidate explanations and said which measurement would decide between them
+(16874, U2's "% of own turn 1" paragraph); U2 decided it.
+
+**In U2 the X1 ceiling never went below 94.88% of rated while the A78 pair
+carried the whole decode** (17821). Read together with U1, where the X1 pair
+carried the decode and fell to 50.04%, that is the clearest statement this repo
+has of what the limiter does with an unloaded big cluster.
+
+**Thread count changes the token stream.** Three thread counts, three hashes,
+one identical first token (`32313`). **`token_fnv1a64` is a reproducibility
+check WITHIN a thread count, not across one.** Every prior use of it in this
+repo compared `-t 2` rows and remains valid.
+
+**No output text was captured in any row of this matrix, and none was compared,
+so nothing here says any row's answers are better, worse or equivalent.**
+
+### 5. DECISIONS — Matt's, via the reviewer
+
+- **The row shape for stages 2-4 stays mask `c0`, `-t 2`.**
+  **Reopens** if a one-boot-per-row comparison of U1 against U4 shows U4 ahead
+  once settled, or if prefill at `-t 3` / `-t 4` is measured and pays.
+
+- **E3 stays OPEN and is NOT built now.** The A78 pair sustains about 8 t/s
+  (last-10 7.995, 17821) and leaves the X1 ceiling at **>= 94.88% of rated**
+  while doing it. Whether that is worth building depends on whether Kokoro needs
+  the X1 pair, **which stage 3a measures. Decided after 3a.**
+
+- **`settled_pct_of_turn1` is RETIRED as a headline metric for any row whose
+  turn 1 is not its peak.** U3's turn 1 was not the peak (11.33 against 13.79 at
+  turn 15, 18087) and U4's turn 1 was the row FLOOR (9.90 = `gen_tps min`,
+  giving 107.59%, 18353). **Absolute last-10 medians and wall times lead.**
+  The metric stands where turn 1 IS the peak, which in this matrix is U1 and U2.
+  **Reopens** never as a headline; it may still be reported beside a row whose
+  turn 1 is its peak, labelled.
+
+### 6. THE ROW-ORDER CONFOUND, IN FULL
+
+**U1, U2, U3, U4 ran in that fixed order on one boot.** U1 started on the
+coolest chassis of the day at 252 dC; every later row started warmer.
+
+**U2, U3 and U4 EACH RAN THE FULL 240 POLLS WITHOUT REACHING `TMAX=267`** —
+1,240.50 s, 1,240.90 s and 1,240.38 s respectively (17821, 18087, 18353),
+about 20.7 minutes each, giving up at 283, 291 and 292 dC. **All three are
+labelled LAUNCHED WARM in their entry headers, their commit messages and every
+table they appear in.** The clocks limb passed in all three: every policy read
+its own rated `cpuinfo_max_freq` at launch in all four rows. **Only the battery
+limb failed.** The gate holds ceilings and battery temperature; **it does not
+hold the chassis, the die, or whatever the limiter actually responds to, and
+battery temperature is not SoC temperature.**
+
+Direction of the bias:
+
+- **Turn-1 figures for U2, U3 and U4 are biased DOWN** — less thermal headroom,
+  so the descent begins sooner.
+- **"Settled as % of the row's OWN turn 1" is biased UP for U2, U3 and U4**,
+  the denominator being already depressed. **THIS IS THE MOST DISTORTED FIGURE
+  IN THE MATRIX** and it is the reason U2's 74.44% reads above U1's 71.96%
+  without meaning the A78 pair decays less. For U3 and U4 the metric is not
+  merely distorted but broken (item 5).
+- **Absolute last-10 medians and wall times are the LEAST distorted**, because
+  by turn 90 every row has been flat out for minutes and has reached whatever
+  steady state the package allows. U-A2 and U-A3 are asked in those terms.
+- **U4 is worst placed** — last, warmest, adding the most heat. Note against
+  that expectation: **U4's battery rise was the SMALLEST of the four (+6.1 C)**,
+  and all four rows converged to within 0.4 C of each other.
+
+**One boot per row is the only clean fix and this brief did not buy it.**
+**U1 both ran first and won every absolute measure; this matrix cannot separate
+"mask c0 with 2 threads is best" from "the row that ran first is best."**
+
+### 7. WHAT THIS DOES NOT SAY
+
+- **NOTHING ABOUT PREFILL ON ANY SHAPE.** Every turn of every row restores the
+  same 407-token prefix and decodes the same 20-token user turn; nothing in the
+  matrix prefills. **No claim is made about what the A78 pair, `-t 3` or `-t 4`
+  would do on prompt processing — which is where more cores are expected to pay,
+  and which will matter as soon as a conversation is longer than one turn.**
+  The `t_user_decode_ms` column is 20 tokens getting slower, not a prefill
+  figure.
+- **Nothing about answer quality.** No text was captured or compared in any row.
+  The three token hashes describe streams, not correctness.
+- **Nothing about SoC temperature.** Every temperature here is
+  `/sys/class/power_supply/battery/temp`; `/sys/class/thermal` is Permission
+  denied to shell on this handset.
+- **Nothing about U1 versus U4 once settled** — item 3(a). The two are within
+  0.93-5.19% from minute 4 on, across unequal sample counts, with U4 launched
+  4.0 C warmer.
+- **Nothing about `-t 3` or `-t 4` on a cool phone.** Both ran launched warm.
+- **Nothing about whether an app can load `libOpenCL.so`.** Step A established
+  only that `libOpenCL.so` and `libOpenCL-pixel.so` are present in
+  `/vendor/lib64` and named in `/vendor/etc/public.libraries.txt` (notes.md
+  15860). **Nothing was built, loaded or run against it. That is its own brief.**
+- **The ~07:39 21 Sept self-reboot is still unexplained** (notes.md 15860,
+  16057). Matt states he did not reboot the phone. No cause has been
+  established and none is offered.
+- It does not say why turn 1 was slow in U3 and the floor in U4, why policy0 is
+  capped to 60.90% of rated while idle, or where the scheduler placed threads
+  inside any mask — `taskset` sets an affinity mask, not a placement, and this
+  repo has no instrument that would see the placement.
+- One row per shape, no error bars, one boot.
+
+### 8. NEXT
+
+**Stage 2 / 3a per the plan.** **There is no llama.cpp adoption brief** — step
+A2 (notes.md 16241, corrected at 16542) found that a build five days sixteen
+hours newer gives this chip nothing on pp407 at this shape, because the dotprod
+repack path was already live at `38a5b42d9`. That entry does not say nothing
+upstream will ever help.
+
+### CLAUDE.md, CHANGED IN THE SAME STEP AS THIS ENTRY
+
+Three edits, all of them places that had become false now that brief U is
+closed. `git diff --stat CLAUDE.md`: **1 file changed, 23 insertions(+), 4
+deletions(-)**.
+
+1. **"Answered — one line each" gains three rows** after T3 — U-A2/A3 (fastest
+   shape, with the caveat that mask is not separable from row order), U-A1 (the
+   A78 pair is not spared by the limiter), U-A4 (the fnv is not stable across
+   thread counts). Each cites its notes.md line.
+2. **"What is next"**: "Brief T is CLOSED" becomes "Briefs T and U are CLOSED";
+   "Stage 1b — the brief comes from the reviewer" becomes **"Stage 1b is DONE"**
+   with its four steps and the statement that **there is no llama.cpp adoption
+   brief**; the three decisions of section 5 are recorded with what reopens
+   each; "NEXT: stage 2 / 3a per the plan."
+3. **The "Also not done" list** gains, beside the growing-context line, that
+   **brief U's matrix says nothing about prefill on any shape** because every
+   turn of every row restores the same 407-token prefix.
+
+**Lines 55-133 were not touched.** sha256 over `sed -n '55,133p' CLAUDE.md`:
+**`effd849c2f3f0414369b926bf9035cebb6c644c93284b36ce2e99d885d0b619d`, 79 lines**
+— the same value the 6a LIVE DEVICE STATE block has carried since 19 Sept
+(notes.md 14620), and the same value read before this session's earlier Boot-line
+edit (notes.md 18638).
+
+The 7a block's `Boot` line was updated earlier in this session, in its own
+commit, and is recorded at notes.md 18638.

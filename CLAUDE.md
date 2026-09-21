@@ -240,6 +240,9 @@ cmake and no download. `pennytts.sh` is TTS rung 1's wrapper.
 | T1 | 7a, one turn a minute for an hour: does it decay? | NO — settled gen_tps 0.96% slower, ttft 0.07%, 60/60, no kills | 19 Sept | 15016 |
 | T2 | 7a, 200 turns back to back: where does it settle? | 57.51% of turn 1, at an X1 ceiling of 984,000 kHz; 1 cached kill at load | 19 Sept | 15163 |
 | T3 | 7a, does it recover after T2 with no cooling gate? | YES — settled 99.01% of T1's; within 6.1% by turn 3; X1 rated within 150 s | 19 Sept | 15333 |
+| U-A2/A3 | 7a, which core mask and thread count decodes fastest? | mask `c0`, `-t 2` — U1 last-10 11.175 t/s, wall 553.21 s; U4 10.510/603.76, U3 9.835/636.02, U2 7.995/764.54. U1 ran FIRST and U2-U4 LAUNCHED WARM, so mask is not separable from row order | 21 Sept | 18705 |
+| U-A1 | Is the A78 pair spared by the thermal limiter? | NO — loaded it falls to 63.50% of rated (56.56% in U4). T2's "policy4 never moved" was an IDLE cluster | 21 Sept | 17821 |
+| U-A4 | Is `token_fnv1a64` stable across thread counts? | NO — `-t 2`/`-t 3`/`-t 4` give three values, identical first token, `fnv_all_equal=1` within every row. It is a reproducibility check WITHIN a thread count only | 21 Sept | 18353 |
 
 **TTS rung 1 — CLOSED on the 6a, 18 Sept (branch `tts-kokoro`, merged 19
 Sept).** Kokoro int8 (`penny-kokoro-int8`, sid 22) under sherpa-onnx
@@ -269,16 +272,32 @@ root.
 
 ## What is next
 
-- **Brief T is CLOSED** (notes.md 15557). Every 6a number was a PREDICTION for
-  the 7a, never a baseline, and stays that way.
-- **Stage 1b — LLM tuning rows on the 7a.** The brief comes from the reviewer.
+- **Briefs T and U are CLOSED** (notes.md 15557, 18705). Every 6a number was a
+  PREDICTION for the 7a, never a baseline, and stays that way.
+- **Stage 1b is DONE.** Brief U closed it: step A OpenCL present and public but
+  NOTHING BUILT OR LOADED against it (15860); step A2 a build 5 days 16 h newer
+  buys this chip nothing on pp407 at this shape, so **there is no llama.cpp
+  adoption brief** (16241, corrected 16542); step B `pennybench.sh` rev 7;
+  step D the U1-U4 matrix (18705).
+- **DECIDED 21 Sept, via the reviewer (notes.md 18705 section 5):** the row
+  shape for stages 2-4 stays **mask `c0`, `-t 2`** — reopens only if a
+  one-boot-per-row U1-vs-U4 comparison puts U4 ahead once settled, or if
+  prefill at `-t 3`/`-t 4` is measured and pays. **E3 stays OPEN and is NOT
+  built now** — decided after stage 3a, which measures whether Kokoro needs the
+  X1 pair. **`settled_pct_of_turn1` is retired as a headline metric** for any
+  row whose turn 1 is not its peak; absolute last-10 medians and wall times
+  lead.
+- **NEXT: stage 2 / 3a per the plan.**
 - **Not done, in the order Brief S left them:** the `-ub` test that separates
   batch size from micro-batch size; the on-device VOICE bake-off — Kokoro-82M
   `bf_isabella` and `kokoro-onnx` int8 under sherpa-onnx (**Matt's decision,
   18 Sept**), measured with STT and the LLM **resident at the same time**. TTS
   rungs 2-4 (resident, beside the LLM, in the app) are not done.
 - **Also not done:** S3 on the 6a (not taken, Matt's call); a growing context
-  (the S turn is the same 20 tokens, KV cache restored, never extended); Q4_0;
+  (the S turn is the same 20 tokens, KV cache restored, never extended) —
+  **brief U's matrix says NOTHING about prefill on any shape, because every
+  turn of every row restores the same 407-token prefix (notes.md 18705)**;
+  Q4_0;
   anything on battery; B3 on Qwen3.5-2B; **any judgement of output quality**.
 - **PARKED: can a NEW encrypted store be created before first unlock?** Only
   matters for a model inside a VM, which is closed. Reopens only if model
