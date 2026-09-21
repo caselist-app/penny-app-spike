@@ -145,7 +145,7 @@ one), 14252 (stay awake, rev 6), 14306 (gate, push, smoke tests).
     Boot key      508d75dea10c5cbc3e7632260fc0b59f6055a8a49dd84e693b6d8899edbb01e4 — compared on screen by Matt; not read by the builder
     OEM unlocking ON per Matt's on-screen reading; not readable from shell (sys.oem_unlock_allowed empty, dumpsys oem_lock empty)
     Memory        MemTotal 7,640,308 kB; SwapTotal 3,820,148 kB, zram
-    Boot          bring-up boot SPENT (push, smoke a, smoke b; smoke a met the Cached contamination limb). ROW BOOT ALSO SPENT: T1 (notes.md 15016), T2 (15163), T3 (15333), the pulls and the post-T3 re-hash (15521). Brief T is CLOSED (15557).
+    Boot          bring-up boot SPENT (push, smoke a, smoke b; smoke a met the Cached contamination limb). ROW BOOT SPENT: T1 (notes.md 15016), T2 (15163), T3 (15333), the pulls and the post-T3 re-hash (15521). Brief T is CLOSED (15557). THAT ROW BOOT ENDED UNOBSERVED — on 21 Sept the phone was found on a NEW boot of ~07:39, cause not established, Matt states he did not reboot it (notes.md 15860, 16057). That 21 Sept boot is SPENT by brief U step A2 (notes.md 16241).
     Stay awake    stay_on_while_plugged_in=15 (set by Matt by hand), screen_off_timeout=30000
     Charging      no charge-limit settings key; dumpsys battery "Charging policy: 1" (= default, builder's memory)
     adb shell     oom_score_adj -1000

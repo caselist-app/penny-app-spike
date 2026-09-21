@@ -16237,3 +16237,304 @@ instruments on different boots — it is not a measured ratio and nothing else
 should cite it as one.** No prediction here is about answer quality, about
 prompt processing during a real conversation (every T row restored its prefix
 instead of prefilling it), or about anything the Step D matrix will measure.
+
+## 2026-09-21 — BRIEF U, STEP A2 (1b-iii): a year-newer llama.cpp gives this chip NOTHING on prompt processing, because the dotprod repack path was ALREADY LIVE in the build we have been using since 16 Sept. Both binaries print the same `CPU_REPACK model buffer size = 1049.96 MiB` and the same 197 repack lines. On Q4_K_M the new build is 2.07% slower than the old, while repeating the OLD build is 3.73% slower than itself — the difference is smaller than the drift. pennyload.cpp needed NO edit, and the 19 Sept state file LOADS into the new binary.
+
+**EVERY FIGURE IN THIS ENTRY: 21 Sept 07:39 boot, spent by Step A2, page-cached
+after the re-hash, NOT a row-boot figure.** Predictions at notes.md 16057,
+committed 7c1264b before the clone. Conditions on every row: AC, screen on,
+unlocked, untouched, `taskset c0`, `-t 2`, T gate passed on its first poll.
+
+### 1. THE TIME-BOX AND THE ONE DOWNLOAD
+
+    CLONE_START wallclock=11:43:44        <- the 60 minutes run from here; box ends 12:43:44
+    git clone --depth 1 https://github.com/ggml-org/llama.cpp.git ~/Documents/llama.cpp-master
+    CLONE_END   wallclock=11:43:50        6 s, 210 MB on disk
+    CLONED_COMMIT = 711f60beeb9e983f6d8e01bda25302dee9226c8d
+    git log -1  = "tests : remove stale comment (#29140)", Mon Sep 21 13:38:48 2026 +0300
+    last row of the step finished 11:55:01 — 11 min 17 s of the 60 used.
+
+**`--depth 1` was used**: it fetches less than a full clone, not more. **One
+download, nothing else.** No submodule fetch, no model fetch, no package
+install; cmake reached for the network at no point. `~/Documents/llama.cpp`
+was read for its HEAD (`38a5b42d9a3e82e0a586bcd1caed121f36c87a73`, working
+tree clean) and otherwise **not pulled, not rebuilt, not touched**;
+`llama.cpp-master` was **not patched**.
+
+### 2. THE BUILD — same NDK, same cmake by full path, same flags, clean
+
+`cmake` configure 11:44:00 -> 11:44:02. The feature probe is the check that
+matters and it agrees with the 7a's `Features` line:
+
+    -- Checking for ARM features using flags:
+    --   -march=armv8.2-a+dotprod+fp16
+    -- Performing Test HAVE_DOTPROD - Success
+    -- Performing Test HAVE_SVE - Failed
+    -- Performing Test HAVE_MATMUL_INT8 - Failed
+    -- Performing Test HAVE_FMA - Success
+    -- Performing Test HAVE_FP16_VECTOR_ARITHMETIC - Success
+    -- Performing Test HAVE_SME - Failed
+    -- Adding CPU backend variant ggml-cpu: -march=armv8.2-a+dotprod+fp16
+    -- ggml version: 0.24.0   -- ggml commit:  711f60b
+
+`llama-bench` built 11:44:09 -> 11:44:36 (27 s, 132 ninja steps, no warnings
+shown in the tail).
+
+**`pennyload.cpp` COMPILED AGAINST THE NEW TREE WITH ZERO EDITS** — `rc=0`,
+11:45:33, under a COPY of `build-pennyload.sh`. The original script is
+unedited; the copy lives in the session scratchpad and differs by exactly
+these lines:
+
+    13c13   LC=$HOME/Documents/llama.cpp        ->  LC=$HOME/Documents/llama.cpp-master
+    15c15   OUT=$(dirname "$0")/build           ->  OUT=<scratchpad>/build-new
+    31,32   -o "$OUT/pennyload"                 ->  -o "$OUT/pennyload-new"
+            "$(dirname "$0")/pennyload.cpp"     ->  <absolute path to the same file>
+    37,38   pennyload-stripped / pennyload      ->  pennyload-new-stripped / pennyload-new
+
+i.e. **the tree, the output directory and the output names, and nothing else.**
+`build/pennyload` and `build/pennyload-stripped` in this repo are untouched.
+
+### 3. THE THREE-COUNT DISASSEMBLY — both new binaries
+
+`llvm-objdump -d` from NDK 30.0.16248370, counted on the mnemonic column, the
+same three greps CLAUDE.md's benchmark protocol names:
+
+    binary                    lines     i8mm  sve_sme  dotprod
+    llama-bench-new           892,207      0        0      970
+    pennyload-new             740,365      0        0      970
+    (for reference, the OLD pennyload, notes.md 14306: 735,079 / 0 / 0 / 898)
+
+**0 smmla, 0 SVE/SME, 970 sdot/udot** in each — nonzero, and as predicted not
+898. 970 says the dotprod kernels are present, not that they execute.
+
+### 4. THE FILES ON THE PHONE — `ls` before each push, hashed on both sides
+
+`ls` before the pushes: `llama-bench`, `llama-bench-new` and `pennyload-new`
+all returned `No such file or directory`. **Nothing was overwritten.** After
+`chmod 755`, on the phone:
+
+    44015c0614b3f1c0f4ee3240fb8f3a37503420ab7285a36a10ad14abaaaeb84e  llama-bench      4,708,216 B
+    c6fe903e4f0b212e1a71f1840ce8cd6070cc73f077c974ae959223e81be39663  llama-bench-new   4,738,568 B
+    fed8326bc919a83976327f529a9f0aed8d72933061fdb34f2450c33743e31640  pennyload-new     3,865,744 B
+
+`44015c06…` is CLAUDE.md's recorded value for the old `llama-bench`, and it is
+the Mac's `bin/llama-bench-stripped` (the unstripped 105,462,376 B file hashes
+`2bb2a48e…` and was never pushed). The new binaries were stripped with the
+same `llvm-strip`; unstripped `llama-bench` is `e7c4b821…`, 106,591,552 B.
+
+**THE ARGUMENT LIST IS IDENTICAL BETWEEN OLD AND NEW.** `llama-bench-new
+--help`, read on the phone before any row:
+
+      -r, --repetitions <n>      number of times to repeat each test (default: 5)
+      -m, --model <filename>
+      -p, --n-prompt <n>
+      -n, --n-gen <n>
+      -t, --threads <n>
+      -lm, --load-mode <auto|none|mmap|mlock|mmap+mlock|dio> (default: auto)
+
+`-lm` has gained `dio` as an option; **`none` is still accepted and is what
+every row below used.** No flag was renamed, rejected or substituted.
+
+### 5. THE FINDING: THE REPACK PATH IS ALREADY LIVE IN THE OLD BUILD
+
+Two `-v` invocations, `-p 16 -n 4 -r 1`, **LOG CAPTURE ONLY, NOT A
+MEASUREMENT**, run AFTER the whole Q4_K_M comparison so they could not perturb
+it. From `out/vlog_llama-bench.err` — **this is the OLD binary, 38a5b42d9**:
+
+    done_getting_tensors: tensor 'token_embd.weight' (q6_K) (and 113 others) cannot be used with preferred buffer type CPU_REPACK, using CPU instead
+    load_tensors:          CPU model buffer size =   243.90 MiB
+    load_tensors:   CPU_REPACK model buffer size =  1049.96 MiB
+    load_all_data: buffer type CPU_REPACK is not the default buffer type for device CPU for async uploads
+    repack: repack tensor token_embd.weight with q6_K_8x4
+    .repack: repack tensor blk.0.ffn_down.weight with q6_K_8x4
+    ...
+    .repack: repack tensor blk.0.ffn_gate.weight with q4_K_8x4
+    repack: repack tensor blk.0.ffn_up.weight with q4_K_8x4
+
+`out/vlog_llama-bench-new.err` prints **the same four header lines, character
+for character**, and both files contain **197** `repack: repack tensor` lines
+and are **1,342 lines** each. (The two files' sha256 differ — `30fda0f5…` and
+`a5585315…` — because the logs interleave progress dots and timings; the
+repack lines themselves are identical.)
+
+**So "does the dotprod repack path speed up prompt processing on this chip?"
+has the answer: the path is not new, and this repo has been getting it since
+16 Sept without knowing it.** The `x1.5` research figure the brief carried from
+a Pi 5 describes going from no-repack to repack. We were already on the far
+side of that.
+
+### 6. Q4_K_M — old / new / old, gated, identical arguments
+
+    -m Qwen3-1.7B-Q4_K_M.gguf -t 2 -p 407 -n 64 -r 3 -lm none, mask c0
+
+    tag                 build        pp407 t/s        tg64 t/s       X1 ceil min   batt dC   kills
+    7a_a2_old1_pp407    38a5b42d9    70.19 +/- 1.18   17.90 +/- 0.07   2,401,000   248->248   0
+    7a_a2_new_pp407     711f60b      68.74 +/- 0.91   17.70 +/- 0.05   2,188,000   248->248   4 lines = 2 procs
+    7a_a2_old2_pp407    38a5b42d9    67.57 +/- 0.99   17.67 +/- 0.05   2,188,000   249->251   0
+
+    row     gate                                      wall      MemAvailable before
+    old1    polls_failed=0, all three at rated, 11:46:49   37.36 s   3,357,444 kB
+    new     polls_failed=0, all three at rated, 11:47:55   38.36 s   3,336,724 kB
+    old2    polls_failed=0, all three at rated, 11:48:57   38.50 s   3,472,244 kB
+
+All three `rc=0`, `peak_rss_kB` 1,480,080 / 1,480,916 / 1,481,036 (0.06%
+apart). A78 (`policy4`) `min` = rated on all three rows: **it never moved.**
+
+**THE ARITHMETIC, with the control beside every comparison, as the brief
+requires:**
+
+    pp407   new / old1   = 68.74 / 70.19 = 0.9793   (-2.07%)
+            old2 / old1  = 67.57 / 70.19 = 0.9627   (-3.73%)   <- the control
+            new / old2   = 68.74 / 67.57 = 1.0173   (+1.73%)
+    tg64    new / old1   = 17.70 / 17.90 = 0.9888   (-1.12%)
+            old2 / old1  = 17.67 / 17.90 = 0.9872   (-1.29%)   <- the control
+
+**THE NEW BUILD LANDS BETWEEN THE TWO RUNS OF THE OLD BUILD, on both tests.**
+Repeating the identical test with the identical binary moved pp407 further
+(-3.73%) than swapping the binary did (-2.07%). The tool's own error bars say
+the same thing: old1 69.01-71.37 and old2 66.58-68.56 **do not overlap each
+other**, while new 67.83-69.65 overlaps both. **No prefill gain is measurable
+here, and no loss is claimable either.**
+
+The new row's 4 kill lines = 2 processes, both cached
+(`com.shannon.rcsservice` adj 985, `.ShannonImsService` adj 975), at
+11:47:59.140-11:47:59.191, i.e. ~4 s after the gate, at model load.
+MemAvailable before that row: 3,336,724 kB. **Neither names `llama-bench` or
+`pennyload`.**
+
+`Cached` across old1: 3,046,776 -> 2,210,804 = **-835,972 kB**, 77.3% of the
+model's 1,081,455 kB. Brief T's void limb is a fall of >= 865,163 kB
+(notes.md 14818), so **the limb is NOT met** — and the fall is the re-hash's
+page cache being shed, not the row displacing the model. `SwapFree` never below
+1,836,760 kB = 48.1% of SwapTotal, far above the 10% limb.
+
+### 7. pennyload-new — the fnv is UNCHANGED, and the 19 Sept state file LOADS
+
+**Row `7a_a2_pnew_single`, single turn, FULL PREFILL** (`--sys-file` +
+`--user-file`, no `--load-state`, and deliberately **no `--save-state`** so
+`q17_state.bin` could not be overwritten). Gated, launched 11:50:44 at
+batt 262 dC:
+
+    PENNYLOAD sys_tokens=407  user_tokens=20  sampler=greedy  chat_template=NONE
+    PENNYLOAD t_ready_ms 2641.45   t_tensor_band_ms 2162.93   t_sys_decode_ms 5623.84
+    PENNYLOAD gen_tokens=64 gen_ms=4100.70 gen_tps=15.36
+    PENNYLOAD first_token_id=32313
+    PENNYLOAD token_fnv1a64=0xcba17a2fcbba49f4
+
+**0xcba17a2fcbba49f4 — the same value the 6a produced, the same value every
+one of brief T's 320 turns produced.** `first_token_id=32313` also matches. The
+64 generated tokens printed identically to the 7a's smoke (a). **A changed fnv
+would have been a finding; it did not change, and nothing here is a claim about
+answer quality.**
+
+**Row `7a_a2_pnew_t3`, `--load-state q17_state.bin --turns 3 --interval-s 5`.**
+Gated, launched 11:51:16 at batt 266 dC:
+
+    PENNYLOAD t_state_load_ms 19.16
+    PENNYLOAD state_file=/data/local/tmp/q17_state.bin state_bytes=46685237 state_tokens_restored=407
+    PENNYLOAD TURN k=1 ttft_turn_ms=341.60 gen_tps=15.85 fnv=0xcba17a2fcbba49f4
+    PENNYLOAD TURN k=2 ttft_turn_ms=352.00 gen_tps=15.32 fnv=0xcba17a2fcbba49f4
+    PENNYLOAD TURN k=3 ttft_turn_ms=367.15 gen_tps=15.39 fnv=0xcba17a2fcbba49f4
+    PENNYLOAD turns_done=3 turns_requested=3 turns_overrun=0 fnv_all_equal=1
+    stderr: state_read_data: - reading model info / - reading memory module
+
+**THE STATE FILE WRITTEN BY THE OLD BINARY ON 19 SEPT LOADED INTO THE NEW ONE
+AND RESTORED ALL 407 TOKENS.** `q17_state.bin` hashed `707e0ea3c1cc4901…`
+immediately before the row and `707e0ea3c1cc4901…` immediately after — **byte
+identical, nothing was rewritten.** `rc=0`, 0 kills.
+
+### 8. Q4_0 — run because the box had room, and it is NOT QUOTABLE
+
+`Qwen3-1.7B-Q4_0.gguf` pushed 11:52, 1,056,782,912 B, phone sha256
+`c876f159707a4e4f70e045106c69db15bfc935a4981706fd4f65c6e7ea1e81c5` =
+MANIFEST.txt's `VERIFIED vs HF LFS oid` line. **This is a SECOND GGUF on the
+phone, against the one-model-at-a-time rule, and it is still there.** Same
+arguments, same mask, gated before each:
+
+    tag                build        pp407 t/s        tg64 t/s        X1 ceil min   batt dC   kills
+    7a_a2_q40_old1     38a5b42d9    77.85 +/- 1.21   19.74 +/- 0.26   2,188,000   275->277   22 lines = 11 procs
+    7a_a2_q40_new      711f60b      74.71 +/- 0.36   18.37 +/- 1.05   1,582,000   277->279   0
+    7a_a2_q40_old2     38a5b42d9    68.49 +/- 0.13   18.41 +/- 0.44   1,745,000   281->282   0
+
+    pp407   new / old1  = 74.71 / 77.85 = 0.9597   (-4.03%)
+            old2 / old1 = 68.49 / 77.85 = 0.8798   (-12.02%)   <- the control
+
+**THE CONTROL IS THREE TIMES THE SIZE OF THE DIFFERENCE. NO NEW-VS-OLD
+STATEMENT IS QUOTABLE FROM THIS TRIO.** Battery ran 275 -> 282 dC across the
+three rows and the X1 ceiling floor fell row by row (2,188,000 -> 1,582,000 ->
+1,745,000): these three rows measure the chassis warming up, and they are
+recorded only so the attempt is on the record.
+
+The 22 kill lines = **11 processes, every one cached (adj 905-945), all inside
+0.5 s at 11:53:06**, ~3 s after the first Q4_0 row launched — the second
+gigabyte-scale file being read into page cache. MemAvailable before that row:
+3,420,500 kB. **Nothing named `llama-bench` or `pennyload`.** It is a
+concrete cost of breaking the one-model-at-a-time rule, and it is the reason
+the rule exists.
+
+One observation, speed only, no quality claim of any kind: on the OLD binary,
+Q4_0's first gated row read 77.85 pp407 / 19.74 tg64 against Q4_K_M's 70.19 /
+17.90 — **+10.9% and +10.3% — and the Q4_0 row ran warmer** (275 dC against
+248 dC), so heat is not what produced the gap. Peak RSS 1,431,432 kB against
+Q4_K_M's 1,480,080 kB. **One row each, no repeat, and NOTHING here says a word
+about whether Q4_0's answers are as good.**
+
+### 9. THE PREDICTIONS, JUDGED (notes.md 16057, committed 7c1264b)
+
+    id       prediction                        point / band         measured             verdict
+    P-U2-1   pp407, OLD build                  62 / 45-80 t/s       70.19                HIT
+    P-U2-2   tg64, OLD build                   15.2 / 13.0-16.5     17.90                **MISS, above**
+    P-U2-3   pp407 new / old1                  1.20 / 0.90-1.80     0.9793               HIT (band)
+                                                                                         point badly off
+    P-U2-4   tg64 new / old1                   0.98 / 0.90-1.05     0.9888               HIT
+    P-U2-5   old2 / old1 (Q4_K_M)              0.93 / 0.80-1.02     0.9627               HIT
+             old2 / old1 (Q4_0)                same band            0.8798               HIT
+    P-U2-6   fnv unchanged                     yes, ~55%            0xcba17a2fcbba49f4   HIT
+    P-U2-7   state file FAILS to load          fails, ~55%          it LOADED, 407 tok   **MISS**
+    P-U2-8   repack line appears (new)         yes, ~70%            yes                  HIT
+             — and it appears in the OLD build too                  not predicted        **the finding**
+    P-U2-9   clean build in the box, no        yes / yes            clean in 11m17s,     HIT / HIT
+             pennyload.cpp edit                                     zero edits
+
+**P-U2-2 missed by being too pessimistic**: 17.90 t/s against a 16.5 ceiling.
+The input was pennyload's `gen_tps` on a restored 407-token prefix (15.62,
+notes.md 15059); llama-bench's `tg64` generates from a much shorter context and
+is not the same measurement, which the prediction failed to allow for. **The
+two numbers are not comparable and neither is wrong.**
+
+**P-U2-3's band HIT while its point was wrong in the interesting direction.**
+The band 0.90-1.80 was written wide enough to contain "no change", and no
+change is what happened — but for a reason the prediction did not contain
+(section 5), not because 1.20 was nearly right.
+
+### WHAT STEP A2 DOES NOT SAY
+
+**It does not say the newer llama.cpp is worse.** It says that on THIS chip,
+THIS model, THIS quant, ONE prompt length, at `-t 2` on the X1 pair, the
+difference between the two builds is smaller than the difference between two
+runs of the same build. Three repetitions inside one row, three rows, one
+prompt length, one boot. Nothing is repeated on a second boot.
+
+**Every figure is from a spent, page-cached boot** — the model was read by the
+opening re-hash, so no row here paid a cold read, and `t_tensor_band_ms`
+figures are cache-warm. **Not a row-boot result.** The rows ran in a fixed
+order on a warming chassis; the gate holds the clock ceilings at rated at
+launch, it does not hold the chassis temperature, and battery temperature is
+not chip temperature.
+
+**Nothing here touches Step D.** The matrix runs on the EXISTING `pennyload`
+(`f52fc604…`) on its own fresh boot; nothing measured in this step feeds it.
+
+**Nothing here is about quality.** The unchanged fnv proves the token sequence
+is byte-identical under the new build for this one prompt; it says nothing
+about whether the model's answers are good, and the Q4_0 figures say nothing
+about Q4_0's answers at all.
+
+**It does not explain WHY prompt processing is where it is.** No profile was
+taken, no kernel was timed, and `970 sdot` counts instructions in a file, not
+instructions executed.
+
+**STILL ON THE PHONE and not cleaned up:** `Qwen3-1.7B-Q4_0.gguf`
+(1,056,782,912 B), `llama-bench`, `llama-bench-new`, `pennyload-new`, and
+`out/vlog_llama-bench*.err`. **The Q4_0 file must be gone before Step D's
+reboot, and deleting it is Matt's call — it has not been asked yet.**
