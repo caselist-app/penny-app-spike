@@ -1,0 +1,179 @@
+PENNYBENCH tag=7a_q17_u4_2plus2 rc=0 mask=f0
+PENNYBENCH bin=/data/local/tmp/pennyload
+PENNYBENCH args=-m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t 4 -c 1024 -lm none -n 64 --user-file /data/local/tmp/penny_user.txt --load-state /data/local/tmp/q17_state.bin --turns 100 --interval-s 0 --tag 7a_q17_u4_2plus2
+PENNYBENCH uptime_s        before=7840.79 after=8444.55
+PENNYBENCH memavail_kB     before=3399840 after=3415420
+PENNYBENCH memfree_kB      before=1815776 after=1945592
+PENNYBENCH swapfree_kB     before=2028920 after=1972344
+PENNYBENCH cached_kB       before=2156928 after=2058756
+PENNYBENCH pswpin          before=126572 after=128262   (pages read back IN from swap)
+PENNYBENCH pswpout         before=576400 after=592184   (pages written OUT to swap)
+PENNYBENCH pgmajfault      before=138031 after=139722   (major faults: had to hit storage or swap)
+PENNYBENCH ceil_x1_kHz     before=2850000 min=984000 after=984000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+PENNYBENCH ceil_x1_min_at  uptime=8233.45   (393 s into the row)
+PENNYBENCH ceil_a76_kHz    before=2348000 min=1328000 after=1328000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq)
+PENNYBENCH ceil_a76_min_at uptime=8255.57   (415 s into the row)
+PENNYBENCH ceil_a55_kHz    before=1803000 min=1098000 after=1197000   (policy0, cpus 0 1 2 3, rated 1803000 read from cpuinfo_max_freq)
+PENNYBENCH ceil_a55_min_at uptime=7888.93   (48 s into the row)
+PENNYBENCH rated_kHz policy0=1803000 policy4=2348000 policy6=2850000   (read from cpuinfo_max_freq before the row)
+PENNYBENCH oom_score_adj_child pre=-1000 post=200   (target 200; both READ off /proc)
+PENNYBENCH batt_temp_dC    before=292 after=353   (BATTERY, tenths of a degree C -- NOT SoC)
+PENNYBENCH batt_level      before=100 after=100
+PENNYBENCH batt_dumpsys    before=[ AC powered: true status: 4 level: 100 temperature: 293 ] after=[ AC powered: true status: 4 level: 100 temperature: 353 ]   (cross-check on the sysfs figures)
+PENNYBENCH series_file     /data/local/tmp/out/7a_q17_u4_2plus2.series   (87 samples, one per 7 s of uptime)
+PENNYBENCH peak_rss_kB     1548816   (VmHWM, monotonic)
+PENNYBENCH max_vmrss_kB    1548800
+PENNYBENCH max_rssanon_kB  1543500   (anonymous -- NOT reclaimable)
+PENNYBENCH max_rssfile_kB  5028   (file-backed -- reclaimable)
+PENNYBENCH rss_samples     743   (sleep 0.2 s between samples; achieved rate is lower)
+PENNYBENCH lmk_kill_lines  0
+--- swap device (is swap zram?) ---
+cat: /proc/swaps: Permission denied
+/sys/block/zram0
+     ZRAM:   435,832K physical used for 1,780,480K in swap (3,820,152K total swap)
+PENNYBENCH series_interval_s 7   (rev 7: was 10; 7 divides neither 60 nor 5 -- notes.md 15557)
+--- series head/tail (full file at /data/local/tmp/out/7a_q17_u4_2plus2.series) ---
+uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level
+7841.56 2850000 2348000 1803000 3328312 1743960 2028920 2156944 14644 14644 576400 138031 292 100
+7848.22 2802000 2348000 1803000 1864520 385828 1983864 2058564 1545252 1545292 587629 138031 292 100
+...
+8429.38 984000 1328000 1197000 1884280 395672 1972344 2058752 1548756 1548796 592184 139722 353 100
+8436.74 984000 1328000 1197000 1889392 400768 1972344 2058752 1548760 1548800 592184 139722 353 100
+8443.24 984000 1328000 1197000 1868064 386448 1972344 2058752 1548776 1548816 592184 139722 353 100
+--- llama-bench stdout ---
+PENNYLOAD prefix_snapshot_bytes=46683597 got=46683597 t_snapshot_ms=17.96
+PENNYLOAD turns=100 interval_s=0 n_gen_per_turn=64
+PENNYLOAD TURN k=1 uptime_s=7844.30 t_restore_ms=11.15 t_user_decode_ms=674.36 ttft_turn_ms=686.25 gen_tokens=64 gen_ms=6361.03 gen_tps=9.90 fnv=0x1c724a99200e0d0d busy_ms=7047.32 overrun=0
+PENNYLOAD TURN k=2 uptime_s=7851.35 t_restore_ms=7.82 t_user_decode_ms=251.39 ttft_turn_ms=259.40 gen_tokens=64 gen_ms=5685.97 gen_tps=11.08 fnv=0x1c724a99200e0d0d busy_ms=5945.41 overrun=0
+PENNYLOAD TURN k=3 uptime_s=7857.29 t_restore_ms=8.61 t_user_decode_ms=278.30 ttft_turn_ms=287.11 gen_tokens=64 gen_ms=5609.19 gen_tps=11.23 fnv=0x1c724a99200e0d0d busy_ms=5896.34 overrun=0
+PENNYLOAD TURN k=4 uptime_s=7863.19 t_restore_ms=9.82 t_user_decode_ms=358.07 ttft_turn_ms=368.10 gen_tokens=64 gen_ms=5704.08 gen_tps=11.04 fnv=0x1c724a99200e0d0d busy_ms=6072.22 overrun=0
+PENNYLOAD TURN k=5 uptime_s=7869.26 t_restore_ms=9.66 t_user_decode_ms=286.44 ttft_turn_ms=296.31 gen_tokens=64 gen_ms=5298.11 gen_tps=11.89 fnv=0x1c724a99200e0d0d busy_ms=5594.46 overrun=0
+PENNYLOAD TURN k=6 uptime_s=7874.85 t_restore_ms=10.53 t_user_decode_ms=297.27 ttft_turn_ms=308.02 gen_tokens=64 gen_ms=5131.97 gen_tps=12.28 fnv=0x1c724a99200e0d0d busy_ms=5440.02 overrun=0
+PENNYLOAD TURN k=7 uptime_s=7880.29 t_restore_ms=8.75 t_user_decode_ms=291.72 ttft_turn_ms=300.88 gen_tokens=64 gen_ms=5284.48 gen_tps=11.92 fnv=0x1c724a99200e0d0d busy_ms=5585.40 overrun=0
+PENNYLOAD TURN k=8 uptime_s=7885.88 t_restore_ms=8.81 t_user_decode_ms=326.70 ttft_turn_ms=335.75 gen_tokens=64 gen_ms=5150.74 gen_tps=12.23 fnv=0x1c724a99200e0d0d busy_ms=5486.54 overrun=0
+PENNYLOAD TURN k=9 uptime_s=7891.37 t_restore_ms=8.65 t_user_decode_ms=328.31 ttft_turn_ms=337.22 gen_tokens=64 gen_ms=5041.08 gen_tps=12.50 fnv=0x1c724a99200e0d0d busy_ms=5378.36 overrun=0
+PENNYLOAD TURN k=10 uptime_s=7896.75 t_restore_ms=10.01 t_user_decode_ms=344.15 ttft_turn_ms=355.30 gen_tokens=64 gen_ms=4962.99 gen_tps=12.69 fnv=0x1c724a99200e0d0d busy_ms=5318.34 overrun=0
+PENNYLOAD TURN k=11 uptime_s=7902.06 t_restore_ms=10.01 t_user_decode_ms=329.24 ttft_turn_ms=339.53 gen_tokens=64 gen_ms=5105.05 gen_tps=12.34 fnv=0x1c724a99200e0d0d busy_ms=5444.63 overrun=0
+PENNYLOAD TURN k=12 uptime_s=7907.51 t_restore_ms=11.30 t_user_decode_ms=323.77 ttft_turn_ms=335.68 gen_tokens=64 gen_ms=5596.52 gen_tps=11.26 fnv=0x1c724a99200e0d0d busy_ms=5932.25 overrun=0
+PENNYLOAD TURN k=13 uptime_s=7913.44 t_restore_ms=9.94 t_user_decode_ms=329.35 ttft_turn_ms=339.52 gen_tokens=64 gen_ms=5824.22 gen_tps=10.82 fnv=0x1c724a99200e0d0d busy_ms=6163.78 overrun=0
+PENNYLOAD TURN k=14 uptime_s=7919.60 t_restore_ms=10.99 t_user_decode_ms=349.39 ttft_turn_ms=361.21 gen_tokens=64 gen_ms=5137.78 gen_tps=12.26 fnv=0x1c724a99200e0d0d busy_ms=5499.02 overrun=0
+PENNYLOAD TURN k=15 uptime_s=7925.10 t_restore_ms=10.03 t_user_decode_ms=419.33 ttft_turn_ms=429.62 gen_tokens=64 gen_ms=5925.78 gen_tps=10.63 fnv=0x1c724a99200e0d0d busy_ms=6355.43 overrun=0
+PENNYLOAD TURN k=16 uptime_s=7931.46 t_restore_ms=9.50 t_user_decode_ms=306.96 ttft_turn_ms=316.70 gen_tokens=64 gen_ms=5914.32 gen_tps=10.65 fnv=0x1c724a99200e0d0d busy_ms=6231.07 overrun=0
+PENNYLOAD TURN k=17 uptime_s=7937.69 t_restore_ms=8.13 t_user_decode_ms=319.03 ttft_turn_ms=327.39 gen_tokens=64 gen_ms=5028.19 gen_tps=12.53 fnv=0x1c724a99200e0d0d busy_ms=5355.63 overrun=0
+PENNYLOAD TURN k=18 uptime_s=7943.05 t_restore_ms=9.21 t_user_decode_ms=326.00 ttft_turn_ms=335.44 gen_tokens=64 gen_ms=5164.78 gen_tps=12.20 fnv=0x1c724a99200e0d0d busy_ms=5500.28 overrun=0
+PENNYLOAD TURN k=19 uptime_s=7948.55 t_restore_ms=10.73 t_user_decode_ms=376.28 ttft_turn_ms=387.28 gen_tokens=64 gen_ms=5175.73 gen_tps=12.17 fnv=0x1c724a99200e0d0d busy_ms=5563.06 overrun=0
+PENNYLOAD TURN k=20 uptime_s=7954.11 t_restore_ms=9.39 t_user_decode_ms=373.04 ttft_turn_ms=382.69 gen_tokens=64 gen_ms=5274.50 gen_tps=11.94 fnv=0x1c724a99200e0d0d busy_ms=5657.23 overrun=0
+PENNYLOAD TURN k=21 uptime_s=7959.77 t_restore_ms=9.36 t_user_decode_ms=427.79 ttft_turn_ms=438.20 gen_tokens=64 gen_ms=5279.16 gen_tps=11.93 fnv=0x1c724a99200e0d0d busy_ms=5717.41 overrun=0
+PENNYLOAD TURN k=22 uptime_s=7965.48 t_restore_ms=10.47 t_user_decode_ms=423.32 ttft_turn_ms=434.06 gen_tokens=64 gen_ms=5236.58 gen_tps=12.03 fnv=0x1c724a99200e0d0d busy_ms=5670.71 overrun=0
+PENNYLOAD TURN k=23 uptime_s=7971.15 t_restore_ms=10.41 t_user_decode_ms=426.50 ttft_turn_ms=437.94 gen_tokens=64 gen_ms=5305.43 gen_tps=11.87 fnv=0x1c724a99200e0d0d busy_ms=5743.44 overrun=0
+PENNYLOAD TURN k=24 uptime_s=7976.90 t_restore_ms=9.24 t_user_decode_ms=404.64 ttft_turn_ms=414.13 gen_tokens=64 gen_ms=5347.46 gen_tps=11.78 fnv=0x1c724a99200e0d0d busy_ms=5761.66 overrun=0
+PENNYLOAD TURN k=25 uptime_s=7982.66 t_restore_ms=14.32 t_user_decode_ms=385.43 ttft_turn_ms=400.34 gen_tokens=64 gen_ms=5222.72 gen_tps=12.06 fnv=0x1c724a99200e0d0d busy_ms=5623.13 overrun=0
+PENNYLOAD TURN k=26 uptime_s=7988.28 t_restore_ms=11.73 t_user_decode_ms=400.72 ttft_turn_ms=412.68 gen_tokens=64 gen_ms=5369.53 gen_tps=11.73 fnv=0x1c724a99200e0d0d busy_ms=5782.30 overrun=0
+PENNYLOAD TURN k=27 uptime_s=7994.07 t_restore_ms=9.93 t_user_decode_ms=416.32 ttft_turn_ms=426.54 gen_tokens=64 gen_ms=5334.78 gen_tps=11.81 fnv=0x1c724a99200e0d0d busy_ms=5761.38 overrun=0
+PENNYLOAD TURN k=28 uptime_s=7999.83 t_restore_ms=9.53 t_user_decode_ms=425.34 ttft_turn_ms=435.15 gen_tokens=64 gen_ms=5323.45 gen_tps=11.83 fnv=0x1c724a99200e0d0d busy_ms=5758.66 overrun=0
+PENNYLOAD TURN k=29 uptime_s=8005.59 t_restore_ms=10.46 t_user_decode_ms=419.89 ttft_turn_ms=430.66 gen_tokens=64 gen_ms=5283.35 gen_tps=11.92 fnv=0x1c724a99200e0d0d busy_ms=5714.08 overrun=0
+PENNYLOAD TURN k=30 uptime_s=8011.30 t_restore_ms=9.45 t_user_decode_ms=396.90 ttft_turn_ms=406.58 gen_tokens=64 gen_ms=5223.11 gen_tps=12.06 fnv=0x1c724a99200e0d0d busy_ms=5629.74 overrun=0
+PENNYLOAD TURN k=31 uptime_s=8016.93 t_restore_ms=11.22 t_user_decode_ms=381.48 ttft_turn_ms=392.96 gen_tokens=64 gen_ms=5334.41 gen_tps=11.81 fnv=0x1c724a99200e0d0d busy_ms=5727.44 overrun=0
+PENNYLOAD TURN k=32 uptime_s=8022.66 t_restore_ms=10.28 t_user_decode_ms=444.19 ttft_turn_ms=454.74 gen_tokens=64 gen_ms=5252.97 gen_tps=11.99 fnv=0x1c724a99200e0d0d busy_ms=5707.76 overrun=0
+PENNYLOAD TURN k=33 uptime_s=8028.36 t_restore_ms=9.94 t_user_decode_ms=438.17 ttft_turn_ms=448.39 gen_tokens=64 gen_ms=5027.96 gen_tps=12.53 fnv=0x1c724a99200e0d0d busy_ms=5476.41 overrun=0
+PENNYLOAD TURN k=34 uptime_s=8033.84 t_restore_ms=11.12 t_user_decode_ms=428.35 ttft_turn_ms=439.79 gen_tokens=64 gen_ms=5115.89 gen_tps=12.31 fnv=0x1c724a99200e0d0d busy_ms=5555.73 overrun=0
+PENNYLOAD TURN k=35 uptime_s=8039.40 t_restore_ms=11.31 t_user_decode_ms=425.20 ttft_turn_ms=436.79 gen_tokens=64 gen_ms=5429.21 gen_tps=11.60 fnv=0x1c724a99200e0d0d busy_ms=5866.05 overrun=0
+PENNYLOAD TURN k=36 uptime_s=8045.26 t_restore_ms=10.16 t_user_decode_ms=450.01 ttft_turn_ms=460.46 gen_tokens=64 gen_ms=5417.26 gen_tps=11.63 fnv=0x1c724a99200e0d0d busy_ms=5877.78 overrun=0
+PENNYLOAD TURN k=37 uptime_s=8051.14 t_restore_ms=10.55 t_user_decode_ms=442.59 ttft_turn_ms=453.45 gen_tokens=64 gen_ms=5120.43 gen_tps=12.30 fnv=0x1c724a99200e0d0d busy_ms=5573.99 overrun=0
+PENNYLOAD TURN k=38 uptime_s=8056.72 t_restore_ms=10.41 t_user_decode_ms=438.03 ttft_turn_ms=449.59 gen_tokens=64 gen_ms=5517.28 gen_tps=11.42 fnv=0x1c724a99200e0d0d busy_ms=5966.97 overrun=0
+PENNYLOAD TURN k=39 uptime_s=8062.68 t_restore_ms=11.67 t_user_decode_ms=445.74 ttft_turn_ms=457.68 gen_tokens=64 gen_ms=5131.78 gen_tps=12.28 fnv=0x1c724a99200e0d0d busy_ms=5589.52 overrun=0
+PENNYLOAD TURN k=40 uptime_s=8068.27 t_restore_ms=10.44 t_user_decode_ms=420.35 ttft_turn_ms=431.26 gen_tokens=64 gen_ms=5439.35 gen_tps=11.58 fnv=0x1c724a99200e0d0d busy_ms=5870.68 overrun=0
+PENNYLOAD TURN k=41 uptime_s=8074.14 t_restore_ms=12.26 t_user_decode_ms=492.71 ttft_turn_ms=505.27 gen_tokens=64 gen_ms=5496.11 gen_tps=11.46 fnv=0x1c724a99200e0d0d busy_ms=6001.43 overrun=0
+PENNYLOAD TURN k=42 uptime_s=8080.14 t_restore_ms=10.17 t_user_decode_ms=417.58 ttft_turn_ms=428.00 gen_tokens=64 gen_ms=5397.79 gen_tps=11.67 fnv=0x1c724a99200e0d0d busy_ms=5825.86 overrun=0
+PENNYLOAD TURN k=43 uptime_s=8085.97 t_restore_ms=10.62 t_user_decode_ms=482.75 ttft_turn_ms=493.66 gen_tokens=64 gen_ms=5390.75 gen_tps=11.69 fnv=0x1c724a99200e0d0d busy_ms=5884.48 overrun=0
+PENNYLOAD TURN k=44 uptime_s=8091.85 t_restore_ms=12.83 t_user_decode_ms=480.36 ttft_turn_ms=494.20 gen_tokens=64 gen_ms=5259.59 gen_tps=11.98 fnv=0x1c724a99200e0d0d busy_ms=5753.85 overrun=0
+PENNYLOAD TURN k=45 uptime_s=8097.61 t_restore_ms=11.74 t_user_decode_ms=430.75 ttft_turn_ms=442.77 gen_tokens=64 gen_ms=5404.73 gen_tps=11.66 fnv=0x1c724a99200e0d0d busy_ms=5847.55 overrun=0
+PENNYLOAD TURN k=46 uptime_s=8103.46 t_restore_ms=17.13 t_user_decode_ms=477.24 ttft_turn_ms=495.13 gen_tokens=64 gen_ms=5392.62 gen_tps=11.68 fnv=0x1c724a99200e0d0d busy_ms=5887.82 overrun=0
+PENNYLOAD TURN k=47 uptime_s=8109.34 t_restore_ms=10.17 t_user_decode_ms=432.69 ttft_turn_ms=443.13 gen_tokens=64 gen_ms=5360.71 gen_tps=11.75 fnv=0x1c724a99200e0d0d busy_ms=5803.88 overrun=0
+PENNYLOAD TURN k=48 uptime_s=8115.15 t_restore_ms=10.77 t_user_decode_ms=431.97 ttft_turn_ms=443.04 gen_tokens=64 gen_ms=5248.49 gen_tps=12.00 fnv=0x1c724a99200e0d0d busy_ms=5691.57 overrun=0
+PENNYLOAD TURN k=49 uptime_s=8120.84 t_restore_ms=12.26 t_user_decode_ms=473.25 ttft_turn_ms=485.80 gen_tokens=64 gen_ms=5665.87 gen_tps=11.12 fnv=0x1c724a99200e0d0d busy_ms=6151.73 overrun=0
+PENNYLOAD TURN k=50 uptime_s=8126.99 t_restore_ms=13.46 t_user_decode_ms=479.20 ttft_turn_ms=493.00 gen_tokens=64 gen_ms=5449.81 gen_tps=11.56 fnv=0x1c724a99200e0d0d busy_ms=5942.98 overrun=0
+PENNYLOAD TURN k=51 uptime_s=8132.93 t_restore_ms=10.77 t_user_decode_ms=445.02 ttft_turn_ms=456.06 gen_tokens=64 gen_ms=5328.06 gen_tps=11.82 fnv=0x1c724a99200e0d0d busy_ms=5784.19 overrun=0
+PENNYLOAD TURN k=52 uptime_s=8138.72 t_restore_ms=11.46 t_user_decode_ms=425.18 ttft_turn_ms=436.98 gen_tokens=64 gen_ms=5536.84 gen_tps=11.38 fnv=0x1c724a99200e0d0d busy_ms=5973.88 overrun=0
+PENNYLOAD TURN k=53 uptime_s=8144.69 t_restore_ms=10.83 t_user_decode_ms=471.68 ttft_turn_ms=482.88 gen_tokens=64 gen_ms=5492.65 gen_tps=11.47 fnv=0x1c724a99200e0d0d busy_ms=5975.60 overrun=0
+PENNYLOAD TURN k=54 uptime_s=8150.67 t_restore_ms=10.19 t_user_decode_ms=430.86 ttft_turn_ms=441.33 gen_tokens=64 gen_ms=5320.31 gen_tps=11.84 fnv=0x1c724a99200e0d0d busy_ms=5761.69 overrun=0
+PENNYLOAD TURN k=55 uptime_s=8156.43 t_restore_ms=11.08 t_user_decode_ms=500.09 ttft_turn_ms=511.48 gen_tokens=64 gen_ms=5576.52 gen_tps=11.30 fnv=0x1c724a99200e0d0d busy_ms=6088.04 overrun=0
+PENNYLOAD TURN k=56 uptime_s=8162.52 t_restore_ms=10.40 t_user_decode_ms=507.29 ttft_turn_ms=518.04 gen_tokens=64 gen_ms=5377.24 gen_tps=11.72 fnv=0x1c724a99200e0d0d busy_ms=5895.35 overrun=0
+PENNYLOAD TURN k=57 uptime_s=8168.41 t_restore_ms=11.71 t_user_decode_ms=473.80 ttft_turn_ms=485.86 gen_tokens=64 gen_ms=5392.63 gen_tps=11.68 fnv=0x1c724a99200e0d0d busy_ms=5878.55 overrun=0
+PENNYLOAD TURN k=58 uptime_s=8174.29 t_restore_ms=10.47 t_user_decode_ms=490.31 ttft_turn_ms=501.07 gen_tokens=64 gen_ms=5495.30 gen_tps=11.46 fnv=0x1c724a99200e0d0d busy_ms=5996.43 overrun=0
+PENNYLOAD TURN k=59 uptime_s=8180.29 t_restore_ms=10.33 t_user_decode_ms=482.70 ttft_turn_ms=494.00 gen_tokens=64 gen_ms=5254.26 gen_tps=11.99 fnv=0x1c724a99200e0d0d busy_ms=5748.32 overrun=0
+PENNYLOAD TURN k=60 uptime_s=8186.04 t_restore_ms=14.71 t_user_decode_ms=476.90 ttft_turn_ms=491.94 gen_tokens=64 gen_ms=5392.65 gen_tps=11.68 fnv=0x1c724a99200e0d0d busy_ms=5884.70 overrun=0
+PENNYLOAD TURN k=61 uptime_s=8191.92 t_restore_ms=12.28 t_user_decode_ms=485.28 ttft_turn_ms=498.47 gen_tokens=64 gen_ms=5321.66 gen_tps=11.84 fnv=0x1c724a99200e0d0d busy_ms=5820.22 overrun=0
+PENNYLOAD TURN k=62 uptime_s=8197.74 t_restore_ms=10.67 t_user_decode_ms=503.95 ttft_turn_ms=514.98 gen_tokens=64 gen_ms=5583.14 gen_tps=11.28 fnv=0x1c724a99200e0d0d busy_ms=6098.19 overrun=0
+PENNYLOAD TURN k=63 uptime_s=8203.84 t_restore_ms=12.76 t_user_decode_ms=475.50 ttft_turn_ms=488.56 gen_tokens=64 gen_ms=5699.05 gen_tps=11.05 fnv=0x1c724a99200e0d0d busy_ms=6187.68 overrun=0
+PENNYLOAD TURN k=64 uptime_s=8210.03 t_restore_ms=12.48 t_user_decode_ms=489.46 ttft_turn_ms=502.30 gen_tokens=64 gen_ms=5397.34 gen_tps=11.67 fnv=0x1c724a99200e0d0d busy_ms=5899.72 overrun=0
+PENNYLOAD TURN k=65 uptime_s=8215.93 t_restore_ms=11.92 t_user_decode_ms=484.50 ttft_turn_ms=496.77 gen_tokens=64 gen_ms=5386.32 gen_tps=11.70 fnv=0x1c724a99200e0d0d busy_ms=5883.16 overrun=0
+PENNYLOAD TURN k=66 uptime_s=8221.81 t_restore_ms=10.72 t_user_decode_ms=487.58 ttft_turn_ms=498.65 gen_tokens=64 gen_ms=5455.29 gen_tps=11.55 fnv=0x1c724a99200e0d0d busy_ms=5954.00 overrun=0
+PENNYLOAD TURN k=67 uptime_s=8227.76 t_restore_ms=11.94 t_user_decode_ms=497.84 ttft_turn_ms=510.54 gen_tokens=64 gen_ms=5566.25 gen_tps=11.32 fnv=0x1c724a99200e0d0d busy_ms=6076.85 overrun=0
+PENNYLOAD TURN k=68 uptime_s=8233.84 t_restore_ms=12.59 t_user_decode_ms=489.60 ttft_turn_ms=502.50 gen_tokens=64 gen_ms=5656.88 gen_tps=11.14 fnv=0x1c724a99200e0d0d busy_ms=6159.44 overrun=0
+PENNYLOAD TURN k=69 uptime_s=8240.00 t_restore_ms=10.38 t_user_decode_ms=486.65 ttft_turn_ms=497.35 gen_tokens=64 gen_ms=5749.74 gen_tps=10.96 fnv=0x1c724a99200e0d0d busy_ms=6247.16 overrun=0
+PENNYLOAD TURN k=70 uptime_s=8246.25 t_restore_ms=12.16 t_user_decode_ms=514.85 ttft_turn_ms=527.32 gen_tokens=64 gen_ms=5368.02 gen_tps=11.74 fnv=0x1c724a99200e0d0d busy_ms=5895.41 overrun=0
+PENNYLOAD TURN k=71 uptime_s=8252.14 t_restore_ms=10.15 t_user_decode_ms=481.86 ttft_turn_ms=492.33 gen_tokens=64 gen_ms=5772.41 gen_tps=10.91 fnv=0x1c724a99200e0d0d busy_ms=6264.81 overrun=0
+PENNYLOAD TURN k=72 uptime_s=8258.41 t_restore_ms=11.63 t_user_decode_ms=530.67 ttft_turn_ms=543.42 gen_tokens=64 gen_ms=5682.78 gen_tps=11.09 fnv=0x1c724a99200e0d0d busy_ms=6226.27 overrun=0
+PENNYLOAD TURN k=73 uptime_s=8264.63 t_restore_ms=10.43 t_user_decode_ms=490.34 ttft_turn_ms=501.10 gen_tokens=64 gen_ms=5717.83 gen_tps=11.02 fnv=0x1c724a99200e0d0d busy_ms=6218.99 overrun=0
+PENNYLOAD TURN k=74 uptime_s=8270.85 t_restore_ms=11.46 t_user_decode_ms=555.68 ttft_turn_ms=567.53 gen_tokens=64 gen_ms=5702.32 gen_tps=11.05 fnv=0x1c724a99200e0d0d busy_ms=6269.92 overrun=0
+PENNYLOAD TURN k=75 uptime_s=8277.12 t_restore_ms=15.54 t_user_decode_ms=479.07 ttft_turn_ms=494.92 gen_tokens=64 gen_ms=5377.55 gen_tps=11.72 fnv=0x1c724a99200e0d0d busy_ms=5872.51 overrun=0
+PENNYLOAD TURN k=76 uptime_s=8283.00 t_restore_ms=11.31 t_user_decode_ms=540.08 ttft_turn_ms=551.79 gen_tokens=64 gen_ms=5803.34 gen_tps=10.86 fnv=0x1c724a99200e0d0d busy_ms=6355.20 overrun=0
+PENNYLOAD TURN k=77 uptime_s=8289.35 t_restore_ms=10.06 t_user_decode_ms=484.09 ttft_turn_ms=494.46 gen_tokens=64 gen_ms=5668.96 gen_tps=11.11 fnv=0x1c724a99200e0d0d busy_ms=6163.48 overrun=0
+PENNYLOAD TURN k=78 uptime_s=8295.52 t_restore_ms=10.11 t_user_decode_ms=497.37 ttft_turn_ms=507.81 gen_tokens=64 gen_ms=5891.34 gen_tps=10.69 fnv=0x1c724a99200e0d0d busy_ms=6399.22 overrun=0
+PENNYLOAD TURN k=79 uptime_s=8301.91 t_restore_ms=13.14 t_user_decode_ms=529.28 ttft_turn_ms=542.76 gen_tokens=64 gen_ms=5942.77 gen_tps=10.60 fnv=0x1c724a99200e0d0d busy_ms=6485.60 overrun=0
+PENNYLOAD TURN k=80 uptime_s=8308.40 t_restore_ms=15.62 t_user_decode_ms=548.25 ttft_turn_ms=564.27 gen_tokens=64 gen_ms=5703.21 gen_tps=11.05 fnv=0x1c724a99200e0d0d busy_ms=6267.56 overrun=0
+PENNYLOAD TURN k=81 uptime_s=8314.67 t_restore_ms=11.25 t_user_decode_ms=486.30 ttft_turn_ms=497.85 gen_tokens=64 gen_ms=5655.41 gen_tps=11.14 fnv=0x1c724a99200e0d0d busy_ms=6153.33 overrun=0
+PENNYLOAD TURN k=82 uptime_s=8320.82 t_restore_ms=11.48 t_user_decode_ms=495.48 ttft_turn_ms=507.33 gen_tokens=64 gen_ms=5808.37 gen_tps=10.85 fnv=0x1c724a99200e0d0d busy_ms=6315.76 overrun=0
+PENNYLOAD TURN k=83 uptime_s=8327.14 t_restore_ms=12.67 t_user_decode_ms=538.82 ttft_turn_ms=551.88 gen_tokens=64 gen_ms=5935.16 gen_tps=10.61 fnv=0x1c724a99200e0d0d busy_ms=6487.12 overrun=0
+PENNYLOAD TURN k=84 uptime_s=8333.62 t_restore_ms=11.16 t_user_decode_ms=492.08 ttft_turn_ms=503.53 gen_tokens=64 gen_ms=5826.92 gen_tps=10.81 fnv=0x1c724a99200e0d0d busy_ms=6330.53 overrun=0
+PENNYLOAD TURN k=85 uptime_s=8339.95 t_restore_ms=12.41 t_user_decode_ms=532.84 ttft_turn_ms=545.58 gen_tokens=64 gen_ms=5852.60 gen_tps=10.76 fnv=0x1c724a99200e0d0d busy_ms=6398.27 overrun=0
+PENNYLOAD TURN k=86 uptime_s=8346.35 t_restore_ms=11.29 t_user_decode_ms=545.68 ttft_turn_ms=557.73 gen_tokens=64 gen_ms=5809.59 gen_tps=10.84 fnv=0x1c724a99200e0d0d busy_ms=6367.38 overrun=0
+PENNYLOAD TURN k=87 uptime_s=8352.72 t_restore_ms=13.10 t_user_decode_ms=529.57 ttft_turn_ms=542.99 gen_tokens=64 gen_ms=5961.72 gen_tps=10.57 fnv=0x1c724a99200e0d0d busy_ms=6504.83 overrun=0
+PENNYLOAD TURN k=88 uptime_s=8359.23 t_restore_ms=12.23 t_user_decode_ms=495.13 ttft_turn_ms=507.70 gen_tokens=64 gen_ms=5723.89 gen_tps=11.01 fnv=0x1c724a99200e0d0d busy_ms=6231.65 overrun=0
+PENNYLOAD TURN k=89 uptime_s=8365.46 t_restore_ms=10.13 t_user_decode_ms=501.72 ttft_turn_ms=512.26 gen_tokens=64 gen_ms=5940.01 gen_tps=10.61 fnv=0x1c724a99200e0d0d busy_ms=6452.33 overrun=0
+PENNYLOAD TURN k=90 uptime_s=8371.91 t_restore_ms=12.48 t_user_decode_ms=524.36 ttft_turn_ms=537.23 gen_tokens=64 gen_ms=5997.53 gen_tps=10.50 fnv=0x1c724a99200e0d0d busy_ms=6534.82 overrun=0
+PENNYLOAD TURN k=91 uptime_s=8378.44 t_restore_ms=12.63 t_user_decode_ms=537.34 ttft_turn_ms=550.37 gen_tokens=64 gen_ms=6022.51 gen_tps=10.46 fnv=0x1c724a99200e0d0d busy_ms=6572.97 overrun=0
+PENNYLOAD TURN k=92 uptime_s=8385.02 t_restore_ms=12.23 t_user_decode_ms=524.83 ttft_turn_ms=537.44 gen_tokens=64 gen_ms=5661.71 gen_tps=11.13 fnv=0x1c724a99200e0d0d busy_ms=6199.23 overrun=0
+PENNYLOAD TURN k=93 uptime_s=8391.22 t_restore_ms=13.07 t_user_decode_ms=527.46 ttft_turn_ms=540.84 gen_tokens=64 gen_ms=5850.87 gen_tps=10.77 fnv=0x1c724a99200e0d0d busy_ms=6391.77 overrun=0
+PENNYLOAD TURN k=94 uptime_s=8397.61 t_restore_ms=15.17 t_user_decode_ms=524.33 ttft_turn_ms=539.83 gen_tokens=64 gen_ms=5998.96 gen_tps=10.50 fnv=0x1c724a99200e0d0d busy_ms=6538.91 overrun=0
+PENNYLOAD TURN k=95 uptime_s=8404.15 t_restore_ms=16.28 t_user_decode_ms=526.36 ttft_turn_ms=542.99 gen_tokens=64 gen_ms=6053.05 gen_tps=10.41 fnv=0x1c724a99200e0d0d busy_ms=6596.10 overrun=0
+PENNYLOAD TURN k=96 uptime_s=8410.74 t_restore_ms=13.88 t_user_decode_ms=555.72 ttft_turn_ms=569.99 gen_tokens=64 gen_ms=6171.09 gen_tps=10.21 fnv=0x1c724a99200e0d0d busy_ms=6741.14 overrun=0
+PENNYLOAD TURN k=97 uptime_s=8417.49 t_restore_ms=15.15 t_user_decode_ms=546.99 ttft_turn_ms=562.50 gen_tokens=64 gen_ms=6091.13 gen_tps=10.34 fnv=0x1c724a99200e0d0d busy_ms=6653.70 overrun=0
+PENNYLOAD TURN k=98 uptime_s=8424.14 t_restore_ms=17.43 t_user_decode_ms=540.81 ttft_turn_ms=558.57 gen_tokens=64 gen_ms=5954.34 gen_tps=10.58 fnv=0x1c724a99200e0d0d busy_ms=6512.97 overrun=0
+PENNYLOAD TURN k=99 uptime_s=8430.65 t_restore_ms=13.40 t_user_decode_ms=550.81 ttft_turn_ms=564.58 gen_tokens=64 gen_ms=5912.11 gen_tps=10.66 fnv=0x1c724a99200e0d0d busy_ms=6476.76 overrun=0
+PENNYLOAD TURN k=100 uptime_s=8437.13 t_restore_ms=18.99 t_user_decode_ms=584.66 ttft_turn_ms=604.06 gen_tokens=64 gen_ms=5987.62 gen_tps=10.52 fnv=0x1c724a99200e0d0d busy_ms=6591.80 overrun=0
+PENNYLOAD tag=7a_q17_u4_2plus2 run_type=cached rc=0
+PENNYLOAD model=/data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf model_bytes=1107409472
+PENNYLOAD threads=4 n_ctx=1024 n_batch=2048 n_ubatch=512 n_gpu_layers=99
+PENNYLOAD load_mode=none extra_bufts=1 sampler=greedy
+PENNYLOAD chat_template=NONE   (both prompt files tokenised verbatim; no template applied)
+PENNYLOAD sys_file=(none) sys_bytes=-1 sys_tokens=-1 sys_add_special=1 sys_parse_special=1
+PENNYLOAD user_file=/data/local/tmp/penny_user.txt user_bytes=95 user_tokens=20 user_add_special=0 user_parse_special=1
+PENNYLOAD progress_calls=312
+PENNYLOAD t_backend_ms      2.12   (T1-T0,  ggml_backend_load_all)
+PENNYLOAD t_model_open_ms   411.37   (T2-T1,  header+hparams+vocab+alloc)
+PENNYLOAD t_tensor_band_ms  2527.28   (T3-T2,  tensor data read + repack)
+PENNYLOAD t_model_tail_ms   2.38   (T4-T3)
+PENNYLOAD t_model_total_ms  2941.03   (T4-T1,  llama_model_load_from_file)
+PENNYLOAD t_ctx_create_ms   32.91   (T5-T4,  llama_init_from_model)
+PENNYLOAD t_ready_ms        2976.05   (T5-T0,  READY TO GENERATE)
+PENNYLOAD t_tokenize_ms     0.35   (T6-T5)
+PENNYLOAD t_state_load_ms   16.57   (T7-T6)
+PENNYLOAD state_file=/data/local/tmp/q17_state.bin state_bytes=46685237 state_tokens_restored=407
+PENNYLOAD turns_done=100 turns_requested=100 turns_overrun=0 fnv_all_equal=1
+PENNYLOAD first_token_id=32313 token_fnv1a64=0x1c724a99200e0d0d   (turn 1)
+PENNYLOAD ttft_turn_ms   min=259.40 median=490.25 max=686.25
+PENNYLOAD gen_tps        min=9.90 median=11.55 max=12.69
+PENNYLOAD quarters       n_per_quarter=25  q1=turns 1-25  q4=turns 76-100
+PENNYLOAD SETTLED ttft_turn_ms q1_median=339.53 q4_median=542.99 decline_pct=59.92   (positive = SLOWER)
+PENNYLOAD SETTLED gen_tps      q1_median=11.93 q4_median=10.66 decline_pct=10.71   (positive = SLOWER)
+PENNYLOAD SETTLED gen_tps_turn1=9.90 settled_pct_of_turn1=107.59
+PENNYLOAD DUTY busy_median_ms=5915.99 interval_ms=0 duty_pct=-1.00
+--- llama-bench stderr (tail) ---
+state_read_data: - reading memory module
+state_read_data: reading state
+state_read_data: - reading model info
+state_read_data: - reading memory module
+~llama_context:        CPU compute buffer size is 304.7520 MiB, matches expectation of 304.7520 MiB
+--- kill lines ---
