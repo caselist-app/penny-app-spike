@@ -19355,3 +19355,264 @@ changed; the 6a block, lines 55-133, re-hashed after the edit.
 - Battery temperature is not SoC temperature; "Not charging" at level 100 is
   recorded, not explained.
 - Nothing about pronunciation: neither WAV was listened to.
+
+## 2026-09-21 — BRIEF V STEP C: PREDICTIONS, before any row. V1 (X1 pair) RTF 1.018-1.310, median 1.115, 0 of 18 under 1.0; V2 (A78 pair) RTF 1.572-2.178, median 1.702; A78/X1 elapsed-sum ratio 1.52. V-A1 predicted NO (~55%) and NOT BLIND — smoke line 4 read 0.991; V-A2 YES; V-A3 YES; V-B1 HIT. Both pass strings verbatim, sh -n rc=0, dry-run on the Mac against a stub. Nothing sent to the phone.
+
+Mac only. **No adb command was run for this entry.** Every input below is
+labelled: **7a** (a 7a figure, with its notes.md line or rows/ file), **6a**
+(a 6a figure — a PREDICTION INPUT, never a baseline) or **reasoning** (no data).
+
+### 0. WHAT I HAVE ALREADY SEEN — declared first
+
+Step B's smoke gave two 7a Kokoro figures before any prediction here was
+written (notes.md 19086; `rows/7a_v/7a_tts_smoke_00.report`, `…_04.report`).
+Both: spent boot, mask c0, 2 threads, model cached by the push, rested phone,
+each the FIRST line after a rest.
+
+    line  RTF    elapsed_ms  derived_load_ms  peak_rss_kB  X1 poll-min
+    00    1.303     1,080         2,040          286,652     2,802,000 (98.32%)
+    04    0.991     4,503         1,961          362,364     2,704,000 (94.88%)
+
+**Every prediction below that these inform says so. V-A1 is NOT BLIND**: a line
+under 1.0 on the X1 pair has already been seen once. In V1, line 4 is not first
+on a rested phone — it runs FIFTH, after lines 0-3 back to back (~13 s of
+work, ~9 s of it on the pinned cores).
+
+### 1. THE SCALING — V1 from the 6a's row 4b, V2 from the 6a's row a2
+
+**V1 = 6a row 4b per line (notes.md 13625-13647) × k1.** Row 4b ran the 18
+lines in this order, back to back, with the same method, so it carries the
+pass's own descent and per-line shape.
+
+    k candidates (7a smoke elapsed / 6a 4b elapsed, same line)
+    line 0   1,080 / 1,132 = 0.9541   both the FIRST line of a rested chip       7a smoke / 6a 13627
+    line 4   4,503 / 4,881 = 0.9226   7a RESTED, 6a line 4 ran FIFTH (X1 min      7a smoke / 6a 13631
+                                      2,188,000 = 78.09% during it) — this ratio
+                                      flatters the 7a by the 6a's heat
+    clock    2,802,000 / 2,850,000 = 0.9832   X1 rated, 6a / 7a                   6a CLAUDE.md, 7a CLAUDE.md
+
+**TWO POINTS, ONE OF THEM CONFOUNDED.** k1 = **0.954**, from line 0 — the
+only like-for-like pair. It is below the pure-clock 0.983, so something besides
+clock favours the 7a by ~3%; no cause is claimed. Band for k1: 0.89-1.02.
+
+**V2 = 6a row a2 per line (notes.md 13888-13914) × k2, k2 = k1 × R / 1.680**,
+where 1.680 is the 6a's a2/4b elapsed-sum ratio (13914) and R is the predicted
+7a A78/X1 elapsed-sum ratio. **THERE IS NO 7a TTS FIGURE ON THE A78 PAIR.**
+Inputs for R:
+
+    6a  A76/X1 TTS elapsed-sum ratio         143,543 / 85,431 = 1.680             13914
+        per line a2/4b: min 1.620, median 1.700, max 1.898                         13627-13644, 13890-13907
+    6a  rated clock X1/A76                   2,802,000 / 2,253,000 = 1.2437
+        -> 6a per-clock A76-vs-X1 factor     1.680 / 1.2437 = 1.351
+    7a  rated clock X1/A78                   2,850,000 / 2,348,000 = 1.2138       CLAUDE.md 7a block
+    7a  brief U decode time ratio A78/X1     last-10 11.175 / 7.995 = 1.398        17650, 17904
+                                             turn 1  15.53 / 10.74 = 1.446          17584 entry, 17821 entry
+                                             matched minute 1/0.767-1/0.709 = 1.30-1.41   17995
+        -> 7a per-clock LLM factor           1.398 / 1.2138 = 1.152
+
+**Reasoning (no data):** LLM decode is partly memory-bound, so its per-clock
+factor (1.152) UNDERSTATES a compute gap; Kokoro int8 on the 6a behaved as
+compute-bound (1.351). The A78 is a newer core than the A76, so its per-clock
+gap to the X1 should be smaller than the A76's. I take **1.25**, between the
+two. **R = 1.2138 × 1.25 = 1.52. Band 1.35-1.75.** That gives k2 = 0.954 × 1.52
+/ 1.680 = **0.863**.
+
+**Known limitation of this R:** the 6a's 1.680 already includes 4b's X1 descent
+(to 73.09%, 13647) against an A76 that never moved (13909, 13921-13922). If the 7a's
+A78 pair DOES leave rated in V2 (V-A3 below), the 7a ratio rises above what the
+scaling gives.
+
+### 2. THE PREDICTIONS — point, band, and the judging rule
+
+**JUDGING RULE, fixed now: a measured figure inside its band, bounds inclusive,
+is a HIT; outside is a MISS, labelled high or low. A yes/no prediction is a HIT
+if the answer measured is the answer predicted. Nothing is re-banded after a
+row.** RTF is the binary's own line in each report; elapsed sum is the sum of
+the 18 `elapsed_ms`; "span" is line 00's `uptime_s before=` to line 17's
+`uptime_s after=`; poll-mins are the minimum over the 18 reports' `min=`;
+battery rise is line 17's `batt_temp_dC after=` minus line 00's `before=`.
+
+    PASS V1 — mask c0 (X1 pair), 2 threads                     point         band                 inputs
+    gate before line 0                                         PASSED, 0 polls failed   0-2 polls failed    7a: all three rated at 10890.34, 10917.72, 11001.29 (19086)
+    RTF min over 18 lines                                      1.018 (l05)   0.95-1.10            6a 4b × k1; 7a smoke l04 0.991
+    RTF median                                                 1.115         1.05-1.20            6a 4b × k1
+    RTF max                                                    1.310 (l16)   1.22-1.42            6a 4b × k1; 7a smoke l00 1.303
+    RTF line 15 (10.4 s of audio)                              1.074         1.00-1.16            6a 4b 1.126 × k1
+    lines under RTF 1.0                                        0             0-3                  see V-A1
+    elapsed sum, 18 lines                                      81,500 ms     76,000-87,000        6a 85,431 × k1 (band = k1 0.89-1.02)
+    derived load, median of 18                                 1,990 ms      1,900-2,100          7a smoke 2,040 / 1,961; 6a 4b median 1,958
+    derived load, all 18 inside 1,800-2,250                    yes           —                    6a 4b 1,894-1,974 (13625-13644)
+    peak RSS, max (line 15)                                    577,200 kB    570,000-585,000      6a 4b l15 577,228; 7a smoke = 6a to 0.3% on l00 and l04
+    peak RSS, min (line 01)                                    283,700 kB    280,000-288,000      6a 4b l01 283,656
+    X1 (policy6) poll-min over the pass                        1,826,000 = 64.07%   1,426,000-2,252,000   see below
+    A78 (policy4) poll-min                                     2,348,000 = 100%     2,253,000-2,348,000   7a U1: never moved in 553 s under c0 (17666-17668)
+    A55 (policy0) poll-min                                     1,803,000 = 100%     1,704,000-1,803,000   7a U1: never moved (rows/7a_u/7a_q17_u1_x1x1.report line 16)
+    battery rise over the pass                                 +4 dC         0 to +12             see below
+    span                                                       143 s         130-160              6a 4b span 145.85 s less (1-k1) × 85.4 s
+    MemAvailable minimum, 36 before/after readings             3,300,000 kB  3,000,000-3,450,000  7a smoke 3,339,424-3,380,632; as left 3,387,332 (19086)
+    sample counts, all 18 within 5 ms of the Mac's             yes           —                    7a smoke +3.625 / -0.042 ms; 6a 13720-13722
+
+    PASS V2 — mask 30 (A78 pair), 2 threads                    point         band                 inputs
+    gate before line 0 (TMAX = TREF+15)                        PASSED, 0 polls failed   0-12 polls failed   see section 4
+    RTF min over 18 lines                                      1.572 (l05)   1.40-1.78            6a a2 × k2
+    RTF median                                                 1.702         1.50-1.92            6a a2 × k2
+    RTF max                                                    2.178 (l00)   1.90-2.50            6a a2 × k2
+    RTF line 15                                                1.580         1.40-1.80            6a a2 1.831 × k2
+    lines under RTF 1.0                                        0             0                    6a a2 min 1.822
+    elapsed sum, 18 lines                                      123,900 ms    108,000-142,000      6a 143,543 × k2
+    derived load, median of 18                                 2,930 ms      2,600-3,300          V1 1,990 × 6a load ratio 1.629 × (1.52/1.680)
+    peak RSS, max (line 15)                                    577,300 kB    570,000-585,000      6a a2 l15 577,280
+    X1 (policy6) poll-min                                      2,802,000 = 98.32%   2,600,000-2,850,000   7a U2: X1 idle, poll-min 2,704,000 at 119 s (17918)
+    A78 (policy4) poll-min                                     2,253,000 = 95.95%   2,048,000-2,348,000   see V-A3
+    A55 (policy0) poll-min                                     1,803,000 = 100%     1,600,000-1,803,000   7a U2: poll-min 1,704,000 at 120 s (17922)
+    battery rise over the pass                                 +5 dC         0 to +15             7a U2 series: 283 -> 281 -> 291 over the first 239 s
+    span                                                       204 s         185-230              6a a2 span 227.65 s scaled
+    MemAvailable minimum, 36 readings                          3,300,000 kB  3,000,000-3,450,000  as V1
+    sample counts identical to V1 on all 18                    yes           —                    6a: a2 identical to 4b on all 18 (13915)
+
+    V2 / V1 elapsed-sum ratio (R)                              1.52          1.35-1.75            section 1
+
+**X1 poll-min in V1, the reasoning.** 7a U1 (c0, 2 threads, continuous decode,
+launched from 252 dC) left rated ~8 s in and its SERIES read 2,048,000 by ~98 s
+and 1,582,000 once at ~92 s (`rows/7a_u/7a_q17_u1_x1x1.series`, 1632.32);
+the 0.2 s poll catches dips the series misses. The 6a's 4b pass fell to 73.09%
+(13647). V1 keeps the X1 pair busy ~83% of its ~143 s (elapsed ~81.5 s plus
+load ~36 s on the same pinned cores), less than U1's ~100%. Point 1,826,000,
+the level U1's series sat at from ~150 s. Wide band because the step levels are
+coarse.
+
+**Battery rise in V1, the reasoning.** 7a U1's series: 252 at launch, 255 at
+~126 s, 259 at ~154 s (`…u1_x1x1.series`). V1 is ~143 s at lower duty. +4 dC.
+
+### 3. THE FOUR QUESTIONS
+
+**V-A1. Is any line under RTF 1.0 on the X1 pair (V1)? Predicted NO, ~55%.
+Lines under 1.0: point 0, band 0-3.** NOT BLIND: smoke line 4 read 0.991
+rested. At k1 = 0.954 the lowest lines are 05 (1.018), 04 (1.025) and 07
+(1.026). At k = 0.9226 (the confounded line-4 ratio) three lines go under:
+04 0.991, 05 0.984, 07 0.992; at k = 0.93, two; at k = 0.94, none. The
+prediction turns on whether heat by line 4 costs more than ~3%. **In V1, line 4
+predicted RTF 1.025, band 0.97-1.10.**
+
+**V-A2. Is the A78/X1 elapsed-sum ratio inside 1.3-1.7? Predicted YES, point
+1.52, ~70%.** Inputs in section 1. V2 runs SECOND.
+
+**V-A3. Does the A78 ceiling leave rated during V2? Predicted YES, ~60%.
+Poll-min point 2,253,000 (95.95%), band 2,048,000-2,348,000.** Inputs:
+- 7a U2 (A78 pair, 2 threads, continuous decode, launched 283 dC): the series
+  first read the A78 below rated, at 2,253,000, at **3709.11 = 140.8 s** into
+  the row (row start 3568.31, `…u2_a78a78.report`); 2,130,000 from ~190 s;
+  63.50% only at 692 s (17920-17921). A 7 s series, so the first dip lies in
+  ~134-141 s.
+- V2 is ~204 s at ~85% duty on the A78 pair (elapsed ~124 s plus load ~53 s).
+  By the U2 timeline scaled by duty, the first step down lands ~165 s in —
+  INSIDE the pass, but late, and only one step.
+- 6a (13909, 13921-13922): the A76 pair never moved in a 228 s a2 pass. Against that,
+  the 7a's X1 left rated inside a single rested 3 s line in the smoke — this
+  handset's limiter acts sooner than the 6a's did.
+- The 63.50% of U2 is a 12-minute-row figure and is NOT predicted here.
+
+**V-B1. No kill line naming `sherpa-onnx-offline-tts`, and MemAvailable never
+under 1 GB (1,048,576 kB). Predicted HIT on both limbs.** Predicted minimum
+3,300,000 kB, band 3,000,000-3,450,000, per pass. **What the instrument can
+see:** pennytts.sh reads MemAvailable BEFORE and AFTER each line only — 36
+readings per pass — never during a line. The during-line low is not measured;
+by reasoning it is about before minus peak RSS, ~3.3 GB − 0.58 GB ≈ 2.7 GB on
+line 15, still far above 1 GB. The judgement is made on the 36 readings, and
+says so.
+
+### 4. THE GATES
+
+**V1 gate: clocks only, TMAX unset, GATECAP 240 (default).** Predicted
+**GATE PASSED, polls_failed 0**, band 0-2. The phone was at rated on all three
+policies at 10890.34, 10917.72 and 11001.29 (19086) and has been idle since.
+
+**V1 -> V2 gate: TMAX = V1 line 0's `batt_temp_dC before=` + 15, GATECAP 240.**
+TREF is read ON THE PHONE by the V2 string itself, from
+`out/7a_tts_v1_x1x1_00.report` — not from scrollback and not by a second adb
+command (section 5). **Predicted GATE PASSED, polls_failed 0, band 0-12 (up to
+60 s). LAUNCHED WARM ~15%.** Reasoning:
+- **Order.** The brief puts pull, V1 write-up and a commit between the passes,
+  so V2's gate starts ~10+ minutes after V1 ends. The prediction assumes that.
+- **Battery limb.** V1 predicted +4 dC, band to +12; the limb allows +15, and
+  the phone cools during the write-up. Passes.
+- **policy0.** It was still capped after U3 and U4 (`after=1098000`,
+  `after=1197000`, `rows/7a_u/…u3…report` and `…u4…report` line 16; poll-min
+  60.90% at 18223) — but those were 3- and 4-thread rows loading the A78 pair
+  for ~10 minutes. **After U1 — c0, 2 threads, 553 s, the nearest shape to
+  V1 — policy0 was at rated at the end (`after=1803000`, `…u1_x1x1.report`
+  line 16) and never left it.** V1 is shorter than U1. So policy0 is predicted
+  rated at the V2 gate.
+- **X1.** U1 ended with X1 at 1,426,000 (17666); T3 found the X1 back at rated
+  within 150 s (CLAUDE.md, T3 row). After ~10 minutes: rated.
+- If V2 were launched straight after V1 instead, I would predict a wait of 1-3
+  minutes on the X1 limb. That is not the plan.
+
+### 5. THE EXACT PASS STRINGS
+
+One adb shell each, the whole remote command in ONE pair of single quotes, **no
+single quote inside it and no `&` anywhere** (the stderr redirect is written
+`2> /dev/null`, not `2>&1`). LAUNCH and DONE each read uptime, wall-clock,
+battery and MemAvailable in the same command. Line 00 runs with `COOL=1`,
+lines 01-17 with `COOL=0`, back to back in the same shell. The loop passes the
+UNPADDED line number (`0`-`17`) — pennytts.sh's `case` matches `0)`, not `00)`,
+and a padded `00` would be spoken as the text "00" — and builds the padded
+tag separately. Each line's rc is collected into `rcs=`.
+`caffeinate -i` keeps the Mac awake for the pass.
+
+**V1:**
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; echo "LAUNCH V1 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2)"; RCS=""; for N in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17; do case $N in ?) T=0$N ;; *) T=$N ;; esac; if [ $N = 0 ]; then C=1; else C=0; fi; COOL=$C sh /data/local/tmp/tts/pennytts.sh 7a_tts_v1_x1x1_$T c0 2 $N > /dev/null 2> /dev/null; RCS="$RCS $T:$?"; done; echo "DONE V1 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) rcs=$RCS"'
+
+**V2:**
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; X=$(grep "^PENNYTTS batt_temp_dC" out/7a_tts_v1_x1x1_00.report | tr -s " " | cut -d" " -f3); TREF=${X#before=}; case "$TREF" in ""|*[!0-9]*) echo "TREF UNREADABLE [$X] - V2 NOT LAUNCHED"; exit 1 ;; esac; TMAX=$((TREF + 15)); echo "LAUNCH V2 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) tref_dC=$TREF tmax_dC=$TMAX"; RCS=""; for N in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17; do case $N in ?) T=0$N ;; *) T=$N ;; esac; if [ $N = 0 ]; then C=1; else C=0; fi; COOL=$C TMAX=$TMAX sh /data/local/tmp/tts/pennytts.sh 7a_tts_v2_a78a78_$T 30 2 $N > /dev/null 2> /dev/null; RCS="$RCS $T:$?"; done; echo "DONE V2 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) rcs=$RCS"'
+
+**How V2 gets V1's launch temperature with no second adb command:** the V2
+string's first action, on the phone, is to read `before=` from the
+`PENNYTTS batt_temp_dC` line of `out/7a_tts_v1_x1x1_00.report`, strip
+`before=`, and refuse to launch (`TREF UNREADABLE … V2 NOT LAUNCHED`, exit 1)
+if the result is empty or not all digits. `TMAX=$((TREF + 15))` is then passed
+to every line; pennytts.sh reads TMAX only when `COOL=1`, i.e. line 00.
+LAUNCH V2 prints `tref_dC=` and `tmax_dC=` so the value used is on record.
+
+**Checks on the Mac:** the inner command of each (the text inside the single
+quotes) was written to a file and checked:
+
+    v1  sh -n rc=0   702 chars   single quotes inside 0   ampersands 0
+    v2  sh -n rc=0   968 chars   single quotes inside 0   ampersands 0
+
+`sh -n` is the Mac's bash in POSIX mode, NOT mksh. **The mksh reasoning:**
+every construct used — `for … in`, `case … in ?)` glob patterns, `${X#before=}`,
+`$(( ))`, `[ ]`, `$(…)`, `exit` — is POSIX and is used by pennytts.sh or
+pennybench.sh already on this phone. **Dry run on the Mac against a stub:**
+each inner string with the phone paths swapped for a temp dir and the
+`sh …/pennytts.sh` call swapped for a stub that logs its arguments and env
+(and returns rc 3 on line 13 to prove rc capture):
+
+    V1: 18 calls; 7a_tts_v1_x1x1_00 c0 2 0 COOL=1 TMAX=unset; _01 … COOL=0; _17 line=17 COOL=0; rcs= 00:0 … 13:3 … 17:0
+    V2: 18 calls; 7a_tts_v2_a78a78_00 30 2 0 COOL=1 TMAX=292 (from a stub report before=277); _01 … COOL=0 TMAX=292; rcs= … 13:3 …
+    V2 with the V1 report removed: "TREF UNREADABLE [] - V2 NOT LAUNCHED", exit rc=1, 0 calls
+
+**How long Matt leaves the phone alone:**
+
+    V1   gate ~0 s (predicted) + ~143 s pass    about 2.5 minutes; if the gate waits, up to 20 min more
+    V2   gate ~0 s (predicted) + ~204 s pass    about 3.5 minutes; if the gate waits, up to 20 min more
+
+Screen stays on (stay_on_while_plugged_in=15, on mains). Nothing is touched on
+the phone during a pass, and no other adb command runs while a pass is alive.
+
+### WHAT THIS DOES NOT SAY
+
+- Nothing has been measured for this entry. Every figure is a prediction.
+- **The A78 predictions have no 7a TTS input at all**: R rests on a 6a TTS
+  ratio, a 7a LLM ratio and a per-clock factor of 1.25 that is my reasoning.
+- k1 rests on ONE clean pair of lines (line 0); the other pair is confounded
+  by the 6a's heat.
+- V-A1 is not blind; the smoke line under 1.0 was seen first.
+- Nothing about a resident Kokoro, TTS beside the LLM, time to first audio,
+  the app, fp32, or pronunciation.
+- MemAvailable during a line is not measured by this instrument.
+- Battery temperature is not SoC temperature.
+- Nothing here is a row-boot figure; both passes are on the spent 21 Sept
+  matrix boot, model cached, V2 second.
