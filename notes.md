@@ -21344,3 +21344,154 @@ on 17 of 18 lines, and 131,480 kB above on line 15.
 - The X1 ceiling fell further in W1 than in V1; W1 did the same audio faster,
   so it ran the X1 pair harder. No cause is claimed beyond that.
 - Battery temperature is not chip temperature.
+
+## 2026-09-21 — BRIEF W, W2 `7a_tts_w2_fp32_a78a78`: Kokoro fp32, the A78 pair (mask 30), 2 threads, 18 lines, RUN SECOND today. GATE PASSED polls_failed=83 wait_s=430.40, held by the BATTERY limb (286 at the first poll; clocks rated throughout) — NOT launched warm. 18 × rc=0, ZERO kill lines, never slept. RTF 1.226-1.718, median 1.309, 0 under 1.0; elapsed sum 96,238 ms. **fp32 on the A78 pair is only 0.960× int8's V2 elapsed sum, and its wall sum is 1.019× V2's.** W-A2, W-A3, W-A4 all MISSED. 9 of 17 W2 figures HIT; every timing figure MISSED HIGH. Spent boot, model page-cached, NOT a row-boot figure.
+
+**Every figure here: spent boot (21 Sept matrix boot), model page-cached, NOT
+a row-boot figure. Every RSS figure: peak of a fresh process for one line —
+NOT a resident process's RSS (step 3).**
+**Input kokoro-v1.0.onnx has no hash published by its originating project;
+matched only against a third-party mirror (fastrtc/kokoro-onnx).** Model
+path …/penny-kokoro-fp32/model.fp32.onnx, model_bytes 325534862 on all 18.
+
+### Before the pass
+
+    adb -s 37291JEHN04619 shell '… (the W1 pre-pass read, notes.md 21181, unchanged) …'
+    uptime_s=15908.75 wallclock=17:06:57 batt_temp_dC=283 memavail_kB=3373464 p0=1803000 p4=2348000 p6=2850000 out_files=354
+
+**Battery 283 dC at 17:06:57, against 271 at W1's DONE (17:05:01), with no
+pass running** — the same rise brief V recorded after V1 (272 -> 290, notes.md
+20053 §7). Not explained. Nothing of mine alive: `ps` showed no `adb -s`,
+no pennytts; one `caffeinate -i -t 300` (pid 31684, 01:56), parent 10805 =
+the claude CLI, as in W1.
+
+### The string as run
+
+From notes.md line 21081, indent stripped, hash checked before eval:
+
+    W2 cmd sha256=90da02516ad78bd95af2268f3baf6feb582cb1ced8bda4bb8f570f5baa9a14c7 bytes=1090
+    LAUNCH W2 uptime_s=15918.25 wallclock=17:07:07 batt_temp_dC=286 memavail_kB=3372280 tref_dC=270 tmax_dC=285
+    DONE W2 uptime_s=16537.24 wallclock=17:17:26 batt_temp_dC=288 memavail_kB=3345476 rcs= 00:0 01:0 02:0 03:0 04:0 05:0 06:0 07:0 08:0 09:0 10:0 11:0 12:0 13:0 14:0 15:0 16:0 17:0
+
+Gate, verbatim from line 00's report (first poll, then result):
+
+    PENNYTTS cool_gate_first p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=286 uptime_s=15918.63   (rev 2: the gate's first poll, scaling/cpuinfo per policy)
+    PENNYTTS cool_gate_result GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=285 tmax_dC=285 polls_failed=83 cap=240 wait_s=430.40   (rev 2)
+
+The clocks were rated at the first poll; the battery limb held the gate 430.40 s
+until it read 285. **GATE PASSED, not LAUNCHED WARM.** Line 00 ran at battery
+285 (before=), which is V2's line-00 figure too.
+
+After, one adb shell at uptime 16555.50 (17:17:44): mWakefulness=Awake,
+**mLastSleepTime=0 (16555569 ms ago) — never slept**; isKeyguardShowing=false;
+out_files=462 (354 + 108). 108 files pulled one per command; phone hash list
+rows/7a_w/7a_tts_w2_phone.sha256 (36 lines) = the Mac's, diff rc=0.
+
+### The 18 lines (rows/7a_w/7a_tts_w2_fp32_a78a78_NN.report; Mac = abtest-penny-fp32/NN-fp32.wav)
+
+    ln rc audio s elapsed    RTF  load  peakRSS   X1 min  A78 min  A55 min    batt phone smp   mac smp  diff ms
+    00  0   0.811    1394  1.718  3125   500872  2850000  2348000  1803000 285>285     19475     19475   +0.000
+    01  0   0.759    1224  1.612  3078   497536  2850000  2348000  1803000 285>285     18218     18218   +0.000
+    02  0   0.819    1296  1.582  3068   499248  2850000  2348000  1803000 285>285     19665     19665   +0.000
+    03  0   1.124    1798  1.599  3050   507696  2850000  2348000  1803000 285>285     26980     26980   +0.000
+    04  0   4.454    5675  1.274  3154   586368  2850000  2348000  1803000 285>285    106892    106892   +0.000
+    05  0   6.963    8538  1.226  3140   643012  2850000  2348000  1803000 285>285    167103    167124   -0.875
+    06  0   3.599    4806  1.335  3133   571160  2850000  2348000  1803000 285>284     86374     86374   +0.000
+    07  0   5.924    7350  1.241  3161   629120  2850000  2348000  1803000 284>284    142185    142182   +0.125
+    08  0   4.632    5982  1.292  3169   581840  2850000  2348000  1803000 284>284    111163    111163   +0.000
+    09  0   4.545    5905  1.299  3133   577016  2850000  2348000  1803000 284>284    109088    109088   +0.000
+    10  0   3.505    4516  1.288  3104   565740  2850000  2348000  1803000 284>284     84117     84124   -0.292
+    11  0   3.345    4362  1.304  3138   554628  2850000  2348000  1803000 284>284     80284     80284   +0.000
+    12  0   3.659    4642  1.269  3129   568024  2850000  2348000  1803000 284>285     87808     87808   +0.000
+    13  0   3.090    4061  1.314  3157   549932  2850000  2348000  1803000 285>285     74162     74162   +0.000
+    14  0   7.401   10704  1.446  3163   541672  2850000  2348000  1803000 285>285    177635    177635   +0.000
+    15  0  10.348   12764  1.233  3130   708556  2850000  2348000  1803000 285>286    248349    248348   +0.042
+    16  0   3.114    4642  1.491  3132   523608  2850000  2348000  1803000 286>286     74732     74732   +0.000
+    17  0   4.645    6579  1.416  3081   571536  2850000  2348000  1803000 286>288    111477    111476   +0.042
+
+### Summary
+
+    rc=0 / kill lines         18 of 18 / 0
+    RTF min / median / max    1.226 (l05) / 1.309 / 1.718 (l00)
+    RTF line 15               1.233
+    lines under 1.0           0 of 18
+    elapsed_ms sum            96,238
+    wall_ms sum               152,483
+    derived load              median 3,132.5 ms, range 3,050 (l03) - 3,169 (l08)
+    peak RSS                  max 708,556 kB (l15), min 497,536 (l01)   — fresh process per line, NOT resident RSS
+    MemAvailable min          3,322,780 kB (l07 after), 36 readings
+    policy4 A78               2,348,000 on every line — NEVER MOVED
+    policy6 X1                2,850,000 on every line — never moved
+    policy0 A55               1,803,000 on every line — never moved
+    battery                   285 -> 288 dC
+    span (uptime)             16349.17 -> 16536.30 = 187.13 s
+    samples vs Mac fp32       equal on 13 of 18, all within 5 ms; W2's 18 WAVs have the same sample counts as W1's on every line
+
+### Predictions judged (notes.md 20957-20973, 21041)
+
+    figure              predicted [band]                    measured                 verdict
+    gate                PASSED 0 polls [0-60 polls, 0-300 s] (21041)   PASSED 83 polls, 430.40 s   MISS (HIGH) — passed, not warm
+    RTF min             0.998 l05 [0.88-1.10]                1.226 l05                MISS (HIGH)
+    RTF median          1.066 [0.95-1.18]                    1.309                    MISS (HIGH)
+    RTF max             1.357 l00 [1.20-1.50]                1.718 l00                MISS (HIGH)
+    RTF line 15         1.012 [0.90-1.12]                    1.233                    MISS (HIGH)
+    lines under 1.0     1 [0-8]                              0                        HIT
+    elapsed sum         78,200 [70,000-88,000]               96,238                   MISS (HIGH)
+    wall_ms sum         133,300 [122,000-146,000]            152,483                  MISS (HIGH)
+    load median         3,065 [2,800-3,350]                  3,132.5                  HIT
+    peak RSS max        795,000 [760,000-840,000]            708,556                  MISS (LOW)
+    MemAvailable min    3,300,000 [3,100,000-3,420,000]      3,322,780                HIT
+    X1 poll-min         2,850,000 [2,630,000-2,850,000]      2,850,000                HIT
+    A78 poll-min        2,348,000 [2,130,000-2,348,000]      2,348,000                HIT
+    A55 poll-min        1,803,000 [1,704,000-1,803,000]      1,803,000                HIT
+    battery rise        +2 [0-6]                             +3                       HIT
+    span                166 s [148-188]                      187.13                   HIT
+    W-B1, W2 limb       HIT (21031)                          0 kills; min 3,322,780   HIT
+
+**9 of 17 W2 figures HIT.** Every generation-time figure MISSED HIGH. The
+cause of the miss in the prediction is named: **k2 = 0.780 was my reasoning
+with no fp32 A78 data (notes.md 20854 §2) and it was wrong** — measured, the
+A78 pair's per-line fp32/int8 RTF is 0.929-0.999.
+
+### THE QUESTIONS THIS PASS ANSWERS
+
+**W-A2, fp32/int8 on the A78 pair, W2 / V2.** The int8 side is BRIEF V's V2.
+Order and heat: **V2 ran SECOND in brief V, line 00 at 285 dC (gate first poll
+290). W2 ran SECOND today, line 00 at 285 dC (gate first poll 286).** Same boot.
+
+    W2 / V2 elapsed_ms sum    96,238 / 100,262 = 0.9599
+    per line RTF W2/V2        0.929 (l12) - 0.999 (l03)
+    W2 / V2 wall_ms sum       152,483 / 149,666 = 1.0188 — fp32's longer load (median 3,132.5 vs 2,749) outweighs its faster generation
+    peak RSS W2 − V2          +131,900 (l15) to +224,344 (l04) kB
+
+**Predicted 0.780 [0.68-0.90] (21017). Measured 0.9599. MISS (HIGH).**
+
+**W-A3, any W2 line under RTF 1.0?** Predicted YES ~50% (21021). **Measured NO —
+0 lines; lowest 1.226 (l05). MISS.**
+
+**W-A4, fp32 A78/X1 elapsed-sum ratio, W2 / W1.** Both fp32, both today: W1
+ran FIRST (launch 271 dC), W2 SECOND (line 00 at 285 dC). **Predicted 1.296
+[1.15-1.50] (21023). Measured 96,238 / 59,468 = 1.6183. MISS (HIGH).** Per
+line 1.561 (l15) - 1.760 (l00). Caveat, same as V's: W1's X1 ceiling fell to
+2,188,000 while W2's A78 never left rated — this is NOT a full-clock ratio,
+and with W1 at rated the gap would be larger. For int8 the same ratio was
+1.263 (V2/V1, notes.md 20053).
+
+### The plan's "~330 MB resident" (notes.md 21153)
+
+On these figures: **MISS** — 497,536-708,556 kB, every line. Fresh-process
+peak, NOT a resident process's RSS (step 3).
+
+### What this entry does NOT say
+
+- Nothing about real-time speech in a product. Load (3,050-3,169 ms per line)
+  is outside RTF; a fresh process per line is not a product process.
+- Nothing about sound.
+- W2/V2 compares today's second pass with brief V's second pass on the same
+  boot, hours apart; both line-00 batteries 285. One pass each.
+- Why fp32 gains ~4% on the A78 pair and ~25% on the X1 pair is not
+  established. No cause is claimed.
+- The A78 ceiling did not move in 187 s of pass with process restarts between
+  lines; that says nothing about long continuous speech (U2 fell 140.8 s into
+  continuous decode, notes.md 17921).
+- The battery rise between passes with nothing running is unexplained.

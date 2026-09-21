@@ -1,0 +1,8 @@
+/Users/mattstevenson/Documents/sherpa-onnx/sherpa-onnx/csrc/parse-options.cc:Read:374 /data/local/tmp/tts/sherpa-onnx-offline-tts --num-threads=2 --kokoro-model=/data/local/tmp/tts/penny-kokoro-fp32/model.fp32.onnx --kokoro-voices=/data/local/tmp/tts/penny-kokoro-fp32/voices.bin --kokoro-tokens=/data/local/tmp/tts/penny-kokoro-fp32/tokens.txt --kokoro-data-dir=/data/local/tmp/tts/penny-kokoro-fp32/espeak-ng-data --kokoro-lexicon=/data/local/tmp/tts/penny-kokoro-fp32/lexicon-gb-en.txt --kokoro-lang=en --sid=22 --speed=1.0 --output-filename=/data/local/tmp/tts/out/7a_tts_w2_fp32_a78a78_13.wav "Do you want me to send it now, or wait until you've read it?" 
+
+Number of threads: 2
+Elapsed seconds: 4.061 s
+Audio duration: 3.090 s
+Real-time factor (RTF): 4.061/3.090 = 1.314
+The text is: Do you want me to send it now, or wait until you've read it?. Speaker ID: 22
+Saved to /data/local/tmp/tts/out/7a_tts_w2_fp32_a78a78_13.wav successfully!
