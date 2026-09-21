@@ -20254,3 +20254,185 @@ stage 2 / 3a per the plan" becomes "NEXT: stage 3a step 2 (fp32)", noting that
 it needs a download Matt approves file by file. The 7a Boot line gains "Brief V
 CLOSED (20053)". The 6a block, lines 55-133, re-hashed after the edit:
 `effd849c…`, 79 lines, byte-identical.)
+
+## 2026-09-21 — BRIEF W STEP A: WHERE THE int8 FILE CAME FROM, AND THE fp32 PROPOSAL. Our model.int8.onnx is kokoro-onnx's kokoro-v1.0.int8.onnx with sherpa-onnx's metadata copied in — weights and graph byte-identical, shown read-only. NO DOWNLOAD IS NEEDED: every candidate fp32 file has been on the Mac since 17 Sept. Nothing fetched, nothing written outside this entry, nothing sent to the phone.
+
+Mac only. Reading, hashing and read-only `onnx.load` in `~/kokoro-models/.venv`
+(onnx 1.22.0, sherpa_onnx 1.13.8), plus GitHub and Hugging Face API reads. No
+file was created or changed in `~/kokoro-models`; two espeak hash lists went
+to the session scratchpad only.
+
+### 1. HOW penny-kokoro-int8/model.int8.onnx WAS MADE — from shell history, not sizes
+
+No script file exists: `grep -l` for `penny-kokoro-int8`, `model.int8.onnx`,
+`add_meta`, `metadata_props` in `~/kokoro-models` (venv excluded) finds only
+`abtest_penny.py`, which READS the folder. The command that made it is in
+`~/.zsh_history` lines 1677-1691 (those lines carry no timestamps; the files
+it wrote are dated 18 Sept 10:08). Verbatim:
+
+    cd ~/kokoro-models && source .venv/bin/activate
+    pip install onnx
+    python - << 'EOF'
+    import onnx, os
+    src = onnx.load("kokoro-int8-multi-lang-v1_0/model.int8.onnx")
+    dst = onnx.load("kokoro-v1.0.int8.onnx")
+    del dst.metadata_props[:]
+    for kv in src.metadata_props:
+        p = dst.metadata_props.add(); p.key, p.value = kv.key, kv.value
+    os.makedirs("penny-kokoro-int8", exist_ok=True)
+    onnx.save(dst, "penny-kokoro-int8/model.int8.onnx")
+    print("saved")
+    EOF
+    cp -R kokoro-int8-multi-lang-v1_0/voices.bin kokoro-int8-multi-lang-v1_0/tokens.txt kokoro-int8-multi-lang-v1_0/lexicon-gb-en.txt kokoro-int8-multi-lang-v1_0/lexicon-us-en.txt kokoro-int8-multi-lang-v1_0/espeak-ng-data penny-kokoro-int8/
+    sed -e 's/("int8", "kokoro-int8-multi-lang-v1_0")/("int8", "penny-kokoro-int8")/' -e 's/"abtest-sherpa"/"abtest-penny"/' abtest_sherpa.py > abtest_penny.py
+    python abtest_penny.py
+
+So: **weights and graph from kokoro-onnx's `kokoro-v1.0.int8.onnx`; the 17
+metadata_props from sherpa-onnx's int8 package; nothing else.** Shown
+read-only (sha256 over every initializer's name + bytes, sorted by name; sha256
+over every serialised node in order):
+
+    file                                        ir opset nodes init  init_bytes   initializers_sha256  nodes_sha256  metadata
+    penny-kokoro-int8/model.int8.onnx            9  20   3614  775   90,925,090   7952e643…            99aa514c…     17 props = sherpa int8's (dict equal: True)
+    kokoro-v1.0.int8.onnx                        9  20   3614  775   90,925,090   7952e643…            99aa514c…     0 props
+    kokoro-int8-multi-lang-v1_0/model.int8.onnx  7  14   5661  908  112,629,488   52935138…            19d7660a…     17 props
+    kokoro-v1.0.onnx                (fp32)       9  20   2464  554  324,616,504   1df94aab…            a4a907e9…     0 props
+    kokoro-multi-lang-v1_0/model.onnx (fp32)     7  14   4805  443  324,594,368   2ea915be…            1362f687…     16 props
+
+The int8 we ran on both phones is taylorchu's export as republished by
+kokoro-onnx, NOT sherpa-onnx's own int8 export (a different graph: opset 14,
+5,661 nodes, an extra output `onnx::Shape_3411`). The two sherpa files are one
+export family; the two kokoro-onnx files are another.
+
+### 2. THE CANDIDATE FILES ON THE MAC, AND THEIR PUBLISHED HASHES
+
+Download commands, `~/.zsh_history` 1346-1352 (kokoro-onnx files, fp32
+tarball, .pth; log in `~/kokoro-models/download.log`) and 1584 (int8 tarball).
+
+    file (on the Mac)                      bytes        sha256 computed here  source URL                                                                                       published hash                                         match
+    kokoro-v1.0.onnx                       325,532,387  7d5df8ec…a6c5         github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx          GitHub: NONE (no digest on any asset of this release)  —
+                                                                                                                                                                            HF LFS, fastrtc/kokoro-onnx (MIT mirror): 7d5df8ec…a6c5 MATCH (third-party mirror, not the originating project)
+    kokoro-v1.0.int8.onnx                  92,361,271   6e742170…06cb         …/model-files-v1.0/kokoro-v1.0.int8.onnx                                                         GitHub: NONE                                            —
+    kokoro-v1.0.fp16.onnx                  177,464,787  c1610a85…0204         …/model-files-v1.0/kokoro-v1.0.fp16.onnx                                                         GitHub: NONE                                            —
+    kokoro-multi-lang-v1_0.tar.bz2         349,906,910  c5f7e2d2…a3298        github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_0.tar.bz2        GitHub sha256:c5f7e2d2…a3298                            MATCH
+    kokoro-int8-multi-lang-v1_0.tar.bz2    132,303,094  4c3052ab…7e4e         …/tts-models/kokoro-int8-multi-lang-v1_0.tar.bz2                                                 GitHub sha256:4c3052ab…7e4e                             MATCH
+    kokoro-multi-lang-v1_0/model.onnx      325,560,556  b40f62b1…da11         inside the tarball above                                                                          (tarball's)                                             tar -xOjf … | shasum = b40f62b1…da11, SAME
+    kokoro-int8-multi-lang-v1_0/model.int8.onnx 114,203,756 4b86207e…6b36     inside the int8 tarball                                                                           (tarball's)                                             not re-extracted
+
+Full hashes: kokoro-v1.0.onnx 7d5df8ecf7d4b1878015a32686053fd0eebe2bc377234608764cc0ef3636a6c5;
+kokoro-v1.0.int8.onnx 6e742170d309016e5891a994e1ce1559c702a2ccd0075e67ef7157974f6406cb;
+kokoro-v1.0.fp16.onnx c1610a859f3bdea01107e73e50100685af38fff88f5cd8e5c56df109ec880204;
+fp32 tarball c5f7e2d2caf082bc1d20fb70334a61d99d20b484500aad32e7cf84c128ea3298;
+sherpa fp32 model.onnx b40f62b166ac8164b0627ef48a0b358eda0985e272fb03ef5252e7206305da11.
+
+kokoro-onnx release `model-files-v1.0`, published 2025-01-28T21:39:16Z; its
+notes say each file is an "optimized … version from taylorchu/kokoro-onnx
+v0.2.0". taylorchu v0.2.0 (published 2025-01-28T19:07:02Z) has
+`kokoro.onnx` 325,532,387 B and `kokoro-quant-convinteger.onnx` 92,361,271 B —
+same sizes as kokoro-onnx's fp32 and int8 — and **also no digest**. So
+**no hash from the originating project exists for either kokoro-onnx file**;
+the only published hash for the fp32 is a third-party Hugging Face mirror's.
+sherpa-onnx `tts-models` assets were last updated 2026-09-08T04:35:52Z / 04:36:01Z.
+
+### 3. THE LIKE-FOR-LIKE SIBLING
+
+**`kokoro-v1.0.onnx`, put through the same recipe.** It is the same export
+family as our int8 (ir 9, opset 20, one output `audio`); the int8 is its
+quantised twin from the same release. Sherpa's `model.onnx` is a DIFFERENT
+export (opset 14, 4,805 nodes vs 2,464, 443 initializers vs 554, an extra
+output): fp32-sherpa vs our int8 would compare two exports AND two precisions,
+and could not say which one made the difference.
+
+The file does not load in sherpa-onnx as it stands — it has 0 metadata_props,
+and sherpa's Kokoro loader reads its settings (sample_rate, style_dim,
+n_speakers …) from them. (That last point is what sherpa's README and the int8
+recipe imply; it was not tested here.) So it needs the same metadata copy the
+int8 had. The proposed script — **NOT RUN; a separate approval**:
+
+    cd ~/kokoro-models && .venv/bin/python - << 'EOF'
+    import onnx, os
+    src = onnx.load("kokoro-multi-lang-v1_0/model.onnx")
+    dst = onnx.load("kokoro-v1.0.onnx")
+    del dst.metadata_props[:]
+    for kv in src.metadata_props:
+        p = dst.metadata_props.add(); p.key, p.value = kv.key, kv.value
+    os.makedirs("penny-kokoro-fp32", exist_ok=False)
+    onnx.save(dst, "penny-kokoro-fp32/model.fp32.onnx")
+    print("saved")
+    EOF
+
+**One deliberate difference from the int8 recipe: the metadata source.** The
+int8 took sherpa int8's 17 props; this takes sherpa fp32's 16. Read-only
+comparison: the two sets are identical on all 16 shared keys; the int8 set
+has one extra key, `onnx.infer = onnxruntime.quant`, which would be a false
+label on an fp32 file. Whether sherpa-onnx reads `onnx.infer`: not checked.
+
+After it runs, the check that it did only what it says (the same test as §1):
+initializers_sha256 must be 1df94aab… and nodes_sha256 a4a907e9… (= kokoro-v1.0.onnx),
+metadata dict must equal sherpa fp32's. The output file's own sha256 is new;
+**no published hash can exist for it**, the same as for our int8.
+
+### 4. THE REST OF THE FOLDER — identical, so it is copied from penny-kokoro-int8/
+
+    file                 penny-kokoro-int8  kokoro-multi-lang-v1_0 (fp32 pkg)  kokoro-int8-multi-lang-v1_0
+    voices.bin           1c5a5b98…          1c5a5b98…                          1c5a5b98…
+    tokens.txt           6ebb6bb2…          6ebb6bb2…                          6ebb6bb2…
+    lexicon-gb-en.txt    c4cbb373…          c4cbb373…                          c4cbb373…
+    lexicon-us-en.txt    7daaab53…          7daaab53…                          7daaab53…
+    espeak-ng-data/      355 files, list-of-hashes sha256 3984dd9c…; fp32 pkg the same, 355 files, `diff` of the two per-file lists rc=0, `diff -rq` rc=0
+
+(A first attempt hashed espeak-ng-data with plain `xargs` and choked on the file
+`voices/!v/Mr serious`; redone with `-print0`/`-0`. The figure above is the
+redone one.)
+
+Speaker 22: in both penny-kokoro-int8's and the fp32 package's metadata,
+`n_speakers = 54`, `speaker_names[22] = bf_isabella`, and `id2speaker` contains
+`22->bf_isabella`. voices.bin is byte-identical, so sid 22 is the same voice
+vector in both.
+
+### 5. fp16 — names only, nothing fetched
+
+- kokoro-onnx `model-files-v1.0`: `kokoro-v1.0.fp16.onnx` (177,464,787 B,
+  ALREADY ON THE MAC, c1610a85…) and `kokoro-v1.0.fp16-gpu.onnx` (same size,
+  not on the Mac). taylorchu v0.2.0: `kokoro-quant.onnx` (same size) and
+  `kokoro-quant-gpu.onnx`.
+- sherpa-onnx `tts-models`: no Kokoro v1.0 fp16 asset among those matching
+  `kokoro-…v1_0`.
+
+### 6. LICENCE
+
+Kokoro-82M weights: Apache-2.0 (hexgrad/Kokoro-82M card). kokoro-onnx repo:
+MIT ("Copyright (c) 2025 github.com/thewh1teagle"). taylorchu/kokoro-onnx:
+MIT. sherpa-onnx package `LICENSE`: Apache License 2.0. The metadata copied in
+comes from the sherpa package.
+
+### 7. MAC REFERENCE WAVs THAT ALREADY EXIST — for step B, NOT the proposed file
+
+`~/kokoro-models/abtest-penny/NN-full.wav` (18 files, 18 Sept 10:08) were made by
+`abtest_penny.py` with `REF = ("full", "kokoro-multi-lang-v1_0")` — i.e. with
+**sherpa's** fp32 model.onnx, not the proposed file. If the proposal is taken,
+step B renders the proposed file afresh; those 18 are not its reference.
+
+### PROPOSAL
+
+`~/kokoro-models/penny-kokoro-fp32/model.fp32.onnx` = kokoro-v1.0.onnx
+(kokoro-onnx `model-files-v1.0`, sha256 7d5df8ec…a6c5, matching the fastrtc
+Hugging Face mirror's LFS hash; no hash from the originating project exists)
+with sherpa fp32's 16 metadata_props copied in; the other files copied from
+penny-kokoro-int8/. **No download is needed.** Running the script is Matt's
+approval, separately.
+
+The alternative, with its trade-off: sherpa's `model.onnx` as it is
+(b40f62b1…, inside a tarball whose GitHub digest matches, no repackaging) —
+a published hash, but a different export from our int8, so the pass would not
+isolate precision.
+
+### What this entry does NOT say
+
+- Nothing about speed, memory or sound of any fp32 file. Nothing ran.
+- That sherpa-onnx will load the proposed file: not tested.
+- That kokoro-v1.0.onnx is what taylorchu published: sizes match, no hash
+  exists at either GitHub release to check it against.
+- When the zsh history commands ran: the lines have no timestamps; file dates
+  are the only clue.
+- Whether `onnx.infer` matters to sherpa-onnx.
