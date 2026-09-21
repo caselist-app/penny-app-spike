@@ -1,0 +1,8 @@
+/Users/mattstevenson/Documents/sherpa-onnx/sherpa-onnx/csrc/parse-options.cc:Read:374 /data/local/tmp/tts/sherpa-onnx-offline-tts --num-threads=2 --kokoro-model=/data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx --kokoro-voices=/data/local/tmp/tts/penny-kokoro-int8/voices.bin --kokoro-tokens=/data/local/tmp/tts/penny-kokoro-int8/tokens.txt --kokoro-data-dir=/data/local/tmp/tts/penny-kokoro-int8/espeak-ng-data --kokoro-lexicon=/data/local/tmp/tts/penny-kokoro-int8/lexicon-gb-en.txt --kokoro-lang=en --sid=22 --speed=1.0 --output-filename=/data/local/tmp/tts/out/7a_tts_w3_int8_x1x1_05.wav 'Revenue this month is £12,480.50, up 17.5% on August.' 
+
+Number of threads: 2
+Elapsed seconds: 6.976 s
+Audio duration: 6.907 s
+Real-time factor (RTF): 6.976/6.907 = 1.010
+The text is: Revenue this month is £12,480.50, up 17.5% on August.. Speaker ID: 22
+Saved to /data/local/tmp/tts/out/7a_tts_w3_int8_x1x1_05.wav successfully!

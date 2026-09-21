@@ -21495,3 +21495,146 @@ peak, NOT a resident process's RSS (step 3).
   lines; that says nothing about long continuous speech (U2 fell 140.8 s into
   continuous decode, notes.md 17921).
 - The battery rise between passes with nothing running is unexplained.
+
+## 2026-09-21 — BRIEF W, W3 `7a_tts_w3_int8_x1x1`: Kokoro int8, the X1 pair (mask c0), 2 threads, NOTHING set — a repeat of V1 — RUN THIRD today. GATE PASSED polls_failed=170 wait_s=882.75, held by the BATTERY limb (296 at the first poll) — NOT launched warm. 18 × rc=0, ZERO kill lines, never slept. ALL 18 WAVs BYTE-IDENTICAL TO V1's. Elapsed sum 79,476 ms against V1's 79,357: W3/V1 = 1.0015. W-A5 HIT; W-A1 (b) W1/W3 = 0.7483, HIT. 16 of 18 W3 figures HIT. Spent boot, model page-cached, NOT a row-boot figure.
+
+**Every figure here: spent boot (21 Sept matrix boot), model page-cached, NOT
+a row-boot figure. Every RSS figure: peak of a fresh process for one line —
+NOT a resident process's RSS (step 3).** Model path
+…/penny-kokoro-int8/model.int8.onnx, model_bytes 92363779 on all 18 — the
+rev 3 defaults, nothing set. W1/W3 comparisons involve the fp32 file: **input
+kokoro-v1.0.onnx has no hash published by its originating project; matched
+only against a third-party mirror (fastrtc/kokoro-onnx).**
+
+### Before the pass
+
+    uptime_s=16623.49 wallclock=17:18:52 batt_temp_dC=296 memavail_kB=3369236 p0=1803000 p4=2348000 p6=2850000 out_files=462
+
+(the same pre-pass adb shell as W1, notes.md 21181.) **Battery 296 dC, from
+288 at W2's DONE (17:17:26), with nothing running** — the third such rise
+(W1->W2 271->283, V1->V2 272->290). Unexplained. Nothing of mine alive; one
+`caffeinate -i -t 300` (pid 35948), parent 10805 = the claude CLI.
+
+### The string as run
+
+From notes.md line 21085, indent stripped, hash checked before eval:
+
+    W3 cmd sha256=f2b92d9bfed21fa968ff54c2fe3becc48fa07b0f11e21d11f04f9be053809427 bytes=1015
+    LAUNCH W3 uptime_s=16632.43 wallclock=17:19:01 batt_temp_dC=296 memavail_kB=3370756 tref_dC=270 tmax_dC=285
+    DONE W3 uptime_s=17665.56 wallclock=17:36:14 batt_temp_dC=284 memavail_kB=3255428 rcs= 00:0 01:0 02:0 03:0 04:0 05:0 06:0 07:0 08:0 09:0 10:0 11:0 12:0 13:0 14:0 15:0 16:0 17:0
+
+    PENNYTTS cool_gate_first p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=296 uptime_s=16632.82   (rev 2: the gate's first poll, scaling/cpuinfo per policy)
+    PENNYTTS cool_gate_result GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=285 tmax_dC=285 polls_failed=170 cap=240 wait_s=882.75   (rev 2)
+
+Clocks rated at the first poll; the battery limb held the gate 882.75 s (170
+of 240 polls). **GATE PASSED, not LAUNCHED WARM.** Line 00 at 285 dC.
+
+After, one adb shell at uptime 17685.06 (17:36:33): mWakefulness=Awake,
+**mLastSleepTime=0 (17685106 ms ago) — never slept**; isKeyguardShowing=false;
+out_files=570 (462 + 108). 108 files pulled; rows/7a_w/7a_tts_w3_phone.sha256
+(36 lines) = the Mac's, diff rc=0.
+
+### The 18 lines (rows/7a_w/7a_tts_w3_int8_x1x1_NN.report; Mac = abtest-penny/NN-int8.wav; last column = byte-identical to rows/7a_v/7a_tts_v1_x1x1_NN.wav)
+
+    ln rc audio s elapsed    RTF  load  peakRSS   X1 min  A78 min  A55 min    batt phone smp   mac smp  diff ms  =V1
+    00  0   0.829    1110  1.339  2021   286684  2802000  2348000  1803000 285>285     19899     19812   +3.625  True
+    01  0   0.758     955  1.260  1906   279876  2704000  2348000  1803000 285>285     18184     18184   +0.000  True
+    02  0   0.814    1023  1.257  1948   280972  2802000  2348000  1803000 285>285     19526     19510   +0.667  True
+    03  0   1.159    1417  1.222  1973   289528  2704000  2348000  1803000 285>285     27821     27820   +0.042  True
+    04  0   4.545    4602  1.012  1932   361900  2630000  2348000  1803000 285>285    109089    109090   -0.042  True
+    05  0   6.907    6976  1.010  1977   440076  2630000  2348000  1803000 285>285    165773    165742   +1.292  True
+    06  0   3.593    3986  1.110  2002   350348  2630000  2348000  1803000 285>285     86222     86218   +0.167  True
+    07  0   5.815    5999  1.032  1958   436156  2630000  2348000  1803000 285>285    139567    139549   +0.750  True
+    08  0   4.704    5060  1.076  1972   401208  2507000  2348000  1803000 285>284    112893    112892   +0.042  True
+    09  0   4.520    4864  1.076  2065   365216  2630000  2348000  1803000 284>284    108483    108489   -0.250  True
+    10  0   3.450    3689  1.069  1936   343940  2630000  2348000  1803000 284>284     82797     82854   -2.375  True
+    11  0   3.395    3664  1.079  2026   344272  2630000  2348000  1803000 284>284     81489     81443   +1.917  True
+    12  0   3.513    3797  1.081  1972   347640  2507000  2348000  1803000 284>284     84311     88395 -170.167  True
+    13  0   3.065    3334  1.088  1977   339444  2630000  2348000  1803000 284>284     73565     73565   +0.000  True
+    14  0   7.450    8947  1.201  1964   326876  2630000  2348000  1803000 284>284    178788    178768   +0.833  True
+    15  0  10.416   10706  1.028  2006   578896  2507000  2348000  1803000 284>284    249994    250017   -0.958  True
+    16  0   3.109    3825  1.230  1999   322428  2630000  2348000  1803000 284>284     74607     74724   -4.875  True
+    17  0   4.707    5522  1.173  1988   350204  2507000  2348000  1803000 284>284    112956    112672  +11.833  True
+
+### Summary
+
+    rc=0 / kill lines         18 of 18 / 0
+    RTF min / median / max    1.010 (l05) / 1.085 / 1.339 (l00)
+    RTF line 15               1.028
+    lines under 1.0           0 of 18
+    elapsed_ms sum            79,476
+    wall_ms sum               115,098
+    derived load              median 1,975 ms, range 1,906 (l01) - 2,065 (l09)
+    peak RSS                  max 578,896 kB (l15), min 279,876 (l01)   — fresh process per line, NOT resident RSS
+    MemAvailable min          3,239,476 kB (l07 after), 36 readings
+    policy6 X1                before 2,850,000 / min 2,507,000 (87.96%; first l08, also l12, l15, l17) / after 2,850,000
+    policy4 A78, policy0 A55  never moved
+    battery                   285 -> 284 dC
+    span (uptime)             17515.70 -> 17664.67 = 148.97 s
+    WAVs                      byte-identical to V1's on 18 of 18 (cmp over the whole file)
+    samples vs Mac int8       as V1: equal on 2 of 18, within 5 ms on 16; l12 −4,084 (−170.167 ms), l17 +284 (+11.833 ms)
+
+### Predictions judged (notes.md 20975-20992, 21048)
+
+    figure              predicted [band]                    measured                 verdict
+    gate                PASSED 0 polls [0-60] (21048)        PASSED 170 polls, 882.75 s   MISS (HIGH) — passed, not warm
+    RTF min             1.025 l04 [0.98-1.08]                1.010 l05                HIT
+    RTF median          1.103 [1.05-1.17]                    1.085                    HIT
+    RTF max             1.335 l00 [1.27-1.41]                1.339 l00                HIT
+    RTF line 15         1.058 [1.00-1.12]                    1.028                    HIT
+    lines under 1.0     0 [0-2]                              0                        HIT
+    elapsed sum         80,950 [77,000-85,700]               79,476                   HIT
+    wall_ms sum         116,600 [110,000-124,000]            115,098                  HIT
+    load median         1,982 [1,880-2,100]                  1,975                    HIT
+    peak RSS max        577,000 [570,000-585,000]            578,896                  HIT
+    MemAvailable min    3,310,000 [3,100,000-3,420,000]      3,239,476                HIT
+    X1 poll-min         2,507,000 [2,401,000-2,630,000]      2,507,000                HIT
+    A78 poll-min        2,348,000 [2,253,000-2,348,000]      2,348,000                HIT
+    A55 poll-min        1,803,000 [1,704,000-1,803,000]      1,803,000                HIT
+    battery rise        +2 [0-6]                             −1 (285 -> 284)          MISS (LOW)
+    span                149 s [138-162]                      148.97                   HIT
+    WAVs = V1's         18 of 18 [18]                        18 of 18                 HIT
+    W-B1, W3 limb       HIT (21031)                          0 kills; min 3,239,476   HIT
+
+**16 of 18 W3 figures HIT.** Misses: the gate (170 polls, the battery limb —
+the between-pass rise to 296 was not foreseen) and the battery rise (−1).
+
+### W-A5 — THE REPEAT: W3 / V1
+
+**V1 ran FIRST in brief V, line 00 at 270 dC. W3 ran THIRD today, after two
+fp32 passes, line 00 at 285 dC (gate first poll 296).** Same boot, same file,
+same binary, same string shape.
+
+    W3 / V1 elapsed_ms sum    79,476 / 79,357 = 1.0015
+    per line RTF W3/V1        0.991 - 1.023; per line elapsed −92 to +88 ms
+    W3 / V1 wall_ms sum       115,098 / 114,960 = 1.0012
+    peak RSS W3 − V1          −844 to +2,124 kB per line
+    X1 poll-min               2,507,000 both
+    WAVs                      byte-identical, 18 of 18
+
+**Predicted 1.020 [0.97-1.08], stated as my estimate of pass-to-pass noise
+(21027). Measured 1.0015. HIT.** On this one repeat, the elapsed sum moved by
+0.15% between passes launched 1.5 C apart; per line by up to 2.3%. One repeat
+is one sample of the noise, not an estimate of its spread.
+
+### W-A1 (b) — W1 / W3, both TODAY
+
+**W1 ran FIRST today, line 00 at 271 dC; W3 ran THIRD, line 00 at 285 dC. The
+int8 side is today's W3.**
+
+    W1 / W3 elapsed_ms sum    59,468 / 79,476 = 0.7483
+    per line RTF W1/W3        0.724 (l02) - 0.768 (l15)
+    W1 / W3 wall_ms sum       99,966 / 115,098 = 0.8685
+
+**Predicted 0.745 [0.66-0.85] (21009). Measured 0.7483. HIT.** With (a),
+0.7494 against brief V's V1: the two int8 sides give ratios 0.0011 apart.
+
+### What this entry does NOT say
+
+- Nothing about real-time speech in a product. W3's RTF is over 1.0 on every
+  line and each line also paid 1,906-2,065 ms of load outside RTF.
+- Nothing about sound. Byte-identical WAVs say W3 and V1 produced the same
+  output; nothing says either sounds right.
+- One repeat pass does not give the spread of pass-to-pass noise.
+- W3 ran warmer at launch than V1 and came out the same speed; that is one
+  pass, and battery temperature is not chip temperature.

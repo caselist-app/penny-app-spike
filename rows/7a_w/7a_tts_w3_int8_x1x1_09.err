@@ -1,0 +1,8 @@
+/Users/mattstevenson/Documents/sherpa-onnx/sherpa-onnx/csrc/parse-options.cc:Read:374 /data/local/tmp/tts/sherpa-onnx-offline-tts --num-threads=2 --kokoro-model=/data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx --kokoro-voices=/data/local/tmp/tts/penny-kokoro-int8/voices.bin --kokoro-tokens=/data/local/tmp/tts/penny-kokoro-int8/tokens.txt --kokoro-data-dir=/data/local/tmp/tts/penny-kokoro-int8/espeak-ng-data --kokoro-lexicon=/data/local/tmp/tts/penny-kokoro-int8/lexicon-gb-en.txt --kokoro-lang=en --sid=22 --speed=1.0 --output-filename=/data/local/tmp/tts/out/7a_tts_w3_int8_x1x1_09.wav 'CI is green on the staging branch, and the migration ran in under 4 seconds.' 
+
+Number of threads: 2
+Elapsed seconds: 4.864 s
+Audio duration: 4.520 s
+Real-time factor (RTF): 4.864/4.520 = 1.076
+The text is: CI is green on the staging branch, and the migration ran in under 4 seconds.. Speaker ID: 22
+Saved to /data/local/tmp/tts/out/7a_tts_w3_int8_x1x1_09.wav successfully!

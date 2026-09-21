@@ -1,0 +1,47 @@
+PENNYTTS tag=7a_tts_w3_int8_x1x1_05 rc=0 mask=c0 threads=2 cool_gate=0
+PENNYTTS text=Revenue this month is £12,480.50, up 17.5% on August.
+PENNYTTS bin=/data/local/tmp/tts/sherpa-onnx-offline-tts
+PENNYTTS cool_wait_s     uptime 17544.03 -> 17544.07
+PENNYTTS cool_gate_first not run   (rev 2: the gate's first poll, scaling/cpuinfo per policy)
+PENNYTTS cool_gate_result GATE NOT RUN (COOL=0) wait_s=0.04   (rev 2)
+PENNYTTS uptime_s        before=17544.19 after=17553.88
+PENNYTTS wall_ms         8953   (exec to exit, taken in the launching subshell)
+PENNYTTS elapsed_ms      6976   (the binary's own Elapsed: generate only)
+PENNYTTS derived_load_ms 1977   (wall - elapsed: process start + load + WAV write + 2 date forks)
+PENNYTTS Number of threads: 2
+PENNYTTS Audio duration: 6.907 s
+PENNYTTS Real-time factor (RTF): 6.976/6.907 = 1.010
+PENNYTTS wav             sr=24000 ch=1 bytes=331546 samples=165773 ms=6907
+PENNYTTS memavail_kB     before=3256988 after=3239592
+PENNYTTS memfree_kB      before=1094844 after=1084664
+PENNYTTS swapfree_kB     before=2046584 after=2046584
+PENNYTTS cached_kB       before=2730508 after=2730860
+PENNYTTS pswpin          before=155573 after=155573
+PENNYTTS pswpout         before=601306 after=601306
+PENNYTTS pgmajfault      before=167301 after=167301
+PENNYTTS ceil_x1_kHz     before=2850000 min=2630000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+PENNYTTS ceil_x1_min_at  uptime=17547.45
+PENNYTTS ceil_a78_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq; key was ceil_a76_kHz in rev 1)
+PENNYTTS ceil_a78_min_at uptime=17544.19   (key was ceil_a76_min_at in rev 1)
+PENNYTTS ceil_a55_kHz    before=1803000 min=1803000 after=1803000   (policy0, cpus 0 1 2 3, rated 1803000 read from cpuinfo_max_freq; rev 2)
+PENNYTTS ceil_a55_min_at uptime=17544.19   (rev 2)
+PENNYTTS rated_kHz       policy0=1803000 policy4=2348000 policy6=2850000   (rev 2: read from cpuinfo_max_freq before the gate)
+PENNYTTS batt_temp_dC    before=285 after=285   (rev 2: BATTERY, tenths of a degree C -- NOT SoC)
+PENNYTTS peak_rss_kB     440076   (VmHWM, monotonic)
+PENNYTTS max_vmrss_kB    438744
+PENNYTTS max_rssanon_kB  388196   (anonymous -- NOT reclaimable)
+PENNYTTS max_rssfile_kB  50236   (file-backed -- reclaimable)
+PENNYTTS rss_samples     18   (sleep 0.2 s between samples; a short run may get very few; rev 2 counts not comparable with rev 1)
+PENNYTTS lmk_kill_lines  0
+PENNYTTS model_path      /data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx   (rev 3)
+PENNYTTS model_bytes     92363779   (rev 3: stat -c %s before the run; the file is not read)
+--- binary stderr (tail) ---
+/Users/mattstevenson/Documents/sherpa-onnx/sherpa-onnx/csrc/parse-options.cc:Read:374 /data/local/tmp/tts/sherpa-onnx-offline-tts --num-threads=2 --kokoro-model=/data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx --kokoro-voices=/data/local/tmp/tts/penny-kokoro-int8/voices.bin --kokoro-tokens=/data/local/tmp/tts/penny-kokoro-int8/tokens.txt --kokoro-data-dir=/data/local/tmp/tts/penny-kokoro-int8/espeak-ng-data --kokoro-lexicon=/data/local/tmp/tts/penny-kokoro-int8/lexicon-gb-en.txt --kokoro-lang=en --sid=22 --speed=1.0 --output-filename=/data/local/tmp/tts/out/7a_tts_w3_int8_x1x1_05.wav 'Revenue this month is £12,480.50, up 17.5% on August.' 
+
+Number of threads: 2
+Elapsed seconds: 6.976 s
+Audio duration: 6.907 s
+Real-time factor (RTF): 6.976/6.907 = 1.010
+The text is: Revenue this month is £12,480.50, up 17.5% on August.. Speaker ID: 22
+Saved to /data/local/tmp/tts/out/7a_tts_w3_int8_x1x1_05.wav successfully!
+--- kill lines ---
