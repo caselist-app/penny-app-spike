@@ -23464,3 +23464,78 @@ The resident RSS is a shell process's, not the app's. Battery temperature is
 not chip temperature. A shell process over adb on mains with the screen on is
 not a product process. It does not decide which file ships or which cores
 speak.
+
+## 2026-09-21 — BRIEF X, FINAL SUMMARY OF THE ROWS (not the closing entry — "BRIEF X, CLOSED" is the reviewer's). One resident Kokoro process per pass, 18 lines each: resident/fresh generate sum R1 1.0090, R2 0.9924, R3 1.0065 (vs W3) / 1.0080 (vs V1), R4 0.9904. The X1 pair came out slightly SLOWER resident, the A78 pair slightly faster. 72 of 72 WAVs byte-identical to the fresh-process references. 75 of 80 judged predictions HIT.
+
+Every figure: spent 21 Sept matrix boot, model page-cached, 2 threads, NOT a
+row-boot figure; each from the pulled report cited. Order today: R1, R2, R3, R4,
+each pulled, cmp'd and committed before the next. Every gate PASSED; none
+LAUNCHED WARM. R4's gate passed at poll 236 of 240.
+
+    pass                     entry   gate: batt / wait        load_ms     generate sum   fresh comparison (order, gate)                     ratio    RTF min/median/max          <1.0   VmRSS after load / after 17   X1 poll-min (line)
+    R1 fp32 X1 (c0)          22678   249 dC / 0.18 s          1,847.546   60,004.348     W1 59,468 (1st of W, 271 dC)                        1.0090   0.7428 / 0.8128 / 0.9771    18     475,824 / 717,436            2,188,000 (line 11)
+    R2 fp32 A78 (30)         22889   261 dC / 0.19 s          2,640.377   95,510.334     W2 96,238 (2nd of W, 285 dC)                        0.9924   1.2202 / 1.2938 / 1.7197     0     475,588 / 717,160            rated, nothing moved
+    R3 int8 X1 (c0)          23072   275 dC / 0.21 s          1,584.071   79,993.603     W3 79,476 (3rd of W, 285 dC); V1 79,357 (1st of V, 270 dC)   1.0065 / 1.0080   1.0098 / 1.0989 / 1.3069   0   255,688 / 587,916   2,401,000 (line 7)
+    R4 int8 A78 (30)         23273   285 dC / 1,221.21 s      2,308.443   99,294.615     V2 100,262 (2nd of V, 285 dC)                       0.9904   1.2693 / 1.3482 / 1.7419     0     255,592 / 587,420            rated, nothing moved
+
+Resident fp32/int8, generate sums (X-A3): X1 pair R1/R3 **0.7501** (R1 1st at
+249 dC, R3 3rd at 275 dC); A78 pair R2/R4 **0.9619** (R2 2nd at 261 dC, R4 4th
+at 285 dC after a 1,221 s gate). Fresh: 0.7494 / 0.7483 and 0.9599 (21734).
+Pass walls 62,289 / 98,664 / 81,976 / 102,105 ms, total 345,034 against the
+337,820 predicted (22405 §6, a point). Gate waits summed 1,221.79 s against
+"≤1.5 min in all": MISS. The resident max VmHWM was 10,400-12,688 kB above the
+fresh-process peak of its comparison in every pass (different measurements:
+a fresh peak is load plus ONE line). RSS stepped up at the long lines (4, 5, 15)
+and did not come back down before destroy.
+
+**Integrity, all four:** report rc=0, lines_ok=18, 18 line records, 0 kill
+lines, .err empty, no screen-off since boot (events buffer), out/ 594 → 618 →
+642 → 666 → 690, phone and pulled hash lists diff rc=0 per pass, rows/7a_x/ 26
+→ 130 files. **cmp 72 of 72 byte-identical**: fp32 against
+rows/7a_w/7a_tts_w1_fp32_x1x1_NN.wav, int8 against
+rows/7a_v/7a_tts_v1_x1x1_NN.wav. wrapper_exit=0 on all four is tee's status and
+is not the evidence; the reports' rc=0 is.
+
+**Predictions (26c1208, 22405), per pass:** R1 19/20 (MISS: X1 min line), R2
+18/19 (MISS HIGH: battery +5), R3 19/21 (MISS: X1 min line; MISS HIGH: battery
++8), R4 19/20 (MISS HIGH: gate wait) — **75 of 80**. Brief-wide: X-A1 4 of 4
+in band; X-A2 NO on both A78 passes, HIT; X-A3 both HIT; X-A4 NO on all four,
+HIT; X-A5 both files HIT; X-A6 value HIT, line MISS; X-B1 HIT on all four; all
+gates PASS, HIT; gate waits ≤1.5 min in all, MISS. Nothing was revised.
+
+**What the figures show, and where my framing was wrong.** I claimed a fresh
+process's "Elapsed" carried about 2-2.5% of first-run cost. On the A78 pair
+resident came out 0.76% and 0.96% faster; on the X1 pair it came out 0.65-0.90%
+SLOWER. Every X-A1 is inside its band only because the band allowed continuous
+running to cost up to 2% on the X1 pair. On both X1 passes the per-line ratio
+starts level or under 1.0 and ends above it, and the X1 poll-min was first seen
+earlier than I predicted (line 11 and line 7, not 14-15). One pass per shape
+cannot separate a first-run cost from the heat of running without gaps. No cause
+is claimed.
+
+**Corrections recorded:** R2's entry (22889) says "items 2-4 of R1's list"; it
+should say items 3-5 (recorded in R3's entry, 23072). No other correction.
+
+**Unchanged, computed at 21:38 after R4's commit:** pennytts.sh 90cbeea1…,
+pennybench.sh ca3f8414…, pennyspeak.sh dc2706fd…, pennyspeak.cpp 6bce6d7a…,
+CLAUDE.md lines 55-133 effd849c…. Nothing on the phone was overwritten or
+deleted; no settings changed; no reboot; no download.
+
+**Brief X commits:** fc4edc1 (steps A+B), 2b34627 (step C), db90538 (step C2),
+d6186d0 (step D/D2), 26c1208 (step E predictions), e81b984 (R1), f05e920 (R2),
+7a01c2e (R3), 22572fd (R4), and this entry.
+
+### What this entry does NOT say
+
+It is not the closing entry. One pass per shape, fixed order, spent boot,
+page-cached model: not row-boot figures, and load from flash is unmeasured. "The
+load is gone" is not a product fact: 1.6-2.6 s is paid once per process start.
+Nothing about time to first audio (the harness returns whole lines), chunking,
+other thread placements, TTS beside the LLM, fp16, the app, AudioTrack or
+pronunciation; nothing about how fp32 sounds against int8 — nobody has listened.
+A resident RSS in a shell process is not the app's, and is not comparable with a
+fresh-process peak. It does not say why the X1-pair resident passes ended slower
+than the fresh ones, or why the battery rose between passes (+12, +9, +8 dC).
+Battery temperature is not chip temperature. A shell process over adb on mains
+with the screen on is not a product process. It does not decide which file
+ships or which cores speak.
