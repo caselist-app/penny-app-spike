@@ -1,0 +1,32 @@
+PENNYLOAD prefix_snapshot_bytes=46683597 got=46683597 t_snapshot_ms=15.15
+PENNYLOAD turns=3 interval_s=0 n_gen_per_turn=64
+PENNYLOAD TURN k=1 uptime_s=17739.38 t_restore_ms=7.89 t_user_decode_ms=326.94 ttft_turn_ms=335.57 gen_tokens=64 gen_ms=4001.90 gen_tps=15.74 fnv=0xcba17a2fcbba49f4 busy_ms=4337.53 overrun=0
+PENNYLOAD TURN k=2 uptime_s=17743.72 t_restore_ms=8.22 t_user_decode_ms=347.95 ttft_turn_ms=356.34 gen_tokens=64 gen_ms=4058.86 gen_tps=15.52 fnv=0xcba17a2fcbba49f4 busy_ms=4415.24 overrun=0
+PENNYLOAD TURN k=3 uptime_s=17748.14 t_restore_ms=7.90 t_user_decode_ms=363.73 ttft_turn_ms=371.83 gen_tokens=64 gen_ms=4098.74 gen_tps=15.37 fnv=0xcba17a2fcbba49f4 busy_ms=4470.61 overrun=0
+PENNYLOAD tag=7a_d_rehearsal run_type=cached rc=0
+PENNYLOAD model=/data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf model_bytes=1107409472
+PENNYLOAD threads=2 n_ctx=1024 n_batch=2048 n_ubatch=512 n_gpu_layers=99
+PENNYLOAD load_mode=none extra_bufts=1 sampler=greedy
+PENNYLOAD chat_template=NONE   (both prompt files tokenised verbatim; no template applied)
+PENNYLOAD sys_file=(none) sys_bytes=-1 sys_tokens=-1 sys_add_special=1 sys_parse_special=1
+PENNYLOAD user_file=/data/local/tmp/penny_user.txt user_bytes=95 user_tokens=20 user_add_special=0 user_parse_special=1
+PENNYLOAD progress_calls=312
+PENNYLOAD t_backend_ms      2.39   (T1-T0,  ggml_backend_load_all)
+PENNYLOAD t_model_open_ms   412.77   (T2-T1,  header+hparams+vocab+alloc)
+PENNYLOAD t_tensor_band_ms  2202.97   (T3-T2,  tensor data read + repack)
+PENNYLOAD t_model_tail_ms   2.21   (T4-T3)
+PENNYLOAD t_model_total_ms  2617.95   (T4-T1,  llama_model_load_from_file)
+PENNYLOAD t_ctx_create_ms   34.02   (T5-T4,  llama_init_from_model)
+PENNYLOAD t_ready_ms        2654.37   (T5-T0,  READY TO GENERATE)
+PENNYLOAD t_tokenize_ms     0.31   (T6-T5)
+PENNYLOAD t_state_load_ms   19.22   (T7-T6)
+PENNYLOAD state_file=/data/local/tmp/q17_state.bin state_bytes=46685237 state_tokens_restored=407
+PENNYLOAD turns_done=3 turns_requested=3 turns_overrun=0 fnv_all_equal=1
+PENNYLOAD first_token_id=32313 token_fnv1a64=0xcba17a2fcbba49f4   (turn 1)
+PENNYLOAD ttft_turn_ms   min=335.57 median=356.34 max=371.83
+PENNYLOAD gen_tps        min=15.37 median=15.52 max=15.74
+PENNYLOAD quarters       n/a   turns_done=3 is fewer than 4, so no quarter exists
+PENNYLOAD SETTLED ttft_turn_ms q1_median=n/a q4_median=n/a decline_pct=n/a   (turns_done=3)
+PENNYLOAD SETTLED gen_tps      q1_median=n/a q4_median=n/a decline_pct=n/a   (turns_done=3)
+PENNYLOAD SETTLED gen_tps_turn1=15.74 settled_pct_of_turn1=n/a   (turns_done=3)
+PENNYLOAD DUTY busy_median_ms=4415.24 interval_ms=0 duty_pct=-1.00

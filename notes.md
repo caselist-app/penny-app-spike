@@ -17313,3 +17313,119 @@ have been caught by anything recorded here.
 The `TMAX=<TREF+15>` placeholder is not valid shell as written; it is replaced
 with an integer before the string is used. The gate reads battery temperature,
 which is not chip temperature.
+
+## 2026-09-21 — BRIEF U, STEP D REHEARSAL: the U1 gate string executed end to end, launch line included, on the SPENT boot. rc=0, 3 of 3 turns, fnv_all_equal=1, token_fnv1a64 0xcba17a2fcbba49f4, series_interval_s=7. INSTRUMENT CHECK, NOT A MEASUREMENT.
+
+**This is not a row and no figure in it is a measurement.** It ran on the spent
+21 Sept ~07:39 boot, at uptime 17,735-17,757 s, with the model already page
+cached from the A2 work and the rev 7 smoke earlier the same day. It exists for
+one reason: the gate entry (notes.md 17230) recorded that **the `pennybench.sh`
+launch line had never been exercised inside the gate string**, and a paste error
+there would not have been caught by anything on record. It has now been
+exercised.
+
+### THE STRING — three tokens differ from the recorded U1 form, and nothing else
+
+Line 17258 of this file was extracted, its four-space indent stripped, and two
+substitutions applied: `7a_q17_u1_x1x1` -> `7a_d_rehearsal` (both occurrences)
+and `--turns 100` -> `--turns 3`. Diffed as whitespace-separated tokens against
+the original:
+
+    token 130   7a_q17_u1_x1x1  ->  7a_d_rehearsal    (pennybench.sh's first argument)
+    token 148   100             ->  3                 (--turns)
+    token 152   7a_q17_u1_x1x1  ->  7a_d_rehearsal    (--tag)
+
+No other token differs. Inner command 1,342 chars against the U1 form's 1,344 —
+the two-character difference is exactly `100` -> `3`, both tags being 14
+characters. Two single quotes in the whole string, **zero inside the outer
+pair**. `sh -n` on the inner command: rc=0 (Mac `sh`, parse only).
+
+`ls` before the run: `/data/local/tmp/out/` held 72 files and no
+`7a_d_rehearsal.*`.
+
+### WHAT CAME BACK — the three terminal lines, verbatim
+
+    GATE FIRST p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt=258 uptime_s=17735.68
+    GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_temp_dC=258 TREF_dC=258 polls_failed=0 gate_start_uptime_s=17735.68 uptime_s=17735.91 wallclock=12:35:08
+    ROW_DONE uptime_s=17756.56 wallclock=12:35:29 batt_temp_dC=258
+
+Gate passed on the first poll, `polls_failed=0`, 0.23 s from gate start to
+launch. **All three clusters were at rated when the gate looked**, each read
+against its own `cpuinfo_max_freq`. 20.65 s from gate pass to `ROW_DONE`.
+
+**The launch line works.** `ROW_DONE` printed, which only happens after
+`pennybench.sh` returns, and the five output files exist.
+
+### FROM out/7a_d_rehearsal.report — the keys the brief named
+
+    PENNYBENCH tag=7a_d_rehearsal rc=0 mask=c0
+    PENNYLOAD turns_done=3 turns_requested=3 turns_overrun=0 fnv_all_equal=1
+    PENNYLOAD first_token_id=32313 token_fnv1a64=0xcba17a2fcbba49f4   (turn 1)
+    PENNYBENCH ceil_x1_kHz     before=2850000 min=2401000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+    PENNYBENCH ceil_x1_min_at  uptime=17748.51   (12 s into the row)
+    PENNYBENCH ceil_a76_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq)
+    PENNYBENCH ceil_a76_min_at uptime=17736.18   (0 s into the row)
+    PENNYBENCH ceil_a55_kHz    before=1803000 min=1803000 after=1803000   (policy0, cpus 0 1 2 3, rated 1803000 read from cpuinfo_max_freq)
+    PENNYBENCH ceil_a55_min_at uptime=17736.18   (0 s into the row)
+    PENNYBENCH series_interval_s 7   (rev 7: was 10; 7 divides neither 60 nor 5 -- notes.md 15557)
+
+**`token_fnv1a64` is 0xcba17a2fcbba49f4** — the reference value, the same one
+the 6a produced on S0 and all 260 S restores, and the same one every 7a row has
+produced. `fnv_all_equal=1`: all three turns agree.
+
+**rev 7's new instrument reported for the first time in a gated run:**
+`ceil_a55` is polled at 0.2 s and carries `before`/`min`/`after`/`min_at`, and
+it read **1,803,000 throughout — policy0 never left rated in these 20.65 s**.
+`ceil_x1` dipped to 2,401,000 (84.25% of rated) 12 s in and was back at rated by
+the end. **Neither figure means anything about a row**: 20.65 s of work on a
+spent boot is not a thermal exposure.
+
+### THE REST, for completeness — all instrument check, none of it a measurement
+
+    PENNYLOAD TURN k=1 ... ttft_turn_ms=335.57 gen_tokens=64 gen_ms=4001.90 gen_tps=15.74 fnv=0xcba17a2fcbba49f4
+    PENNYLOAD TURN k=2 ... ttft_turn_ms=356.34 gen_tokens=64 gen_ms=4058.86 gen_tps=15.52 fnv=0xcba17a2fcbba49f4
+    PENNYLOAD TURN k=3 ... ttft_turn_ms=371.83 gen_tokens=64 gen_ms=4098.74 gen_tps=15.37 fnv=0xcba17a2fcbba49f4
+    PENNYLOAD state_file=... state_bytes=46685237 state_tokens_restored=407
+    PENNYLOAD t_ready_ms 2654.37   t_tensor_band_ms 2202.97   t_state_load_ms 19.22
+    PENNYBENCH oom_score_adj_child pre=-1000 post=200
+    PENNYBENCH lmk_kill_lines 0   (.kills is 0 bytes)
+    PENNYBENCH peak_rss_kB 1546188 (VmHWM)   rss_samples 28
+    PENNYBENCH memavail_kB before=3819720 after=3794436
+    PENNYBENCH swapfree_kB before=2355928 after=2355928   (61.67% of SwapTotal 3,820,148)
+    PENNYBENCH cached_kB   before=1708828 after=1708916   (+88 kB)
+    PENNYBENCH batt_temp_dC before=258 after=258
+    PENNYBENCH series_file 3 samples
+
+`SETTLED` reads `n/a` in every limb, correctly: `turns_done=3` is fewer than 4,
+so no quarter exists. `t_ready_ms` 2,654.37 against T2's 3,204.69 (notes.md
+15220) is a page-cache difference on a spent boot, **not a load-time finding**.
+`Cached` rose 88 kB — the void limb is nowhere near, but the model was already
+resident, so that is arithmetic about a cache hit, not a contamination reading.
+
+### THE FILES
+
+Pulled raw to `rows/7a_u/`, no edits. Each hashes identically on the Mac and on
+the phone:
+
+    db7dfdd2d67d02412473e519ca01f6dbddc756835bf5b936e40e8dbb0ff2488c  7a_d_rehearsal.report   6,377 B
+    824c0c60639777e3830122f5ed167174470aa0f6b7b453cc05c398e70f887997  7a_d_rehearsal.bench    2,614 B
+    462b73499128ac0c025b902706950a26574743a9e41d37436aca2fe2b2b1e94d  7a_d_rehearsal.series     450 B
+    ebfb11fcb7babc646cb969febc6b6b9b5ba373b4ddcae898dd42ab939b912d47  7a_d_rehearsal.err     69,378 B
+    e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  7a_d_rehearsal.kills        0 B
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+**It is not a row and nothing in it is a measurement.** The boot is spent, the
+model was page cached, the chassis had been idle since 12:09, and three turns is
+not an exposure. No speed, ceiling, battery or memory figure above may be
+quoted as a 7a result or compared with T1, T2, T3 or any U row.
+
+It does not exercise the U2-U4 form — that string has `TMAX` and the battery
+condition back in its exit test, and neither has been executed. It does not
+exercise the timeout path with `CAP=240`; dry run B (notes.md 17230) exercised
+the timeout logic with `CAP=2` and an echo in place of the launch. It does not
+say the gate will pass on the fresh boot, or how long it will wait.
+
+It says nothing about masks `30`, `d0` or `f0`, about `-t 3` or `-t 4`, or about
+whether the fnv survives a change of thread count — U-A4 remains open with no
+data either way.
