@@ -15553,3 +15553,306 @@ phone is left as it is: on the cable, unlocked, screen on. Nothing was deleted.
 
 What this entry does NOT say: "BRIEF T, CLOSED". The closing entry, with the
 scorecard, is the reviewer's to take.
+
+## 2026-09-21 — BRIEF T, CLOSED. On the 7a a resident 1.7B model answers once a minute for an hour with no decay, falls to 57.51% of its cool speed when driven back to back for 24.70 minutes, and is back within 1% of the conversational figure by the next hour — and the one clock number this repo has quoted twice, "X1 100.00% at rated", turns out to be an artefact of where the samples fell.
+
+The closing entry for brief T. **Three measured rows, one boot, one model, one
+handset (Pixel 7a, lynx, 37291JEHN04619).** Everything below is quoted from the
+row entries with its notes.md line; nothing here is a new measurement and no
+phone command was run in this session.
+
+    row boot   19 Sept, Qwen3-1.7B-Q4_K_M, c0, -t 2, -c 1024, -lm none, -n 64,
+               --load-state q17_state.bin, AC, screen on, unlocked, untouched
+    T1         7a_q17_t1_conv_60m   60 turns, --interval-s 60   (notes.md 15016)
+    T2         7a_q17_t2_b2b       200 turns, --interval-s 0    (notes.md 15163)
+    T3         7a_q17_t3_recover    60 turns, --interval-s 60, no gate (notes.md 15333)
+
+### CORRECTION TO AN EARLIER ENTRY, first, per the rule
+
+**T2's entry (notes.md 15163) writes "Settled / turn 1 = 8.90 / 15.47 =
+57.51%" (notes.md 15225). That division, done on the two printed 2-dp
+medians, gives 57.53%.** The 57.51% is correct and is pennyload's own
+`settled_pct_of_turn1` (notes.md 15218), computed from the unrounded medians;
+it is the shown arithmetic that does not reproduce it. The same is true of the
+other two rows and there it is not written as a division: T1 prints
+`settled_pct_of_turn1=97.01` where 15.15 / 15.62 = 96.99% (notes.md 15059), and
+T3 prints `155.72` where 15.00 / 9.63 = 155.76% (notes.md 15377). **Rule taken
+from it: ratios in these entries come from the binary's full-precision values;
+recomputing them from the printed medians differs by up to 0.04 points.** No
+measured value and no verdict changes. The earlier entries are not edited.
+
+### 1. THE SCORECARD — 14 conditions and 8 derived figures
+
+`verdict` is against the fail condition where one exists; `band` is whether the
+measured value landed inside the band committed in the predictions entry
+(notes.md 14659), before the reboot.
+
+    #     prediction                       point / band            fail if      measured                   line     verdict  band
+    ----  -------------------------------  ----------------------  -----------  -------------------------  -------  -------  -----
+    T-A1  T1 ttft settled decline          -0.44% / -5 to +5%      > 25%        +0.07%                     15057    PASS     HIT
+    T-A2  T1 gen_tps settled decline       -0.20% / -5 to +5%      > 25%        +0.96%                     15058    PASS     HIT
+    T-A3  T2 settled gen_tps / turn 1      54.77% / 45-70%         < 50%        57.51%                     15218    PASS     HIT
+    T-A4  fnv_all_equal, every row          1 / --                 any 0        1, 1, 1; 60/200/60 turns   15052,   PASS     n/a
+                                                                                all 0xcba17a2fcbba49f4     15211,
+                                                                                                           15370
+    T-A5  T3 settled / T1 settled          99% / 95-101%           (none; brief  99.01%                    15386    n/a      HIT
+                                                                   wanted >=95%)
+    T-B1  T1 survives at adj 200           survives / --           otherwise    rc=0, 60/60, post=200,     15040-   PASS     HIT
+                                                                                no kill naming pennyload   15047
+    T-B2  kills past minute 5 of T1        0 past min 5;           any past     0 kills in the whole row,  15043,   PASS     HIT
+                                           0 at load, band 0-2     minute 5     .kills is 0 bytes          15087
+    T-B3  SwapFree min through T1          1,620,000 kB /          < 382,015    1,866,104 kB = 48.85%      15044    PASS     HIT
+                                           1,000,000-2,000,000                  of SwapTotal 3,820,152
+    T-B4  (i) MemAvailable, ~25 min        3,000,000 kB /          --           3,405,124 kB at 1497.93 s  14990,   n/a      HIT
+                                           2,500,000-3,600,000                                             15002
+    T-B4  (ii) MemAvailable, T1 midpoint   1,600,000 kB /          --           1,910,116 kB (turn 30,     15105-   n/a      HIT
+                                           1,100,000-2,200,000                  nearest series 3264.30)    15106
+    T-B5  cached_kB across T1              -190,344 kB /           void if a    **+236,492 kB (a RISE)**   15146    PASS     **MISS**
+                                           -600,000 to +200,000    fall >=      1,909,108 -> 2,145,600     15045    (limb
+                                                                   865,163                                          not met)
+    T-B6  pswpin / pgmajfault across T1    +20,768 / +21,192;      (none)       +5,073 / +5,242            15147,   n/a      HIT
+                                           band 0-120,000 each                                             15149
+    T-C1  (a) T1 series at rated, X1       100% / >= 95%           --           100.00% (355 of 355)       15118    n/a      **NOT
+                                                                                                                    JUDGEABLE**
+    T-C1  (b) T1 poll min, X1              65% of rated /          --           2,507,000 = 87.96%,        15117    n/a      HIT
+                                           45-90%                               at uptime 3032.43
+    T-C2  battery temp, T1/T2/T3           no prediction           --           T1 280->330 dC, +0.0845    15129-   n/a      n/a
+                                                                                T2 330->393, +0.2551       15133,
+                                                                                T3 393->341, -0.0879 C/min 15293-
+                                                                                                           15297,
+                                                                                                           15483-
+                                                                                                           15487
+    T-C3  (a) A55 in T2, series min        40.93% (738,000) /      --           **94.51% (1,704,000),      15283    n/a      **MISS**
+                                           25-80%                               one sample of 149**
+    T-C3  (b) A55 in T2, fraction rated    26.75% / 10-60%         --           **99.33% (148 of 149)**    15283    n/a      **MISS**
+    ----  derived figures, no fail conditions
+    D-T1  T1 ttft, turn 1                  380 ms / 330-450        --           342.37 ms                  15071    --       HIT
+    D-T2  T1 gen_tps, turn 1               15.4 t/s / 14.0-16.5    --           15.62 t/s                  15059    --       HIT
+    D-T3  T1 duty                          7.4% / 6.5-8.5%         --           7.46%                      15060    --       HIT
+    D-T4  T2 turn-1 gen_tps                15.4 t/s / 14.0-16.5    --           15.47 t/s                  15218    --       HIT
+    D-T5  T2 settled gen_tps               8.43 t/s / 6.9-10.8     --           8.90 t/s (q4 median)       15217    --       HIT
+    D-T6  T2 duration                      26 min / 20-32 min      --           24.70 min                  15197    --       HIT
+    D-T7  T3 turn-1 / T1 turn-1            60% / 50-95%            --           61.65% (9.63 / 15.62)      15387    --       HIT
+    D-T8  gate wait before T2              0 failed polls / 0-12   --           polls_failed=0, 0.14 s     15189,   --       HIT
+                                                                                                           15199
+
+**EVERY FAIL CONDITION PASSED. THREE BANDS MISSED: T-B5 and both limbs of
+T-C3. ONE FIGURE IS NOT JUDGEABLE: T-C1(a).**
+
+Also predicted alongside T-C3 and not scored: X1 series minimum in T2, point
+35% of rated. Measured **984,000 = 34.53%** (notes.md 15279) — the same absolute
+kHz floor as the 6a's S2 (notes.md 12793).
+
+**T-C1(a) IS RECORDED AS NOT JUDGEABLE, NOT AS A HIT.** T1's series reads 355 of
+355 X1 samples at rated (notes.md 15118), which is inside the >=95% band; but
+T3's entry establishes that T1's ten-second samples all landed **after** each
+turn's work had finished, so the figure cannot answer the question it was
+written for. The offsets, from the uptimes in the `.series` and `.bench` files
+(notes.md 15466-15468):
+
+    T1  samples at  6 s:59  16 s:59  26 s:59  36 s:59  46 s:59  56 s:60   after turn start
+    T3  samples at  2-3 s:60  12-13 s:59  22-23 s:59  32-33 s:59  42-43 s:59  53 s:60
+    T3  below-rated samples, by offset:  2-3 s: 57   12-13 s: 2
+
+Each turn is busy ~4.5 s (T1 busy_median 4,477.14 ms, T3 4,578.74, notes.md
+15470). T1's samples fell 6 s after each turn started, i.e. ~1.5 s after it
+ended; T3's fell at 2-3 s, inside the work — and 57 of T3's 59 below-rated
+samples after recovery are the in-turn ones (notes.md 15458-15477). **T1's
+100.00% says the ceiling was at rated between turns. It says nothing about the
+ceiling during a turn, which is what T-C1 was asking.**
+
+**THE SAME EXPOSURE APPLIES TO THE 6a's S1 FIGURE AT notes.md 12774** — "X1 355
+of 355 samples at 2,802,000 = 100.00%", quoted in the brief S closing entry and
+in this entry's comparison table below. S1's sample phase has never been
+checked. **That line is not edited; this caveat is the record.** Brief S already
+said the 100.00% is "a fact about the sampling rate, not about the clock"
+(notes.md 12779-12781); what is new is that the phase can make it a fact about
+the *gaps between turns* specifically.
+
+### 2. THE MISSES, NAMED
+
+**T-B5 — predicted a fall in `Cached`, measured a rise of 236,492 kB.** Point
+-190,344 kB, band -600,000 to +200,000; measured **1,909,108 -> 2,145,600 =
++236,492** (notes.md 15146, 15045), 36,492 kB above the top of the band. The
+prediction was built from the 6a's S1 (-190,344 kB, notes.md 12225) and allowed
+for the 6a's S0 first-load case (+37,904 kB); the 7a's first read of the GGUF
+since power-on put **more** into page cache than the row displaced. The
+consequence is the one that mattered: the void limb needed a fall of 865,163 kB
+or more (notes.md 14818-14821), and a rise does not meet it, so T2 and T3 ran.
+T2 and T3 then both fell — -185,124 kB (17.12% of the model) and -193,188 kB
+(17.86%) (notes.md 15205, 15364) — neither near the limb.
+
+**T-C3 — predicted the A55 cluster to throttle to ~41% of rated and spend
+three quarters of the row below it; it moved once, one sample, to 94.51%.**
+Point series min 40.93% (738,000 kHz) band 25-80%, fraction at rated 26.75%
+band 10-60%; measured **148 of 149 samples at rated = 99.33%, the single
+exception 1,704,000 kHz = 94.51% at uptime 6072.26** (notes.md 15283). Both
+limbs miss, and they miss in the direction of the 7a being less constrained,
+not more. The input was the 6a's S2 (notes.md 12537, 12793), where policy0 fell
+to 40.93% on a row that scheduled nothing onto it — the first time this repo saw
+the package-wide limiter reach the small cluster. **On the 7a, under the same
+row shape and a longer row, it did not happen.** Whether that is silicon,
+kernel, thermal headroom or the 1,922,028 kB of extra MemTotal (notes.md 14791)
+is not established here and no cause is claimed.
+
+No derived figure missed its band. D-T6 came in at 24.70 min against a 26 min
+point (notes.md 15197) — inside 20-32, and 1.33 min shorter than the 6a's S2.
+
+### 3. THREE FINDINGS CARRIED FORWARD AS OPEN — no cause claimed for any
+
+**(a) Large swap-in bursts on the 7a with nothing of ours running.** Three
+occurrences, all on this handset:
+
+    between the two smoke runs   pswpin 22,877 -> 110,586 (+87,709),
+    (bring-up boot)              pgmajfault 33,963 -> 122,010 (+88,047)
+                                 notes.md 14445-14447, 14524-14526, 14600
+    T1 after -> T2 before        pswpin 11,810 -> 99,836 (+88,026),
+    (99.29 s, row boot)          pgmajfault 23,149 -> 111,178 (+88,029);
+                                 SwapFree ROSE 1,866,104 -> 2,072,952 (+206,848)
+                                 notes.md 15316-15320
+    T2 after -> T3 before        pswpin 103,658 -> 120,220 (+16,562),
+    (4.47 s, row boot)           pgmajfault 115,097 -> 131,667 (+16,570)
+                                 notes.md 15507-15509
+
+In the 99.29 s window the phone ran five `adb pull`s of small text files and
+nothing else of ours (notes.md 15319-15320); the 4.47 s window holds T2's
+process exit and pennybench's own report and `dumpsys` calls (notes.md
+15509-15510). **Two of the three bursts are ~88,000 and land within a few
+hundred of each other; the third is ~16,500.** By contrast the deltas *across*
+each row are small: T1 +5,073 pswpin, T2 +3,822, T3 +3,072 (notes.md 15147,
+15311, 15501). **Whatever is doing this is not our row.** Open: what it is,
+whether it is one actor or several, and whether it would touch a product
+process. Nothing here says it is harmful.
+
+**(b) The X1 ceiling dips inside a conversational turn, at one turn a minute,
+and only the 0.2 s poll can see it.** T1's 10 s series: 355 of 355 at rated
+(notes.md 15118). T1's 0.2 s poll: minimum **2,507,000 = 87.96% of rated** at
+uptime 3032.43, 1,509 s in (notes.md 15117). T3's last quarter, whose samples
+fall inside the work: **15 of 85 below rated, 14 of those at 2,630,000 =
+92.28%, minimum 2,507,000 = 87.96%** (notes.md 15449-15450) — an hour after T2,
+on an otherwise fully recovered clock. So the dip is not a one-off and is not
+confined to a hot row; it recurs turn by turn and is shorter than a 10 s sample
+interval. **The instrument, not the phone, is what decides whether it is seen.**
+Open: how deep and how long it actually goes, which a 0.2 s poll bounds but does
+not resolve, and whether it costs anything a user would notice — T1's per-turn
+gen_tps spread was 14.97-15.62 across the whole hour (notes.md 15055).
+
+**(c) The A78 pair never left rated during T2's 24.70 minutes while the X1 pair
+sat at 984,000 kHz.**
+
+    T2, 1,482.14 s, 100% duty, taskset c0 (X1 pair only)
+      policy6 (X1)   984,000 kHz     =  34.53% of its rated 2,850,000   (notes.md 15279)
+      policy4 (A78)  2,348,000 kHz   = 100.00% of its rated 2,348,000   (notes.md 15282)
+      policy0 (A55)  1,803,000 kHz   =  99.33% of samples at rated      (notes.md 15283)
+
+The poll loop shows policy4 never moved at all, and its series is 149 of 149 at
+rated (notes.md 15282). Put plainly: **the cluster doing the work was held to
+about a third of its ceiling while the idle mid cluster kept all of its.** This
+is an observation about **ceilings** — `scaling_max_freq`, what the governor
+will permit — read on a row where `taskset c0` scheduled nothing onto policy4.
+**It is NOT a measurement of A78 decode speed, and nothing here says a row
+pinned to the A78 pair would be faster than 8.90 t/s.** No such row has been
+run on the 7a. It also differs from the 6a, where S2's A76 pair fell to 30.89%
+of rated (notes.md 12790). Open: whether the limiter on this SoC is
+per-cluster rather than package-wide, and what an `f0` or `30` row actually
+does — which is a measurement, not an inference.
+
+### 4. A PROPOSAL ONLY — what a pennybench rev 7 would need. NOTHING IS CHANGED HERE.
+
+`pennybench.sh` is not edited by this entry; it stays at rev 6, sha256
+`ddb39f3c68c32f4a8cc30fc4aa0cf6d374b8377e805cf062e0318fdd34a8aa24` (notes.md
+14252). The defect finding (a) in T-C1 exposes is that a **10 s sample interval
+against a 60 s turn interval is a 1:6 ratio, so every sample lands at the same
+phase of every turn** and the row can report 100.00% at rated for an hour
+without one sample having been taken while the CPU was busy. Three candidate
+fixes, for whoever writes rev 7:
+
+1. **A sample interval that does not divide the turn interval** — e.g. 7 s or
+   11 s against 60 s — so the phase walks across the turn and every part of it
+   is eventually sampled. Cheapest change; costs nothing at runtime; does not
+   guarantee any single turn is sampled while busy, only that the row as a whole
+   is.
+2. **One ceiling read taken inside each turn's work**, emitted by the harness
+   at a fixed offset after the turn starts (the turn is busy ~4.5 s, so ~2 s in),
+   giving one in-turn reading per turn with no sampling-phase question at all.
+   Needs the wrapper to know when a turn starts, which today it does not.
+3. **Report the sample phase as a column**, i.e. each series line carries its
+   offset from the most recent turn start, so the phase is visible in the file
+   and a "100% at rated" can never again be quoted without it. Weakest of the
+   three — it documents the problem rather than fixing it — but it is the only
+   one that also makes old rows re-readable.
+
+Not a recommendation between them; that is the reviewer's and Matt's call, and
+any rev 7 changes a hash that three rows on two handsets were measured against.
+
+### 5. 7a AGAINST 6a — PREDICTIONS JUDGED, NOT A CONTROLLED PAIR
+
+**These are not a matched pair.** Different silicon (GS201 vs the 6a's Tensor
+G1), different RAM (7,640,312 kB vs the 6a's MemTotal, 1,922,028 kB less —
+notes.md 14791), different rated ceilings, different boots, different days,
+different binaries only insofar as `pennybench.sh` went rev 5 -> rev 6. Each 7a
+figure below was a prediction taken from the 6a figure beside it; the 6a figures
+are quoted from brief S's closing entry (notes.md 12639) and are **from an
+earlier session**.
+
+    what                              7a (19 Sept)                  line    6a (18 Sept)                   line
+    --------------------------------  ----------------------------  ------  -----------------------------  ------
+    settled gen_tps / turn 1,         57.51%  (8.90 / 15.47)        15218   54.77%  (8.24 / 15.04)         12725
+      back to back                    over 200 turns, 24.70 min     15197   over 200 turns, 26.03 min      12725
+    MemAvailable, model resident      1,910,116 kB at T1's          15105   932,128 kB at S1's last        12737
+                                      midpoint (turn 30)                    series sample
+    small cluster (A55) back to back  148 of 149 samples at rated   15283   42 of 157 at rated = 26.75%,   12793
+                                      = 99.33%; one at 94.51%               min 738,000 = 40.93%
+    X1 floor back to back             984,000 kHz = 34.53%          15279   984,000 kHz = 35.12%           12793
+    kills                             T1 0; T2 1 at adj 915;        15043,  S1 2 at adj 945 and 935, both  12744
+                                      T3 1 at adj 915 — each one    15203,  in the first 4 s; S2 0         12749
+                                      cached, at model load         15362
+    deepest adj the killer reached    915                           15203   935                            12744
+    recovery after a back-to-back     T3 settled = 99.01% of T1's;  15386,  **S3 NOT RUN** — Matt's call   12862
+      row                             turn 3 within 6.1% of it      15395
+
+The two headline rows agree with each other more than the prediction bands
+required: back to back, both handsets settle a little above half their cool
+speed, and both stop at the same absolute X1 floor of 984,000 kHz. **The two
+that disagree are the small cluster (b) and the memory headroom** — and the
+memory difference is the RAM, which was known before the row.
+
+### 6. WHAT BRIEF T DOES NOT SAY
+
+**One boot, one row each, no error bars.** T1, T2 and T3 ran consecutively on a
+single boot of a single handset; T2 inherited T1 (it began at T1's end battery
+temperature, 33.0 C, notes.md 15300-15301) and T3 inherited both. Nothing was
+repeated, so no figure here has a spread. The 6a comparison is one boot against
+one boot.
+
+**adj 200 was never tested under pressure.** All three rows met the definition
+— rc=0, `turns_done == --turns`, no kill line naming pennyload, `post=200` read
+back (notes.md 15047, 15207, 15366) — but the killer's deepest reach on this
+boot was **adj 915**, on cached processes, at model load, 700 points away
+(notes.md 15203, 15362). As brief S put it for the 6a: the phone never tried.
+And these are shell processes launched over adb with their adj raised by the
+wrapper, **not** services started from a boot broadcast.
+
+**The same 20-token turn on the same 407-token prefix, 320 times, and no
+quality judged.** Every turn restores an identical 407-token prefix
+(`state_tokens_restored=407`, notes.md 15062); the context never grows, the
+model never sees its own output, the KV cache is never extended.
+`fnv_all_equal=1` and 320 hits of `0xcba17a2fcbba49f4` mean every generation was
+byte-identical by construction (notes.md 15052-15053, 15211-15212,
+15370-15371) — a correctness check on the restore path, not evidence that the
+answers are good. **No output text was read or judged in this brief.**
+
+**Battery temperature is not chip temperature.** `/sys/class/thermal` is
+Permission denied to the shell user on this build, so every temperature in
+brief T is `/sys/class/power_supply/battery/temp` in deci-Celsius. There is no
+SoC temperature anywhere in this brief, and the thermal story above is inferred
+from clock ceilings, not from a die reading.
+
+**Mains power, screen on, a shell process over adb.** All three rows at 100%
+charge on AC with the screen awake and the phone untouched. What this silicon
+does on battery, with the screen off, is unmeasured — as is anything started at
+boot, the whole point of rungs 3 and 3d, which has still never been run together
+with these sustained figures.
+
+**And: nothing here re-measures the 6a, nothing here touches TTS, STT or a
+second model in memory, and no row on the 7a has used any mask but `c0`.**

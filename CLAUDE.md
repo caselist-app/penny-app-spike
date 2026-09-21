@@ -145,7 +145,7 @@ one), 14252 (stay awake, rev 6), 14306 (gate, push, smoke tests).
     Boot key      508d75dea10c5cbc3e7632260fc0b59f6055a8a49dd84e693b6d8899edbb01e4 — compared on screen by Matt; not read by the builder
     OEM unlocking ON per Matt's on-screen reading; not readable from shell (sys.oem_unlock_allowed empty, dumpsys oem_lock empty)
     Memory        MemTotal 7,640,308 kB; SwapTotal 3,820,148 kB, zram
-    Boot          bring-up boot SPENT (push, smoke a, smoke b; smoke a met the Cached contamination limb). No row boot yet.
+    Boot          bring-up boot SPENT (push, smoke a, smoke b; smoke a met the Cached contamination limb). ROW BOOT ALSO SPENT: T1 (notes.md 15016), T2 (15163), T3 (15333), the pulls and the post-T3 re-hash (15521). Brief T is CLOSED (15557).
     Stay awake    stay_on_while_plugged_in=15 (set by Matt by hand), screen_off_timeout=30000
     Charging      no charge-limit settings key; dumpsys battery "Charging policy: 1" (= default, builder's memory)
     adb shell     oom_score_adj -1000
@@ -237,6 +237,9 @@ cmake and no download. `pennytts.sh` is TTS rung 1's wrapper.
 | Q-A/Q-B | Cold load and cached-prefix TTFT | 11 of 12 pass; 4.099 s to first token from cold with a cached prefix (1.7B) | 16-18 Sept | 10995 |
 | S | Sustained: one turn a minute for an hour, then 200 back to back | S1 no decay; S2 loses 45% in ~4 min then holds at 54.77%; nothing killed above adj 935 | 18 Sept | 12639 |
 | TTS 1 | Does Kokoro int8 run on the 6a? | runs, RTF 1.067-1.570, never real time — see below | 18 Sept | 13753 |
+| T1 | 7a, one turn a minute for an hour: does it decay? | NO — settled gen_tps 0.96% slower, ttft 0.07%, 60/60, no kills | 19 Sept | 15016 |
+| T2 | 7a, 200 turns back to back: where does it settle? | 57.51% of turn 1, at an X1 ceiling of 984,000 kHz; 1 cached kill at load | 19 Sept | 15163 |
+| T3 | 7a, does it recover after T2 with no cooling gate? | YES — settled 99.01% of T1's; within 6.1% by turn 3; X1 rated within 150 s | 19 Sept | 15333 |
 
 **TTS rung 1 — CLOSED on the 6a, 18 Sept (branch `tts-kokoro`, merged 19
 Sept).** Kokoro int8 (`penny-kokoro-int8`, sid 22) under sherpa-onnx
@@ -266,8 +269,9 @@ root.
 
 ## What is next
 
-- **Brief T — the 7a bring-up and the same sustained rows (T1, T2, T3
-  recovery).** Every 6a number is a PREDICTION for the 7a, never a baseline.
+- **Brief T is CLOSED** (notes.md 15557). Every 6a number was a PREDICTION for
+  the 7a, never a baseline, and stays that way.
+- **Stage 1b — LLM tuning rows on the 7a.** The brief comes from the reviewer.
 - **Not done, in the order Brief S left them:** the `-ub` test that separates
   batch size from micro-batch size; the on-device VOICE bake-off — Kokoro-82M
   `bf_isabella` and `kokoro-onnx` int8 under sherpa-onnx (**Matt's decision,
