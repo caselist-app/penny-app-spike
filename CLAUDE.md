@@ -181,6 +181,8 @@ one), 14252 (stay awake, rev 6), 14306 (gate, push, smoke tests).
     libonnxruntime.so       22,249,560 B     sha256 33847ad43bffe204699fd4a27f7f3603452a8cdaf2f9a44983a0bc31ffcf2da1
     pennytts.sh rev 2       19,278 B         sha256 3200e06cfed274d34cc459a919d7a3c08307eeea2749867caba805ae49c3d17b  (three-policy gate, GATECAP 240, optional TMAX — notes.md 18977)
     pennytts.sh rev 3       20,351 B         sha256 90cbeea1eb05e3857a5702ca97ab9439d7cae94a34b6a7a0e66a5fa69c784b88  OVERWROTE rev 2 on the phone 21 Sept ~16:50 (brief W step D, notes.md 20666). MODELDIR/MODELFILE env, defaults = rev 2's; keys model_path, model_bytes last (notes.md 20593)
+    pennyspeak              2,466,712 B      sha256 9be8e0e44d868460f6408209c9590ea7c1291ce6823b4a2c60352d6d540ba14f  (= build/pennyspeak/pennyspeak-stripped; resident Kokoro over sherpa-onnx's C API, brief X, notes.md 21761; pushed 21 Sept ~18:36, chmod 755; = the Mac build by sha256 only)
+    pennyspeak.sh           18,157 B         sha256 dc2706fdd1b497fbc2528a00a90e71a936ef014c08c4ed723ce3f598ba48c698  -rw-rw-rw-, run as `sh pennyspeak.sh`; OVERWROTE 9a306482… (Matt's named exception) 21 Sept ~19:18 (brief X step D2, notes.md 22063)
     penny-kokoro-int8/      360 files, 38 dirs, 150,880,597 B; every file hashed, list at rows/7a_v/7a_tts_push_phone.sha256
       model.int8.onnx       92,363,779 B     sha256 a089794d1293b91e82f3f2b8bed5417d04ac64447d6ada5f21045cde0799bf99
       voices.bin            28,200,960 B     sha256 1c5a5b983d3d50d8586d437a51f3faa2da7919ce76a013c081e65671a3447c29
@@ -191,6 +193,7 @@ one), 14252 (stay awake, rev 6), 14306 (gate, push, smoke tests).
       model.fp32.onnx       325,534,862 B    sha256 a0986d39118221f730dd3322900071075bab81b9b71cf44ef67617066f62409f  (kokoro-v1.0.onnx + sherpa fp32's 16 metadata_props, notes.md 20440; input has no hash from its originating project, matched only against the fastrtc/kokoro-onnx HF mirror)
       voices.bin, tokens.txt, both lexicons, espeak-ng-data/   byte-identical copies of penny-kokoro-int8's (hashes above)
     tts/out/                7a_tts_smoke_00.*, 7a_tts_smoke_04.*, 7a_tts_v1_x1x1_00..17.* and 7a_tts_v2_a78a78_00..17.* (108 files each, pulled to rows/7a_v/, notes.md 19620, 19842); 7a_tts_wsmoke_{int8_00,fp32_00,fp32_04}.*, 7a_tts_w1_fp32_x1x1_*, 7a_tts_w2_fp32_a78a78_*, 7a_tts_w3_int8_x1x1_* (570 files in out/ after W3; pulled to rows/7a_w/, notes.md 20666, 21181, 21348, 21499)
+    tts/out/ (brief X)      7a_tts_xsmoke_fp32.*, 7a_tts_xsmoke_int8.*, 7a_tts_xsmoke_fp32_rev.* (8 files each; 594 files in out/ after step D2; pulled to rows/7a_x/, notes.md 22063)
 
 Verify with: `adb -s 37291JEHN04619 shell 'pm path com.pennyspike.probe2a'` (expect empty).
 
@@ -359,6 +362,7 @@ Do not work ahead of the current rung.
 
 **Current — for native work on either phone:**
 
+- The phone's shell is mksh R59, not macOS sh. LINES and COLUMNS are mksh built-ins and silently ignore assignment (found 21 Sept, brief X step D: LINES read back 24 whatever was assigned). A script is not tested until it has run on the phone; a Mac pass proves logic only. Every new variable name gets an echo-back test on the device first.
 - **`adb shell` re-joins its arguments.** Wrap the WHOLE remote command in ONE
   single-quoted string, or read the file whole and do arithmetic on the Mac. A
   remote command failing in a way that makes no sense for the tool is this.

@@ -22059,3 +22059,345 @@ The before/after sha256 goes in the step D entry.
 
 What this entry does NOT say: that the renamed script works on the phone. It
 has not run there. Nothing about the binary, timing or WAVs.
+
+## 2026-09-21 — BRIEF X STEP D / D2: pennyspeak.sh on the phone. The first REFUSED check failed (mksh LINES built-in); after the LINELIST fix and the one named overwrite, all seven new variable names survive on mksh, the guard behaves on the phone (11 bad lists exit 2, 3 REFUSED exit 9), and three resident smoke passes write WAVs BYTE-IDENTICAL (cmp rc=0, 6 of 6) to the fresh-process references, in either line order. Smoke, spent boot, page-cached. No timing conclusion.
+
+Pixel 7a, serial 37291JEHN04619, GrapheneOS 2026091000, Android 17
+(CP2A.260705.006). Spent boot: the 21 Sept matrix boot (~12:41:48; uptime
+23472.82 at wallclock 19:13:01, read in one command at this session's start).
+No reboot. Nothing downloaded. Mac on AC. Binary pennyspeak 9be8e0e4…
+(unchanged since the push, never rebuilt). Every figure in this entry is
+**smoke, spent boot, page-cached**, and is DECLARED again in step E.
+
+### 1. The failed first check (earlier session, before step C2)
+
+From that session's transcript
+(~/.claude/projects/-Users-mattstevenson-Documents-penny-app-spike/79921cc2-7bf5-48f5-bd47-f639e8e3eb3b.jsonl;
+timestamps are the transcript's UTC, local = UTC+1). Every adb command, as run:
+
+    17:36:38Z  adb -s 37291JEHN04619 shell 'echo "uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat /sys/class/power_supply/battery/temp) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2)"; for p in 0 4 6; do echo "policy$p scaling_max=$(cat /sys/devices/system/cpu/cpufreq/policy$p/scaling_max_freq)"; done; ls -la /data/local/tmp/tts; ls -la /data/local/tmp/tts/pennyspeak; echo "ls_bin_rc=$?"; ls -la /data/local/tmp/tts/pennyspeak.sh; echo "ls_sh_rc=$?"; echo "out_files=$(ls /data/local/tmp/tts/out | wc -l)"; ls /data/local/tmp/tts/out | grep -c xsmoke; sha256sum /data/local/tmp/tts/out/7a_tts_v1_x1x1_00.wav'
+    17:36:45Z  adb -s 37291JEHN04619 push build/pennyspeak/pennyspeak-stripped /data/local/tmp/tts/pennyspeak && adb -s 37291JEHN04619 push pennyspeak.sh /data/local/tmp/tts/pennyspeak.sh && adb -s 37291JEHN04619 shell 'chmod 755 /data/local/tmp/tts/pennyspeak; ls -la /data/local/tmp/tts/pennyspeak /data/local/tmp/tts/pennyspeak.sh; sha256sum /data/local/tmp/tts/pennyspeak /data/local/tmp/tts/pennyspeak.sh; echo "out_files=$(ls /data/local/tmp/tts/out | wc -l)"'; shasum -a 256 build/pennyspeak/pennyspeak-stripped pennyspeak.sh
+      -> pennyspeak 2466712 B pushed, -rwxr-xr-x, 9be8e0e44d868460f6408209c9590ea7c1291ce6823b4a2c60352d6d540ba14f (= Mac)
+         pennyspeak.sh 17762 B pushed, -rw-rw-rw-, 9a30648259f43d7baa552e91731110b4df15360c6af82f91a8146a5547e37788 (= Mac, = 2b34627)
+         out_files=570
+    17:36:52Z  adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; echo "before: uptime_s=$(cut -d" " -f1 /proc/uptime) out_files=$(ls out | wc -l) $(sha256sum out/7a_tts_v1_x1x1_00.wav)"; sh /data/local/tmp/tts/pennyspeak.sh 7a_tts_v1_x1x1 c0 2 0; echo "wrapper_rc=$?"; echo "after:  uptime_s=$(cut -d" " -f1 /proc/uptime) out_files=$(ls out | wc -l) $(sha256sum out/7a_tts_v1_x1x1_00.wav)"; ls out | grep -c "^7a_tts_v1_x1x1\."'
+      -> VERBATIM:
+         before: uptime_s=21306.88 out_files=570 4d7c10b9844e86a345fbd45a158eca46a9d02b59fdf87449c0c942b12f6caca4  out/7a_tts_v1_x1x1_00.wav
+         usage: pennyspeak.sh: bad line list [24]
+         wrapper_rc=2
+         after:  uptime_s=21307.06 out_files=570 4d7c10b9844e86a345fbd45a158eca46a9d02b59fdf87449c0c942b12f6caca4  out/7a_tts_v1_x1x1_00.wav
+         0
+    17:37:04Z  adb -s 37291JEHN04619 shell 'echo "shell=$0 KSH_VERSION=$KSH_VERSION"; LINES=0; echo "after LINES=0: [$LINES]"; X="${4:-all}"; LINES="$X"; echo "after LINES=all: [$LINES]"; LLIST=0; echo "LLIST=0: [$LLIST]"'; echo "---"; adb -s 37291JEHN04619 shell 'sh -c "LINES=0; echo inner_sh: [\$LINES]"'
+      -> shell=/system/bin/sh KSH_VERSION=@(#)MIRBSD KSH R59 2020/10/31 Android
+         after LINES=0: [24]   after LINES=all: [24]   LLIST=0: [0]   inner_sh: [24]
+
+**Cause:** the phone's /system/bin/sh is mksh R59, where LINES is a built-in
+(terminal height). **Fix:** step C2 (db90538, notes.md 22015): LINES ->
+LINELIST, 8 uses, nothing else. **Both Mac test suites missed it** — mine (13
+lists + 2 REFUSED cases, notes.md 21926 §3) and the reviewer's (22 lists) —
+because macOS sh and bash --posix have no LINES built-in. A Mac pass proves
+logic only. This is now a Trap line in CLAUDE.md.
+
+### 2. Session start (this session), read-only
+
+    adb devices -l      -> exactly one device: 37291JEHN04619 usb:17825792X product:lynx model:Pixel_7a device:lynx transport_id:18
+    adb -s 37291JEHN04619 shell 'P=/sys/devices/system/cpu/cpufreq; echo "uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) p0=$(cat $P/policy0/scaling_max_freq)/$(cat $P/policy0/cpuinfo_max_freq) p4=$(cat $P/policy4/scaling_max_freq)/$(cat $P/policy4/cpuinfo_max_freq) p6=$(cat $P/policy6/scaling_max_freq)/$(cat $P/policy6/cpuinfo_max_freq) batt_dC=$(cat /sys/class/power_supply/battery/temp) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2)"; ls -la /data/local/tmp/tts; sha256sum /data/local/tmp/tts/pennyspeak /data/local/tmp/tts/pennyspeak.sh; echo "out_count=$(ls /data/local/tmp/tts/out | wc -l)"'
+      -> uptime_s=23472.82 wallclock=19:13:01 p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=250 memavail_kB=3286144
+         pennyspeak 9be8e0e4…ba14f; pennyspeak.sh 9a306482…37788 (the old copy); out_count=570
+
+### 3. Part 1 — the name test, BEFORE the re-push (read-only)
+
+    adb -s 37291JEHN04619 shell 'echo "KSH_VERSION=$KSH_VERSION"; echo "dollar0=$0 exe=$(readlink /proc/$$/exe)"; for V in IDLE_MS KILLS_PS L NNS REST SEEN LINELIST LINES; do W="zz_${V}_0,4"; eval "$V=\"\$W\""; eval "G=\"\$$V\""; if [ "$G" = "$W" ]; then R=SURVIVES; else R=CLOBBERED; fi; echo "$V assigned=[$W] readback=[$G] $R"; done'
+
+    KSH_VERSION=@(#)MIRBSD KSH R59 2020/10/31 Android
+    dollar0=/system/bin/sh exe=/system/bin/sh
+    IDLE_MS assigned=[zz_IDLE_MS_0,4] readback=[zz_IDLE_MS_0,4] SURVIVES
+    KILLS_PS assigned=[zz_KILLS_PS_0,4] readback=[zz_KILLS_PS_0,4] SURVIVES
+    L assigned=[zz_L_0,4] readback=[zz_L_0,4] SURVIVES
+    NNS assigned=[zz_NNS_0,4] readback=[zz_NNS_0,4] SURVIVES
+    REST assigned=[zz_REST_0,4] readback=[zz_REST_0,4] SURVIVES
+    SEEN assigned=[zz_SEEN_0,4] readback=[zz_SEEN_0,4] SURVIVES
+    LINELIST assigned=[zz_LINELIST_0,4] readback=[zz_LINELIST_0,4] SURVIVES
+    LINES assigned=[zz_LINES_0,4] readback=[4] CLOBBERED
+
+The seven names pennyspeak.sh assigns that pennytts.sh does not all survive,
+tested with comma-bearing values. The control LINES is clobbered, as required;
+the brief expected it to read 24 and it read 4. **Explanation, NOT a test (nothing
+was run to check it):** in ksh-family shells LINES carries an integer attribute,
+so assignment is evaluated as arithmetic — "zz_LINES_0,4" is a comma expression
+giving 4, while "0" and "all" both give 0, which mksh replaces with the terminal
+height 24. This tested names in one adb shell, not inside the
+script; part 3 is the proof inside the script.
+
+### 4. Part 2 — the re-push, Matt's NAMED EXCEPTION
+
+Granted by Matt for this one file only: /data/local/tmp/tts/pennyspeak.sh may
+be overwritten. Reason: it is our own file, pushed today, it never produced any
+output, and its exact bytes are kept in git at 2b34627. "Nothing on the phone
+overwritten" stands for everything else.
+
+    adb -s 37291JEHN04619 shell 'sha256sum /data/local/tmp/tts/pennyspeak.sh; ls -la /data/local/tmp/tts; echo "out_count=$(ls /data/local/tmp/tts/out | wc -l)"'
+      -> BEFORE 9a30648259f43d7baa552e91731110b4df15360c6af82f91a8146a5547e37788, 17762 B, mtime 18:32; dir mtime 18:36; out_count=570
+    (Mac) ls -la pennyspeak.sh && adb -s 37291JEHN04619 push pennyspeak.sh /data/local/tmp/tts/pennyspeak.sh
+      -> 18157 21 Sep 18:52; "pennyspeak.sh: 1 file pushed, 0 skipped. 237.2 MB/s (18157 bytes in 0.000s)"
+    adb -s 37291JEHN04619 shell 'sha256sum /data/local/tmp/tts/pennyspeak.sh /data/local/tmp/tts/pennyspeak; ls -la /data/local/tmp/tts; echo "out_count=$(ls /data/local/tmp/tts/out | wc -l)"'
+      -> AFTER dc2706fdd1b497fbc2528a00a90e71a936ef014c08c4ed723ce3f598ba48c698, 18157 B, -rw-rw-rw-, mtime 18:52 (the Mac file's; adb push keeps it)
+         pennyspeak 9be8e0e44d868460f6408209c9590ea7c1291ce6823b4a2c60352d6d540ba14f, 2466712 B, -rwxr-xr-x, mtime 18:01 — untouched
+         dir mtime 19:18 (the push); out_count=570
+
+Nothing else pushed; nothing chmod'd. The wrapper is not executable and is run
+as `sh /data/local/tmp/tts/pennyspeak.sh …`, as pennytts.sh always was.
+
+### 5. Part 3 — the guard on the phone (nothing generated)
+
+    adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; echo "out_count=$(ls out | wc -l)"; sha256sum out/7a_tts_v1_x1x1_00.wav'
+      -> out_count=570; 4d7c10b9844e86a345fbd45a158eca46a9d02b59fdf87449c0c942b12f6caca4 (= the reviewer's hash of the Mac copy rows/7a_v/)
+    adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; for X in "18" "99" "0,0" "0,,4" "0,4," ",0" "04,4" "," "18,0" "-1" "1.0"; do sh /data/local/tmp/tts/pennyspeak.sh 7a_tts_xguard c0 2 "$X"; echo "passed=[$X] rc=$?"; done'
+
+    passed      printed (each prefixed "usage: pennyspeak.sh: ")   rc
+    18          bad line list [18]                                  2
+    99          bad line list [99]                                  2
+    0,0         bad line list [0,0]                                 2
+    0,,4        bad line list [0,,4]                                2
+    0,4,        bad line list [0,4,]                                2
+    ,0          bad line list [,0]                                  2
+    04,4        bad line list [04,4]                                2
+    ,           bad line list [,]                                   2
+    18,0        bad line list [18,0]                                2
+    -1          bad line list [-1]                                  2
+    1.0         bad line list [1.0]                                 2
+
+Every list echoed back exactly as passed: no second clobbering.
+
+    adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; for X in "0" "all" "4,0"; do sh /data/local/tmp/tts/pennyspeak.sh 7a_tts_v1_x1x1 c0 2 "$X"; echo "passed=[$X] rc=$?"; done'
+
+    REFUSED: /data/local/tmp/tts/out/7a_tts_v1_x1x1_00.wav exists - nothing run      passed=[0]   rc=9
+    REFUSED: /data/local/tmp/tts/out/7a_tts_v1_x1x1_00.wav exists - nothing run      passed=[all] rc=9
+    REFUSED: /data/local/tmp/tts/out/7a_tts_v1_x1x1_04.wav exists - nothing run      passed=[4,0] rc=9
+
+`4,0` naming _04.wav first shows the list was parsed on the phone, in order,
+under mksh, before the file check. On the "all" case: the NN names the WRAPPER
+builds are used only for the guard's existence check — the names actually
+written come from pennyspeak's own %02d in C — so a mismatch would make the
+guard check a wrong filename, never write one, and each pass has a unique tag.
+Part 4 exercises _00 and _04; step F's 18-line pass exercises all 18.
+
+    adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; echo "out_count=$(ls out | wc -l)"; sha256sum out/7a_tts_v1_x1x1_00.wav; echo "xsmoke_or_xguard_files=$(ls out | grep -cE "7a_tts_xsmoke|7a_tts_xguard")"'
+      -> out_count=570; 4d7c10b9…caca4; xsmoke_or_xguard_files=0
+
+### 6. Part 4 — the reference-output test. SMOKE, SPENT BOOT, PAGE-CACHED
+
+Mask c0 (X1 pair), 2 threads, COOL=1, TMAX unset, GATECAP 240. One at a time;
+no adb command alive during any pass. Arithmetic stated before running: 8 files
+per pass (.report .raw .err .kills .pid .wall + 2 WAVs), out/ 570 -> 578 -> 586
+-> 594. **Observed: 570 -> 578 -> 586 -> 594, as stated.** The strings as run:
+
+    (i)   caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; echo "BEFORE out_count=$(ls out | wc -l) uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"; MODELDIR=/data/local/tmp/tts/penny-kokoro-fp32 MODELFILE=model.fp32.onnx sh /data/local/tmp/tts/pennyspeak.sh 7a_tts_xsmoke_fp32 c0 2 0,4; echo "wrapper_exit=$?"; echo "AFTER out_count=$(ls out | wc -l) uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"'
+          -> BEFORE out_count=570 uptime_s=26661.74 wallclock=20:06:10 / wrapper_exit=0 / AFTER out_count=578 uptime_s=26670.26 wallclock=20:06:19
+    (ii)  caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; echo "BEFORE out_count=$(ls out | wc -l) uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"; sh /data/local/tmp/tts/pennyspeak.sh 7a_tts_xsmoke_int8 c0 2 0,4; echo "wrapper_exit=$?"; echo "AFTER out_count=$(ls out | wc -l) uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"'
+          -> BEFORE out_count=578 uptime_s=26700.86 wallclock=20:06:49 / wrapper_exit=0 / AFTER out_count=586 uptime_s=26710.49 wallclock=20:06:59
+    (iii) caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; echo "BEFORE out_count=$(ls out | wc -l) uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"; MODELDIR=/data/local/tmp/tts/penny-kokoro-fp32 MODELFILE=model.fp32.onnx sh /data/local/tmp/tts/pennyspeak.sh 7a_tts_xsmoke_fp32_rev c0 2 4,0; echo "wrapper_exit=$?"; echo "AFTER out_count=$(ls out | wc -l) uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"'
+          -> BEFORE out_count=586 uptime_s=26716.88 wallclock=20:07:05 / wrapper_exit=0 / AFTER out_count=594 uptime_s=26725.40 wallclock=20:07:14
+
+All three: GATE PASSED on the first poll (polls_failed=0, wait_s=0.19,
+tmax_dC=unset), report rc=0, done rc=0 lines_ok=2, lmk_kill_lines 0, .err and
+.kills 0 bytes, 31 PENNYSPEAKSH lines and 7 PENNYSPEAK records each. .wall /
+.pid: (i) `1790017571 594337033 1790017577 922048259 0` / 14549; (ii)
+`1790017610 611999609 1790017618 168973694 0` / 14960; (iii) `1790017626
+725165633 1790017633 133903999 0` / 15431.
+
+The three reports' PENNYSPEAKSH keys and PENNYSPEAK records follow, copied by
+script from rows/7a_x/<tag>.report (the `--- …` separator lines and the empty
+stderr/kill sections left out; nothing else changed). SMOKE, SPENT BOOT,
+PAGE-CACHED.
+
+rows/7a_x/7a_tts_xsmoke_fp32.report:
+
+    PENNYSPEAKSH tag=7a_tts_xsmoke_fp32 rc=0 mask=c0 threads=2 cool_gate=1 lines=0,4 idle_ms=0
+    PENNYSPEAKSH bin=/data/local/tmp/tts/pennyspeak
+    PENNYSPEAKSH cool_wait_s     uptime 26662.07 -> 26662.26
+    PENNYSPEAKSH cool_gate_first p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=247 uptime_s=26662.07   (rev 2: the gate's first poll, scaling/cpuinfo per policy)
+    PENNYSPEAKSH cool_gate_result GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=247 tmax_dC=unset polls_failed=0 cap=240 wait_s=0.19   (rev 2)
+    PENNYSPEAKSH uptime_s        before=26662.36 after=26669.45
+    PENNYSPEAKSH pass_wall_ms    6327   (exec to exit of the WHOLE pass: load + every line + destroy; taken in the launching subshell)
+    PENNYSPEAKSH memavail_kB     before=3264916 after=3257896
+    PENNYSPEAKSH memfree_kB      before=1091808 after=1085164
+    PENNYSPEAKSH swapfree_kB     before=2046840 after=2046840
+    PENNYSPEAKSH cached_kB       before=2739760 after=2740048
+    PENNYSPEAKSH pswpin          before=168759 after=168759
+    PENNYSPEAKSH pswpout         before=614887 after=614887
+    PENNYSPEAKSH pgmajfault      before=180509 after=180509
+    PENNYSPEAKSH ceil_x1_kHz     before=2850000 min=2630000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+    PENNYSPEAKSH ceil_x1_min_at  uptime=26666.62
+    PENNYSPEAKSH ceil_a78_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq; key was ceil_a76_kHz in rev 1)
+    PENNYSPEAKSH ceil_a78_min_at uptime=26662.36   (key was ceil_a76_min_at in rev 1)
+    PENNYSPEAKSH ceil_a55_kHz    before=1803000 min=1803000 after=1803000   (policy0, cpus 0 1 2 3, rated 1803000 read from cpuinfo_max_freq; rev 2)
+    PENNYSPEAKSH ceil_a55_min_at uptime=26662.36   (rev 2)
+    PENNYSPEAKSH rated_kHz       policy0=1803000 policy4=2348000 policy6=2850000   (rev 2: read from cpuinfo_max_freq before the gate)
+    PENNYSPEAKSH batt_temp_dC    before=247 after=247   (rev 2: BATTERY, tenths of a degree C -- NOT SoC)
+    PENNYSPEAKSH pass_poll_vmhwm_kB       586744   (VmHWM at the 0.2 s poll's last read of the resident process; per-line figures are in the PENNYSPEAK lines)
+    PENNYSPEAKSH pass_poll_max_vmrss_kB   585872
+    PENNYSPEAKSH pass_poll_max_rssanon_kB 535132   (anonymous -- NOT reclaimable)
+    PENNYSPEAKSH pass_poll_max_rssfile_kB 50424   (file-backed -- reclaimable)
+    PENNYSPEAKSH pass_poll_rss_samples    13   (sleep 0.2 s between samples, whole pass)
+    PENNYSPEAKSH lmk_kill_lines  0
+    PENNYSPEAKSH lmk_kill_lines_naming_pennyspeak 0   (NEW: lines of the above containing 'pennyspeak')
+    PENNYSPEAKSH model_path      /data/local/tmp/tts/penny-kokoro-fp32/model.fp32.onnx   (rev 3)
+    PENNYSPEAKSH model_bytes     325534862   (rev 3: stat -c %s before the run; the file is not read)
+    PENNYSPEAK event=start tag=7a_tts_xsmoke_fp32 pid=14549 threads=2 lines=0,4 n_lines=2 idle_ms=0 model=/data/local/tmp/tts/penny-kokoro-fp32/model.fp32.onnx model_bytes=325534862 outdir=/data/local/tmp/tts/out sherpa_version=1.13.8 sherpa_git_sha1=8c8e275d onnxruntime=1.28.2 up_s=26662.968 vmrss_kB=45108 vmhwm_kB=45108 rssanon_kB=7728 rssfile_kB=37064 memavail_kB=3233772
+    PENNYSPEAK event=config provider=cpu num_threads=2 debug=0 lang=en length_scale=1.0 max_num_sentences=1 config_silence_scale=0.2 rule_fsts="" rule_fars="" sid=22 speed=1.0 gen_silence_scale=0.2 num_steps=5 extra=NULL callback=NULL voices=/data/local/tmp/tts/penny-kokoro-fp32/voices.bin tokens=/data/local/tmp/tts/penny-kokoro-fp32/tokens.txt data_dir=/data/local/tmp/tts/penny-kokoro-fp32/espeak-ng-data lexicon=/data/local/tmp/tts/penny-kokoro-fp32/lexicon-gb-en.txt
+    PENNYSPEAK event=load status=OK load_ms=1855.751 sample_rate=24000 up_before=26662.968 up_after=26664.824 vmrss_kB=475464 vmhwm_kB=475464 rssanon_kB=425540 rssfile_kB=49608 memavail_kB=2800604
+    PENNYSPEAK event=line k=1 n=0 status=OK gen_ms=791.497 audio_ms=811.458 samples=19475 sample_rate=24000 rtf=0.9754 up_before=26664.824 up_after=26665.616 wav_ok=1 wav_ms=0.273 wav=/data/local/tmp/tts/out/7a_tts_xsmoke_fp32_00.wav vmrss_kB=500984 vmhwm_kB=500984 rssanon_kB=450308 rssfile_kB=50360 memavail_kB=2812776 text="On it."
+    PENNYSPEAK event=line k=2 n=4 status=OK gen_ms=3260.324 audio_ms=4453.833 samples=106892 sample_rate=24000 rtf=0.7320 up_before=26665.616 up_after=26668.877 wav_ok=1 wav_ms=0.498 wav=/data/local/tmp/tts/out/7a_tts_xsmoke_fp32_04.wav vmrss_kB=585956 vmhwm_kB=586744 rssanon_kB=535216 rssfile_kB=50424 memavail_kB=2702012 text="Your call is at 3:45 pm on Thursday the 24th of September."
+    PENNYSPEAK event=destroy up_s=26669.088 vmrss_kB=93388 vmhwm_kB=586744 rssanon_kB=42648 rssfile_kB=50424 memavail_kB=3203624
+    PENNYSPEAK event=done rc=0 lines_ok=2 n_lines=2 failed_gen_lines=none failed_wav_lines=none
+
+rows/7a_x/7a_tts_xsmoke_int8.report:
+
+    PENNYSPEAKSH tag=7a_tts_xsmoke_int8 rc=0 mask=c0 threads=2 cool_gate=1 lines=0,4 idle_ms=0
+    PENNYSPEAKSH bin=/data/local/tmp/tts/pennyspeak
+    PENNYSPEAKSH cool_wait_s     uptime 26701.17 -> 26701.36
+    PENNYSPEAKSH cool_gate_first p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=247 uptime_s=26701.17   (rev 2: the gate's first poll, scaling/cpuinfo per policy)
+    PENNYSPEAKSH cool_gate_result GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=247 tmax_dC=unset polls_failed=0 cap=240 wait_s=0.19   (rev 2)
+    PENNYSPEAKSH uptime_s        before=26701.42 after=26709.75
+    PENNYSPEAKSH pass_wall_ms    7557   (exec to exit of the WHOLE pass: load + every line + destroy; taken in the launching subshell)
+    PENNYSPEAKSH memavail_kB     before=3263860 after=3239768
+    PENNYSPEAKSH memfree_kB      before=1090580 after=1086132
+    PENNYSPEAKSH swapfree_kB     before=2046840 after=2046840
+    PENNYSPEAKSH cached_kB       before=2740064 after=2740356
+    PENNYSPEAKSH pswpin          before=168759 after=168759
+    PENNYSPEAKSH pswpout         before=614887 after=614887
+    PENNYSPEAKSH pgmajfault      before=180509 after=180509
+    PENNYSPEAKSH ceil_x1_kHz     before=2850000 min=2704000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+    PENNYSPEAKSH ceil_x1_min_at  uptime=26705.00
+    PENNYSPEAKSH ceil_a78_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq; key was ceil_a76_kHz in rev 1)
+    PENNYSPEAKSH ceil_a78_min_at uptime=26701.42   (key was ceil_a76_min_at in rev 1)
+    PENNYSPEAKSH ceil_a55_kHz    before=1803000 min=1803000 after=1803000   (policy0, cpus 0 1 2 3, rated 1803000 read from cpuinfo_max_freq; rev 2)
+    PENNYSPEAKSH ceil_a55_min_at uptime=26701.42   (rev 2)
+    PENNYSPEAKSH rated_kHz       policy0=1803000 policy4=2348000 policy6=2850000   (rev 2: read from cpuinfo_max_freq before the gate)
+    PENNYSPEAKSH batt_temp_dC    before=247 after=247   (rev 2: BATTERY, tenths of a degree C -- NOT SoC)
+    PENNYSPEAKSH pass_poll_vmhwm_kB       362924   (VmHWM at the 0.2 s poll's last read of the resident process; per-line figures are in the PENNYSPEAK lines)
+    PENNYSPEAKSH pass_poll_max_vmrss_kB   361904
+    PENNYSPEAKSH pass_poll_max_rssanon_kB 311084   (anonymous -- NOT reclaimable)
+    PENNYSPEAKSH pass_poll_max_rssfile_kB 50504   (file-backed -- reclaimable)
+    PENNYSPEAKSH pass_poll_rss_samples    16   (sleep 0.2 s between samples, whole pass)
+    PENNYSPEAKSH lmk_kill_lines  0
+    PENNYSPEAKSH lmk_kill_lines_naming_pennyspeak 0   (NEW: lines of the above containing 'pennyspeak')
+    PENNYSPEAKSH model_path      /data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx   (rev 3)
+    PENNYSPEAKSH model_bytes     92363779   (rev 3: stat -c %s before the run; the file is not read)
+    PENNYSPEAK event=start tag=7a_tts_xsmoke_int8 pid=14960 threads=2 lines=0,4 n_lines=2 idle_ms=0 model=/data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx model_bytes=92363779 outdir=/data/local/tmp/tts/out sherpa_version=1.13.8 sherpa_git_sha1=8c8e275d onnxruntime=1.28.2 up_s=26701.982 vmrss_kB=45304 vmhwm_kB=45304 rssanon_kB=7704 rssfile_kB=37284 memavail_kB=3222372
+    PENNYSPEAK event=config provider=cpu num_threads=2 debug=0 lang=en length_scale=1.0 max_num_sentences=1 config_silence_scale=0.2 rule_fsts="" rule_fars="" sid=22 speed=1.0 gen_silence_scale=0.2 num_steps=5 extra=NULL callback=NULL voices=/data/local/tmp/tts/penny-kokoro-int8/voices.bin tokens=/data/local/tmp/tts/penny-kokoro-int8/tokens.txt data_dir=/data/local/tmp/tts/penny-kokoro-int8/espeak-ng-data lexicon=/data/local/tmp/tts/penny-kokoro-int8/lexicon-gb-en.txt
+    PENNYSPEAK event=load status=OK load_ms=1581.434 sample_rate=24000 up_before=26701.982 up_after=26703.563 vmrss_kB=255932 vmhwm_kB=255932 rssanon_kB=205688 rssfile_kB=49928 memavail_kB=3043772
+    PENNYSPEAK event=line k=1 n=0 status=OK gen_ms=1082.000 audio_ms=829.125 samples=19899 sample_rate=24000 rtf=1.3050 up_before=26703.563 up_after=26704.645 wav_ok=1 wav_ms=0.242 wav=/data/local/tmp/tts/out/7a_tts_xsmoke_int8_00.wav vmrss_kB=286508 vmhwm_kB=286508 rssanon_kB=235688 rssfile_kB=50504 memavail_kB=3000548 text="On it."
+    PENNYSPEAK event=line k=2 n=4 status=OK gen_ms=4504.122 audio_ms=4545.375 samples=109089 sample_rate=24000 rtf=0.9909 up_before=26704.646 up_after=26709.150 wav_ok=1 wav_ms=0.498 wav=/data/local/tmp/tts/out/7a_tts_xsmoke_int8_04.wav vmrss_kB=362136 vmhwm_kB=362924 rssanon_kB=311316 rssfile_kB=50504 memavail_kB=2925992 text="Your call is at 3:45 pm on Thursday the 24th of September."
+    PENNYSPEAK event=destroy up_s=26709.316 vmrss_kB=95708 vmhwm_kB=362924 rssanon_kB=44888 rssfile_kB=50504 memavail_kB=3188652
+    PENNYSPEAK event=done rc=0 lines_ok=2 n_lines=2 failed_gen_lines=none failed_wav_lines=none
+
+rows/7a_x/7a_tts_xsmoke_fp32_rev.report:
+
+    PENNYSPEAKSH tag=7a_tts_xsmoke_fp32_rev rc=0 mask=c0 threads=2 cool_gate=1 lines=4,0 idle_ms=0
+    PENNYSPEAKSH bin=/data/local/tmp/tts/pennyspeak
+    PENNYSPEAKSH cool_wait_s     uptime 26717.20 -> 26717.39
+    PENNYSPEAKSH cool_gate_first p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=247 uptime_s=26717.20   (rev 2: the gate's first poll, scaling/cpuinfo per policy)
+    PENNYSPEAKSH cool_gate_result GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=247 tmax_dC=unset polls_failed=0 cap=240 wait_s=0.19   (rev 2)
+    PENNYSPEAKSH uptime_s        before=26717.52 after=26724.68
+    PENNYSPEAKSH pass_wall_ms    6409   (exec to exit of the WHOLE pass: load + every line + destroy; taken in the launching subshell)
+    PENNYSPEAKSH memavail_kB     before=3264072 after=3257636
+    PENNYSPEAKSH memfree_kB      before=1092280 after=1085248
+    PENNYSPEAKSH swapfree_kB     before=2046840 after=2046840
+    PENNYSPEAKSH cached_kB       before=2740372 after=2740660
+    PENNYSPEAKSH pswpin          before=168759 after=168759
+    PENNYSPEAKSH pswpout         before=614887 after=614887
+    PENNYSPEAKSH pgmajfault      before=180509 after=180509
+    PENNYSPEAKSH ceil_x1_kHz     before=2850000 min=2507000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+    PENNYSPEAKSH ceil_x1_min_at  uptime=26722.81
+    PENNYSPEAKSH ceil_a78_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq; key was ceil_a76_kHz in rev 1)
+    PENNYSPEAKSH ceil_a78_min_at uptime=26717.52   (key was ceil_a76_min_at in rev 1)
+    PENNYSPEAKSH ceil_a55_kHz    before=1803000 min=1803000 after=1803000   (policy0, cpus 0 1 2 3, rated 1803000 read from cpuinfo_max_freq; rev 2)
+    PENNYSPEAKSH ceil_a55_min_at uptime=26717.52   (rev 2)
+    PENNYSPEAKSH rated_kHz       policy0=1803000 policy4=2348000 policy6=2850000   (rev 2: read from cpuinfo_max_freq before the gate)
+    PENNYSPEAKSH batt_temp_dC    before=247 after=247   (rev 2: BATTERY, tenths of a degree C -- NOT SoC)
+    PENNYSPEAKSH pass_poll_vmhwm_kB       585768   (VmHWM at the 0.2 s poll's last read of the resident process; per-line figures are in the PENNYSPEAK lines)
+    PENNYSPEAKSH pass_poll_max_vmrss_kB   585292
+    PENNYSPEAKSH pass_poll_max_rssanon_kB 535008   (anonymous -- NOT reclaimable)
+    PENNYSPEAKSH pass_poll_max_rssfile_kB 49968   (file-backed -- reclaimable)
+    PENNYSPEAKSH pass_poll_rss_samples    13   (sleep 0.2 s between samples, whole pass)
+    PENNYSPEAKSH lmk_kill_lines  0
+    PENNYSPEAKSH lmk_kill_lines_naming_pennyspeak 0   (NEW: lines of the above containing 'pennyspeak')
+    PENNYSPEAKSH model_path      /data/local/tmp/tts/penny-kokoro-fp32/model.fp32.onnx   (rev 3)
+    PENNYSPEAKSH model_bytes     325534862   (rev 3: stat -c %s before the run; the file is not read)
+    PENNYSPEAK event=start tag=7a_tts_xsmoke_fp32_rev pid=15431 threads=2 lines=4,0 n_lines=2 idle_ms=0 model=/data/local/tmp/tts/penny-kokoro-fp32/model.fp32.onnx model_bytes=325534862 outdir=/data/local/tmp/tts/out sherpa_version=1.13.8 sherpa_git_sha1=8c8e275d onnxruntime=1.28.2 up_s=26718.104 vmrss_kB=45024 vmhwm_kB=45024 rssanon_kB=7708 rssfile_kB=37000 memavail_kB=3251524
+    PENNYSPEAK event=config provider=cpu num_threads=2 debug=0 lang=en length_scale=1.0 max_num_sentences=1 config_silence_scale=0.2 rule_fsts="" rule_fars="" sid=22 speed=1.0 gen_silence_scale=0.2 num_steps=5 extra=NULL callback=NULL voices=/data/local/tmp/tts/penny-kokoro-fp32/voices.bin tokens=/data/local/tmp/tts/penny-kokoro-fp32/tokens.txt data_dir=/data/local/tmp/tts/penny-kokoro-fp32/espeak-ng-data lexicon=/data/local/tmp/tts/penny-kokoro-fp32/lexicon-gb-en.txt
+    PENNYSPEAK event=load status=OK load_ms=1870.665 sample_rate=24000 up_before=26718.104 up_after=26719.974 vmrss_kB=474828 vmhwm_kB=474828 rssanon_kB=425416 rssfile_kB=49096 memavail_kB=2822576
+    PENNYSPEAK event=line k=1 n=4 status=OK gen_ms=3290.306 audio_ms=4453.833 samples=106892 sample_rate=24000 rtf=0.7388 up_before=26719.974 up_after=26723.265 wav_ok=1 wav_ms=0.600 wav=/data/local/tmp/tts/out/7a_tts_xsmoke_fp32_rev_04.wav vmrss_kB=584980 vmhwm_kB=585768 rssanon_kB=534696 rssfile_kB=49968 memavail_kB=2724252 text="Your call is at 3:45 pm on Thursday the 24th of September."
+    PENNYSPEAK event=line k=2 n=0 status=OK gen_ms=819.845 audio_ms=811.458 samples=19475 sample_rate=24000 rtf=1.0103 up_before=26723.266 up_after=26724.085 wav_ok=1 wav_ms=0.230 wav=/data/local/tmp/tts/out/7a_tts_xsmoke_fp32_rev_00.wav vmrss_kB=585644 vmhwm_kB=585768 rssanon_kB=535360 rssfile_kB=49968 memavail_kB=2713644 text="On it."
+    PENNYSPEAK event=destroy up_s=26724.302 vmrss_kB=92880 vmhwm_kB=585768 rssanon_kB=42596 rssfile_kB=49968 memavail_kB=3191600
+    PENNYSPEAK event=done rc=0 lines_ok=2 n_lines=2 failed_gen_lines=none failed_wav_lines=none
+
+### 7. Are the bytes the same? YES, 6 of 6
+
+Pulled with one `adb -s 37291JEHN04619 pull /data/local/tmp/tts/out/<tag><ext> rows/7a_x/`
+per file, 24 files (3 tags × _00.wav _04.wav .report .raw .err .kills .pid
+.wall). Hashed both sides:
+
+    adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts/out; sha256sum 7a_tts_xsmoke_*' (paths rewritten to rows/7a_x/, sorted) > rows/7a_x/7a_x_smoke_phone.sha256
+    shasum -a 256 rows/7a_x/7a_tts_xsmoke_* (sorted) > rows/7a_x/7a_x_smoke_mac.sha256
+    diff of the two lists: rc=0, 24 lines each
+    adb -s 37291JEHN04619 shell 'echo "out_count=$(ls /data/local/tmp/tts/out | wc -l)"'   -> 594 after the pull
+
+cmp against the fresh-process references (reference hashes computed on the Mac
+this session; they equal the reviewer's):
+
+    smoke WAV (bytes)                      reference                                     reference sha256                                                   cmp rc
+    7a_tts_xsmoke_fp32_00.wav (38,994)     rows/7a_w/7a_tts_w1_fp32_x1x1_00.wav          dbc2c6e9b7d124aa8624b97d3caafc1cb87785c14aa6da8303c5aa701c529b42   0
+    7a_tts_xsmoke_fp32_04.wav (213,828)    rows/7a_w/7a_tts_w1_fp32_x1x1_04.wav          d50a8cc136d055c3967340b4ffd48806af1fc3dd9d6bc363945781abf4560bb5   0
+    7a_tts_xsmoke_int8_00.wav (39,842)     rows/7a_v/7a_tts_v1_x1x1_00.wav               4d7c10b9844e86a345fbd45a158eca46a9d02b59fdf87449c0c942b12f6caca4   0
+    7a_tts_xsmoke_int8_04.wav (218,222)    rows/7a_v/7a_tts_v1_x1x1_04.wav               f424f0656b41c2931f3e82974388fd40d34f6fa908497dd535ac72f41b5d6b78   0
+    7a_tts_xsmoke_fp32_rev_00.wav (38,994) rows/7a_w/7a_tts_w1_fp32_x1x1_00.wav          dbc2c6e9…9b42                                                      0
+    7a_tts_xsmoke_fp32_rev_04.wav (213,828) rows/7a_w/7a_tts_w1_fp32_x1x1_04.wav         d50a8cc1…60bb5                                                     0
+
+Each smoke WAV's sha256 equals its reference's. The resident process writes
+the same bytes as a fresh CLI process for these two lines, fp32 and int8, and
+line order (0 then 4, or 4 then 0) does not change the audio. The reviewer ran
+the six cmp's independently: all rc=0.
+
+### 8. STILL UNPROVEN
+
+- **sherpa_git_sha1=8c8e275d is not evidence of which source was built.** All
+  three start records print it; it does NOT match the clone's a5b4a944c5186a68bcdc0ac3011e4c541781ac84.
+  It is source-tree text: ~/Documents/sherpa-onnx/sherpa-onnx/csrc/version.cc:17
+  hardcodes `"8c8e275d"` (with date "Thu Sep 10 17:15:24 2026", version 1.13.8);
+  version.cc is clean in the clone and last changed by a5b4a94 itself; the clone
+  is shallow (.git/shallow holds only a5b4a944…), so no 8c8e275d object exists
+  in it; `strings` finds 8c8e275d and 1.13.8 in the stripped Mac binary. It can
+  neither confirm nor contradict which checkout was built (reviewer verified the
+  same). The phone-to-Mac link is the sha256 9be8e0e4… and nothing else.
+- The gate, poll and report ran here for 2-line passes only; an 18-line pass
+  (and the guard's 18 names) is step F.
+
+### 9. Records
+
+- **CLAUDE.md, additions only (4 lines):** pennyspeak and pennyspeak.sh added
+  to the 7a tts section with hashes; a tts/out/ (brief X) line; the mksh Trap
+  line verbatim. Frozen 6a block lines 55-133 re-hashed: effd849c2f3f0414369b926bf9035cebb6c644c93284b36ce2e99d885d0b619d,
+  unchanged.
+- **Committed: all 26 files in rows/7a_x/** — the six smoke WAVs, the other 18
+  pulled files and the two .sha256 lists. Committing smoke WAVs matches briefs
+  V and W (rows/7a_v/7a_tts_smoke_00.wav, _04.wav; rows/7a_w/7a_tts_wsmoke_*
+  are tracked). Row WAVs from step F stay untracked with their .sha256 files, as
+  V's and W's row WAVs are.
+- pennytts.sh 90cbeea1…, pennybench.sh ca3f8414…, pennyspeak.cpp 6bce6d7a…,
+  build-pennyspeak.sh 960a9d75… unchanged. Nothing on the phone deleted;
+  nothing on the phone overwritten except the one named file.
+
+### What this entry does NOT say
+
+Nothing about timing, speed or memory of any kind — not resident against
+fresh, not fp32 against int8, not load, not RSS — every figure above is smoke,
+spent boot, page-cached, one pass per shape, two lines, and is declared again as
+an input in step E (where the X-A4 and load predictions will be marked NOT
+blind because of these runs). Nothing about the 16 lines not run, long speech,
+the A78 pair, time to first audio, TTS beside the LLM, the app, or how anything
+sounds — nobody has listened. It does not prove which source commit the binary
+was built from. A shell process over adb on mains with the screen on is not a
+product process.

@@ -1,0 +1,41 @@
+PENNYSPEAKSH tag=7a_tts_xsmoke_int8 rc=0 mask=c0 threads=2 cool_gate=1 lines=0,4 idle_ms=0
+PENNYSPEAKSH bin=/data/local/tmp/tts/pennyspeak
+PENNYSPEAKSH cool_wait_s     uptime 26701.17 -> 26701.36
+PENNYSPEAKSH cool_gate_first p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=247 uptime_s=26701.17   (rev 2: the gate's first poll, scaling/cpuinfo per policy)
+PENNYSPEAKSH cool_gate_result GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=247 tmax_dC=unset polls_failed=0 cap=240 wait_s=0.19   (rev 2)
+PENNYSPEAKSH uptime_s        before=26701.42 after=26709.75
+PENNYSPEAKSH pass_wall_ms    7557   (exec to exit of the WHOLE pass: load + every line + destroy; taken in the launching subshell)
+PENNYSPEAKSH memavail_kB     before=3263860 after=3239768
+PENNYSPEAKSH memfree_kB      before=1090580 after=1086132
+PENNYSPEAKSH swapfree_kB     before=2046840 after=2046840
+PENNYSPEAKSH cached_kB       before=2740064 after=2740356
+PENNYSPEAKSH pswpin          before=168759 after=168759
+PENNYSPEAKSH pswpout         before=614887 after=614887
+PENNYSPEAKSH pgmajfault      before=180509 after=180509
+PENNYSPEAKSH ceil_x1_kHz     before=2850000 min=2704000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+PENNYSPEAKSH ceil_x1_min_at  uptime=26705.00
+PENNYSPEAKSH ceil_a78_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq; key was ceil_a76_kHz in rev 1)
+PENNYSPEAKSH ceil_a78_min_at uptime=26701.42   (key was ceil_a76_min_at in rev 1)
+PENNYSPEAKSH ceil_a55_kHz    before=1803000 min=1803000 after=1803000   (policy0, cpus 0 1 2 3, rated 1803000 read from cpuinfo_max_freq; rev 2)
+PENNYSPEAKSH ceil_a55_min_at uptime=26701.42   (rev 2)
+PENNYSPEAKSH rated_kHz       policy0=1803000 policy4=2348000 policy6=2850000   (rev 2: read from cpuinfo_max_freq before the gate)
+PENNYSPEAKSH batt_temp_dC    before=247 after=247   (rev 2: BATTERY, tenths of a degree C -- NOT SoC)
+PENNYSPEAKSH pass_poll_vmhwm_kB       362924   (VmHWM at the 0.2 s poll's last read of the resident process; per-line figures are in the PENNYSPEAK lines)
+PENNYSPEAKSH pass_poll_max_vmrss_kB   361904
+PENNYSPEAKSH pass_poll_max_rssanon_kB 311084   (anonymous -- NOT reclaimable)
+PENNYSPEAKSH pass_poll_max_rssfile_kB 50504   (file-backed -- reclaimable)
+PENNYSPEAKSH pass_poll_rss_samples    16   (sleep 0.2 s between samples, whole pass)
+PENNYSPEAKSH lmk_kill_lines  0
+PENNYSPEAKSH lmk_kill_lines_naming_pennyspeak 0   (NEW: lines of the above containing 'pennyspeak')
+PENNYSPEAKSH model_path      /data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx   (rev 3)
+PENNYSPEAKSH model_bytes     92363779   (rev 3: stat -c %s before the run; the file is not read)
+--- pennyspeak stdout, verbatim (/data/local/tmp/tts/out/7a_tts_xsmoke_int8.raw) ---
+PENNYSPEAK event=start tag=7a_tts_xsmoke_int8 pid=14960 threads=2 lines=0,4 n_lines=2 idle_ms=0 model=/data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx model_bytes=92363779 outdir=/data/local/tmp/tts/out sherpa_version=1.13.8 sherpa_git_sha1=8c8e275d onnxruntime=1.28.2 up_s=26701.982 vmrss_kB=45304 vmhwm_kB=45304 rssanon_kB=7704 rssfile_kB=37284 memavail_kB=3222372
+PENNYSPEAK event=config provider=cpu num_threads=2 debug=0 lang=en length_scale=1.0 max_num_sentences=1 config_silence_scale=0.2 rule_fsts="" rule_fars="" sid=22 speed=1.0 gen_silence_scale=0.2 num_steps=5 extra=NULL callback=NULL voices=/data/local/tmp/tts/penny-kokoro-int8/voices.bin tokens=/data/local/tmp/tts/penny-kokoro-int8/tokens.txt data_dir=/data/local/tmp/tts/penny-kokoro-int8/espeak-ng-data lexicon=/data/local/tmp/tts/penny-kokoro-int8/lexicon-gb-en.txt
+PENNYSPEAK event=load status=OK load_ms=1581.434 sample_rate=24000 up_before=26701.982 up_after=26703.563 vmrss_kB=255932 vmhwm_kB=255932 rssanon_kB=205688 rssfile_kB=49928 memavail_kB=3043772
+PENNYSPEAK event=line k=1 n=0 status=OK gen_ms=1082.000 audio_ms=829.125 samples=19899 sample_rate=24000 rtf=1.3050 up_before=26703.563 up_after=26704.645 wav_ok=1 wav_ms=0.242 wav=/data/local/tmp/tts/out/7a_tts_xsmoke_int8_00.wav vmrss_kB=286508 vmhwm_kB=286508 rssanon_kB=235688 rssfile_kB=50504 memavail_kB=3000548 text="On it."
+PENNYSPEAK event=line k=2 n=4 status=OK gen_ms=4504.122 audio_ms=4545.375 samples=109089 sample_rate=24000 rtf=0.9909 up_before=26704.646 up_after=26709.150 wav_ok=1 wav_ms=0.498 wav=/data/local/tmp/tts/out/7a_tts_xsmoke_int8_04.wav vmrss_kB=362136 vmhwm_kB=362924 rssanon_kB=311316 rssfile_kB=50504 memavail_kB=2925992 text="Your call is at 3:45 pm on Thursday the 24th of September."
+PENNYSPEAK event=destroy up_s=26709.316 vmrss_kB=95708 vmhwm_kB=362924 rssanon_kB=44888 rssfile_kB=50504 memavail_kB=3188652
+PENNYSPEAK event=done rc=0 lines_ok=2 n_lines=2 failed_gen_lines=none failed_wav_lines=none
+--- binary stderr (tail) ---
+--- kill lines ---
