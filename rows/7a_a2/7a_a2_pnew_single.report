@@ -1,0 +1,79 @@
+PENNYBENCH tag=7a_a2_pnew_single rc=0 mask=c0
+PENNYBENCH bin=/data/local/tmp/pennyload-new
+PENNYBENCH args=-m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t 2 -c 1024 -lm none -n 64 --print --sys-file /data/local/tmp/penny_system.txt --user-file /data/local/tmp/penny_user.txt --tag 7a_a2_pnew_single
+PENNYBENCH uptime_s        before=15071.61 after=15085.58
+PENNYBENCH memavail_kB     before=3449952 after=3410084
+PENNYBENCH memfree_kB      before=1934204 after=1907048
+PENNYBENCH swapfree_kB     before=2047448 after=2047448
+PENNYBENCH cached_kB       before=2090128 after=2093260
+PENNYBENCH pswpin          before=138235 after=138236   (pages read back IN from swap)
+PENNYBENCH pswpout         before=609919 after=609919   (pages written OUT to swap)
+PENNYBENCH pgmajfault      before=149621 after=149649   (major faults: had to hit storage or swap)
+PENNYBENCH ceil_x1_kHz     before=2850000 min=2507000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+PENNYBENCH ceil_x1_min_at  uptime=15077.62   (6 s into the row)
+PENNYBENCH ceil_a76_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq)
+PENNYBENCH ceil_a76_min_at uptime=15071.61   (0 s into the row)
+PENNYBENCH rated_kHz policy0=1803000 policy4=2348000 policy6=2850000   (read from cpuinfo_max_freq before the row)
+PENNYBENCH oom_score_adj_child pre=-1000 post=200   (target 200; both READ off /proc)
+PENNYBENCH batt_temp_dC    before=262 after=262   (BATTERY, tenths of a degree C -- NOT SoC)
+PENNYBENCH batt_level      before=100 after=100
+PENNYBENCH batt_dumpsys    before=[ AC powered: true status: 5 level: 100 temperature: 258 ] after=[ AC powered: true status: 5 level: 100 temperature: 258 ]   (cross-check on the sysfs figures)
+PENNYBENCH series_file     /data/local/tmp/out/7a_a2_pnew_single.series   (2 samples, one per 10 s of uptime)
+PENNYBENCH peak_rss_kB     1540888   (VmHWM, monotonic)
+PENNYBENCH max_vmrss_kB    1540856
+PENNYBENCH max_rssanon_kB  1535500   (anonymous -- NOT reclaimable)
+PENNYBENCH max_rssfile_kB  5076   (file-backed -- reclaimable)
+PENNYBENCH rss_samples     25   (sleep 0.2 s between samples; achieved rate is lower)
+PENNYBENCH lmk_kill_lines  0
+--- swap device (is swap zram?) ---
+cat: /proc/swaps: Permission denied
+/sys/block/zram0
+     ZRAM:   422,116K physical used for 1,765,792K in swap (3,820,152K total swap)
+--- series head/tail (full file at /data/local/tmp/out/7a_a2_pnew_single.series) ---
+uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level
+15072.35 2850000 2348000 1803000 3387572 1886016 2047448 2092620 1228 1416 609919 149642 262 100
+15082.26 2630000 2348000 1803000 1883232 362676 2047448 2093256 1540580 1540580 609919 149649 262 100
+...
+uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level
+15072.35 2850000 2348000 1803000 3387572 1886016 2047448 2092620 1228 1416 609919 149642 262 100
+15082.26 2630000 2348000 1803000 1883232 362676 2047448 2093256 1540580 1540580 609919 149649 262 100
+--- llama-bench stdout ---
+PENNYLOAD tag=7a_a2_pnew_single run_type=fresh rc=0
+PENNYLOAD model=/data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf model_bytes=1107409472
+PENNYLOAD threads=2 n_ctx=1024 n_batch=2048 n_ubatch=512 n_gpu_layers=99
+PENNYLOAD load_mode=none extra_bufts=1 sampler=greedy
+PENNYLOAD chat_template=NONE   (both prompt files tokenised verbatim; no template applied)
+PENNYLOAD sys_file=/data/local/tmp/penny_system.txt sys_bytes=1911 sys_tokens=407 sys_add_special=1 sys_parse_special=1
+PENNYLOAD user_file=/data/local/tmp/penny_user.txt user_bytes=95 user_tokens=20 user_add_special=0 user_parse_special=1
+PENNYLOAD progress_calls=312
+PENNYLOAD t_backend_ms      2.10   (T1-T0,  ggml_backend_load_all)
+PENNYLOAD t_model_open_ms   439.72   (T2-T1,  header+hparams+vocab+alloc)
+PENNYLOAD t_tensor_band_ms  2162.93   (T3-T2,  tensor data read + repack)
+PENNYLOAD t_model_tail_ms   2.44   (T4-T3)
+PENNYLOAD t_model_total_ms  2605.09   (T4-T1,  llama_model_load_from_file)
+PENNYLOAD t_ctx_create_ms   34.27   (T5-T4,  llama_init_from_model)
+PENNYLOAD t_ready_ms        2641.45   (T5-T0,  READY TO GENERATE)
+PENNYLOAD t_tokenize_ms     3.37   (T6-T5)
+PENNYLOAD t_state_load_ms   n/a    (fresh run)
+PENNYLOAD t_sys_decode_ms   5623.84   (T9a-T6, system-prompt llama_decode)
+PENNYLOAD t_state_save_ms   n/a    (no --save-state)
+PENNYLOAD state_file=(none) state_bytes=-1
+PENNYLOAD t_user_decode_ms  365.09   (T9b-T9a, user-turn llama_decode)
+PENNYLOAD t_sample_ms       0.76   (T10-T9b, llama_sampler_sample)
+PENNYLOAD ttft_fresh_ms     5989.68   (T10-T6,  TTFT resident FRESH)
+PENNYLOAD ttft_cached_ms    5993.06   (T10-T5,  TTFT resident CACHED)
+PENNYLOAD ttft_cold_proc_ms 8634.51   (T10-T0,  cold process) == B3
+PENNYLOAD gen_tokens=64 gen_ms=4100.70 gen_tps=15.36
+PENNYLOAD first_token_id=32313
+PENNYLOAD token_fnv1a64=0xcba17a2fcbba49f4
+PENNYLOAD token_ids=32313,11,279,1196,374,10161,911,279,6722,315,8330,11,279,7042,11,323,279,35230,2400,13,358,1184,311,4226,1493,5961,13,576,6722,374,68790,13,576,7042,374,2163,220,19,3526,13,576,35230,2400,374,220,16,24,15,16,13,358,1265,3410,1493,11253,2041,29058,624,785,6722,315,8330,374,68790
+--- text ---
+Okay, the user is asking about the capital of Australia, the population, and the founding date. I need to answer these directly. The capital is Canberra. The population is around 4 million. The founding date is 1901. I should provide these answers without routing.
+The capital of Australia is Canberra
+--- llama-bench stderr (tail) ---
+sched_reserve:        CPU compute buffer size =   304.75 MiB
+sched_reserve: graph nodes  = 986
+sched_reserve: graph splits = 1
+sched_reserve: reserve took 3.83 ms, sched copies = 1
+~llama_context:        CPU compute buffer size is 304.7520 MiB, matches expectation of 304.7520 MiB
+--- kill lines ---

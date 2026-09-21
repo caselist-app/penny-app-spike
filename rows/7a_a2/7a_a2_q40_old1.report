@@ -1,0 +1,70 @@
+PENNYBENCH tag=7a_a2_q40_old1 rc=0 mask=c0
+PENNYBENCH bin=/data/local/tmp/llama-bench
+PENNYBENCH args=-m /data/local/tmp/Qwen3-1.7B-Q4_0.gguf -t 2 -p 407 -n 64 -r 3 -lm none
+PENNYBENCH uptime_s        before=15211.17 after=15244.58
+PENNYBENCH memavail_kB     before=3420500 after=3827876
+PENNYBENCH memfree_kB      before=818132 after=2077056
+PENNYBENCH swapfree_kB     before=2068696 after=2337240
+PENNYBENCH cached_kB       before=3174972 after=2325420
+PENNYBENCH pswpin          before=143585 after=143872   (pages read back IN from swap)
+PENNYBENCH pswpout         before=609919 after=658299   (pages written OUT to swap)
+PENNYBENCH pgmajfault      before=155008 after=155313   (major faults: had to hit storage or swap)
+PENNYBENCH ceil_x1_kHz     before=2850000 min=2188000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+PENNYBENCH ceil_x1_min_at  uptime=15241.51   (30 s into the row)
+PENNYBENCH ceil_a76_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq)
+PENNYBENCH ceil_a76_min_at uptime=15211.17   (0 s into the row)
+PENNYBENCH rated_kHz policy0=1803000 policy4=2348000 policy6=2850000   (read from cpuinfo_max_freq before the row)
+PENNYBENCH oom_score_adj_child pre=-1000 post=200   (target 200; both READ off /proc)
+PENNYBENCH batt_temp_dC    before=275 after=277   (BATTERY, tenths of a degree C -- NOT SoC)
+PENNYBENCH batt_level      before=100 after=100
+PENNYBENCH batt_dumpsys    before=[ AC powered: true status: 5 level: 100 temperature: 273 ] after=[ AC powered: true status: 5 level: 100 temperature: 277 ]   (cross-check on the sysfs figures)
+PENNYBENCH series_file     /data/local/tmp/out/7a_a2_q40_old1.series   (4 samples, one per 10 s of uptime)
+PENNYBENCH peak_rss_kB     1431432   (VmHWM, monotonic)
+PENNYBENCH max_vmrss_kB    1431432
+PENNYBENCH max_rssanon_kB  1425412   (anonymous -- NOT reclaimable)
+PENNYBENCH max_rssfile_kB  5788   (file-backed -- reclaimable)
+PENNYBENCH rss_samples     58   (sleep 0.2 s between samples; achieved rate is lower)
+PENNYBENCH lmk_kill_lines  22
+--- swap device (is swap zram?) ---
+cat: /proc/swaps: Permission denied
+/sys/block/zram0
+     ZRAM:   319,048K physical used for 1,482,912K in swap (3,820,152K total swap)
+--- series head/tail (full file at /data/local/tmp/out/7a_a2_q40_old1.series) ---
+uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level
+15211.90 2850000 2348000 1803000 3339612 736860 2068696 3174988 13976 15036 609919 155008 275 100
+15221.45 2507000 2348000 1803000 2394108 644500 2337240 2324308 1431284 1431284 658299 155282 275 100
+...
+15221.45 2507000 2348000 1803000 2394108 644500 2337240 2324308 1431284 1431284 658299 155282 275 100
+15231.34 2401000 2348000 1803000 2381740 632808 2337240 2325304 1431432 1431432 658299 155285 277 100
+15241.56 2188000 2348000 1803000 2477620 727828 2337240 2325416 1362360 1431432 658299 155312 277 100
+--- llama-bench stdout ---
+| model                          |       size |     params | backend    | threads |         lm |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | ---------: | --------------: | -------------------: |
+| qwen3 1.7B Q4_0                | 1002.15 MiB |     1.72 B | CPU        |       2 |       none |           pp407 |         77.85 ± 1.21 |
+| qwen3 1.7B Q4_0                | 1002.15 MiB |     1.72 B | CPU        |       2 |       none |            tg64 |         19.74 ± 0.26 |
+
+build: 38a5b42d9 (10989)
+--- llama-bench stderr (tail) ---
+--- kill lines ---
+09-21 11:53:06.034   533   533 I lowmemorykiller: Kill 'app.seamlessupdate.client' (3013), uid 10082, oom_score_adj 945 to free 159332kB rss, 10636kB anon rss, 40472kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.086   533   533 I lowmemorykiller: Kill 'com.android.localtransport' (3807), uid 1000, oom_score_adj 915 to free 147860kB rss, 7536kB anon rss, 39952kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.120  1341  2354 I ActivityManager: Process app.seamlessupdate.client (pid 3013) has died: cch  +45 CEM 
+09-21 11:53:06.136   533   533 I lowmemorykiller: Kill 'com.android.keychain' (3459), uid 1000, oom_score_adj 915 to free 146496kB rss, 7660kB anon rss, 40036kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.178  1341  2354 I ActivityManager: Process com.android.localtransport (pid 3807) has died: cch  +15 CEM 
+09-21 11:53:06.187   533   533 I lowmemorykiller: Kill 'com.android.permissioncontroller' (2582), uid 10190, oom_score_adj 905 to free 157896kB rss, 9764kB anon rss, 43628kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.222  1341  2354 I ActivityManager: Process com.android.keychain (pid 3459) has died: cch  +15 CEM 
+09-21 11:53:06.239   533   533 I lowmemorykiller: Kill 'com.android.traceur' (3599), uid 10095, oom_score_adj 905 to free 146728kB rss, 7504kB anon rss, 42972kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.272  1341  2354 I ActivityManager: Process com.android.permissioncontroller (pid 2582) has died: cch CEM 
+09-21 11:53:06.289   533   533 I lowmemorykiller: Kill 'app.grapheneos.carrierconfig2' (3597), uid 10163, oom_score_adj 905 to free 137320kB rss, 596kB anon rss, 47944kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.309  1341  2954 I ActivityManager: Process com.android.traceur (pid 3599) has died: cch CEM 
+09-21 11:53:06.342   533   533 I lowmemorykiller: Kill 'com.android.cellbroadcastreceiver.module' (2706), uid 10176, oom_score_adj 905 to free 164396kB rss, 11328kB anon rss, 38080kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.353  1341  2954 I ActivityManager: Process app.grapheneos.carrierconfig2 (pid 3597) has died: cch CEM 
+09-21 11:53:06.383  1341  2354 I ActivityManager: Process com.android.cellbroadcastreceiver.module (pid 2706) has died: cch CEM 
+09-21 11:53:06.384   533   533 I lowmemorykiller: Kill 'com.google.euiccpixel' (2871), uid 10149, oom_score_adj 905 to free 149400kB rss, 9420kB anon rss, 39620kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.412  1341  2954 I ActivityManager: Process com.google.euiccpixel (pid 2871) has died: cch CEM 
+09-21 11:53:06.413   533   533 I lowmemorykiller: Kill '.adservices' (3745), uid 10173, oom_score_adj 905 to free 147588kB rss, 7928kB anon rss, 43236kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.460   533   533 I lowmemorykiller: Kill 'com.android.imsserviceentitlement' (3769), uid 10125, oom_score_adj 905 to free 146960kB rss, 7536kB anon rss, 43048kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.483  1341  2954 I ActivityManager: Process .adservices (pid 3745) has died: cch CEM 
+09-21 11:53:06.494  1341  2954 I ActivityManager: Process com.android.imsserviceentitlement (pid 3769) has died: cch CEM 
+09-21 11:53:06.495   533   533 I lowmemorykiller: Kill 'app.grapheneos.backup.contacts' (3799), uid 10100, oom_score_adj 905 to free 137056kB rss, 456kB anon rss, 49520kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.528  1341  2954 I ActivityManager: Process app.grapheneos.backup.contacts (pid 3799) has died: cch CEM 

@@ -1,0 +1,32 @@
+PENNYLOAD tag=7a_a2_pnew_single run_type=fresh rc=0
+PENNYLOAD model=/data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf model_bytes=1107409472
+PENNYLOAD threads=2 n_ctx=1024 n_batch=2048 n_ubatch=512 n_gpu_layers=99
+PENNYLOAD load_mode=none extra_bufts=1 sampler=greedy
+PENNYLOAD chat_template=NONE   (both prompt files tokenised verbatim; no template applied)
+PENNYLOAD sys_file=/data/local/tmp/penny_system.txt sys_bytes=1911 sys_tokens=407 sys_add_special=1 sys_parse_special=1
+PENNYLOAD user_file=/data/local/tmp/penny_user.txt user_bytes=95 user_tokens=20 user_add_special=0 user_parse_special=1
+PENNYLOAD progress_calls=312
+PENNYLOAD t_backend_ms      2.10   (T1-T0,  ggml_backend_load_all)
+PENNYLOAD t_model_open_ms   439.72   (T2-T1,  header+hparams+vocab+alloc)
+PENNYLOAD t_tensor_band_ms  2162.93   (T3-T2,  tensor data read + repack)
+PENNYLOAD t_model_tail_ms   2.44   (T4-T3)
+PENNYLOAD t_model_total_ms  2605.09   (T4-T1,  llama_model_load_from_file)
+PENNYLOAD t_ctx_create_ms   34.27   (T5-T4,  llama_init_from_model)
+PENNYLOAD t_ready_ms        2641.45   (T5-T0,  READY TO GENERATE)
+PENNYLOAD t_tokenize_ms     3.37   (T6-T5)
+PENNYLOAD t_state_load_ms   n/a    (fresh run)
+PENNYLOAD t_sys_decode_ms   5623.84   (T9a-T6, system-prompt llama_decode)
+PENNYLOAD t_state_save_ms   n/a    (no --save-state)
+PENNYLOAD state_file=(none) state_bytes=-1
+PENNYLOAD t_user_decode_ms  365.09   (T9b-T9a, user-turn llama_decode)
+PENNYLOAD t_sample_ms       0.76   (T10-T9b, llama_sampler_sample)
+PENNYLOAD ttft_fresh_ms     5989.68   (T10-T6,  TTFT resident FRESH)
+PENNYLOAD ttft_cached_ms    5993.06   (T10-T5,  TTFT resident CACHED)
+PENNYLOAD ttft_cold_proc_ms 8634.51   (T10-T0,  cold process) == B3
+PENNYLOAD gen_tokens=64 gen_ms=4100.70 gen_tps=15.36
+PENNYLOAD first_token_id=32313
+PENNYLOAD token_fnv1a64=0xcba17a2fcbba49f4
+PENNYLOAD token_ids=32313,11,279,1196,374,10161,911,279,6722,315,8330,11,279,7042,11,323,279,35230,2400,13,358,1184,311,4226,1493,5961,13,576,6722,374,68790,13,576,7042,374,2163,220,19,3526,13,576,35230,2400,374,220,16,24,15,16,13,358,1265,3410,1493,11253,2041,29058,624,785,6722,315,8330,374,68790
+--- text ---
+Okay, the user is asking about the capital of Australia, the population, and the founding date. I need to answer these directly. The capital is Canberra. The population is around 4 million. The founding date is 1901. I should provide these answers without routing.
+The capital of Australia is Canberra

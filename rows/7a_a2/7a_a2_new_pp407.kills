@@ -1,0 +1,4 @@
+09-21 11:47:59.140   533   533 I lowmemorykiller: Kill 'com.shannon.rcsservice:shannonrcsservice' (2727), uid 10152, oom_score_adj 985 to free 160408kB rss, 164kB anon rss, 51020kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:47:59.191   533   533 I lowmemorykiller: Kill '.ShannonImsService' (2755), uid 10150, oom_score_adj 975 to free 157928kB rss, 364kB anon rss, 50276kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:47:59.253  1341  1460 I ActivityManager: Process com.shannon.rcsservice:shannonrcsservice (pid 2727) has died: cch  +85 CEM 
+09-21 11:47:59.274  1341  1460 I ActivityManager: Process .ShannonImsService (pid 2755) has died: cch  +75 CEM 

@@ -1,0 +1,48 @@
+PENNYBENCH tag=7a_a2_old2_pp407 rc=0 mask=c0
+PENNYBENCH bin=/data/local/tmp/llama-bench
+PENNYBENCH args=-m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t 2 -p 407 -n 64 -r 3 -lm none
+PENNYBENCH uptime_s        before=14964.66 after=15003.16
+PENNYBENCH memavail_kB     before=3472244 after=3449784
+PENNYBENCH memfree_kB      before=1976276 after=1933736
+PENNYBENCH swapfree_kB     before=2026456 after=2026712
+PENNYBENCH cached_kB       before=2071900 after=2089616
+PENNYBENCH pswpin          before=133017 after=133040   (pages read back IN from swap)
+PENNYBENCH pswpout         before=609919 after=609919   (pages written OUT to swap)
+PENNYBENCH pgmajfault      before=144356 after=144422   (major faults: had to hit storage or swap)
+PENNYBENCH ceil_x1_kHz     before=2850000 min=2188000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+PENNYBENCH ceil_x1_min_at  uptime=14995.01   (31 s into the row)
+PENNYBENCH ceil_a76_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq)
+PENNYBENCH ceil_a76_min_at uptime=14964.66   (0 s into the row)
+PENNYBENCH rated_kHz policy0=1803000 policy4=2348000 policy6=2850000   (read from cpuinfo_max_freq before the row)
+PENNYBENCH oom_score_adj_child pre=-1000 post=200   (target 200; both READ off /proc)
+PENNYBENCH batt_temp_dC    before=249 after=251   (BATTERY, tenths of a degree C -- NOT SoC)
+PENNYBENCH batt_level      before=100 after=100
+PENNYBENCH batt_dumpsys    before=[ AC powered: true status: 5 level: 100 temperature: 249 ] after=[ AC powered: true status: 5 level: 100 temperature: 251 ]   (cross-check on the sysfs figures)
+PENNYBENCH series_file     /data/local/tmp/out/7a_a2_old2_pp407.series   (4 samples, one per 10 s of uptime)
+PENNYBENCH peak_rss_kB     1481036   (VmHWM, monotonic)
+PENNYBENCH max_vmrss_kB    1481036
+PENNYBENCH max_rssanon_kB  1474892   (anonymous -- NOT reclaimable)
+PENNYBENCH max_rssfile_kB  5852   (file-backed -- reclaimable)
+PENNYBENCH rss_samples     69   (sleep 0.2 s between samples; achieved rate is lower)
+PENNYBENCH lmk_kill_lines  0
+--- swap device (is swap zram?) ---
+cat: /proc/swaps: Permission denied
+/sys/block/zram0
+     ZRAM:   423,424K physical used for 1,786,272K in swap (3,820,152K total swap)
+--- series head/tail (full file at /data/local/tmp/out/7a_a2_old2_pp407.series) ---
+uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level
+14965.38 2850000 2348000 1803000 3437392 1929228 2026712 2075736 6096 6096 609919 144393 249 100
+14975.04 2401000 2348000 1803000 1973232 456944 2026712 2089436 1480888 1480888 609919 144404 249 100
+...
+14975.04 2401000 2348000 1803000 1973232 456944 2026712 2089436 1480888 1480888 609919 144404 249 100
+14985.29 2401000 2348000 1803000 1970264 453896 2026712 2089448 1480888 1480888 609919 144404 251 100
+14995.06 2188000 2348000 1803000 2051036 535868 2026712 2089452 1411488 1481036 609919 144419 251 100
+--- llama-bench stdout ---
+| model                          |       size |     params | backend    | threads |         lm |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | ---------: | --------------: | -------------------: |
+| qwen3 1.7B Q4_K - Medium       |   1.03 GiB |     1.72 B | CPU        |       2 |       none |           pp407 |         67.57 ± 0.99 |
+| qwen3 1.7B Q4_K - Medium       |   1.03 GiB |     1.72 B | CPU        |       2 |       none |            tg64 |         17.67 ± 0.05 |
+
+build: 38a5b42d9 (10989)
+--- llama-bench stderr (tail) ---
+--- kill lines ---

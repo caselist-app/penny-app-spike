@@ -1,0 +1,22 @@
+09-21 11:53:06.034   533   533 I lowmemorykiller: Kill 'app.seamlessupdate.client' (3013), uid 10082, oom_score_adj 945 to free 159332kB rss, 10636kB anon rss, 40472kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.086   533   533 I lowmemorykiller: Kill 'com.android.localtransport' (3807), uid 1000, oom_score_adj 915 to free 147860kB rss, 7536kB anon rss, 39952kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.120  1341  2354 I ActivityManager: Process app.seamlessupdate.client (pid 3013) has died: cch  +45 CEM 
+09-21 11:53:06.136   533   533 I lowmemorykiller: Kill 'com.android.keychain' (3459), uid 1000, oom_score_adj 915 to free 146496kB rss, 7660kB anon rss, 40036kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.178  1341  2354 I ActivityManager: Process com.android.localtransport (pid 3807) has died: cch  +15 CEM 
+09-21 11:53:06.187   533   533 I lowmemorykiller: Kill 'com.android.permissioncontroller' (2582), uid 10190, oom_score_adj 905 to free 157896kB rss, 9764kB anon rss, 43628kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.222  1341  2354 I ActivityManager: Process com.android.keychain (pid 3459) has died: cch  +15 CEM 
+09-21 11:53:06.239   533   533 I lowmemorykiller: Kill 'com.android.traceur' (3599), uid 10095, oom_score_adj 905 to free 146728kB rss, 7504kB anon rss, 42972kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.272  1341  2354 I ActivityManager: Process com.android.permissioncontroller (pid 2582) has died: cch CEM 
+09-21 11:53:06.289   533   533 I lowmemorykiller: Kill 'app.grapheneos.carrierconfig2' (3597), uid 10163, oom_score_adj 905 to free 137320kB rss, 596kB anon rss, 47944kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.309  1341  2954 I ActivityManager: Process com.android.traceur (pid 3599) has died: cch CEM 
+09-21 11:53:06.342   533   533 I lowmemorykiller: Kill 'com.android.cellbroadcastreceiver.module' (2706), uid 10176, oom_score_adj 905 to free 164396kB rss, 11328kB anon rss, 38080kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.353  1341  2954 I ActivityManager: Process app.grapheneos.carrierconfig2 (pid 3597) has died: cch CEM 
+09-21 11:53:06.383  1341  2354 I ActivityManager: Process com.android.cellbroadcastreceiver.module (pid 2706) has died: cch CEM 
+09-21 11:53:06.384   533   533 I lowmemorykiller: Kill 'com.google.euiccpixel' (2871), uid 10149, oom_score_adj 905 to free 149400kB rss, 9420kB anon rss, 39620kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.412  1341  2954 I ActivityManager: Process com.google.euiccpixel (pid 2871) has died: cch CEM 
+09-21 11:53:06.413   533   533 I lowmemorykiller: Kill '.adservices' (3745), uid 10173, oom_score_adj 905 to free 147588kB rss, 7928kB anon rss, 43236kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.460   533   533 I lowmemorykiller: Kill 'com.android.imsserviceentitlement' (3769), uid 10125, oom_score_adj 905 to free 146960kB rss, 7536kB anon rss, 43048kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.483  1341  2954 I ActivityManager: Process .adservices (pid 3745) has died: cch CEM 
+09-21 11:53:06.494  1341  2954 I ActivityManager: Process com.android.imsserviceentitlement (pid 3769) has died: cch CEM 
+09-21 11:53:06.495   533   533 I lowmemorykiller: Kill 'app.grapheneos.backup.contacts' (3799), uid 10100, oom_score_adj 905 to free 137056kB rss, 456kB anon rss, 49520kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:53:06.528  1341  2954 I ActivityManager: Process app.grapheneos.backup.contacts (pid 3799) has died: cch CEM 

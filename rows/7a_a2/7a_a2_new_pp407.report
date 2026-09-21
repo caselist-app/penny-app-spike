@@ -1,0 +1,52 @@
+PENNYBENCH tag=7a_a2_new_pp407 rc=0 mask=c0
+PENNYBENCH bin=/data/local/tmp/llama-bench-new
+PENNYBENCH args=-m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t 2 -p 407 -n 64 -r 3 -lm none
+PENNYBENCH uptime_s        before=14902.95 after=14941.31
+PENNYBENCH memavail_kB     before=3336724 after=3472796
+PENNYBENCH memfree_kB      before=1691912 after=1974544
+PENNYBENCH swapfree_kB     before=2029784 after=1995224
+PENNYBENCH cached_kB       before=2213512 after=2070620
+PENNYBENCH pswpin          before=125095 after=125184   (pages read back IN from swap)
+PENNYBENCH pswpout         before=576147 after=609919   (pages written OUT to swap)
+PENNYBENCH pgmajfault      before=136371 after=136507   (major faults: had to hit storage or swap)
+PENNYBENCH ceil_x1_kHz     before=2850000 min=2188000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+PENNYBENCH ceil_x1_min_at  uptime=14940.41   (38 s into the row)
+PENNYBENCH ceil_a76_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq)
+PENNYBENCH ceil_a76_min_at uptime=14902.95   (0 s into the row)
+PENNYBENCH rated_kHz policy0=1803000 policy4=2348000 policy6=2850000   (read from cpuinfo_max_freq before the row)
+PENNYBENCH oom_score_adj_child pre=-1000 post=200   (target 200; both READ off /proc)
+PENNYBENCH batt_temp_dC    before=248 after=248   (BATTERY, tenths of a degree C -- NOT SoC)
+PENNYBENCH batt_level      before=100 after=100
+PENNYBENCH batt_dumpsys    before=[ AC powered: true status: 5 level: 100 temperature: 248 ] after=[ AC powered: true status: 5 level: 100 temperature: 248 ]   (cross-check on the sysfs figures)
+PENNYBENCH series_file     /data/local/tmp/out/7a_a2_new_pp407.series   (4 samples, one per 10 s of uptime)
+PENNYBENCH peak_rss_kB     1480916   (VmHWM, monotonic)
+PENNYBENCH max_vmrss_kB    1480916
+PENNYBENCH max_rssanon_kB  1474864   (anonymous -- NOT reclaimable)
+PENNYBENCH max_rssfile_kB  5760   (file-backed -- reclaimable)
+PENNYBENCH rss_samples     68   (sleep 0.2 s between samples; achieved rate is lower)
+PENNYBENCH lmk_kill_lines  4
+--- swap device (is swap zram?) ---
+cat: /proc/swaps: Permission denied
+/sys/block/zram0
+     ZRAM:   425,148K physical used for 1,821,856K in swap (3,820,152K total swap)
+--- series head/tail (full file at /data/local/tmp/out/7a_a2_new_pp407.series) ---
+uptime_s ceil_x1 ceil_a76 ceil_a55 MemAvailable_kB MemFree_kB SwapFree_kB Cached_kB VmRSS_kB VmHWM_kB pswpout pgmajfault batt_temp_dC batt_level
+14903.65 2850000 2348000 1803000 3247328 1598796 2029784 2222548 15704 15704 576147 136398 248 100
+14913.04 2507000 2348000 1803000 2014136 518852 1994968 2070508 1480740 1480740 609919 136432 248 100
+...
+14913.04 2507000 2348000 1803000 2014136 518852 1994968 2070508 1480740 1480740 609919 136432 248 100
+14923.27 2401000 2348000 1803000 1995100 515168 1994968 2070552 1480916 1480916 609919 136432 248 100
+14933.04 2401000 2348000 1803000 2070404 582952 1995224 2070616 1411432 1480916 609919 136496 248 100
+--- llama-bench stdout ---
+| model                          |       size |     params | backend    | threads |         lm |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | ---------: | --------------: | -------------------: |
+| qwen3 1.7B Q4_K - Medium       |   1.03 GiB |     1.72 B | CPU        |       2 |       none |           pp407 |         68.74 ± 0.91 |
+| qwen3 1.7B Q4_K - Medium       |   1.03 GiB |     1.72 B | CPU        |       2 |       none |            tg64 |         17.70 ± 0.05 |
+
+build: 711f60b (1)
+--- llama-bench stderr (tail) ---
+--- kill lines ---
+09-21 11:47:59.140   533   533 I lowmemorykiller: Kill 'com.shannon.rcsservice:shannonrcsservice' (2727), uid 10152, oom_score_adj 985 to free 160408kB rss, 164kB anon rss, 51020kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:47:59.191   533   533 I lowmemorykiller: Kill '.ShannonImsService' (2755), uid 10150, oom_score_adj 975 to free 157928kB rss, 364kB anon rss, 50276kB swap, 0kB dmabuf_pss, 0kB dmabuf_rss; reason: low watermark is breached
+09-21 11:47:59.253  1341  1460 I ActivityManager: Process com.shannon.rcsservice:shannonrcsservice (pid 2727) has died: cch  +85 CEM 
+09-21 11:47:59.274  1341  1460 I ActivityManager: Process .ShannonImsService (pid 2755) has died: cch  +75 CEM 
