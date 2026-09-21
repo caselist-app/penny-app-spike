@@ -16053,3 +16053,187 @@ and the driver naming itself Mali-G710.
 It measures nothing thermal, nothing timed, and nothing about the A78s, the X1
 pair or the matrix. `current_now` and `voltage_now` being readable is not a
 power measurement and is not a claim that they can be used as one.
+
+## 2026-09-21 — BRIEF U, STEP A2 PREDICTIONS, written and committed BEFORE the clone, before any build and before any run. Point + band for pp407 old/new, tg64 old/new, old-vs-old, the fnv, and whether the 19 Sept state file loads into a newer binary. Plus Matt's statement on the reboot, and the six-file re-hash that opens A2.
+
+### 0. MATT'S STATEMENT ON THE REBOOT, verbatim
+
+Asked which of two limbs was his answer, Matt replied, in full:
+
+    I didn't reboot the phone.
+
+**Recorded as his statement and not investigated.** The reviewer offered a
+guess alongside the question — GrapheneOS auto-reboot after 18 h locked — and
+that guess is recorded here as **a guess from general knowledge, not a reading**
+of this device. No setting was read and none was changed. What ended the 19
+Sept row boot is **not established**.
+
+### 1. THE SIX-FILE RE-HASH — the reviewer's ruling 1, run before anything else in A2
+
+One invocation, `adb -s 37291JEHN04619 shell`, whole command single-quoted.
+Purpose stated in the ruling and repeated here: it confirms the files survived
+the reboot **and** it reads the GGUF, so the model is in page cache and the
+first OLD `llama-bench` run is not the only run paying a cold read.
+
+    START uptime_s=14202.48 wallclock=11:36:15
+    f52fc60411b55e5ed9eb34e8307f32b45d6bed6f06de85a5347bc02ec2f4ffe9  pennyload
+    ddb39f3c68c32f4a8cc30fc4aa0cf6d374b8377e805cf062e0318fdd34a8aa24  pennybench.sh
+    b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897  Qwen3-1.7B-Q4_K_M.gguf
+    9496977025bffba32886e447cf10ab2281c439dc7c4811124827762fdb730ff4  penny_system.txt
+    b61e0a992e5e8b4cd479c8596c63381b95372ee8b0c3982b895259f9b7a4121b  penny_user.txt
+    707e0ea3c1cc490187616a67ba0097747c8b8c58fcd2dcf38e1870a31a8f6f4d  q17_state.bin
+    END uptime_s=14204.01 wallclock=11:36:16 memavail_kB=3371952 cached_kB=3033236 batt_temp_dC=247
+
+**All six match CLAUDE.md's 7a block, character for character.** File sizes and
+mtimes unchanged (mtimes are the Mac's — `adb push` preserves the source
+mtime — and date nothing on the phone). `/data/local/tmp` holds those six and
+`out/` and nothing else. **1.53 s of wall clock covers 1,154,094,709 B of
+reading**, which is a reading about `sha256sum` and the cache, not a storage
+benchmark, and no figure is derived from it.
+
+**EVERY STEP A2 AND STEP B FIGURE IS LABELLED: "21 Sept 07:39 boot, spent by
+Step A2, page-cached after the re-hash, NOT a row-boot figure."**
+
+### 2. THE ANCHORS — every input named, with its line
+
+**There is no llama-bench figure of any kind on the 7a.** Every row on this
+handset so far ran `pennyload`. So the OLD-build prefill prediction below is
+carried across from the 6a and scaled by the one 7a/6a ratio this repo has.
+
+    A  6a, row C1, COOLED, c0, -t 2, -p 512 -n 128 -lm none, llama-bench:
+       pp512 55.36 +/- 5.11 t/s, tg128 14.11 +/- 0.59 t/s          notes.md 6348-6349
+       Model not named in C1's own row. Its peak RSS 1,491,536 kB is within
+       0.05% of B2-R1's 1,492,260 kB, and B2-R1 names Qwen3-1.7B-Q4_K_M by
+       sha256 (notes.md 6930-6936). **That is an inference from peak RSS, not
+       a model line read in C1.**
+    B  6a, row B2-R1, fresh boot, gated, c0, -t 1: pp512 31.45 +/- 0.70,
+       tg128 10.13 +/- 0.64                                        notes.md 6930
+    C  6a: "no pp512 figure on this handset is reproducible to better than
+       about 10% however it is started"                            notes.md 6390
+    D  7a, T1 turn 1 gen_tps 15.62 t/s, cool, c0, -t 2, -n 64, prefix RESTORED
+       not prefilled                                               notes.md 15059
+    E  7a, T2 turn 1 gen_tps 15.47 t/s, same shape                 notes.md 15218
+    F  7a rated X1 2,850,000 kHz against the 6a's 2,802,000 (+1.71%)  CLAUDE.md
+    G  research figure supplied in the brief: x1.5 prefill on a Pi 5's A76 from
+       the dotprod repack path; x0.97-0.99 decode. **A prediction from another
+       chip, another OS and another memory system — named as such in the brief.**
+
+Derived once, used below: **7a/6a decode ratio = 15.62 / 14.11 = 1.107**
+(anchor D over anchor A). Different instruments (pennyload `-n 64` with a
+restored prefix against llama-bench `tg128`), different boots, different days.
+**It is a rough scale factor, not a measured ratio.**
+
+### 3. THE PREDICTIONS — point + band, arithmetic shown
+
+Every row: Qwen3-1.7B-Q4_K_M, `taskset c0`, `-t 2`, `-p 407 -n 64 -r 3`, T gate
+before each, on the 21 Sept 07:39 boot, page-cached.
+
+    P-U2-1  pp407, OLD build (38a5b42d9), 7a
+            point 62 t/s        band 45-80 t/s
+            arithmetic: 55.36 (A) x 1.107 (D/A) = 61.3, rounded to 62 for the
+            +1.71% clock (F) and for -p 407 being shorter than -p 512 — the 6a
+            saw SHORTER prompts run FASTER per token (pp64 beat pp512 by
+            12.7-29.6% on three cooled rows, notes.md 6473, 6565, 6647), so 407
+            should be at or above the 512 figure. The band is wide because (C)
+            says no pp figure here reproduces better than ~10%, and because the
+            whole transfer from the 6a is an assumption.
+
+    P-U2-2  tg64, OLD build, 7a
+            point 15.2 t/s      band 13.0-16.5 t/s
+            arithmetic: anchors D and E give 15.62 and 15.47 for the first turn
+            on a cool chip. llama-bench's tg64 runs AFTER its pp407 reps in the
+            same process, so the chip is warmer by then; docked ~2%.
+
+    P-U2-3  pp407 NEW / pp407 OLD  (first OLD run)
+            point 1.20          band 0.90-1.80
+            reasoning: the research figure (G) is x1.5, but it is from a Pi 5
+            and this binary ALREADY compiles dotprod in (898 sdot, 0 smmla, 0
+            SVE — notes.md 14306), so part of whatever the newer tree adds may
+            already be present at 38a5b42d9. I expect a gain, smaller than 1.5.
+            The band's lower limb allows a LOSS: a year of upstream change is
+            not guaranteed to help one old core.
+
+    P-U2-4  tg64 NEW / tg64 OLD  (first OLD run)
+            point 0.98          band 0.90-1.05
+            reasoning: the brief's research figure is x0.97-0.99. Decode at
+            -t 2 on two cores is memory-bandwidth bound (the standing
+            prediction in CLAUDE.md's benchmark protocol), so kernel work
+            should barely show.
+
+    P-U2-5  OLD run 2 / OLD run 1   — the order-and-heat control
+            point 0.93          band 0.80-1.02   (on pp407; same band for tg64)
+            reasoning: no data for a 7a llama-bench row. On the 6a the X1
+            ceiling fell to 39.5% of rated INSIDE a single 103 s cooled row
+            (notes.md 6360). Here each binary runs gated, so run 2 starts from
+            rated — but the chassis is warmer. **If run 2 lands outside this
+            band, NO new-vs-old difference is quotable**, which is the point of
+            running it.
+
+    P-U2-6  token_fnv1a64 from pennyload-new, single-turn FULL-PREFILL row
+            point 0xcba17a2fcbba49f4, UNCHANGED      confidence ~55%
+            reasoning: greedy, -n 64, same model, same prompts. But a newer
+            tree may repack or reorder the arithmetic and change one logit's
+            tie-break. **A DIFFERENT VALUE IS A FINDING, NOT A FAILURE** — both
+            values get recorded, and nothing is claimed about answer quality
+            either way. fnv_all_equal must still be 1 within the row.
+
+    P-U2-7  does the 19 Sept q17_state.bin LOAD into pennyload-new?
+            point NO — it fails                     confidence ~55%
+            reasoning: llama.cpp's session/state blob carries a version and a
+            layout that upstream changes without ceremony; a year-newer reader
+            refusing a year-older blob is at least as likely as accepting it.
+            **If it fails I record the exact message and STOP the --load-state
+            half of the step. I do NOT write a new state file** — that would put
+            a seventh file on the phone and is not in the brief; it is Matt's
+            call.
+
+    P-U2-8  a repack / CPU_REPACK / aarch64-repack line for Q4_K_M in the new
+            build's load log
+            point YES, it appears                   confidence ~70%
+            If no such line appears: "repack not shown active", and the
+            comparison runs anyway.
+
+    P-U2-9  the build is clean inside the 60-minute time-box, and pennyload.cpp
+            needs NO edit
+            point YES to both                       confidence ~60% / ~65%
+            pennyload links `llama.h` and nothing else (pennyload.cpp:14), which
+            is the stable surface; but `llama_state_*` and the batch helpers
+            have moved before. **Any required edit stops the step for review
+            with the diff shown, per the brief.**
+
+### 4. THE EXACT COMMANDS, written before they run
+
+Build, from the brief and CLAUDE.md's benchmark protocol, in the NEW tree only:
+
+    NDK=/opt/homebrew/share/android-commandlinetools/ndk/30.0.16248370
+    SDKCM=/opt/homebrew/share/android-commandlinetools/cmake/3.22.1/bin
+    "$SDKCM/cmake" -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
+      -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-28 \
+      -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF \
+      -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16 -DGGML_OPENMP=OFF \
+      -DGGML_LLAMAFILE=OFF -DLLAMA_OPENSSL=OFF -DLLAMA_BUILD_EXAMPLES=OFF \
+      -DLLAMA_BUILD_SERVER=OFF -DLLAMA_BUILD_TESTS=OFF -G Ninja \
+      -DCMAKE_MAKE_PROGRAM="$SDKCM/ninja" -B build-android
+
+Phone side, per binary, one single-quoted string each, T gate then launch:
+
+    <T gate as notes.md 14306>; cd /data/local/tmp;
+    PENNYBIN=/data/local/tmp/llama-bench[-new] ./pennybench.sh <tag> c0 -- \
+      -m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t 2 -p 407 -n 64 -r 3 -lm none
+
+    tags: 7a_a2_old1_pp407, 7a_a2_new_pp407, 7a_a2_old2_pp407
+
+**`-lm none` on every row** (CLAUDE.md's benchmark protocol). Phone names
+`llama-bench-new` and `pennyload-new`; `ls` the target name before each push so
+the record shows nothing was overwritten.
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+Nothing has been cloned, built, pushed or run. Every number above is a
+prediction, and the two that matter most (P-U2-1, P-U2-3) rest on a transfer
+from a different SoC and a research figure from a Raspberry Pi. **The 7a/6a
+decode ratio 1.107 is arithmetic on two figures taken with different
+instruments on different boots — it is not a measured ratio and nothing else
+should cite it as one.** No prediction here is about answer quality, about
+prompt processing during a real conversation (every T row restored its prefix
+instead of prefilling it), or about anything the Step D matrix will measure.
