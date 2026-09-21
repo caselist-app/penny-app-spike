@@ -21638,3 +21638,95 @@ int8 side is today's W3.**
 - One repeat pass does not give the spread of pass-to-pass noise.
 - W3 ran warmer at launch than V1 and came out the same speed; that is one
   pass, and battery temperature is not chip temperature.
+
+## 2026-09-21 — BRIEF W, FINAL SUMMARY OF THE ROWS (not the closing entry — "BRIEF W, CLOSED" is the reviewer's). fp32 against int8, same 18 lines, same binary: X1 pair 0.749× (vs V1) / 0.748× (vs W3) the int8 elapsed sum; A78 pair 0.960× (vs V2). The repeat of V1 came out 1.0015×, WAVs byte-identical.
+
+No new measurement in this entry; every figure is quoted from the entries
+named. **Every figure: spent boot (21 Sept matrix boot), model page-cached, NOT
+a row-boot figure. Every RSS figure: peak of a fresh process for one line —
+NOT a resident process's RSS (step 3). Input kokoro-v1.0.onnx has no hash
+published by its originating project; matched only against a third-party
+mirror (fastrtc/kokoro-onnx).**
+
+### Commits of brief W, in order
+
+    136ceb9  step A    provenance of our int8 file; fp32 proposal (notes.md 20258)
+    0c4fb53  step A    penny-kokoro-fp32/model.fp32.onnx made, a0986d39… (20440)
+    bf4ed0a  step B    Mac fp32 reference WAVs; line 12 paths for a listen (20508)
+    4842c2f  step C    pennytts.sh rev 3, 90cbeea1…, committed alone (20593)
+    94fb29d  step D    push, hash lists, smoke (i) and (ii), CLAUDE.md +4 lines (20666)
+    f424f73  step E    predictions and the three pass strings, before any row (20854)
+    ae5ac45  —         correction: no "3c budget"; RSS labelling (21153)
+    6f15b13  W1        fp32, X1 pair (21181)
+    ea5e86f  W2        fp32, A78 pair (21348)
+    b503131  W3        int8, X1 pair, repeat of V1 (21499)
+    (this entry and the CLAUDE.md Boot / tts/out lines are the next commit)
+
+### The three passes, in the order they ran today
+
+                          W1 fp32 X1 (first)     W2 fp32 A78 (second)    W3 int8 X1 (third)
+    gate                  PASSED, 0 polls        PASSED, 83 polls 430.40 s   PASSED, 170 polls 882.75 s  (battery limb; none LAUNCHED WARM)
+    line 00 battery       271 dC                 285                     285
+    rc=0 / kill lines     18 / 0                 18 / 0                  18 / 0
+    RTF min/median/max    0.747 / 0.804 / 0.976  1.226 / 1.309 / 1.718   1.010 / 1.085 / 1.339
+    lines under 1.0       18                     0                       0
+    elapsed_ms sum        59,468                 96,238                  79,476
+    wall_ms sum           99,966                 152,483                 115,098
+    derived load median   2,248.5 ms             3,132.5                 1,975
+    peak RSS max          708,252 kB (l15)       708,556 (l15)           578,896 (l15)
+    MemAvailable min      3,307,936              3,322,780               3,239,476
+    ceiling that moved    X1 to 2,188,000 (l14)  none                    X1 to 2,507,000 (l08)
+    score                 15 of 17 HIT           9 of 17 HIT             16 of 18 HIT
+
+### The questions
+
+    question                                           predicted (notes.md)         measured                    verdict
+    W-A1 (a) W1/V1  fp32/int8, X1, int8 = brief V's    0.760 [0.68-0.85] (21009)    0.7494                      HIT
+    W-A1 (b) W1/W3  fp32/int8, X1, int8 = today's      0.745 [0.66-0.85] (21009)    0.7483                      HIT
+    W-A2     W2/V2  fp32/int8, A78, int8 = brief V's   0.780 [0.68-0.90] (21017)    0.9599                      MISS (HIGH)
+    W-A3     any W2 line under RTF 1.0                 YES ~50% (21021)             NO, 0 lines                 MISS
+    W-A4     W2/W1  fp32 A78/X1                        1.296 [1.15-1.50] (21023)    1.6183                      MISS (HIGH)
+    W-A5     W3/V1  the repeat (noise estimate)        1.020 [0.97-1.08] (21027)    1.0015                      HIT
+    W-B1     no tts kill; MemAvailable >= 1 GB         HIT (21031)                  0 kills; mins >= 3,239,476  HIT, all three
+    plan's "~330 MB resident" for fp32                 —                            fresh-process peak 493,736-708,556 kB   MISS on these figures (not resident RSS)
+
+Order and heat for each comparison: V1 first in brief V (line 00 270 dC), V2
+second (285); W1 first today (271), W2 second (285), W3 third (285).
+
+### Findings (not decisions; those are Matt's)
+
+a. **On the X1 pair, fp32 generated in ~0.75× int8's time**, against both int8
+   sides (0.7494 vs brief V's V1, 0.7483 vs today's W3). All 18 fp32 lines
+   were under RTF 1.0 (0.747-0.976); no int8 line was, in V1 or W3.
+b. **On the A78 pair, fp32 generated in 0.960× int8's time**, and its wall sum
+   was 1.019× — the longer fp32 load (median 3,132.5 vs 2,749 ms) more than
+   used up the gain. No W2 line was under RTF 1.0.
+c. **fp32 load per line is longer**: +266.5 ms median on the X1 pair (2,248.5
+   vs V1 1,982), +383.5 on the A78 pair (3,132.5 vs 2,749). Outside RTF.
+d. **fp32's fresh-process peak RSS is ~181,000-224,000 kB over int8's on 17 of
+   18 lines, and ~131,500 kB over on line 15** (W1 and W2 alike).
+e. **The X1 ceiling fell further under fp32** (2,188,000, W1) than under int8
+   (2,507,000, V1 and W3). The A78 ceiling never moved in any pass.
+f. **The repeat of V1 was within 0.15% on the elapsed sum, and its WAVs were
+   byte-identical** — one sample of pass-to-pass noise.
+g. **Between passes the battery rose with nothing running**: 271 -> 283
+   (W1 -> W2), 288 -> 296 (W2 -> W3), as 272 -> 290 after V1. That held the
+   W2 and W3 gates 430 s and 883 s. Unexplained.
+h. **The `caffeinate -i -t 300` processes are Claude Code's own** (parent = the
+   claude CLI, notes.md 21181), which very likely explains brief V §7's two.
+
+### What this brief does NOT say
+
+- Nothing about real-time speech in a product, in either direction: a fresh
+  process per line pays a load (1,906-3,169 ms) outside RTF.
+- Nothing about a resident Kokoro (step 3), its RSS, or the plan's ~330 MB
+  resident figure beyond "fresh-process peaks were larger".
+- Nothing about sound. Nobody has listened to fp32 or int8 on the phone; the
+  line 12 listen owed since brief V is still owed.
+- Why fp32 gains ~25% on the X1 pair and ~4% on the A78 pair: not established.
+- Nothing about long continuous speech: no pass held a pair for more than one
+  line (~13 s) at a time.
+- Nothing about fp16, time to first audio, thread placement beyond these two
+  pairs, TTS beside the LLM, the app or AudioTrack.
+- One pass per shape, fixed order, spent boot. It does not decide which file ships.
+- Battery temperature is not chip temperature.
