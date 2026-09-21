@@ -21757,3 +21757,168 @@ Open, carried forward: why fp32 gains so little on the A78 pair (unexplained; no
 Commits: 136ceb9 (step A), 0c4fb53 (file made), bf4ed0a (step B), 4842c2f (rev 3), 94fb29d (step D), f424f73 (predictions), ae5ac45 (correction), 6f15b13 (W1), ea5e86f (W2), b503131 (W3), bbaf06b (builder's summary), and this entry.
 
 Does NOT say: anything about real-time speech in the product, in either direction — every line here also paid 1.9–3.2 s of load that RTF leaves out, and a resident process has not been run. Nothing about a resident Kokoro's RSS or speed (step 3), time to first audio (step 4), placement beyond these two pairs (step 5), TTS beside the LLM (step 6), fp16, long continuous speech, or the app. Nothing about how fp32 sounds against int8 — nobody has listened. One pass per shape, fixed order, spent boot, page-cached model; load from flash is unmeasured for fp32. Battery temperature is not chip temperature. A shell process over adb on mains with the screen on is not a product process. It does not decide which file ships.
+
+## 2026-09-21 — BRIEF X STEPS A and B: the stock CLI takes ONE text per process, so a resident harness was written. pennyspeak.cpp (C API) + the clone's UNMODIFIED c-api/c-api.cc, built with no cmake and no fetch; aarch64, the CLI's six NEEDED libraries, stripped 2,466,712 B sha256 9be8e0e4…. NOT RUN ON ANY PHONE; nothing sent to the phone for this entry.
+
+Brief X is stage 3a step 3: a resident Kokoro, one process, model loaded once,
+the 18 lines in sequence. This entry records step A's answer (approved by the
+reviewer after reading the same source lines in the clone) and step B's code
+and build. No figure from any phone is in it.
+
+### 0. adb commands run for steps A and B
+
+Two, both read-only, both at the session's opening, reported to Matt then:
+`adb devices -l` (one device, 37291JEHN04619, Pixel_7a/lynx) and one
+`adb -s 37291JEHN04619 shell '…'` reading uptime+wallclock, the three
+scaling_max_freq/cpuinfo_max_freq pairs, battery temp, MemAvailable, SwapFree,
+df, ls -la tts/, sha256sum of tts/pennytts.sh, tts/sherpa-onnx-offline-tts and
+tts/libonnxruntime.so, and the out/ count. It returned: uptime_s=18448.88
+wallclock=17:49:17, all three policies at rated (1803000/2348000/2850000),
+battery 288 dC, MemAvailable 3,295,248 kB, SwapFree 2,046,584 kB, the three
+hashes = CLAUDE.md's (90cbeea1…, bd7d26e8…, 33847ad4…), out_files=570.
+Nothing since.
+
+### 1. Step A's answer, from source (clone ~/Documents/sherpa-onnx at a5b4a944c5186a68bcdc0ac3011e4c541781ac84)
+
+    c-api/c-api.h   sha256 8475682608354bb3eb958453de5a4d1d6e3ef08ea875d73435c2003d41977328  4,756 lines
+    c-api/c-api.cc  sha256 6ec0fb568a43b72cbaaa410d558b55999ff7a4aa490e4225989de2c8d3ebf00c  3,768 lines
+    clone git status: " M build-android-arm64-v8a.sh" only (known since 18 Sept)
+
+- **The CLI takes one text per process.** sherpa-onnx/csrc/sherpa-onnx-offline-tts.cc:159-165,
+  `if (po.NumArgs() > 1) { … "Accept only one positional argument" … EXIT_FAILURE`.
+  No binary on disk takes more than one text for TTS.
+- **Where the CLI's "Elapsed" is measured.** Load at :176 (`OfflineTts tts(config)`)
+  is OUTSIDE; the window is :178 `begin = steady_clock::now()` to :227 `end`,
+  enclosing `tts.Generate(po.GetArg(1), gen_config, AudioCallback)` at :225 and
+  the callback, a printf to stdout (:17-21). :236-239 truncate to whole ms
+  (`duration_cast<milliseconds>`). Duration = samples / sample_rate (:240).
+- **The WAV writer is the same code.** CLI :249 calls
+  `sherpa_onnx::WriteWave(output_filename, audio.sample_rate, audio.samples.data(), audio.samples.size())`
+  (csrc/wave-writer.cc:51-54). c-api.cc:2026-2029 `SherpaOnnxWriteWave` is
+  `return sherpa_onnx::WriteWave(filename, sample_rate, samples, n);`.
+  c-api.h:2799: "@return 1 on success; 0 on failure."
+- **The generate is the same code.** c-api.cc:1713 calls `tts->impl->Generate(text, cfg, callback)`
+  on the same `sherpa_onnx::OfflineTts`. The progress callback does not change
+  the audio: offline-tts-kokoro-impl.h runs one sentence per batch and calls the
+  callback AFTER the samples are appended; only its return value is read (the
+  CLI's returns 1). pennyspeak passes NULL.
+- **The C API library was NOT built on 18 Sept.** build-android-arm64-v8a/CMakeCache.txt:685
+  `SHERPA_ONNX_ENABLE_C_API:BOOL=OFF`; no libsherpa-onnx-c-api.* on disk. c-api/CMakeLists.txt:2-3
+  makes it one source file linked to sherpa-onnx-core, so pennyspeak compiles
+  c-api.cc itself, UNMODIFIED. Matt's decision after step A: two files, the C
+  API route; no internal sherpa-onnx header in our code.
+
+### 2. THE TIMING-WINDOW CAVEAT — carried by EVERY resident-vs-fresh comparison in brief X
+
+pennyspeak's `gen_ms` is CLOCK_MONOTONIC around `SherpaOnnxOfflineTtsGenerateWithConfig`
+and nothing else. It INCLUDES the C API copying the samples into a new buffer
+(c-api.cc:1719-1722), which the CLI's Elapsed does not. The CLI's Elapsed
+INCLUDES its printf callback (:17-21) and whatever runs between :178 and :225,
+and is TRUNCATED to whole ms (:236-239); gen_ms is kept to 0.001 ms. The two
+windows are close, not identical. No size is claimed for the difference.
+
+### 3. pennyspeak.cpp (sha256 6bce6d7ad35e4ee12b01491e6705c4be8e0998fb348f7bbcb5cd9afe4d58f0f9)
+
+    usage: pennyspeak <modeldir> <modelfile> <threads> <outdir> <tag> [lines] [idle_ms]
+
+Includes ONLY "sherpa-onnx/c-api/c-api.h" and libc/POSIX headers. Calls, all
+declared in c-api.h: SherpaOnnxCreateOfflineTts (2539-2540), SherpaOnnxDestroyOfflineTts
+(2548-2549), SherpaOnnxOfflineTtsSampleRate (2557-2558), SherpaOnnxOfflineTtsGenerateWithConfig
+(2776-2780), SherpaOnnxDestroyOfflineTtsGeneratedAudio (2789-2790), SherpaOnnxWriteWave
+(2807-2809), SherpaOnnxGetVersionStr / GetGitSha1 / GetOnnxruntimeVersionStr (131/141/161);
+structs at 2297-2314, 2409-2430, 2450-2461, 2470-2477, 2727-2746.
+
+- **Nothing left to a fallback** (c-api.cc:53 turns a zero/NULL into a default;
+  not relied on). After memset, set explicitly: kokoro.model/voices/tokens/
+  data_dir/lexicon (MODELDIR + the same five names pennytts.sh uses),
+  kokoro.lang="en", kokoro.length_scale=1.0f, model.num_threads, model.debug=0,
+  model.provider="cpu", max_num_sentences=1, config silence_scale=0.2f,
+  rule_fsts="", rule_fars=""; gen silence_scale=0.2f, speed=1.0f, sid=22,
+  num_steps=5, extra=NULL, reference_audio=NULL, reference_audio_len=0,
+  reference_sample_rate=0, reference_text=NULL (c-api.cc:1697 maps it to "",
+  the CLI's empty string). threads < 1 (or > 64, or non-numeric) is exit 2.
+- **The clocks.** `t0; SherpaOnnxCreateOfflineTts; t1` and `t0; GenerateWithConfig; t1`
+  with nothing between. CLOCK_BOOTTIME (the /proc/uptime clock) stamped OUTSIDE
+  each pair as up_before/up_after. wav_ms timed separately.
+- **Order per line:** stamp, generate, stamp; WAV write (wav_ok = the return
+  value, 1 = success); destroy the audio; THEN read VmRSS/VmHWM/RssAnon/RssFile
+  (/proc/self/status) and MemAvailable (/proc/meminfo); print; idle_ms sleep if
+  not the last line. Also read at start, after load, after the final destroy.
+- **Output:** `PENNYSPEAK event=start|config|load|line|destroy|done`, key=value,
+  fflush after each. WAV at `<outdir>/<tag>_NN.wav`.
+- **Exit:** 0 ok; 2 bad arguments; 3 create failed; 4 a generate returned NULL;
+  5 a WAV write failed (4 wins over 5). A failed line is recorded with its
+  number, the pass carries on, and `done` names every failed line.
+- **Pairs:** every generate's audio destroyed before the next line; the one
+  create destroyed once after the last line.
+
+**The 18 lines, byte for byte.** Extracted from pennytts.sh's case block and
+from pennyspeak.cpp's BEGIN/END LINES block (sed, into the session scratchpad):
+
+    lines_pennytts.txt    18 lines  sha256 c8770f2522f8977f7b671cb97fd7e74e59a11f9adb1dbca7cee405f753a57c2d
+    lines_pennyspeak.txt  18 lines  sha256 c8770f2522f8977f7b671cb97fd7e74e59a11f9adb1dbca7cee405f753a57c2d
+    diff rc=0
+    pennyspeak.cpp:93 xxd: "…is " 20 c2 a3 "12,480.50…" — the £ is UTF-8 C2 A3, as in pennytts.sh
+
+No line contains `\`, `"`, `$` or a backtick (grep count 0), so each is a C++
+literal without escapes.
+
+### 4. build-pennyspeak.sh (sha256 960a9d750201adced4c06298159b0e4690829eaafd04eddcd13e2a95ae39fe84)
+
+No cmake, no configure step, no network; `set -eux`, every command echoed.
+Reads ~/Documents/sherpa-onnx and ~/Documents/sherpa-onnx-deps only; writes
+only under this repo's build/pennyspeak/. It first checks and prints, and
+exits 1 on any mismatch: clone HEAD a5b4a944…, c-api.h 84756826…, c-api.cc
+6ec0fb56…, libonnxruntime.so 33847ad4… (all four printed CHECK OK).
+
+Flags, copied from the files named in the script's header comment, then
+checked token by token against them (tr to one token per line, diff):
+
+    c-api.cc        vs sherpa-onnx-core.dir/flags.make (DEFINES INCLUDES FLAGS, -fPIC)          38 tokens, diff rc=0
+    pennyspeak.cpp  vs sherpa-onnx-offline-tts.dir/flags.make (the CLI's own object, -fPIE)     38 tokens, diff rc=0
+    link line       vs sherpa-onnx-offline-tts.dir/link.txt (../../lib spelled out)             44 tokens; ONE extra: c-api.cc.o
+    compiler rule   core build.make:2988 and CLI build.make:76: clang++ --target=aarch64-none-linux-android24 --sysroot=… ; -MD -MT -MF (dependency files only) left out
+
+The two flags.make files are identical except -fPIC / -fPIE. `-I/include`
+appears in both as recorded and is kept verbatim.
+
+**The build**, 18:01:39 -> 18:01:42 on the Mac, rc=0, no warnings, no errors
+(full 45-line log shown to Matt in the session):
+
+    build/pennyspeak/c-api.cc.o          5,212,104 B
+    build/pennyspeak/pennyspeak.cpp.o       61,112 B
+    build/pennyspeak/pennyspeak        108,829,448 B  sha256 c5ccf3d226a13ca0b23c91af207343a4c802ef31dc496c30df95008d3101ceb4
+    build/pennyspeak/pennyspeak-stripped 2,466,712 B  sha256 9be8e0e44d868460f6408209c9590ea7c1291ce6823b4a2c60352d6d540ba14f
+      ELF 64-bit LSB pie executable, ARM aarch64, interpreter /system/bin/linker64,
+      BuildID[sha1]=abbb589d0fdffeb024c8cecd3a8e62fb31dae350, stripped
+      llvm-readelf -h: Class ELF64, Type DYN, Machine AArch64
+      NEEDED: libandroid.so liblog.so libonnxruntime.so libm.so libdl.so libc.so
+      RUNPATH: $ORIGIN/../lib:$ORIGIN/../../../sherpa_onnx/lib
+    the CLI, install/bin/sherpa-onnx-offline-tts, 2,432,496 B (bd7d26e8…): the SAME six NEEDED, same order, same RUNPATH
+
+Stripped pennyspeak is 34,216 B larger than the stripped CLI. So the only
+file to push is the binary; libonnxruntime.so (33847ad4…) is already on the
+phone. Nothing in ~/Documents/sherpa-onnx or sherpa-onnx-deps is newer than
+18:01:30 except the clone's .git directory entry (18:01:42), from a `git
+status` run straight after the build; .git/index is unchanged since 18 Sept
+17:10:51. Clone `git status` before and after: ` M build-android-arm64-v8a.sh` only.
+Neither the binary nor the objects are committed (build/ is untracked).
+
+### 5. STILL UNPROVEN
+
+- That the resident WAVs equal the fresh-process WAVs. Step D's cmp is the only
+  test. **Until it passes, no pennyspeak timing is compared with V or W.**
+- That pennyspeak runs on the phone at all (it has not been pushed or run).
+- That the phone's CLI binary was compiled from exactly these source lines. Its
+  hash equals install/bin's, dated 18 Sept 17:42, built from this clone —
+  consistent, not proven.
+- (Step A listed "that c-api.cc compiles and links here" as unproven; the build
+  above now shows it does, with the flags and link line shown.)
+
+### What this entry does NOT say
+
+Nothing measured on any phone. Nothing about load time, per-line cost, RTF,
+RSS or MemAvailable of a resident process; nothing about whether the WAVs match
+(step D); nothing about how large the timing-window difference in §2 is. It
+does not say pennyspeak behaves identically to the CLI beyond the source lines
+quoted. It decides nothing about which file ships or which cores speak.
