@@ -16870,3 +16870,359 @@ not a controlled cost measurement.
 repeatability comparison between U1's first 100 turns and T2's must name that
 as an instrument difference — different series interval, an extra sysfs read
 per poll iteration, and `rss_samples` counts that are not comparable.
+
+## 2026-09-21 — BRIEF U, STEP C: PREDICTIONS for the U1-U4 matrix, written and committed BEFORE the reboot, before any row. Commands and mask arithmetic first, then the gate as it will run with both paths dry-run, then point + band for every figure the brief names, then the row-order confound and the U1-vs-T2 comparison.
+
+**Nothing has been rebooted, pushed or run for the matrix.** The gate dry runs
+below are on the spent 21 Sept 07:39 boot and launched nothing.
+
+### 1. THE FOUR COMMANDS, EXACTLY
+
+Every row: `PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh <tag> <mask> --`
+followed by
+
+    -m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t <N> -c 1024 -lm none -n 64
+    --user-file /data/local/tmp/penny_user.txt
+    --load-state /data/local/tmp/q17_state.bin --turns 100 --interval-s 0
+    --tag <tag>
+
+    row  tag                    mask  -t   cpus the mask admits
+    U1   7a_q17_u1_x1x1         c0     2   6,7        = the X1 pair
+    U2   7a_q17_u2_a78a78       30     2   4,5        = the A78 pair
+    U3   7a_q17_u3_x1x1a78      d0     3   4,6,7      = both X1 + ONE A78
+    U4   7a_q17_u4_2plus2       f0     4   4,5,6,7    = both X1 + both A78
+
+**THE SAME WORK IN EVERY ROW** — same model, same state file, same 20-token
+user turn, same `-n 64`, greedy, no template, 100 turns back to back — so wall
+time is comparable across rows.
+
+### 2. THE MASK ARITHMETIC, from the 7a block's related_cpus lines
+
+`taskset` masks are bitmasks over CPU numbers; bit *n* is 2^n. From the 7a
+block, read off the phone: `policy0 related_cpus=[0 1 2 3]`, `policy4
+related_cpus=[4 5]`, `policy6 related_cpus=[6 7]`.
+
+    cpu4 = 2^4 =  16 = 0x10        cpu6 = 2^6 =  64 = 0x40
+    cpu5 = 2^5 =  32 = 0x20        cpu7 = 2^7 = 128 = 0x80
+
+    c0 = 0x40 + 0x80                     =  64 + 128       = 192 = 0xc0  -> cpus 6,7
+    30 = 0x10 + 0x20                     =  16 +  32       =  48 = 0x30  -> cpus 4,5
+    d0 = 0x10 + 0x40 + 0x80              =  16 +  64 + 128 = 208 = 0xd0  -> cpus 4,6,7
+    f0 = 0x10 + 0x20 + 0x40 + 0x80       =  16+32+64+128   = 240 = 0xf0  -> cpus 4,5,6,7
+
+`c0`, `30` and `f0` are the three masks the 7a block lists. **`d0` is NOT in
+that line and is derived here, not quoted.**
+
+**U3's mask admits ONE A78 — cpu4, the lower-numbered of policy4's pair — and
+both X1 cores.** cpu5 is excluded.
+
+**`taskset` does NOT pin individual threads to individual cores.** It sets the
+affinity mask of the process; every thread inherits it and the kernel scheduler
+places the threads anywhere inside that set. With 3 threads on 3 allowed cores
+the scheduler will ordinarily spread them one per core, but **nothing here
+guarantees it, threads may migrate between the allowed cores during the row,
+and this repo has no instrument that would see it.** The 6a's rung 3f entry
+already recorded the general form of this: "8 unpinned threads, not a topology"
+(CLAUDE.md, rung 3f). The same caution applies to U4's 4 threads on 4 cores.
+
+### 3. THE GATE AS IT WILL RUN — dry-run both paths, on this spent boot
+
+Two conditions, both read, no written-in frequency anywhere:
+
+1. **every policy's `scaling_max_freq` equals its OWN `cpuinfo_max_freq`**, for
+   policy0, policy4 and policy6 — the T gate of notes.md 14306, unchanged; and
+2. **`/sys/class/power_supply/battery/temp` <= U1's launch temp + 15 dC**
+   (1.5 C).
+
+**U1 sets the reference and is therefore gated on clocks ONLY** — there is no
+earlier launch temperature to compare against. U1's launch temp becomes `TREF`
+and U2, U3 and U4 each run with `TMAX=TREF+15`.
+
+Polls every 5 s, cap **240 polls = 20 minutes**. On the cap the row launches
+anyway and the line reads **GATE TIMED OUT - LAUNCHED WARM**. The first poll's
+values print whatever happens; the exit line carries the values from the poll
+that ended it, `polls_failed`, the gate-start uptime, the launch uptime, the
+wall clock and the battery temperature — all read in the same invocation.
+
+**THE GATE CANNOT OUTLIVE ITSELF INTO THE ROW.** It is a foreground `while`
+loop in the same `adb shell` invocation that launches the row; **there is no
+`&` anywhere in it**, so there is no background process to survive `break`.
+Control reaches `pennybench.sh` only after the loop has exited. Dry run B below
+ends with `jobs`, which printed nothing.
+
+**DRY RUN A — the passing path** (TMAX=400 dC so it passes at once):
+
+    GATE FIRST p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt=261/400 uptime_s=16838.41
+    GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_temp_dC=261 tmax_dC=400 polls_failed=0 gate_start_uptime_s=16838.41 uptime_s=16838.58 wallclock=12:20:11
+    DRYRUN A would launch here
+
+**DRY RUN B — the timeout path**, forced with TMAX=1 dC (unreachable) and the
+cap cut to 2 polls so the logic can be seen without waiting 20 minutes:
+
+    GATE FIRST p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt=261/1 uptime_s=16849.09
+    GATE TIMED OUT - LAUNCHED WARM p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_temp_dC=261 tmax_dC=1 polls_failed=2 gate_start_uptime_s=16849.09 uptime_s=16854.44 wallclock=12:20:27
+    DRYRUN B would launch here (warm label)
+    PROOF no loop survives: jobs follows
+    (jobs printed nothing)
+
+**Only the cap changed between B and the real thing** — 2 instead of 240. The
+real cap gives 240 polls x 5 s sleep plus the work per iteration, i.e. a little
+over 20 minutes; the entry will report the wait as read, not as intended.
+
+### 4. THE ANCHORS — every input tagged
+
+    7a figures (all brief T, all rev 6 instrument)
+      a  T1 turn-1 gen_tps 15.62 t/s, cool, c0, -t 2                 notes.md 15059
+      b  T2 turn-1 gen_tps 15.47; settled q4 median 8.90;
+         settled_pct_of_turn1 57.51                                  notes.md 15217-15218
+      c  T2 per-turn: turn 80 = 10.07, turn 100 = 8.94 t/s           notes.md 15239, 15240 (table)
+      d  T2 200 turns in 1,482.14 s = 24.70 min                      notes.md 15197
+      e  T2 X1 poll min 984,000 = 34.53% of rated, first at 471 s    notes.md 15279
+      f  T2 A78 poll: NEVER MOVED, series 149/149 at rated           notes.md 15282
+      g  T2 A55 series 148/149 at rated; one sample 94.51%           notes.md 15283
+      h  T2 battery 330 -> 393 dC = +0.2551 C/min over 1,481.43 s    notes.md 15293, 15297
+      i  T2 SwapFree min 2,063,224 = 54.01% of SwapTotal             notes.md 15204
+      j  T1 Cached ROSE +236,492 kB (first load of the boot);
+         T2 fell -185,124; T3 fell -193,188                          notes.md 15045, 15205, 15364
+      k  rev 7 smoke, 21 Sept, batt 274 dC, c0 -t 2, 3 turns:
+         gen_tps 15.67 / 15.62 / 15.37                               notes.md 16698
+
+    6a figures (earlier sessions, different silicon — predictions only)
+      l  C1 cooled, c0, -t 2, tg128 14.11 t/s                        notes.md 6349
+      m  C3 cooled, f0, -t 4, tg128 12.78 t/s                        notes.md 6507
+         => 4 threads on X1+A76 was SLOWER than 2 on X1: 12.78/14.11 = 0.906
+      n  S2 settled 54.77% of turn 1, 200 turns                      notes.md 12725
+      o  S2 A76 pair fell to 30.89% of rated                         notes.md 12790
+      p  TTS rung 1: A76 pair 2 threads vs X1 pair 2 threads,
+         18-line elapsed sum ratio 1.680 (A76 slower)                notes.md 13870
+
+**ANCHOR p IS THE ONLY BIG-vs-MID SPEED RATIO IN THIS REPO, AND IT IS THE WRONG
+WORKLOAD ON THE WRONG PHONE** — Kokoro int8 under sherpa-onnx/ONNX Runtime on
+the 6a's A76 pair, not llama.cpp decode on the 7a's A78 pair. It is used below
+as reasoning, tagged, never as a figure.
+
+**THERE IS NO DECODE FIGURE FOR THE A78 PAIR ON THIS PHONE.** Every 7a row ever
+run used mask `c0`. **Anchor f — "the A78 ceiling never moved in T2" — is about
+CEILINGS, what the governor permits, on a row where `taskset c0` scheduled
+nothing onto policy4. It is not a speed measurement and nothing below treats it
+as one.** T2's own entry says exactly this (notes.md 15282 onward).
+
+### 5. THE PREDICTIONS — point + band
+
+**U1 — c0, -t 2. Inputs: anchors b, c, d, e, f, g, h.**
+
+    turn-1 gen_tps            15.5 t/s      band 14.0-16.5
+      = anchor b's 15.47, same shape, same binary. U1 starts on a FRESH boot
+      where T2 started 99 s after T1 at 33.0 C, so if anything U1 is faster.
+    last-10 median (91-100)   9.0 t/s       band 8.0-10.5
+      = anchor c: T2 read 10.07 at turn 80 and 8.94 at turn 100; turns 91-100
+      sit just above 8.94 and the curve is nearly flat by then.
+    that as % of own turn 1   58%           band 50-70
+      = 9.0 / 15.5 = 58.1%. Anchor b's 200-turn figure was 57.51%; 100 turns
+      stops a little earlier on the same curve, so at or just above it.
+    wall, 100 turns           690 s         band 600-800
+      = anchor d's table: T2's turn 1 began at uptime 5175.87 and turn 100 at
+      5849.74, busy ~7.93 s, row start 5172.14 -> ~685.6 s including the
+      3.2 s model load. Rounded to 690.
+    poll-min policy6          34.5% of rated  band 30-45
+      = anchor e exactly: 984,000 / 2,850,000, reached at 471 s and U1 runs
+      ~686 s, so it gets there.
+    poll-min policy4          100% of rated   band 95-100
+      = anchor f. Nothing is scheduled on policy4 in a c0 row.
+    poll-min policy0          90% of rated    band 75-100
+      = anchor g is a SERIES figure on the 10 s grid (one sample at 94.51%).
+      **REV 7 POLLS policy0 AT 0.2 s FOR THE FIRST TIME**, so this row can see
+      dips the T rows could not. I expect the poll minimum to come in BELOW the
+      series minimum; how far below is the thing being measured.
+    battery rise              +4.5 C        band +2.5 to +8.0
+      = anchor h's +0.2551 C/min x 11.4 min = +2.9 C, raised because T2 began
+      at 33.0 C with less headroom and U1 begins on a cold boot.
+
+**U2 — mask 30, -t 2, the A78 pair. EVERY NUMBER HERE IS "no data, my
+reasoning".** There is no A78 decode figure on this phone, and anchor f is
+about ceilings, not speed.
+
+    turn-1 gen_tps            12.5 t/s      band 8.5-16.0
+      Three ways of guessing, no data to choose between them:
+        pure clock scaling   15.5 x (2,348,000 / 2,850,000) = 15.5 x 0.8239 = 12.77
+        pure bandwidth bound ~15.5 (the core type would barely matter)
+        anchor p's ratio     15.5 / 1.680 = 9.23   (WRONG WORKLOAD, WRONG PHONE)
+      I take 12.5, i.e. essentially clock scaling, because CLAUDE.md's standing
+      benchmark prediction says token generation is memory-bandwidth bound at
+      low thread counts — which argues the core's width matters less than its
+      clock. The band spans all three guesses because I cannot rule any out.
+    last-10 median            11.6 t/s      band 7.5-15.5
+      = 12.5 x 0.93 (see the next line).
+    that as % of own turn 1   93%           band 80-100
+      **This is the interesting one.** Reasoning: the A78 pair sat at rated
+      throughout T2's 24.70 minutes while the X1 pair fell to 34.53% (anchors
+      e, f). IF that is because the limiter treats policy4 more gently, an A78
+      row should decay far less than U1. IF it is only because policy4 was
+      IDLE, a loaded A78 pair may throttle like anything else — and the 6a's S2
+      saw its A76 pair fall to 30.89% of rated (anchor o). **The band's lower
+      limb allows the second story.**
+    wall, 100 turns           600 s         band 480-780
+      = 100 turns x (64 / 11.9 t/s mean + ~0.5 s ttft) ~= 590 s + load.
+    poll-min policy6          100% of rated band 90-100   (nothing scheduled on it)
+    poll-min policy4          85% of rated  band 40-100   — the row's real question
+    poll-min policy0          92% of rated  band 75-100
+    battery rise              +4.0 C        band +2.0 to +8.0
+
+**U3 — mask d0, -t 3, both X1 + one A78.**
+
+    turn-1 gen_tps            14.5 t/s      band 10.5-18.0
+    last-10 median            8.0 t/s       band 5.5-12.0
+    that as % of own turn 1   55%           band 40-70
+    wall, 100 turns           760 s         band 620-950
+    poll-min policy6          33% of rated  band 25-45
+    poll-min policy4          80% of rated  band 40-100
+    poll-min policy0          88% of rated  band 70-100
+    battery rise              +5.5 C        band +3.0 to +10.0
+
+    Reasoning, stated AS reasoning and not as fact: llama.cpp splits a layer's
+    work across its threads and synchronises at the end of each such split, so
+    a step finishes when its SLOWEST thread finishes. If the A78 thread is
+    slower than the two X1 threads, the X1 threads wait at every barrier and
+    the extra core buys less than a third more throughput — possibly less than
+    nothing, once the extra heat is counted. **I have not read llama.cpp's
+    threading code in this session and no measurement here establishes the
+    barrier behaviour; treat this paragraph as the reason for the numbers, not
+    as a claim about the runtime.** The 6a's anchors l and m are the closest
+    evidence: 4 threads across two clusters came out 9.4% SLOWER than 2 threads
+    on the big pair.
+
+**U4 — mask f0, -t 4, both X1 + both A78.**
+
+    turn-1 gen_tps            14.0 t/s      band 10.5-17.5
+      = 15.5 x 0.906 (anchors l, m, the 6a's own two-cluster-4-thread result).
+    last-10 median            7.0 t/s       band 4.5-11.0
+    that as % of own turn 1   50%           band 35-65
+      Lowest of the four: four busy cores put the most heat into the package.
+    wall, 100 turns           830 s         band 650-1,100
+    poll-min policy6          31% of rated  band 22-45
+    poll-min policy4          70% of rated  band 30-100
+    poll-min policy0          85% of rated  band 65-100
+    battery rise              +7.0 C        band +4.0 to +12.0
+
+### 6. THE BRIEF'S NAMED QUESTIONS
+
+    U-A1  Does the A78 pair (U2) hold >= 90% of its own turn 1 to the end?
+          PREDICTION: YES, at 93% (band 80-100). Confidence ~55% — this is a
+          coin-flip dressed as a number, and section 7 explains why the answer
+          is partly manufactured by running U2 second.
+
+    U-A2  Which row has the fastest last-10 median?
+          PREDICTION: U2, at ~11.6 t/s, against U1 ~9.0, U3 ~8.0, U4 ~7.0.
+          Confidence ~50%. It rests entirely on the A78 pair decaying less,
+          which is the thing being tested. **If U2's turn 1 comes in near the
+          bottom of its band (8.5) AND it decays like U1, U1 wins instead.**
+
+    U-A3  Which finishes the 100 turns soonest?
+          PREDICTION: U2, ~600 s, against U1 ~690, U3 ~760, U4 ~830.
+          Confidence ~50%, and it is the SAME bet as U-A2: wall time over 100
+          back-to-back turns is dominated by the settled rate, not turn 1.
+
+    U-A4  Is token_fnv1a64 = 0xcba17a2fcbba49f4 in every row?
+          U1 and U2 (-t 2): YES. Confidence ~90% — the same thread count as
+          every T row and every S row, which all produced it.
+          U3 (-t 3) and U4 (-t 4): YES, but confidence ~60%. **Thread count
+          changes how the work is split, and a different split can sum in a
+          different order.** No row in this repo has ever changed -t and
+          checked the fnv, so there is NO DATA either way.
+          **A DIFFERENT fnv IN U3 OR U4 IS A FINDING ABOUT THE RUNTIME, NOT A
+          FAILURE** — both values get recorded and nothing is claimed about
+          answer quality.
+          **fnv_all_equal MUST BE 1 WITHIN EVERY ROW.** Predicted 1 in all four,
+          confidence ~95%; a 0 would mean the restore path is not deterministic
+          and would be a serious finding in its own right.
+
+    U-B1  No kill naming pennyload; SwapFree never under 10%; the Cached limb
+          per row as in brief T.
+          kills:     no kill line naming pennyload in any row. Confidence ~85%.
+                     Cached-band kills AT MODEL LOAD are expected in all four
+                     (T1, T2, T3 each had 0, 1, 1; A2's Q4_0 row had 11) and do
+                     not meet this condition.
+          SwapFree:  minimum >= 45% of SwapTotal in every row, band 25-60%.
+                     = anchor i, 54.01%. The limb is 10%; nothing in brief T or
+                     brief U came within four times it.
+          Cached:    U1 RISES, +150,000 kB, band -300,000 to +500,000 — it is
+                     the boot's first read of the GGUF, the T1 case (anchor j,
+                     +236,492). U2, U3, U4 each FALL ~180,000 kB, band -600,000
+                     to +100,000, the T2/T3 case (-185,124 and -193,188).
+                     **THE VOID LIMB — a fall of >= 865,163 kB, 80% of the
+                     model — IS PREDICTED NOT MET IN ANY OF THE FOUR ROWS.**
+
+### 7. THE ROW-ORDER CONFOUND — stated before the rows, not after
+
+**U1, U2, U3, U4 run in that fixed order on one boot. U1 starts on the coolest
+chassis of the day; every later row starts on a warmer one, even after its
+gate passes.** The gate holds the clock CEILINGS at rated at launch and the
+battery within 1.5 C of U1's launch temperature; **it does not hold the
+chassis, the die, or whatever heat the limiter is actually responding to, and
+battery temperature is not chip temperature.**
+
+Direction of the bias, row by row:
+
+- **turn-1 gen_tps of U2, U3 and U4 is biased DOWN** relative to what the same
+  mask would give first on a cold boot. Each starts with less thermal headroom,
+  so the descent begins sooner.
+- **"settled as % of the row's OWN turn 1" is biased UP for U2, U3 and U4** —
+  the denominator is already depressed. **THIS CUTS DIRECTLY AGAINST U-A1 AND
+  U-A2.** If U2 comes in at 93% of its own turn 1, part of that is the A78 pair
+  and part is that U2's turn 1 was measured on a warmer chip than U1's was.
+  **I cannot separate the two from this matrix**, and the write-up must not
+  claim to.
+- **Absolute last-10 medians and wall times are the figures least distorted by
+  order**, because by turn 90 every row has been generating flat out for
+  minutes and has reached whatever steady state the package allows. U-A2 and
+  U-A3 are asked in those terms, which is why they are the better questions.
+- **U4 is worst placed** — last, warmest, and the row that adds the most heat.
+  Its numbers are the least trustworthy of the four.
+
+The only clean fix is one boot per row, which this brief does not buy.
+
+### 8. U1 AGAINST T2's FIRST 100 TURNS — and the instrument changed
+
+U1 repeats T2's shape exactly: same model, same state file, same `c0`, same
+`-t 2`, same `--interval-s 0`, 100 turns against T2's first 100.
+
+    U1 turn-1 / T2 turn-1          1.01    band 0.95-1.07
+    U1 last-10 median / T2 turns 91-100    1.00    band 0.92-1.09
+
+Reasoning: T2 began 99 s after T1 ended, at 33.0 C, on a boot that had already
+run an hour (anchor h, notes.md 15293 and 15301); **U1 begins on a fresh boot after the
+~5 and ~25 minute protocol readings, on a cooler chassis.** That argues U1
+comes in at or slightly above T2 on turn 1, and lands on top of it by turn 90
+once both have reached steady state.
+
+**THE INSTRUMENT IS NOT THE SAME. T2 RAN UNDER pennybench.sh REV 6
+(`ddb39f3c…`); U1 RUNS UNDER REV 7 (`ca3f8414…`).** Three differences, all
+recorded at notes.md 16698:
+
+    series sample interval    10 s (rev 6)  ->  7 s (rev 7)
+    policy0                   series only   ->  polled at 0.2 s with min/min_at
+    poll loop                 2 sysfs reads ->  3, measured 5.53% fewer samples
+                              per second on one row against one row
+
+**`rss_samples` counts are not comparable between T2 and U1 and will not be
+compared.** The gen_tps, ttft and wall figures come from `pennyload`, which did
+not change — `f52fc604…` in both — so those ARE comparable. The clock-ceiling
+poll minima for policy6 and policy4 are comparable; **policy0's poll minimum
+has no rev 6 counterpart at all.**
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+Nothing here has been measured. Every figure is a prediction, and the four U2
+numbers that matter most are explicitly "no data, my reasoning" — there is no
+A78 decode figure on this handset and the nearest thing in the repo is a
+text-to-speech row on a different phone.
+
+**It does not predict prompt processing anywhere.** Every turn restores a
+407-token prefix; nothing in this matrix prefills, so nothing in it says what
+the A78 pair does with a growing context — which is the thing that will matter
+as soon as a conversation is longer than one turn.
+
+It does not say how threads are actually placed inside a mask, only that
+`taskset` does not decide it. It does not say what the limiter responds to. It
+says nothing about battery life, about the screen being off, about a
+boot-started service, or about answer quality.
