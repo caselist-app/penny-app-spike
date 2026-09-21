@@ -20850,3 +20850,302 @@ Report sha256: int8_00 32d47d3d…0da9, fp32_00 e4fb3d67…c2e90, fp32_04 681557
   two lines says the lengths agree, not that the audio does.
 - Two fp32 lines are not all 18; the line 12 / line 17 differences brief V
   found for int8 could appear for fp32 too. Not tested.
+
+## 2026-09-21 — BRIEF W STEP E: PREDICTIONS, before any row. W1 (fp32, X1 pair) elapsed sum 60,300 ms, RTF median 0.822, 18 of 18 under 1.0 (line 00 marginal); W2 (fp32, A78 pair) 78,200 ms, median 1.066, 1 line under 1.0; W3 (int8, X1, repeat of V1) 80,950 ms. W-A1 0.760 vs V1 / 0.745 vs W3; W-A2 0.780; W-A3 YES (~50%); W-A4 1.296; W-A5 1.020 [0.97-1.08] = my pass-to-pass noise estimate. Peak RSS on fp32 ~795,000 kB. NOT BLIND: three smoke lines seen first. Three pass strings built from V2's (19569), sh -n rc=0, dry-run against a stub. Nothing sent to the phone for this entry except three read-only adb commands, listed.
+
+**Input kokoro-v1.0.onnx has no hash published by its originating project;
+matched only against a third-party mirror (fastrtc/kokoro-onnx).** W1 and W2
+run penny-kokoro-fp32/model.fp32.onnx a0986d39… (notes.md 20440).
+
+Every W figure will be: spent boot (21 Sept matrix boot), model page-cached,
+NOT a row-boot figure. Order is fixed: W1, then W2, then W3.
+
+### 0. Read-only adb commands run for this entry
+
+    adb -s 37291JEHN04619 shell 'echo "uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat /sys/class/power_supply/battery/temp)"; for p in 0 4 6; do echo "policy$p: $(cat /sys/devices/system/cpu/cpufreq/policy$p/scaling_available_frequencies)"; done'
+      uptime_s=15291.15 wallclock=16:56:39 batt_temp_dC=272
+      policy0: 300000 … 1598000 1704000 1803000
+      policy4: 400000 … 2130000 2253000 2348000
+      policy6: 500000 851000 984000 1106000 1277000 1426000 1582000 1745000 1826000 2048000 2188000 2252000 2401000 2507000 2630000 2704000 2802000 2850000
+
+    adb -s 37291JEHN04619 shell 'echo "uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat /sys/class/power_supply/battery/temp)"; grep "^PENNYTTS batt_temp_dC" /data/local/tmp/tts/out/7a_tts_v1_x1x1_00.report; sha256sum /data/local/tmp/tts/out/7a_tts_v1_x1x1_00.report'
+      uptime_s=15344.63 wallclock=16:57:33 batt_temp_dC=272
+      PENNYTTS batt_temp_dC    before=270 after=270   (rev 2: BATTERY, tenths of a degree C -- NOT SoC)
+      0da7f091…bbf1 = rows/7a_v/7a_tts_v1_x1x1_00.report (same hash) -> TREF 270, TMAX 285
+
+(A third read, the V1/V2 figures, came from the committed rows/7a_v/*.report
+files on the Mac, not the phone.)
+
+### 1. DECLARED: FIGURES ALREADY SEEN (smoke, notes.md 20666 §6)
+
+Smoke, spent boot, file just pushed so very likely page-cached:
+
+    int8 line 0   RTF 1.300  elapsed 1,078  load 1,892  peak RSS 282,704  X1 poll-min 2,802,000
+    fp32 line 0   RTF 0.990  elapsed   803  load 2,197  peak RSS 494,080  X1 poll-min 2,630,000
+    fp32 line 4   RTF 0.738  elapsed 3,288  load 2,227  peak RSS 585,816  X1 poll-min 2,507,000
+
+What each informs:
+- **k1, the fp32/int8 factor on the X1 pair**, from fp32 smoke RTF against
+  the same line's int8 RTF: line 0 0.990/1.309 (V1 l00) = 0.756, 0.990/1.300
+  (int8 smoke) = 0.762; line 4 0.738/1.005 (V1 l04) = 0.734. -> every W1 RTF,
+  elapsed and span figure, W-A1, and through k2 every W2 figure.
+- **Derived load on fp32**, 2,197 / 2,227 -> W1 load; × the V2/V1 load ratio -> W2 load.
+- **Peak RSS on fp32**: +211,376 kB over int8 on line 0 and +224,088 on line 4
+  (rssanon +211,424 on line 0). The file-size difference is
+  325,534,862 − 92,363,779 = 233,171,083 B = 227,706 kB — the extra RSS is
+  about the extra weights. -> W1/W2 peak RSS.
+- **X1 ceiling**: fp32 line 4 took the X1 ceiling to 2,507,000 — **V1's
+  whole-pass minimum, reached by V1 only at line 10 — in ONE line of 5.5 s
+  wall (3.3 s generating), launched rested.** -> W1's X1 poll-min and its line.
+- W-A1 is NOT blind: two fp32 lines under V1's RTF were seen before this entry.
+- **fp32 RSS on line 4 (585,816 kB) already exceeds int8's WHOLE-PASS peak
+  (V1 576,772 kB on line 15).** -> W1/W2 peak RSS, §4.
+
+### 2. INPUTS AND ARITHMETIC
+
+Labels: [7a] = a 7a figure with its source; [6a] none used; [other] none;
+[mine] = no data, my reasoning.
+
+- V1 per-line RTF, elapsed, audio, load [7a, rows/7a_v/7a_tts_v1_x1x1_NN.report;
+  sums notes.md 20053 §2]: elapsed sum 79,357, wall sum 114,960, span 147.15 s,
+  load median 1,982.
+- V2 per line [7a, rows/7a_v/7a_tts_v2_a78a78_NN.report]: elapsed sum 100,262,
+  wall sum 149,666, span 182.73 s, load median 2,749.
+- fp32 audio per line = the Mac fp32 reference sample counts / 24,000 [7a
+  smoke lines 0 and 4 equal the Mac to the sample, notes.md 20666 §8; the other
+  16 assumed]: sum 72.739 s (int8 72.749).
+- **k1 = 0.760** [7a smoke + mine]: the three smoke ratios are 0.734-0.762,
+  mean 0.751; I add +0.009 because fp32 does the same work faster, so a pass
+  is denser, and the smoke already showed the X1 ceiling falling sooner.
+- **k2 = 0.780** [mine]: fp32/int8 on the A78 pair. No fp32 A78 figure exists.
+  I take k1 and raise it slightly (0.78) on the reasoning that the X1 pair,
+  with more vector pipes per core, gains more from a float kernel than the A78
+  does. Not tested anywhere.
+- **k3 = 1.020** [mine]: W3 against V1. Same file, same shape; W3 launches
+  after two passes, predicted ~276 dC against V1's 270, so its X1 ceiling
+  may sit lower for longer.
+- Per-line W RTF = base-pass RTF × k; elapsed = RTF × audio.
+- Load: W1 2,210 = median of the two fp32 smoke loads [7a]; W2 = 2,210 ×
+  (2,749/1,982 = 1.387) [7a V ratio] = 3,065; W3 = V1's 1,982 [7a].
+- Span = wall sum + 18 × V's per-line overhead (V1 (147.15−114.960)/18 =
+  1.788 s; V2 1.837 s) [7a].
+
+### 3. PER-PASS PREDICTIONS — point [band, inclusive]
+
+**W1 — fp32, X1 pair (mask c0), 2 threads, runs FIRST today**
+
+    RTF min             0.764 (l04)        [0.68-0.85]
+    RTF median          0.822              [0.74-0.91]
+    RTF max             0.995 (l00)        [0.90-1.10]
+    RTF line 15         0.788              [0.70-0.87]
+    lines under 1.0     18                 [15-18]   (line 00 is the marginal one: 0.995 predicted, smoke 0.990)
+    elapsed sum         60,300 ms          [54,000-67,000]
+    wall_ms sum         100,100 ms         [92,000-109,000]
+    derived load median 2,210 ms           [2,080-2,400]
+    peak RSS max        795,000 kB (l15)   [760,000-840,000]
+    MemAvailable min    3,300,000 kB       [3,100,000-3,420,000]  (36 readings)
+    X1 poll-min         2,401,000, FIRST in line 05   [2,252,000-2,507,000; first in line 04-09]
+    A78 poll-min        2,348,000 (never moves)       [2,253,000-2,348,000]
+    A55 poll-min        1,803,000 (never moves)       [1,704,000-1,803,000]
+    battery rise        +3 dC (first before -> last after)   [0-8]
+    span                132 s              [115-150]
+
+X1 reasoning [7a smoke + mine]: the smoke reached 2,507,000 inside line 4 from
+rated; a pass keeps going, so the next step down (2,401,000, read from
+scaling_available_frequencies) by line 05, the first long line after 04.
+
+**W2 — fp32, A78 pair (mask 30), 2 threads, runs SECOND today**
+
+    RTF min             0.998 (l05)        [0.88-1.10]
+    RTF median          1.066              [0.95-1.18]
+    RTF max             1.357 (l00)        [1.20-1.50]
+    RTF line 15         1.012              [0.90-1.12]
+    lines under 1.0     1 (l05)            [0-8]   (l04 1.002, l07 1.008, l15 1.012 sit next to it)
+    elapsed sum         78,200 ms          [70,000-88,000]
+    wall_ms sum         133,300 ms         [122,000-146,000]
+    derived load median 3,065 ms           [2,800-3,350]
+    peak RSS max        795,000 kB (l15)   [760,000-840,000]
+    MemAvailable min    3,300,000 kB       [3,100,000-3,420,000]
+    X1 poll-min         2,850,000 (never moves; X1 idle, V2's never moved)  [2,630,000-2,850,000]
+    A78 poll-min        2,348,000 (never moves; V2's never moved)           [2,130,000-2,348,000]
+    A55 poll-min        1,803,000          [1,704,000-1,803,000]
+    battery rise        +2 dC              [0-6]
+    span                166 s              [148-188]
+
+**W3 — int8, X1 pair (mask c0), 2 threads, NOTHING set, runs THIRD today (repeat of V1)**
+
+    RTF min             1.025 (l04)        [0.98-1.08]
+    RTF median          1.103              [1.05-1.17]
+    RTF max             1.335 (l00)        [1.27-1.41]
+    RTF line 15         1.058              [1.00-1.12]
+    lines under 1.0     0                  [0-2]
+    elapsed sum         80,950 ms          [77,000-85,700]
+    wall_ms sum         116,600 ms         [110,000-124,000]
+    derived load median 1,982 ms           [1,880-2,100]
+    peak RSS max        577,000 kB (l15)   [570,000-585,000]
+    MemAvailable min    3,310,000 kB       [3,100,000-3,420,000]
+    X1 poll-min         2,507,000          [2,401,000-2,630,000]
+    A78 poll-min        2,348,000          [2,253,000-2,348,000]
+    A55 poll-min        1,803,000          [1,704,000-1,803,000]
+    battery rise        +2 dC              [0-6]
+    span                149 s              [138-162]
+    WAVs                byte-identical to V1's on 18 of 18 [18 of 18] (int8, same binary, same threads; smoke (i) line 00 was)
+
+### 4. PEAK RSS AGAINST A BUDGET — NO "3c BUDGET" FIGURE IS ON RECORD HERE
+
+`grep` of notes.md and CLAUDE.md finds no stage-3c memory budget. The only
+memory figure for fp32 in this repo is brief W's quotation of the plan: "fp32 …
+at ~330 MB". That plan lives outside this repo. Against it: the fp32 file is
+325,534,862 B, which matches "~330 MB" as a FILE size; the process peak RSS is
+not — the smoke already read 494,080 kB on line 0 and 585,816 kB on line 4,
+and W1/W2 line 15 is predicted at **795,000 kB [760,000-840,000]**, about
+2.4× 330,000 kB. **The 3c budget figure has to come from Matt; nothing is
+judged against a number not on record.**
+
+### 5. THE QUESTIONS
+
+Every comparison names its int8 side, the order, and both launch temperatures.
+
+- **W-A1, fp32/int8 elapsed-sum ratio, X1 pair.**
+  (a) W1 / V1. V1 = brief V, 79,357 ms, launched 270 dC, ran FIRST that day
+  (21 Sept, ~15:5x). W1 runs FIRST today, launch predicted ~272 dC.
+  **Point 0.760 [0.68-0.85].**
+  (b) W1 / W3. W3 runs THIRD today, after two passes, launch predicted ~276 dC.
+  **Point 0.745 [0.66-0.85].**
+  For reference, the plan's "1.3-2× faster" is a ratio of 0.50-0.77; my point
+  sits at its slow end (1/0.760 = 1.32×).
+- **W-A2, fp32/int8 on the A78 pair: W2 / V2.** V2 = brief V, 100,262 ms, ran
+  SECOND that day, launched 285 dC (1.5 C warmer than V1). W2 runs SECOND today,
+  launch predicted ~275 dC. **Point 0.780 [0.68-0.90].** The int8 side is the
+  warmer one.
+- **W-A3, any W2 line under RTF 1.0?** **YES, ~50%** — one line (l05, 0.998)
+  at the point; four lines within 0.012 of 1.0. A coin toss at this model.
+- **W-A4, fp32 A78/X1 elapsed-sum ratio: W2 / W1.** **Point 1.296
+  [1.15-1.50]** [mine, from int8's V2/V1 1.263 (notes.md 20053) × k2/k1]. No
+  fp32 A78 figure exists. W1's X1 is predicted lower than V1's, which pulls
+  this ratio DOWN; k2 > k1 pulls it up.
+- **W-A5, W3 / V1 elapsed-sum ratio.** **Point 1.020 [0.97-1.08]. This band
+  is my estimate of pass-to-pass noise** — [mine]: there is no second pass of
+  any TTS shape on this handset to estimate it from. Asymmetric because W3
+  launches warmer than V1 and runs after two passes.
+- **W-B1:** no kill line naming the tts binary, and MemAvailable never under
+  1,048,576 kB in the 36 readings of each pass. **HIT, all three passes.**
+
+### 6. GATES — predicted
+
+The gate: all three policies at rated AND battery <= TMAX 285 (TREF 270 read in
+the string from out/7a_tts_v1_x1x1_00.report), GATECAP 240 (~20 min).
+
+- **W1: GATE PASSED, polls_failed 0, wait ~0.2 s** [0-2 polls]. Battery read
+  272 at 16:57:33; clocks rated at every read today.
+- **W2: GATE PASSED, polls_failed 0, wait ~0.2 s** [0-60 polls, 0-300 s];
+  LAUNCHED WARM ~10%. W1 will have heated the phone more than an int8 pass —
+  the smoke pulled the X1 ceiling down in one line — but W2 launches only
+  after W1 is pulled, written up and committed, which took more than 10 min
+  per pass in brief V; V2's gate wait (337 s) followed a 243 s gap. Caveat:
+  after V1 the battery rose 272 -> 290 with nothing running (notes.md 20053 §7,
+  unexplained); if that repeats, the battery limb holds W2.
+- **W3: GATE PASSED, polls_failed 0, wait ~0.2 s** [0-60 polls]; LAUNCHED
+  WARM ~10%. Same reasoning after W2.
+
+### 7. THE PASS STRINGS — built from V2's string at notes.md 19569
+
+**The brief says "brief V's loop at notes.md 19565". 19565 is V1's string,
+which has no TREF/TMAX. All three W gates need TMAX, which exists only in
+V2's string at 19569, so all three are built from 19569.** Differences from
+19569, and nothing else: the two labels V2 -> W1/W2/W3 (LAUNCH, DONE) and the
+one in "V2 NOT LAUNCHED"; on the pennytts.sh call, the tag stem, the mask, and
+— W1 and W2 only — `MODELDIR=/data/local/tmp/tts/penny-kokoro-fp32
+MODELFILE=model.fp32.onnx` placed after `TMAX=$TMAX`. W3 sets neither.
+`$N` passed plain, padded only in the tag. TREF is read in the string from
+out/7a_tts_v1_x1x1_00.report (270 -> TMAX 285); an unreadable TREF prints
+"TREF UNREADABLE … NOT LAUNCHED" and exits 1.
+
+Split at `;` and diffed against 19569 — every changed piece:
+
+    piece  19569 (V2)                                          W1                                                   W2                        W3
+    5      … - V2 NOT LAUNCHED"                                … - W1 NOT LAUNCHED"                                 … - W2 NOT LAUNCHED"      … - W3 NOT LAUNCHED"
+    10     echo "LAUNCH V2 …                                   echo "LAUNCH W1 …                                    LAUNCH W2                 LAUNCH W3
+    22     COOL=$C TMAX=$TMAX sh …pennytts.sh 7a_tts_v2_a78a78_$T 30 2 $N …
+                                                               COOL=$C TMAX=$TMAX MODELDIR=/data/local/tmp/tts/penny-kokoro-fp32 MODELFILE=model.fp32.onnx sh …pennytts.sh 7a_tts_w1_fp32_x1x1_$T c0 2 $N …
+                                                                                                                    … 7a_tts_w2_fp32_a78a78_$T 30 2 $N …   (MODELDIR/MODELFILE as W1)
+                                                                                                                                              COOL=$C TMAX=$TMAX sh …pennytts.sh 7a_tts_w3_int8_x1x1_$T c0 2 $N …
+    25     echo "DONE V2 …                                     echo "DONE W1 …                                      DONE W2                   DONE W3
+
+**W1:**
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; X=$(grep "^PENNYTTS batt_temp_dC" out/7a_tts_v1_x1x1_00.report | tr -s " " | cut -d" " -f3); TREF=${X#before=}; case "$TREF" in ""|*[!0-9]*) echo "TREF UNREADABLE [$X] - W1 NOT LAUNCHED"; exit 1 ;; esac; TMAX=$((TREF + 15)); echo "LAUNCH W1 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) tref_dC=$TREF tmax_dC=$TMAX"; RCS=""; for N in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17; do case $N in ?) T=0$N ;; *) T=$N ;; esac; if [ $N = 0 ]; then C=1; else C=0; fi; COOL=$C TMAX=$TMAX MODELDIR=/data/local/tmp/tts/penny-kokoro-fp32 MODELFILE=model.fp32.onnx sh /data/local/tmp/tts/pennytts.sh 7a_tts_w1_fp32_x1x1_$T c0 2 $N > /dev/null 2> /dev/null; RCS="$RCS $T:$?"; done; echo "DONE W1 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) rcs=$RCS"'
+
+**W2:**
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; X=$(grep "^PENNYTTS batt_temp_dC" out/7a_tts_v1_x1x1_00.report | tr -s " " | cut -d" " -f3); TREF=${X#before=}; case "$TREF" in ""|*[!0-9]*) echo "TREF UNREADABLE [$X] - W2 NOT LAUNCHED"; exit 1 ;; esac; TMAX=$((TREF + 15)); echo "LAUNCH W2 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) tref_dC=$TREF tmax_dC=$TMAX"; RCS=""; for N in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17; do case $N in ?) T=0$N ;; *) T=$N ;; esac; if [ $N = 0 ]; then C=1; else C=0; fi; COOL=$C TMAX=$TMAX MODELDIR=/data/local/tmp/tts/penny-kokoro-fp32 MODELFILE=model.fp32.onnx sh /data/local/tmp/tts/pennytts.sh 7a_tts_w2_fp32_a78a78_$T 30 2 $N > /dev/null 2> /dev/null; RCS="$RCS $T:$?"; done; echo "DONE W2 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) rcs=$RCS"'
+
+**W3:**
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; X=$(grep "^PENNYTTS batt_temp_dC" out/7a_tts_v1_x1x1_00.report | tr -s " " | cut -d" " -f3); TREF=${X#before=}; case "$TREF" in ""|*[!0-9]*) echo "TREF UNREADABLE [$X] - W3 NOT LAUNCHED"; exit 1 ;; esac; TMAX=$((TREF + 15)); echo "LAUNCH W3 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) tref_dC=$TREF tmax_dC=$TMAX"; RCS=""; for N in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17; do case $N in ?) T=0$N ;; *) T=$N ;; esac; if [ $N = 0 ]; then C=1; else C=0; fi; COOL=$C TMAX=$TMAX sh /data/local/tmp/tts/pennytts.sh 7a_tts_w3_int8_x1x1_$T c0 2 $N > /dev/null 2> /dev/null; RCS="$RCS $T:$?"; done; echo "DONE W3 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) rcs=$RCS"'
+
+Checks on the Mac, the inner command of each (the text inside the single quotes):
+
+    W1  sh -n rc=0   1,044 chars   single quotes inside 0   ampersands 0
+    W2  sh -n rc=0   1,046 chars   single quotes inside 0   ampersands 0
+    W3  sh -n rc=0     971 chars   single quotes inside 0   ampersands 0
+
+`sh -n` is the Mac's bash in POSIX mode, not mksh; no construct is added that
+19569 did not already use on the phone. **Dry run on the Mac against a stub**
+(phone paths swapped for a temp dir; the pennytts.sh call swapped for a stub
+that logs its arguments and env and returns rc 3 on line 13; a stub report
+with `before=270`):
+
+    W1: 18 calls; 7a_tts_w1_fp32_x1x1_00 c0 2 0 COOL=1 TMAX=285 MODELDIR=/data/local/tmp/tts/penny-kokoro-fp32 MODELFILE=model.fp32.onnx; _01 COOL=0; _13 line=13; _17 line=17; rcs= 00:0 … 13:3 … 17:0
+    W2: 18 calls; 7a_tts_w2_fp32_a78a78_00 30 2 0 COOL=1 TMAX=285 MODELDIR/MODELFILE as W1; … rcs= … 13:3 …
+    W3: 18 calls; 7a_tts_w3_int8_x1x1_00 c0 2 0 COOL=1 TMAX=285 MODELDIR=unset MODELFILE=unset; … rcs= … 13:3 …
+    W1 with the V1 report removed: "TREF UNREADABLE [] - W1 NOT LAUNCHED", rc=1, 0 calls
+
+(The dry run printed `cut: /proc/uptime` and `grep: /proc/meminfo` errors —
+the Mac has no /proc; those reads are not stubbed.)
+
+Byte counts and sha256 of each string line: see §8, computed from this file
+after it was written.
+
+### 8. STRING HASHES — filled in below
+
+Computed with python over the line exactly as it sits in notes.md, without
+its trailing newline, and again with the 4-space indent stripped:
+
+    W1  notes.md line 21077: as it sits (4-space indent, no newline) 1,092 B sha256 464cef067a489287caee288cb0e2ba9b01f2678542bd42b8a81921e912f24c4a
+        the command alone (indent stripped)                    1,088 B sha256 20ad08abebe25570b9957a6c600bc62d06eed8a7c0da4fcf5207e17e58e8f4d6
+    W2  notes.md line 21081: as it sits (4-space indent, no newline) 1,094 B sha256 a8acd65de06432d330099e3fb18861acc266977c3b90ba7239352d236cf4e14c
+        the command alone (indent stripped)                    1,090 B sha256 90da02516ad78bd95af2268f3baf6feb582cb1ced8bda4bb8f570f5baa9a14c7
+    W3  notes.md line 21085: as it sits (4-space indent, no newline) 1,019 B sha256 b5ff42d83c8bddc6426c96aca82dd77e6bd3fb2e429a2e3884d6c45506f7e6a8
+        the command alone (indent stripped)                    1,015 B sha256 f2b92d9bfed21fa968ff54c2fe3becc48fa07b0f11e21d11f04f9be053809427
+
+### 9. JUDGING RULE
+
+A figure inside its band, bands inclusive, is a HIT; outside is a MISS, with
+the direction named. The point is not judged. W-A3 is judged on YES/NO;
+W-B1 on both limbs. "lines under 1.0" is judged on the count. A LAUNCHED WARM
+pass keeps its figures, labelled LAUNCHED WARM everywhere, and its gate
+prediction is a MISS. A line with rc != 0 is recorded, kept, labelled, and
+its figures are left out of min/median/max with that said.
+
+### 10. HOW LONG MATT LEAVES THE PHONE
+
+    W1   gate ~0 s + ~132 s pass    about 2.5 min; up to 20 min more if the gate waits
+    W2   gate ~0 s + ~166 s pass    about 3 min;   up to 20 min more if the gate waits
+    W3   gate ~0 s + ~149 s pass    about 2.5 min; up to 20 min more if the gate waits
+
+Plus ~10-15 min between passes for pull, write-up and commit. Leave the phone
+alone, on mains, screen on, for about 45-60 minutes from W1's launch — up to
+an hour more in the worst case (all three gates at the cap). No adb command
+runs while a pass or gate is alive.
+
+### What this entry does NOT say
+
+- Nothing has been measured for this entry; every figure above is a prediction.
+- k2 and the A78 fp32 figures rest on no fp32 A78 data at all.
+- k1 rests on three smoke lines; W-A1 is not blind.
+- W-A5's band is a guess at noise, not a measurement of it.
+- Nothing about fp32 sound, load from flash, a resident Kokoro, time to first
+  audio, TTS beside the LLM, fp16, the app or AudioTrack.
+- Nothing is judged against a "3c budget"; no such figure is on record here.
+- Battery temperature is not chip temperature.
