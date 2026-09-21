@@ -18973,3 +18973,112 @@ edit (notes.md 18638).
 
 The 7a block's `Boot` line was updated earlier in this session, in its own
 commit, and is recorded at notes.md 18638.
+
+## 2026-09-21 — BRIEF V STEP A: pennytts.sh REVISION 2 — rated clocks read from the phone, a three-policy gate with a 240-poll cap and LAUNCHED WARM, policy0 polled, battery before/after, optional TMAX. One key rename (ceil_a76 -> ceil_a78). Nothing has run on the phone.
+
+Mac only. **Nothing was sent to the phone for this entry.** The diff was
+proposed, shown in full and approved by Matt via the reviewer with no changes
+before the repo file was touched.
+
+    rev 1  12,363 B  sha256 79ec84160a73d3aafb11e808a73b9ad733fc49f0b50b2973e06a7f698dc604b2  (commit 25b6ed3, TTS rung 1; never numbered, called rev 1 from now)
+    rev 2  19,278 B  sha256 3200e06cfed274d34cc459a919d7a3c08307eeea2749867caba805ae49c3d17b  (this commit; hash computed on the Mac, equal to the approved proposal's)
+
+### WHY
+
+Rev 1's cool gate waited for policy6 and policy4 to equal two written-in
+figures, the 6a's rated clocks. On the 7a (rated policy4 2,348,000, policy6
+2,850,000, CLAUDE.md 7a block) `scaling_max_freq` can never equal those, so
+`COOL=1` would never exit. The report also printed those figures as "rated" and
+labelled policy4 "a76". Changed the way pennybench.sh rev 6 and rev 7 were:
+substitutions and additions only.
+
+### WHAT CHANGED
+
+Substitutions:
+1. **The gate.** All three policies, each `scaling_max_freq` against its OWN
+   `cpuinfo_max_freq`, both re-read every poll, 5 s between polls, launch
+   anyway after `GATECAP` failed polls (default 240) with
+   `GATE TIMED OUT - LAUNCHED WARM`. The loop is the brief U gate recorded
+   verbatim at notes.md 17230, variable names kept (`s0/r0 s4/r4 s6/r6 bt n
+   warm`, `sleep 5`, the two result strings).
+2. **"rated" in the report** is read from `cpuinfo_max_freq`, the cpu list
+   from `related_cpus` — pennybench.sh rev 6 lines 96-100 (`POL`, `rd()`,
+   `R0/R4/R6`, `P0/P4/P6`).
+3. **One key rename:** `ceil_a76_kHz` -> `ceil_a78_kHz`, `ceil_a76_min_at` ->
+   `ceil_a78_min_at`. The report line itself says "key was ceil_a76_… in rev 1".
+   Line 22's "Every figure it produces is on the 6a" became "Figures are
+   labelled by the row tag; this file names no phone."
+
+Additions:
+4. **policy0 in the 0.2 s poll** with before/min/after and min_at —
+   pennybench.sh rev 7 lines 93, 120, 191-192, 210-213, 220-222, 238; the
+   empty-before guards (rev 7 lines 211-213) added for all three policies.
+5. **Battery temperature before and after** from sysfs — pennybench.sh rev 7
+   lines 110 and 112 (`BATT_T`, `batt()`). BATTERY, not SoC.
+6. **Optional `TMAX` (dC).** UNSET by default; unset means a clocks-only gate.
+   When set, the gate also needs the battery to read non-empty and <= TMAX.
+   The gate reads the battery with a bare `cat`, NOT `batt()`: `batt()` returns
+   -1 on a failed read and -1 <= any TMAX would pass the limb; a bare `cat`
+   gives empty and fails it. **Why inside the script and not in the pass
+   command:** a gate run outside would leave its result only in scrollback,
+   and line 0's report would read `cool_gate=0`; inside, it lands in
+   `out/<tag>.report`.
+7. **Six new keys:** `cool_gate_first` and `cool_gate_result` (with
+   `wait_s=` to 0.01 s, from the two `cool_wait_s` uptimes with the dot
+   dropped) straight after `cool_wait_s`; `ceil_a55_kHz`, `ceil_a55_min_at`,
+   `rated_kHz`, `batt_temp_dC` after `ceil_a78_min_at`, before `peak_rss_kB`.
+
+### THREE BEHAVIOUR CHANGES FOR A CALLER WHO SETS ONLY COOL=1 — all accepted by Matt
+
+1. **Poll interval 5 s, was 1 s.** 240 polls = ~20 min, matching brief U. A
+   gate that must wait may launch up to 5 s later than rev 1 would.
+2. **The gate now has a cap.** Rev 1 waited forever.
+3. **policy0 is a gate condition.** policy0 was capped while the A55 CLUSTER
+   carried nothing, under full-load rows — **not** on an idle phone: U3 poll
+   min 1,098,000 = 60.90% of rated (notes.md 18223, and 18230), and it was
+   still capped at the END of U3 and U4, `after=1098000` and `after=1197000`
+   (`rows/7a_u/7a_q17_u3_x1x1a78.report` and `7a_q17_u4_2plus2.report`, line 16).
+   So this gate can wait longer than a two-policy gate would. Whether the
+   V1 -> V2 gate is predicted to pass or time out on policy0 goes in step C.
+
+(The proposal message said "capped to 60.90% while the phone was idle" and cited
+18087, the U3 heading. Both corrected here by the reviewer: the figure's own
+lines are 18223 / 18230, and the phone was under load; only the A55 cluster was
+idle.)
+
+### CHECKS, ON THE MAC
+
+The string as run for the syntax check:
+
+    sh -n pennytts.sh; echo "sh -n rc=$?"
+    sh -n rc=0
+
+The key-order check, as run against rev 1 (a copy of 79ec8416…) and rev 2:
+
+    grep -o '^echo "PENNYTTS [A-Za-z_0-9]*' pennytts.rev1.sh | sed 's/.*PENNYTTS //; s/a76/a78/' > k1; grep -o '^echo "PENNYTTS [A-Za-z_0-9]*' pennytts.sh | sed 's/.*PENNYTTS //' | grep -vxE 'cool_gate_first|cool_gate_result|ceil_a55_kHz|ceil_a55_min_at|rated_kHz|batt_temp_dC' > k2; diff k1 k2; echo "key-order diff rc=$?"
+
+    key-order diff rc=0 (rev1 29 keys; rev2 29 after removing the 6 additions)
+
+(A first attempt used `[a-z_0-9]*`, which cut key names at the capital in
+`kHz`/`dC` and so failed to filter three additions; the corrected pattern above
+is the one whose result is quoted.) Three of the 29 are blank names — the
+binary's own `Number of threads` / `Audio duration` / `Real-time factor` lines,
+echoed as `PENNYTTS $THR_LINE` etc.
+
+The literal check, as run on rev 2:
+
+    grep -n "2802000\|2253000\|2850000\|2348000\|1803000\|a76\|6a" pennytts.sh
+
+Three hits, all `a76`, all recording the rename (header line 26, report lines
+336 and 337). No frequency literal and no "6a" anywhere in the file.
+
+### WHAT THIS DOES NOT SAY
+
+- `sh -n` is the Mac's `sh` (bash in POSIX mode), **not mksh**, and checks
+  syntax only. **Nothing in rev 2 has run, on either phone.**
+- It does not say the gate exits, that `wait_s` is right, or that policy0's
+  minimum is tracked correctly — that is the step B smoke test on the spent
+  boot, including a forced LAUNCHED WARM (`GATECAP=2 TMAX=1`).
+- It does not measure how many fewer `rss_samples` the third `cat` costs;
+  rev 2 counts are not compared with rev 1 counts.
+- No figure in this entry is a new measurement.
