@@ -20504,3 +20504,88 @@ same model and appended the metadata field; nothing before it moved.
 - Anything about speed, memory or sound.
 - That kokoro-v1.0.onnx is what taylorchu or kokoro-onnx published — no hash
   from either exists to check it against; only the mirror's matches.
+
+## 2026-09-21 — BRIEF W STEP B: THE MAC'S fp32 REFERENCE. sherpa-onnx 1.13.8 (Python wheel) LOADS penny-kokoro-fp32/model.fp32.onnx and renders all 18 lines, rc 0. Mac fp32 sample counts differ from Mac int8 on 18 of 18 lines, by −91.583 to +109.708 ms. The int8 re-render in the same run is byte-identical to the 18 Sept Mac int8 WAVs on 18 of 18. No claim about sound.
+
+Mac only, 16:43:48-16:44:41 by the Mac's `date`. Nothing sent to the phone.
+**Input kokoro-v1.0.onnx has no hash published by its originating project;
+matched only against a third-party mirror (fastrtc/kokoro-onnx).** The file
+rendered is model.fp32.onnx a0986d39… (notes.md 20440).
+
+### The script — a renamed copy, abtest_penny.py untouched
+
+`~/kokoro-models/abtest_penny_fp32.py`, 3,325 B, sha256 f0c36146…ce88, made
+by `head -n 66 abtest_penny.py | sed …` (abtest_penny.py is still 416acc38…,
+dated 18 Sept 10:08). Its whole difference from abtest_penny.py:
+
+    -REF  = ("full", "kokoro-multi-lang-v1_0")
+    +REF  = ("fp32", "penny-kokoro-fp32")
+    -SID, LANG, OUT = 22, "en", "abtest-penny"   # 22 = bf_isabella; "en" = British
+    +SID, LANG, OUT = 22, "en", "abtest-penny-fp32"   # 22 = bf_isabella; "en" = British
+     … "full" -> "fp32" in the measurement table's three labels …
+    -(everything from `trials = …` to the end: the interactive blind listening
+      test — input(), afplay, results.csv — REMOVED, not run)
+
+TEST stays `("int8", "penny-kokoro-int8")`, so the same run re-renders int8
+into the new folder. Method otherwise unchanged: sherpa-onnx 1.13.8 Python
+wheel, `num_threads=4`, `provider="cpu"`, `max_num_sentences=1`, sid 22, lang
+`en`, lexicon-gb-en.txt, speed 1.0, one OfflineTts per model; each WAV is
+level-matched to RMS 0.05 before writing (changes amplitude, NOT sample count),
+24 kHz mono 16-bit. Loader printed `loading penny-kokoro-fp32/model.fp32.onnx`.
+
+**`abtest-penny/NN-full.wav` (18 Sept) were made with SHERPA's fp32
+`kokoro-multi-lang-v1_0/model.onnx`, a different export. They are NOT the
+fp32 reference for brief W.** The reference is `abtest-penny-fp32/NN-fp32.wav`
+(hash list committed at rows/7a_w/mac_fp32_ref_wavs.sha256, 18 lines).
+
+### Sample counts, read with python `wave` from each WAV header
+
+    line  Mac int8     Mac fp32 NEW   fp32 − int8           | phone int8 V1  sherpa-fp32 (old NN-full)
+          abtest-penny abtest-penny-fp32                    | rows/7a_v      NOT the reference
+    00       19,812       19,475        −337   −14.042 ms   |    19,899        19,854
+    01       18,184       18,218         +34    +1.417 ms   |    18,184        17,841
+    02       19,510       19,665        +155    +6.458 ms   |    19,526        17,538
+    03       27,820       26,980        −840   −35.000 ms   |    27,821        26,793
+    04      109,090      106,892      −2,198   −91.583 ms   |   109,089       104,211
+    05      165,742      167,124      +1,382   +57.583 ms   |   165,773       167,037
+    06       86,218       86,374        +156    +6.500 ms   |    86,222        84,095
+    07      139,549      142,182      +2,633  +109.708 ms   |   139,567       141,925
+    08      112,892      111,163      −1,729   −72.042 ms   |   112,893       110,861
+    09      108,489      109,088        +599   +24.958 ms   |   108,483       108,820
+    10       82,854       84,124      +1,270   +52.917 ms   |    82,797        84,109
+    11       81,443       80,284      −1,159   −48.292 ms   |    81,489        80,298
+    12       88,395       87,808        −587   −24.458 ms   |    84,311        83,168
+    13       73,565       74,162        +597   +24.875 ms   |    73,565        73,969
+    14      178,768      177,635      −1,133   −47.208 ms   |   178,788       177,238
+    15      250,017      248,348      −1,669   −69.542 ms   |   249,994       248,017
+    16       74,724       74,732          +8    +0.333 ms   |    74,607        73,796
+    17      112,672      111,476      −1,196   −49.833 ms   |   112,956       111,205
+    sum   1,749,744    1,745,730
+
+All 90 files: 24,000 Hz, 1 channel, 2 bytes/sample.
+**Int8 re-render: byte-identical (`cmp -s`) to abtest-penny/NN-int8.wav on 18 of 18**
+— the Mac's int8 output is reproducible run to run, at this level-matching.
+
+The script also printed Mac generate times (4 threads, Mac CPU): fp32 17.6 s,
+int8 34.1 s for ~72.7-72.9 s of audio. **A Mac figure, not a Pixel figure;**
+recorded because it was printed, not used for anything here.
+
+### For Matt to listen — line 12 (a listen is owed from brief V; it blocks nothing)
+
+    Mac int8    /Users/mattstevenson/kokoro-models/abtest-penny/12-int8.wav                                  88,395 samples
+    phone int8  /Users/mattstevenson/Documents/penny-app-spike/rows/7a_v/7a_tts_v1_x1x1_12.wav               84,311 samples
+    Mac fp32    /Users/mattstevenson/kokoro-models/abtest-penny-fp32/12-fp32.wav                              87,808 samples
+
+The two Mac files are level-matched; the phone file is not. Loudness
+differences between them are not evidence of anything.
+
+### What this entry does NOT say
+
+- Nothing about how fp32 sounds against int8. Nobody has listened.
+- The fp32/int8 sample-count differences are a fact about lengths, not a
+  quality claim; neither is "right".
+- That the phone binary (bd7d26e8…) loads the file — only the Mac's
+  1.13.8 wheel has.
+- Nothing about Pixel speed. The Mac's 17.6 s / 34.1 s is a Mac figure.
+- No cause for the phone-vs-Mac line 12 gap (brief V) is claimed; the old
+  sherpa-fp32 line 12 (83,168) is shown only because it was on disk.
