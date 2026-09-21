@@ -20436,3 +20436,71 @@ isolate precision.
 - When the zsh history commands ran: the lines have no timestamps; file dates
   are the only clue.
 - Whether `onnx.infer` matters to sherpa-onnx.
+
+## 2026-09-21 — BRIEF W STEP A, MADE: penny-kokoro-fp32/model.fp32.onnx, 325,534,862 B, sha256 a0986d39118221f730dd3322900071075bab81b9b71cf44ef67617066f62409f. Weights and graph identical to kokoro-v1.0.onnx (initializers_sha256 1df94aab…, nodes_sha256 a4a907e9…); the first 325,532,387 bytes are byte-identical, followed by 2,475 bytes of appended metadata. Rest of the folder copied from penny-kokoro-int8/, hash-identical.
+
+Mac only, approved by Matt ("A") after 136ceb9. The script was run exactly as
+written at notes.md 20258 §3 (`exist_ok=False`), in `~/kokoro-models/.venv`
+(onnx 1.22.0). No pip install, nothing fetched, nothing sent to the phone.
+
+**Input kokoro-v1.0.onnx has no hash published by its originating project;
+matched only against a third-party mirror (fastrtc/kokoro-onnx).**
+
+### Inputs, before and after — unchanged
+
+    file                                  before                 after
+    kokoro-v1.0.onnx                      7d5df8ec…a6c5          7d5df8ec…a6c5
+    kokoro-multi-lang-v1_0/model.onnx     b40f62b1…da11          b40f62b1…da11
+    penny-kokoro-fp32/                    `ls`: No such file or directory (so exist_ok=False could not have hit an old folder)
+
+Script output `saved`, rc 0.
+
+### The output
+
+    penny-kokoro-fp32/model.fp32.onnx  325,534,862 B  sha256 a0986d39118221f730dd3322900071075bab81b9b71cf44ef67617066f62409f
+
+Read-only re-check (same method as notes.md 20258 §1):
+
+    ir 9, opset [('', 20)], 2464 nodes, 554 initializers, producer pytorch 2.6.0      — as required
+    initializers_sha256  1df94aabb7ac0f06487087263a74cef42b076710b1c5da0df9cec5bdde63f891  = kokoro-v1.0.onnx's
+    nodes_sha256         a4a907e956a11604a5a7345620c0374b949cde9ab28e8edfc3860394bf5d71e6  = kokoro-v1.0.onnx's
+    ir, opset, producer, graph name, doc_string  all equal to kokoro-v1.0.onnx's
+    metadata_props       16, dict equal to kokoro-multi-lang-v1_0/model.onnx's: True; speaker_names[22] = bf_isabella
+
+Graph inputs and outputs, name / ONNX elem_type / shape, beside penny int8:
+
+    inputs   fp32  [tokens int64 [1, sequence_length], style float [1, 256], speed float [1]]
+             int8  [tokens int64 [1, sequence_length], style float [1, 256], speed float [1]]   EQUAL
+    outputs  fp32  [audio float [audio_length]]
+             int8  [audio float [audio_length]]                                                EQUAL
+
+Byte check: `cmp kokoro-v1.0.onnx penny-kokoro-fp32/model.fp32.onnx` prints
+`cmp: EOF on kokoro-v1.0.onnx`, rc 1 — **no byte differs over the whole of
+the original's 325,532,387 bytes**; the output is 2,475 bytes longer
+(325,534,862 − 325,532,387). `strings` over the last 2,475 bytes shows the
+metadata keys and values (model_type kokoro, language, has_espeak,
+sample_rate 24000, version, voice en-us, style_dim 510,1,256, n_speakers,
+id2speaker 0->af_alloy …). The 16 props sum to 2,373 bytes of key+value text;
+the remaining 102 are protobuf framing. I.e. `onnx.save` re-serialised the
+same model and appended the metadata field; nothing before it moved.
+
+### The rest of the folder — copied from penny-kokoro-int8/
+
+`cp -R penny-kokoro-int8/{voices.bin,tokens.txt,lexicon-gb-en.txt,lexicon-us-en.txt,espeak-ng-data} penny-kokoro-fp32/`, rc 0
+(no `-p`, so the copies carry today's mtime, 16:42).
+
+    voices.bin         1c5a5b98…  both      same
+    tokens.txt         6ebb6bb2…  both      same
+    lexicon-gb-en.txt  c4cbb373…  both      same
+    lexicon-us-en.txt  7daaab53…  both      same
+    espeak-ng-data/    355 files; per-file hash list diff against penny-kokoro-int8's rc=0; list sha256 3984dd9c… (= int8's, 20258 §4)
+
+    penny-kokoro-int8  360 files  150,880,597 B   model.int8.onnx still a089794d1293b91e82f3f2b8bed5417d04ac64447d6ada5f21045cde0799bf99, dir and files still dated 18 Sept 10:08
+    penny-kokoro-fp32  360 files  384,051,680 B   (du 376,164 kB)
+
+### What this entry does NOT say
+
+- That sherpa-onnx loads the file — step B is the first test.
+- Anything about speed, memory or sound.
+- That kokoro-v1.0.onnx is what taylorchu or kokoro-onnx published — no hash
+  from either exists to check it against; only the mirror's matches.
