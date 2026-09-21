@@ -17817,3 +17817,269 @@ instrument on a different row.
 It says nothing about battery life, the screen being off, a boot-started
 service, a growing context, or answer quality. Battery temperature is not SoC
 temperature.
+
+## 2026-09-21 — BRIEF U, U2 `7a_q17_u2_a78a78`, **LAUNCHED WARM**: the A78 pair, 2 threads, 100 turns. rc=0, 100 of 100, fnv_all_equal=1, ZERO kill lines. Turn 1 10.74 t/s — the FIRST A78 decode figure on this handset. The A78 ceiling FELL to 63.50% of rated under load, which anchor f could not have shown. U-A1 IS MISSED: 75.26% of turn 1, not >= 90%. Seven of eight U2 predictions HIT, because their bands were wide.
+
+**THIS ROW WAS LAUNCHED WARM.** The gate ran its full 240 polls over 1,240.50 s
+(20.68 min) and never reached `TMAX=267`; the battery fell from 342 dC to 283 dC
+and stopped there. All three clock ceilings WERE at rated at launch — the clocks
+limb passed, the battery limb did not. **Every table and every comparison below
+carries the LAUNCHED WARM label.** It is a label, not a failure; notes.md 16874
+section 7 predicted exactly this for U2-U4.
+
+### THE STRING AS RUN — one line, verbatim
+
+    adb -s 37291JEHN04619 shell 'cd /data/local/tmp; P=/sys/devices/system/cpu/cpufreq; B=/sys/class/power_supply/battery/temp; TMAX=267; CAP=240; g0=$(cut -d" " -f1 /proc/uptime); n=0; warm=0; while :; do s0=$(cat $P/policy0/scaling_max_freq); r0=$(cat $P/policy0/cpuinfo_max_freq); s4=$(cat $P/policy4/scaling_max_freq); r4=$(cat $P/policy4/cpuinfo_max_freq); s6=$(cat $P/policy6/scaling_max_freq); r6=$(cat $P/policy6/cpuinfo_max_freq); bt=$(cat $B); [ $n = 0 ] && echo "GATE FIRST p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 batt=$bt/$TMAX uptime_s=$g0"; [ -n "$r0" ] && [ -n "$r4" ] && [ -n "$r6" ] && [ -n "$bt" ] && [ "$s0" = "$r0" ] && [ "$s4" = "$r4" ] && [ "$s6" = "$r6" ] && [ "$bt" -le "$TMAX" ] && break; n=$((n+1)); [ $n -ge $CAP ] && warm=1 && break; sleep 5; done; if [ $warm = 1 ]; then G="GATE TIMED OUT - LAUNCHED WARM"; else G="GATE PASSED"; fi; echo "$G p0=$s0/$r0 p4=$s4/$r4 p6=$s6/$r6 batt_temp_dC=$bt tmax_dC=$TMAX polls_failed=$n gate_start_uptime_s=$g0 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S)"; PENNYBIN=/data/local/tmp/pennyload ./pennybench.sh 7a_q17_u2_a78a78 30 -- -m /data/local/tmp/Qwen3-1.7B-Q4_K_M.gguf -t 2 -c 1024 -lm none -n 64 --user-file /data/local/tmp/penny_user.txt --load-state /data/local/tmp/q17_state.bin --turns 100 --interval-s 0 --tag 7a_q17_u2_a78a78 > /dev/null 2>&1; echo "ROW_DONE uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B)"'
+
+**Token diff against the recorded U2-U4 form at notes.md 17265: EXACTLY ONE
+TOKEN.** `TMAX=<TREF+15>` -> `TMAX=267`. The tag (both occurrences), the mask
+`30` and `-t 2` were already the recorded U2 values in that line, so nothing
+else needed changing and nothing else was.
+
+**The arithmetic: `TMAX = TREF_dC + 15 = 252 + 15 = 267`.** `TREF_dC=252` was
+printed by U1's own gate line (notes.md 17584) and is not a written-in number.
+
+Diffed against the U1 form at notes.md 17258 the string additionally differs in
+the gate's exit test — `[ -n "$bt" ]` and `[ "$bt" -le "$TMAX" ]` are present,
+`TREF_dC=$bt` becomes `tmax_dC=$TMAX`, and `batt=$bt` becomes `batt=$bt/$TMAX`.
+**That is the documented structural difference between the clocks-only form and
+the TMAX form**, both recorded verbatim at notes.md 17230, not an edit made here.
+
+### THE SEVEN LINES
+
+    GATE          TIMED OUT - LAUNCHED WARM. 240 polls, 1,240.50 s (20.68 min) from gate start to launch
+                  GATE FIRST p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt=342/267 uptime_s=2327.53
+                  GATE TIMED OUT - LAUNCHED WARM p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_temp_dC=283 tmax_dC=267 polls_failed=240 gate_start_uptime_s=2327.53 uptime_s=3568.03 wallclock=13:41:16
+    rc            0
+    turns_done    100 of 100 requested, turns_overrun=0
+    oom_score_adj pre=-1000 post=200   (both READ off /proc)
+    kills         lmk_kill_lines 0, .kills is 0 bytes, with MemAvailable BEFORE the row = 3,489,316 kB
+    SwapFree      min 1,863,544 kB = 48.78% of SwapTotal 3,820,152, over 110 series samples
+    contamination NOT MET on either limb. Cached FELL 2,262,152 -> 2,025,636 (-236,516 kB); void limb is -865,163
+
+**The battery reached 283 dC and stopped.** It was 342 dC when the gate opened
+(the phone had been sitting since U1's ROW_DONE at 331 dC and rose before it
+fell). Twenty minutes of idling shed 5.9 C and left it 1.6 C above target.
+
+### SETTLED, verbatim from .bench
+
+    PENNYLOAD turns_done=100 turns_requested=100 turns_overrun=0 fnv_all_equal=1
+    PENNYLOAD first_token_id=32313 token_fnv1a64=0xcba17a2fcbba49f4   (turn 1)
+    PENNYLOAD ttft_turn_ms   min=592.44 median=698.41 max=927.51
+    PENNYLOAD gen_tps        min=7.57 median=9.07 max=10.74
+    PENNYLOAD quarters       n_per_quarter=25  q1=turns 1-25  q4=turns 76-100
+    PENNYLOAD SETTLED ttft_turn_ms q1_median=598.90 q4_median=828.27 decline_pct=38.30   (positive = SLOWER)
+    PENNYLOAD SETTLED gen_tps      q1_median=10.51 q4_median=8.08 decline_pct=23.11   (positive = SLOWER)
+    PENNYLOAD SETTLED gen_tps_turn1=10.74 settled_pct_of_turn1=75.26
+    PENNYLOAD DUTY busy_median_ms=7648.02 interval_ms=0 duty_pct=-1.00
+    PENNYLOAD t_ready_ms 3868.14   state_tokens_restored=407
+
+**100 of 100 turns carry `fnv=0xcba17a2fcbba49f4`**, one distinct value in the
+file, `fnv_all_equal=1`. **The fnv is unchanged by moving to a different core
+type** — same value as U1, every T row, every S row and the 6a.
+
+### PER-TURN, every 10th plus the first and last five (from .bench) — LAUNCHED WARM
+
+      k  uptime_s  restore  user_dec   ttft_ms  gen_ms  gen_tps  busy_ms  ovr  fnv
+      1    3572.70   13.03    608.92    622.96  5867.81   10.74  6490.88  0  0xcba17a2fcbba49f4
+      2    3579.19    9.27    585.93    595.40  5864.89   10.74  6460.34  0  0xcba17a2fcbba49f4
+      3    3585.65    8.63    585.22    594.05  5926.53   10.63  6520.63  0  0xcba17a2fcbba49f4
+      4    3592.17    9.49    585.42    595.13  5951.23   10.59  6546.40  0  0xcba17a2fcbba49f4
+      5    3598.72    8.96    588.09    597.25  5886.19   10.70  6483.49  0  0xcba17a2fcbba49f4
+     10    3631.46    8.67    587.57    596.45  5984.19   10.53  6580.69  0  0xcba17a2fcbba49f4
+     20    3697.54    8.71    589.98    598.89  6078.43   10.36  6677.37  0  0xcba17a2fcbba49f4
+     30    3765.65    9.95    614.46    624.63  6419.45    9.81  7044.14  0  0xcba17a2fcbba49f4
+     40    3837.66    9.69    646.74    656.67  6668.88    9.45  7325.60  0  0xcba17a2fcbba49f4
+     50    3912.28   11.95    690.04    702.23  6996.64    9.00  7698.92  0  0xcba17a2fcbba49f4
+     60    3988.93   11.81    745.66    757.72  7275.05    8.66  8032.82  0  0xcba17a2fcbba49f4
+     70    4068.40   10.05    687.95    698.24  7421.71    8.49  8120.02  0  0xcba17a2fcbba49f4
+     80    4150.77   10.98    746.99    758.22  7511.18    8.39  8269.47  0  0xcba17a2fcbba49f4
+     90    4235.30   10.43    748.97    759.66  7696.47    8.19  8456.19  0  0xcba17a2fcbba49f4
+     96    4287.36   11.63    750.89    762.78  7808.70    8.07  8571.52  0  0xcba17a2fcbba49f4
+     97    4295.93   11.22    816.75    828.27  8000.45    7.87  8828.78  0  0xcba17a2fcbba49f4
+     98    4304.76   12.18    913.08    925.54  8071.72    7.81  8997.31  0  0xcba17a2fcbba49f4
+     99    4313.76   10.39    818.75    829.41  8324.65    7.57  9154.12  0  0xcba17a2fcbba49f4
+    100    4322.92   11.85    883.72    895.88  7896.55    7.98  8792.48  0  0xcba17a2fcbba49f4
+
+    last-10 median (turns 91-100)  7.995 t/s, from
+    [8.05 8.01 7.65 8.02 8.33 8.07 7.87 7.81 7.57 7.98]
+    as % of own turn 1 (10.74)     74.44%
+    pennyload settled_pct_of_turn1 75.26%  (q4 median 8.08 / 10.74)
+
+### WALL TIME — LAUNCHED WARM
+
+    turn 1 start to turn 100 end     3572.70 -> 4331.71      759.01 s
+    pennybench before -> after       3568.31 -> 4332.85      764.54 s   (includes the 3.87 s model load)
+    gate pass -> ROW_DONE            3568.03 -> 4338.30      770.27 s
+    gate wait BEFORE the row         2327.53 -> 3568.03    1,240.50 s   (240 polls, not part of the row)
+
+### CEILINGS — poll loop AND series, all THREE policies
+
+    X1  (policy6)  poll:   before 2,850,000  min 2,704,000 = 94.88% of rated, min_at 3687.41 (119 s in)  after 2,850,000
+                   series: min 2,704,000 (94.88%); 18 of 110 at rated = 16.36%; first below rated at 3688.09
+    A78 (policy4)  poll:   before 2,348,000  min 1,491,000 = 63.50% of rated, min_at 4260.69 (692 s in)  after 1,491,000
+                   series: min 1,491,000 (63.50%); 21 of 110 at rated = 19.09%; first below rated at 3709.11
+    A55 (policy0)  poll:   before 1,803,000  min 1,704,000 = 94.51% of rated, min_at 3688.04 (120 s in)  after 1,803,000
+                   series: min 1,704,000 (94.51%); 108 of 110 at rated = 98.18%; first below rated at 3688.09
+
+**THE A78 CEILING FELL, AND THIS IS THE ROW'S MAIN CLOCK FINDING.** The
+prediction entry set this up explicitly (notes.md 16874, U2's "% of own turn 1"
+paragraph): T2 saw the A78 pair sit at rated through 24.70 minutes, and the two
+candidate explanations were that the limiter treats policy4 gently, or that
+policy4 was simply IDLE. **It was idle.** Loaded with two threads, policy4 fell
+to 63.50% of rated within 141 s and reached its minimum at 692 s.
+
+**Anchor f is now correctly labelled for good: "the A78 ceiling never moved in
+T2" is a statement about an unloaded cluster and says nothing about a loaded
+one.** The prediction entry said that at the time; U2 measures it.
+
+**The X1 pair fell to 94.88% with NOTHING SCHEDULED ON IT** — `taskset 30`
+admits only cpus 4 and 5. That is the package-wide cap CLAUDE.md's trap names
+("pinning away from a cluster does not keep its clock up", notes.md 12639),
+seen here from the other side. **policy0 also dipped, to 1,704,000 = 94.51% —
+the identical value to T2's single A55 dip (notes.md 15283).**
+
+### BATTERY — BATTERY, NOT SoC — LAUNCHED WARM
+
+    start   283 dC  (report before, = the gate's give-up reading)
+    max     355 dC  (report after; series max 355)
+    end     355 dC  sysfs; dumpsys 353
+    rise    +72 dC = +7.2 C over 764.54 s (12.742 min) = +0.5650 C/min
+    dumpsys before [ AC powered: true status: 4 level: 100 temperature: 283 ]
+            after  [ AC powered: true status: 4 level: 100 temperature: 353 ]
+
+U1's slope was +0.8568 C/min from a 25.2 C start; U2's is +0.5650 C/min from a
+28.3 C start. **U2 ended at 35.5 C, the hottest reading of the matrix so far.**
+
+### MEMORY AND COUNTERS
+
+    peak_rss_kB     1,548,952 (VmHWM)    max_rssanon_kB 1,543,420 (99.64%)   max_rssfile_kB 5,236
+    memavail_kB     before 3,489,316  after 3,526,748     series min 1,947,672
+    memfree_kB      before 1,796,996  after 2,074,168
+    swapfree_kB     before 1,919,864  after 1,864,312     series min 1,863,544 (48.78%)
+    cached_kB       before 2,262,152  after 2,025,636     (-236,516)
+    pswpin          75,968 -> 76,036    (+68)
+    pswpout         552,721 -> 566,754  (+14,033)
+    pgmajfault      87,155 -> 87,269    (+114)
+    rss_samples     1,216
+    lmk_kill_lines  0
+
+**Unlike U1, this row swapped.** `pswpout` moved by 14,033 pages and `pswpin`
+by 68, where U1's were identical before and after. Recorded; no cause claimed,
+and the swap figures are nowhere near the 10% contamination limb.
+
+**The LAST series line straddles teardown and is NOT used.** At 4332.20
+`MemAvailable` reads 3,510,804 and `MemFree` 2,067,756 — both roughly 1.5 GB
+above the samples either side — because the child had exited. **The
+second-to-last line, at 4325.12, is the one quoted:**
+
+    4325.12 2802000 1663000 1803000 1983084 530416 1864312 2025632 1548944 1548952 566754 87269 355 100
+
+### THE A78 PAIR AGAINST THE X1 PAIR — matched minute by matched minute
+
+**The rule (Step D brief): U2's speed is never called better or worse than the
+X1 pair's without both figures at the same minute of their rows, side by side.**
+Elapsed is measured from each row's own `pennybench before=` uptime.
+
+    minute   U1 (c0, X1 pair)              U2 (30, A78 pair)             U2/U1
+       1     k=13   59.2 s   14.86 t/s     k=10   63.2 s   10.53 t/s     0.7086
+       2     k=26  122.4 s   13.75         k=19  122.6 s   10.48         0.7622
+       3     k=37  178.5 s   13.37         k=28  183.2 s    9.71         0.7263
+       4     k=49  241.0 s   13.19         k=36  240.1 s    9.48         0.7187
+       5     k=59  298.0 s   12.04         k=44  298.6 s    9.10         0.7558
+       6     k=70  362.5 s   12.05         k=52  359.1 s    9.23         0.7660
+       7     k=80  422.2 s   11.29         k=60  420.6 s    8.66         0.7671
+       8     k=89  477.4 s   11.17         k=68  483.9 s    8.39         0.7511
+       9     k=99  539.9 s   11.18         k=75  541.0 s    8.41         0.7522
+
+**The A78 pair runs at 0.709 to 0.767 of the X1 pair at every matched minute,
+with no trend across the row.** Wall for the same 100 turns: 764.54 s against
+553.21 s, a ratio of 1.3820 (i.e. 1/1.382 = 0.7236, inside the same range).
+
+**U2 WAS LAUNCHED WARM AND U1 WAS NOT.** U2 began at 28.3 C against U1's
+25.2 C, so the comparison above is not a clean core-type ratio — it is what the
+two masks delivered in the order this matrix ran them. Against the three guesses
+the prediction entry offered: pure clock scaling would have given 0.8239, the
+bandwidth-bound story ~1.0, and anchor p's TTS ratio 0.595. **The measured
+0.71-0.77 sits between clock scaling and the TTS ratio, and rules out the
+bandwidth-bound story for this shape.**
+
+### THE PREDICTIONS, JUDGED — committed at notes.md 16874, not revised
+
+    figure                     predicted   band          read        verdict
+    turn-1 gen_tps             12.5        8.5-16.0      10.74       HIT
+    last-10 median             11.6        7.5-15.5      7.995       HIT (low in band)
+    that as % of own turn 1    93%         80-100        74.44%      MISS (low)
+      (pennyload settled_pct_of_turn1)                    75.26%      MISS (low)
+    wall, 100 turns            600 s       480-780       764.54 s    HIT (top of band)
+    poll-min policy6           100%        90-100        94.88%      HIT
+    poll-min policy4           85%         40-100        63.50%      HIT
+    poll-min policy0           92%         75-100        94.51%      HIT
+
+**Seven of eight hit — but six of those bands were 40 points wide or more,
+because the entry said plainly there was no A78 decode figure on this phone.**
+The one that missed is the one that was a real bet. Point estimates against
+readings: turn 1 predicted 12.5, read 10.74 (14.1% low); last-10 predicted
+11.6, read 7.995 (31.1% low). **Wide bands passing is weak evidence and is not
+quoted as a successful prediction.**
+
+    U-A1  Does the A78 pair hold >= 90% of its own turn 1 to the end?
+          PREDICTED YES at 93%, confidence ~55%.   READ 75.26%.   **MISSED.**
+
+**U-A1's reasoning was the ceiling story, and the ceiling story was wrong.** The
+prediction rested on the A78 pair being treated gently by the limiter; the A78
+ceiling in fact fell further than the X1 ceiling did in U1 (63.50% against
+50.04% — U1's fell further in absolute terms, but U1's fall began from a much
+higher clock; the point is that policy4 is NOT exempt).
+
+**And note what the row-order confound did here, exactly as section 7 warned.**
+U2's settled figure, 75.26%, is HIGHER than U1's 72.56%. **That comparison is
+the single figure section 7 named as most distorted by row order**, because
+U2's turn 1 was measured on a chip 3.1 C warmer than U1's and so is a depressed
+denominator. **No claim is made that the A78 pair decays less than the X1 pair.**
+The absolute last-10 medians — 11.175 for U1 against 7.995 for U2 — are the
+figures section 7 called least distorted, and they are 1.40x apart.
+
+    U-A2  fastest last-10 median, so far:  U1 11.175  >  U2 7.995.  U3, U4 pending.
+          PREDICTED U2 fastest at ~11.6. **U2 is not ahead of U1. Judged when U4 lands.**
+    U-A3  soonest finish, so far:          U1 553.21 s  <  U2 764.54 s.  U3, U4 pending.
+          PREDICTED U2 soonest at ~600 s. **U2 is not ahead of U1. Judged when U4 lands.**
+    U-A4  token_fnv1a64 0xcba17a2fcbba49f4 and fnv_all_equal=1:   HIT, both, 100 of 100.
+    U-B1  no kill line naming pennyload:   HIT, zero kill lines of any kind.
+          SwapFree min >= 45%:             HIT, 48.78% (band 25-60).
+          Cached FALLS ~180,000 kB, band -600,000 to +100,000:  HIT, -236,516.
+          void limb NOT met:               HIT.
+
+### THE FILES
+
+Pulled raw to `rows/7a_u/`, no edits. Each hashes identically on Mac and phone:
+
+    d805e90b065c5c883661352e927c784b2237dda1e13a609ec4dde19aa5cece52  7a_q17_u2_a78a78.report   24,902 B
+    d0bbdb988ca5b62be2d8b64754be883257c616dbff57a75f3020054b8bee697e  7a_q17_u2_a78a78.bench    21,140 B
+    f0c38493d2a97d964d278f7d0abb9a5599ca81026a28b3070baa0a7e36160518  7a_q17_u2_a78a78.series   11,141 B
+    65236a519a5d86ca55a52321465b96c4e79602f275c452662ff2349472ba7483  7a_q17_u2_a78a78.err      80,048 B
+    e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  7a_q17_u2_a78a78.kills         0 B
+
+### WHAT U2 DOES NOT SAY
+
+**IT WAS LAUNCHED WARM.** Every figure in it was produced on a chip that the
+gate could not cool to within 1.5 C of U1's launch temperature, after twenty
+minutes of trying. Nothing here is what the A78 pair would do first on a cold
+boot, and this row cannot say how much of the gap to U1 is core type and how
+much is heat.
+
+**It does not say the A78 pair is 0.71-0.77 of the X1 pair as a property of the
+silicon.** It says that is what these two masks delivered in this order on this
+boot, one row each, no error bars.
+
+**It says NOTHING about prompt processing on the A78 pair.** Every turn restores
+the same 407-token prefix; nothing in this row prefills. The `t_user_decode_ms`
+column is 20 tokens getting slower, not a prefill figure. **Whether the A78 pair
+is better or worse than the X1 pair at a growing context is untouched by this
+matrix and is the thing that will matter first in a real conversation.**
+
+It does not say why policy0 dipped to exactly 1,704,000, the same value T2 saw.
+It does not say what thread placement the scheduler chose inside mask 30 — this
+repo has no instrument that would see it. It says nothing about battery life,
+the screen being off, a boot-started service, or answer quality. Battery
+temperature is not SoC temperature.
