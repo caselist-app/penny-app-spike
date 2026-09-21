@@ -1,0 +1,45 @@
+PENNYTTS tag=7a_tts_smoke_00 rc=0 mask=c0 threads=2 cool_gate=1
+PENNYTTS text=On it.
+PENNYTTS bin=/data/local/tmp/tts/sherpa-onnx-offline-tts
+PENNYTTS cool_wait_s     uptime 10890.34 -> 10890.51
+PENNYTTS cool_gate_first p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=276 uptime_s=10890.34   (rev 2: the gate's first poll, scaling/cpuinfo per policy)
+PENNYTTS cool_gate_result GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=276 tmax_dC=unset polls_failed=0 cap=240 wait_s=0.17   (rev 2)
+PENNYTTS uptime_s        before=10890.59 after=10894.52
+PENNYTTS wall_ms         3120   (exec to exit, taken in the launching subshell)
+PENNYTTS elapsed_ms      1080   (the binary's own Elapsed: generate only)
+PENNYTTS derived_load_ms 2040   (wall - elapsed: process start + load + WAV write + 2 date forks)
+PENNYTTS Number of threads: 2
+PENNYTTS Audio duration: 0.829 s
+PENNYTTS Real-time factor (RTF): 1.080/0.829 = 1.303
+PENNYTTS wav             sr=24000 ch=1 bytes=39798 samples=19899 ms=829
+PENNYTTS memavail_kB     before=3359684 after=3349808
+PENNYTTS memfree_kB      before=1612560 after=1607464
+PENNYTTS swapfree_kB     before=2041208 after=2041208
+PENNYTTS cached_kB       before=2316284 after=2321844
+PENNYTTS pswpin          before=145523 after=145523
+PENNYTTS pswpout         before=592184 after=592184
+PENNYTTS pgmajfault      before=156998 after=157152
+PENNYTTS ceil_x1_kHz     before=2850000 min=2802000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+PENNYTTS ceil_x1_min_at  uptime=10893.23
+PENNYTTS ceil_a78_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq; key was ceil_a76_kHz in rev 1)
+PENNYTTS ceil_a78_min_at uptime=10890.59   (key was ceil_a76_min_at in rev 1)
+PENNYTTS ceil_a55_kHz    before=1803000 min=1803000 after=1803000   (policy0, cpus 0 1 2 3, rated 1803000 read from cpuinfo_max_freq; rev 2)
+PENNYTTS ceil_a55_min_at uptime=10890.59   (rev 2)
+PENNYTTS rated_kHz       policy0=1803000 policy4=2348000 policy6=2850000   (rev 2: read from cpuinfo_max_freq before the gate)
+PENNYTTS batt_temp_dC    before=276 after=276   (rev 2: BATTERY, tenths of a degree C -- NOT SoC)
+PENNYTTS peak_rss_kB     286652   (VmHWM, monotonic)
+PENNYTTS max_vmrss_kB    280024
+PENNYTTS max_rssanon_kB  229180   (anonymous -- NOT reclaimable)
+PENNYTTS max_rssfile_kB  50524   (file-backed -- reclaimable)
+PENNYTTS rss_samples     7   (sleep 0.2 s between samples; a short run may get very few; rev 2 counts not comparable with rev 1)
+PENNYTTS lmk_kill_lines  0
+--- binary stderr (tail) ---
+/Users/mattstevenson/Documents/sherpa-onnx/sherpa-onnx/csrc/parse-options.cc:Read:374 /data/local/tmp/tts/sherpa-onnx-offline-tts --num-threads=2 --kokoro-model=/data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx --kokoro-voices=/data/local/tmp/tts/penny-kokoro-int8/voices.bin --kokoro-tokens=/data/local/tmp/tts/penny-kokoro-int8/tokens.txt --kokoro-data-dir=/data/local/tmp/tts/penny-kokoro-int8/espeak-ng-data --kokoro-lexicon=/data/local/tmp/tts/penny-kokoro-int8/lexicon-gb-en.txt --kokoro-lang=en --sid=22 --speed=1.0 --output-filename=/data/local/tmp/tts/out/7a_tts_smoke_00.wav 'On it.' 
+
+Number of threads: 2
+Elapsed seconds: 1.080 s
+Audio duration: 0.829 s
+Real-time factor (RTF): 1.080/0.829 = 1.303
+The text is: On it.. Speaker ID: 22
+Saved to /data/local/tmp/tts/out/7a_tts_smoke_00.wav successfully!
+--- kill lines ---

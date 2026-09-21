@@ -175,6 +175,19 @@ one), 14252 (stay awake, rev 6), 14306 (gate, push, smoke tests).
     token_fnv1a64           0xcba17a2fcbba49f4  (T-A4 reference on the 7a; the same value as the 6a's)
     out/                    7a_t0_smoke_a.*, 7a_t0_smoke_b.*
 
+`/data/local/tmp/tts` on the 7a, pushed from the Mac's existing files and hashed 21 Sept, 363 files, phone list = Mac list (notes.md 19086):
+
+    sherpa-onnx-offline-tts 2,432,496 B      sha256 bd7d26e8f1cca82da2596fce2fe1957b2a2ed139f772a7655ec5983cb83c4f2d  (= the 6a's; sherpa-onnx a5b4a94, android-24, NDK r30)
+    libonnxruntime.so       22,249,560 B     sha256 33847ad43bffe204699fd4a27f7f3603452a8cdaf2f9a44983a0bc31ffcf2da1
+    pennytts.sh rev 2       19,278 B         sha256 3200e06cfed274d34cc459a919d7a3c08307eeea2749867caba805ae49c3d17b  (three-policy gate, GATECAP 240, optional TMAX — notes.md 18977)
+    penny-kokoro-int8/      360 files, 38 dirs, 150,880,597 B; every file hashed, list at rows/7a_v/7a_tts_push_phone.sha256
+      model.int8.onnx       92,363,779 B     sha256 a089794d1293b91e82f3f2b8bed5417d04ac64447d6ada5f21045cde0799bf99
+      voices.bin            28,200,960 B     sha256 1c5a5b983d3d50d8586d437a51f3faa2da7919ce76a013c081e65671a3447c29
+      tokens.txt            687 B            sha256 6ebb6bb288f20f3ae8d004d3c2ca27697da27c037d75e81a60e2a6a663f95425
+      lexicon-gb-en.txt     6,366,635 B      sha256 c4cbb37316f62210dff52718a7afcaae24f50c032cc75ab47ae67b831d1049e7
+      lexicon-us-en.txt     5,956,885 B      sha256 7daaab53a181be9885b853a8582bf1838186317e5dadacbcef9c426d6fa0da14
+    tts/out/                7a_tts_smoke_00.*, 7a_tts_smoke_04.*
+
 Verify with: `adb -s 37291JEHN04619 shell 'pm path com.pennyspike.probe2a'` (expect empty).
 
 ## Mac toolchain

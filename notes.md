@@ -19082,3 +19082,276 @@ Three hits, all `a76`, all recording the rename (header line 26, report lines
 - It does not measure how many fewer `rss_samples` the third `cat` costs;
   rev 2 counts are not compared with rev 1 counts.
 - No figure in this entry is a new measurement.
+
+## 2026-09-21 — BRIEF V STEP B: tts/ pushed to the 7a from the Mac's existing files, 363 files, phone hash list = Mac hash list (diff rc=0); binary bd7d26e8… as required. Smoke on the SPENT boot: 7a_tts_smoke_00 GATE PASSED first poll, wait_s 0.17; 7a_tts_smoke_04 GATE TIMED OUT - LAUNCHED WARM as forced, wait_s 5.37. Both rc=0, rated read as 1803000/2348000/2850000, 29 keys in rev 1 order. Samples against the Mac: line 0 +87 (+3.625 ms), line 4 -1 (-0.042 ms).
+
+Matt approved step B after the reviewer checked `2be6395`. **Matt allowed the
+builder to run the pushes this once ("you can run these pushes, but it's me
+normally").** No downloads. Nothing on the phone was overwritten or deleted:
+`/data/local/tmp/tts` did not exist before this step.
+
+### BEFORE, one invocation (read-only)
+
+    uptime_s=10835.10 wallclock=2026-09-21_15:42:23 MemAvailable: 3399404 kB Cached: 2140416 kB SwapFree: 2041208 kB  p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=276 status=Not charging
+    ls: /data/local/tmp/tts: No such file or directory
+
+`status=Not charging` was read with `dumpsys battery` at uptime 10880.06
+(15:43:08): `AC powered: true`, `level: 100`, `status: 4`; `dumpsys power`:
+`mWakefulness=Awake`, `mIsPowered=true`, `mStayOn=true`;
+`stay_on_while_plugged_in` = 15. **On mains, full, screen awake.** No cause of
+"Not charging" beyond level 100 is claimed.
+
+**This boot is the 21 Sept matrix boot (~12:41:48), SPENT by U1-U4** (CLAUDE.md
+7a block). Nothing here is a row-boot figure.
+
+### THE SOURCES — Mac files that already existed, nothing downloaded or rebuilt
+
+    /Users/mattstevenson/Documents/sherpa-onnx/build-android-arm64-v8a/install/bin/sherpa-onnx-offline-tts   2,432,496 B  mtime 18 Sep 17:42
+    /Users/mattstevenson/Documents/sherpa-onnx/build-android-arm64-v8a/install/lib/libonnxruntime.so         22,249,560 B  mtime 18 Sep 17:42
+    /Users/mattstevenson/Documents/penny-app-spike/pennytts.sh                                               19,278 B      (rev 2, committed 2be6395)
+    /Users/mattstevenson/kokoro-models/penny-kokoro-int8/                                                    360 files, 38 dirs, 150,880,597 B
+
+These are the paths that built and supplied the 6a's `tts/` (notes.md 13386,
+13406); the file count and byte total equal the 6a push's (13406).
+
+### THE STRINGS AS RUN
+
+    adb -s 37291JEHN04619 shell 'mkdir /data/local/tmp/tts; echo "mkdir rc=$?"; ls -la /data/local/tmp/tts'
+    mkdir rc=0
+
+    cd /Users/mattstevenson && adb -s 37291JEHN04619 push Documents/sherpa-onnx/build-android-arm64-v8a/install/bin/sherpa-onnx-offline-tts Documents/sherpa-onnx/build-android-arm64-v8a/install/lib/libonnxruntime.so Documents/penny-app-spike/pennytts.sh kokoro-models/penny-kokoro-int8 /data/local/tmp/tts/
+
+    sherpa-onnx-offline-tts: 1 file pushed, 0 skipped. 266.7 MB/s (2432496 bytes in 0.009s)
+    libonnxruntime.so: 1 file pushed, 0 skipped. 88.8 MB/s (22249560 bytes in 0.239s)
+    pennytts.sh: 1 file pushed, 0 skipped. 85.2 MB/s (19278 bytes in 0.000s)
+    kokoro-models/penny-kokoro-int8/: 360 files pushed, 0 skipped. 45.8 MB/s (150880597 bytes in 3.141s)
+    363 files pushed, 0 skipped. 49.2 MB/s (175581931 bytes in 3.401s)
+
+No chmod was run. The binary arrived `-rwxrwxrwx` (adb carries the Mac's
+executable bit); `pennytts.sh` arrived `-rw-rw-rw-` and is invoked as
+`sh /data/local/tmp/tts/pennytts.sh`, so it needs none. **The push wrote the
+model through the page cache: line 0 of the smoke ran on a model already cached
+by the push, not by a previous line.**
+
+### THE HASH LISTS — every file, both sides
+
+Mac: `shasum -a 256` on each source, paths written relative to `tts/`. Phone:
+
+    adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; find . -type f | sed "s|^\./||" | sort | while read f; do sha256sum "$f"; done'
+
+Both sorted by path and diffed on the Mac: **363 lines each, `diff` rc=0.**
+The two list files are committed as `rows/7a_v/7a_tts_push_mac.sha256` and
+`rows/7a_v/7a_tts_push_phone.sha256` and each hashes to
+`3bbac36c835b6154f7666ff6b8d5c3101391ef994889a0355909d44b6e2265d2`.
+**Every espeak-ng-data file (355) was hashed individually on both sides** — the
+6a push only counted them (13423). The eight files outside espeak-ng-data:
+
+    33847ad43bffe204699fd4a27f7f3603452a8cdaf2f9a44983a0bc31ffcf2da1  libonnxruntime.so
+    c4cbb37316f62210dff52718a7afcaae24f50c032cc75ab47ae67b831d1049e7  penny-kokoro-int8/lexicon-gb-en.txt
+    7daaab53a181be9885b853a8582bf1838186317e5dadacbcef9c426d6fa0da14  penny-kokoro-int8/lexicon-us-en.txt
+    a089794d1293b91e82f3f2b8bed5417d04ac64447d6ada5f21045cde0799bf99  penny-kokoro-int8/model.int8.onnx
+    6ebb6bb288f20f3ae8d004d3c2ca27697da27c037d75e81a60e2a6a663f95425  penny-kokoro-int8/tokens.txt
+    1c5a5b983d3d50d8586d437a51f3faa2da7919ce76a013c081e65671a3447c29  penny-kokoro-int8/voices.bin
+    3200e06cfed274d34cc459a919d7a3c08307eeea2749867caba805ae49c3d17b  pennytts.sh
+    bd7d26e8f1cca82da2596fce2fe1957b2a2ed139f772a7655ec5983cb83c4f2d  sherpa-onnx-offline-tts
+
+**Verified against:** the binary equals the brief's required `bd7d26e8…`; it and
+the six model/library hashes equal the 6a push's phone-side list (notes.md
+13413-13420); `pennytts.sh` equals the rev 2 committed at `2be6395`.
+
+### SMOKE 7a_tts_smoke_00 — line 0, mask c0, 2 threads, COOL=1, TMAX unset, GATECAP default
+
+The string as run, in the background with `caffeinate -i` on the Mac, and no
+other adb command until it returned:
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; echo "LAUNCH uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B)"; COOL=1 sh /data/local/tmp/tts/pennytts.sh 7a_tts_smoke_00 c0 2 0 > /dev/null 2>&1; echo "SMOKE_DONE rc=$? uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B)"'
+
+    LAUNCH uptime_s=10890.05 wallclock=15:43:18 batt_temp_dC=276
+    SMOKE_DONE rc=0 uptime_s=10895.39 wallclock=15:43:24 batt_temp_dC=276
+
+The report, in full (`rows/7a_v/7a_tts_smoke_00.report`):
+
+    PENNYTTS tag=7a_tts_smoke_00 rc=0 mask=c0 threads=2 cool_gate=1
+    PENNYTTS text=On it.
+    PENNYTTS bin=/data/local/tmp/tts/sherpa-onnx-offline-tts
+    PENNYTTS cool_wait_s     uptime 10890.34 -> 10890.51
+    PENNYTTS cool_gate_first p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=276 uptime_s=10890.34   (rev 2: the gate's first poll, scaling/cpuinfo per policy)
+    PENNYTTS cool_gate_result GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=276 tmax_dC=unset polls_failed=0 cap=240 wait_s=0.17   (rev 2)
+    PENNYTTS uptime_s        before=10890.59 after=10894.52
+    PENNYTTS wall_ms         3120   (exec to exit, taken in the launching subshell)
+    PENNYTTS elapsed_ms      1080   (the binary's own Elapsed: generate only)
+    PENNYTTS derived_load_ms 2040   (wall - elapsed: process start + load + WAV write + 2 date forks)
+    PENNYTTS Number of threads: 2
+    PENNYTTS Audio duration: 0.829 s
+    PENNYTTS Real-time factor (RTF): 1.080/0.829 = 1.303
+    PENNYTTS wav             sr=24000 ch=1 bytes=39798 samples=19899 ms=829
+    PENNYTTS memavail_kB     before=3359684 after=3349808
+    PENNYTTS memfree_kB      before=1612560 after=1607464
+    PENNYTTS swapfree_kB     before=2041208 after=2041208
+    PENNYTTS cached_kB       before=2316284 after=2321844
+    PENNYTTS pswpin          before=145523 after=145523
+    PENNYTTS pswpout         before=592184 after=592184
+    PENNYTTS pgmajfault      before=156998 after=157152
+    PENNYTTS ceil_x1_kHz     before=2850000 min=2802000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+    PENNYTTS ceil_x1_min_at  uptime=10893.23
+    PENNYTTS ceil_a78_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq; key was ceil_a76_kHz in rev 1)
+    PENNYTTS ceil_a78_min_at uptime=10890.59   (key was ceil_a76_min_at in rev 1)
+    PENNYTTS ceil_a55_kHz    before=1803000 min=1803000 after=1803000   (policy0, cpus 0 1 2 3, rated 1803000 read from cpuinfo_max_freq; rev 2)
+    PENNYTTS ceil_a55_min_at uptime=10890.59   (rev 2)
+    PENNYTTS rated_kHz       policy0=1803000 policy4=2348000 policy6=2850000   (rev 2: read from cpuinfo_max_freq before the gate)
+    PENNYTTS batt_temp_dC    before=276 after=276   (rev 2: BATTERY, tenths of a degree C -- NOT SoC)
+    PENNYTTS peak_rss_kB     286652   (VmHWM, monotonic)
+    PENNYTTS max_vmrss_kB    280024
+    PENNYTTS max_rssanon_kB  229180   (anonymous -- NOT reclaimable)
+    PENNYTTS max_rssfile_kB  50524   (file-backed -- reclaimable)
+    PENNYTTS rss_samples     7   (sleep 0.2 s between samples; a short run may get very few; rev 2 counts not comparable with rev 1)
+    PENNYTTS lmk_kill_lines  0
+    --- binary stderr (tail) ---
+    /Users/mattstevenson/Documents/sherpa-onnx/sherpa-onnx/csrc/parse-options.cc:Read:374 /data/local/tmp/tts/sherpa-onnx-offline-tts --num-threads=2 --kokoro-model=/data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx --kokoro-voices=/data/local/tmp/tts/penny-kokoro-int8/voices.bin --kokoro-tokens=/data/local/tmp/tts/penny-kokoro-int8/tokens.txt --kokoro-data-dir=/data/local/tmp/tts/penny-kokoro-int8/espeak-ng-data --kokoro-lexicon=/data/local/tmp/tts/penny-kokoro-int8/lexicon-gb-en.txt --kokoro-lang=en --sid=22 --speed=1.0 --output-filename=/data/local/tmp/tts/out/7a_tts_smoke_00.wav 'On it.' 
+
+    Number of threads: 2
+    Elapsed seconds: 1.080 s
+    Audio duration: 0.829 s
+    Real-time factor (RTF): 1.080/0.829 = 1.303
+    The text is: On it.. Speaker ID: 22
+    Saved to /data/local/tmp/tts/out/7a_tts_smoke_00.wav successfully!
+    --- kill lines ---
+
+### SMOKE 7a_tts_smoke_04 — line 4, mask c0, 2 threads, COOL=1 GATECAP=2 TMAX=1 (forced timeout)
+
+Run in the foreground, 22.2 s after smoke 00 returned:
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; echo "LAUNCH uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B)"; COOL=1 GATECAP=2 TMAX=1 sh /data/local/tmp/tts/pennytts.sh 7a_tts_smoke_04 c0 2 4 > /dev/null 2>&1; echo "SMOKE_DONE rc=$? uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B)"'
+
+    LAUNCH uptime_s=10917.39 wallclock=15:43:46 batt_temp_dC=275
+    SMOKE_DONE rc=0 uptime_s=10931.19 wallclock=15:43:59 batt_temp_dC=275
+
+The report, in full (`rows/7a_v/7a_tts_smoke_04.report`):
+
+    PENNYTTS tag=7a_tts_smoke_04 rc=0 mask=c0 threads=2 cool_gate=1
+    PENNYTTS text=Your call is at 3:45 pm on Thursday the 24th of September.
+    PENNYTTS bin=/data/local/tmp/tts/sherpa-onnx-offline-tts
+    PENNYTTS cool_wait_s     uptime 10917.72 -> 10923.09
+    PENNYTTS cool_gate_first p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=275 uptime_s=10917.72   (rev 2: the gate's first poll, scaling/cpuinfo per policy)
+    PENNYTTS cool_gate_result GATE TIMED OUT - LAUNCHED WARM p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=275 tmax_dC=1 polls_failed=2 cap=2 wait_s=5.37   (rev 2)
+    PENNYTTS uptime_s        before=10923.20 after=10930.38
+    PENNYTTS wall_ms         6464   (exec to exit, taken in the launching subshell)
+    PENNYTTS elapsed_ms      4503   (the binary's own Elapsed: generate only)
+    PENNYTTS derived_load_ms 1961   (wall - elapsed: process start + load + WAV write + 2 date forks)
+    PENNYTTS Number of threads: 2
+    PENNYTTS Audio duration: 4.545 s
+    PENNYTTS Real-time factor (RTF): 4.503/4.545 = 0.991
+    PENNYTTS wav             sr=24000 ch=1 bytes=218178 samples=109089 ms=4545
+    PENNYTTS memavail_kB     before=3380632 after=3339424
+    PENNYTTS memfree_kB      before=1629160 after=1597412
+    PENNYTTS swapfree_kB     before=2041208 after=2041208
+    PENNYTTS cached_kB       before=2321856 after=2322100
+    PENNYTTS pswpin          before=145525 after=145525
+    PENNYTTS pswpout         before=592184 after=592184
+    PENNYTTS pgmajfault      before=157154 after=157154
+    PENNYTTS ceil_x1_kHz     before=2850000 min=2704000 after=2850000   (policy6, cpus 6 7, rated 2850000 read from cpuinfo_max_freq)
+    PENNYTTS ceil_x1_min_at  uptime=10928.74
+    PENNYTTS ceil_a78_kHz    before=2348000 min=2348000 after=2348000   (policy4, cpus 4 5, rated 2348000 read from cpuinfo_max_freq; key was ceil_a76_kHz in rev 1)
+    PENNYTTS ceil_a78_min_at uptime=10923.20   (key was ceil_a76_min_at in rev 1)
+    PENNYTTS ceil_a55_kHz    before=1803000 min=1803000 after=1803000   (policy0, cpus 0 1 2 3, rated 1803000 read from cpuinfo_max_freq; rev 2)
+    PENNYTTS ceil_a55_min_at uptime=10923.20   (rev 2)
+    PENNYTTS rated_kHz       policy0=1803000 policy4=2348000 policy6=2850000   (rev 2: read from cpuinfo_max_freq before the gate)
+    PENNYTTS batt_temp_dC    before=275 after=275   (rev 2: BATTERY, tenths of a degree C -- NOT SoC)
+    PENNYTTS peak_rss_kB     362364   (VmHWM, monotonic)
+    PENNYTTS max_vmrss_kB    362364
+    PENNYTTS max_rssanon_kB  310940   (anonymous -- NOT reclaimable)
+    PENNYTTS max_rssfile_kB  51116   (file-backed -- reclaimable)
+    PENNYTTS rss_samples     13   (sleep 0.2 s between samples; a short run may get very few; rev 2 counts not comparable with rev 1)
+    PENNYTTS lmk_kill_lines  0
+    --- binary stderr (tail) ---
+    /Users/mattstevenson/Documents/sherpa-onnx/sherpa-onnx/csrc/parse-options.cc:Read:374 /data/local/tmp/tts/sherpa-onnx-offline-tts --num-threads=2 --kokoro-model=/data/local/tmp/tts/penny-kokoro-int8/model.int8.onnx --kokoro-voices=/data/local/tmp/tts/penny-kokoro-int8/voices.bin --kokoro-tokens=/data/local/tmp/tts/penny-kokoro-int8/tokens.txt --kokoro-data-dir=/data/local/tmp/tts/penny-kokoro-int8/espeak-ng-data --kokoro-lexicon=/data/local/tmp/tts/penny-kokoro-int8/lexicon-gb-en.txt --kokoro-lang=en --sid=22 --speed=1.0 --output-filename=/data/local/tmp/tts/out/7a_tts_smoke_04.wav 'Your call is at 3:45 pm on Thursday the 24th of September.' 
+
+    Number of threads: 2
+    Elapsed seconds: 4.503 s
+    Audio duration: 4.545 s
+    Real-time factor (RTF): 4.503/4.545 = 0.991
+    The text is: Your call is at 3:45 pm on Thursday the 24th of September.. Speaker ID: 22
+    Saved to /data/local/tmp/tts/out/7a_tts_smoke_04.wav successfully!
+    --- kill lines ---
+
+### THE CHECKS THE REVIEWER ASKED FOR
+
+- **Every rev 1 key present, in rev 1 order.** Keys extracted from both actual
+  reports, the six rev 2 additions and the binary's three lines removed,
+  diffed against rev 1's source key list (a76 -> a78): **rc=0 for both, 26
+  named keys each**; the binary's `Number of threads` / `Audio duration` /
+  `Real-time factor` lines sit between `derived_load_ms` and `wav` as in rev 1.
+- **Rated read as `policy0=1803000 policy4=2348000 policy6=2850000`** in both
+  reports, equal to the CLAUDE.md 7a block's rated figures.
+- **`cool_gate_result` correct on both paths.** smoke_00: clocks all rated,
+  TMAX unset -> `GATE PASSED polls_failed=0`. smoke_04: clocks all rated but
+  battery 275 > TMAX 1 -> `GATE TIMED OUT - LAUNCHED WARM polls_failed=2
+  cap=2`.
+- **`wait_s` against the `cool_wait_s` uptimes:** 10890.51 - 10890.34 = 0.17
+  (reported 0.17); 10923.09 - 10917.72 = 5.37 (reported 5.37). **The forced
+  timeout took ~5 s, not ~10 s:** poll 1 fails, one `sleep 5`, poll 2 fails and
+  reaches the cap before a second sleep. With GATECAP=240 the wait before
+  launching warm is 239 sleeps, ~20 min plus read time.
+- **Pulls equal the phone's copies:** all 12 smoke files, `sha256sum` on the
+  phone against `shasum -a 256` on the Mac, diff rc=0.
+
+### SAMPLE COUNTS AGAINST THE MAC
+
+Mac reference: `~/kokoro-models/abtest-penny/NN-int8.wav`, written by the Mac's
+sherpa-onnx 1.13.8 Python wheel (notes.md 12957). Read with python `wave`.
+
+    line  7a samples  Mac samples  difference
+    00      19,899      19,812     +87 = +3.625 ms
+    04     109,089     109,090      -1 = -0.042 ms
+
+All four files 24 kHz mono 16-bit. **7a_tts_smoke_00.wav is byte-identical to
+the 6a's p2-00.wav** (both `4d7c10b9844e86a345fbd45a158eca46a9d02b59fdf87449c0c942b12f6caca4`).
+The line 4 WAV is `f424f0656b41c2931f3e82974388fd40d34f6fa908497dd535ac72f41b5d6b78`;
+no 6a line-4 WAV is on the Mac to compare it with. Both WAVs are committed
+(39,842 B and 218,222 B).
+
+### TWO SMOKE FIGURES STEP C MUST NOT PRETEND IT HAS NOT SEEN
+
+These are smoke figures — one line each, spent boot, model cached by the push
+— and are **not V1 rows**. They are written here because step C's predictions
+come after them and must say so:
+
+- **Line 4 RTF 0.991 on the X1 pair** (elapsed 4,503 ms, audio 4.545 s). The
+  6a's X1-pair line 4 in row 4b was above 1.0 (every 4b line was 1.067-1.373,
+  notes.md 13772). One line under 1.0 is not a V-A1 answer.
+- **The X1 ceiling left rated inside a single short line**: 2,802,000 at
+  10893.23 during line 0 (3.1 s wall) and 2,704,000 = 94.88% of rated at
+  10928.74 during line 4 (6.5 s wall), back to rated after each.
+
+Derived load 2,040 and 1,961 ms, inside the 6a's cached range of 1,875-2,139 ms
+(13801).
+
+### THE PHONE AS LEFT, one invocation (read-only)
+
+    uptime_s=11001.29 wallclock=2026-09-21_15:45:10 MemAvailable: 3387332 kB Cached: 2322112 kB SwapFree: 2041208 kB  p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=275
+
+`/data/local/tmp` lists what it did before plus `tts/`; `tts/` holds the binary,
+`libonnxruntime.so`, `penny-kokoro-int8/`, `pennytts.sh` and `out/` (the 12
+smoke files). `/data/local/tmp/out` (pennybench.sh's) holds 97 entries,
+untouched by this step.
+
+(Builder's slip, no phone effect: the first attempt to read smoke_00's report
+was chained after an `echo ===`, which zsh rejects, so the read did not run;
+it was re-run on its own.)
+
+### CLAUDE.md, CHANGED IN THE SAME STEP
+
+**One addition inside the 7a block:** a `tts/` section under the
+`/data/local/tmp` listing (file, bytes, sha256). Nothing else in CLAUDE.md
+changed; the 6a block, lines 55-133, re-hashed after the edit.
+
+### WHAT THIS DOES NOT SAY
+
+- Nothing about any V row. Two single lines is not a pass.
+- Nothing about RTF on the A78 pair: no smoke ran on mask 30.
+- Nothing from flash: the model was cached by the push.
+- It does not say why the X1 ceiling left rated within a 3 s line on a phone
+  at rest, or what the phone was doing between U4 (15:05) and this step.
+- Battery temperature is not SoC temperature; "Not charging" at level 100 is
+  recorded, not explained.
+- Nothing about pronunciation: neither WAV was listened to.
