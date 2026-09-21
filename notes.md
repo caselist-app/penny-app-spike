@@ -23068,3 +23068,204 @@ from line 7. The resident RSS is a shell process's, not the app's. Battery
 temperature is not chip temperature. A shell process over adb on mains with the
 screen on is not a product process. It does not decide which file ships or
 which cores speak.
+
+## 2026-09-21 — BRIEF X STEP F, R3: int8, X1 pair (c0), 2 threads, one resident process, 18 lines. Clean: report rc=0, lines_ok=18, 0 kill lines, 18 of 18 WAVs byte-identical to V1's. Load 1,584.071 ms; generate sum 79,993.603 ms = 1.0065× W3's and 1.0080× V1's elapsed sum; 0 of 18 lines under RTF 1.0 (RTF 1.0098-1.3069); VmRSS 255,688 kB after load, 587,916 kB after line 17. X1 poll-min 2,401,000 kHz first seen in line 7. Resident fp32/int8 on the X1 pair (R1/R3) 0.7501. 19 of 21 judged predictions HIT. Spent boot, model page-cached, NOT a row-boot figure.
+
+Same device, boot, binary and wrapper as R1 (notes.md 22678); model
+penny-kokoro-int8/model.int8.onnx (the wrapper's default; report model_path
+and model_bytes). **Every figure below: spent boot, model page-cached, NOT a
+row-boot figure.** Order today: R3 is the THIRD of R1-R4; it launched 1 min
+34 s after R2's DONE (21:10:23 → 21:11:57), after R2's pulls, cmp's and commit.
+Its comparisons: **W3** (notes.md 21499), which ran THIRD of W1-W3 earlier on
+this same boot, launched at **285 dC** after an 882.75 s gate wait; and **V1**
+(notes.md 19620), which ran FIRST of brief V on this same boot, launched at
+**270 dC** (TMAX unset) after 0.21 s. R3's gate read **275 dC**, wait 0.21 s.
+
+**Correction to R2's entry (22889), not edited there:** "only items 2-4 of R1's
+list and the commit ran in that window" should read items **3-5** of R1's list
+(the read-only hash listing, the 24 pulls and the dumpsys/events read) and
+R1's commit. Item 2 was the R1 pass itself. A sed meant to fix it before
+appending did not match across a line break; I saw it after the commit.
+
+### THE STRING AS RUN
+
+Copied out of notes.md line 22587 by
+`CMD=$(sed -n '22587p' notes.md | sed 's/^    //' | tr -d '\n')`, checked
+(998 B, sha256 54a96f8b130ae9d034566b1d68590827007bab82b048eafbd8aec47b4e9106e7
+= the committed value in 22405 §5), then `eval "$CMD"`. Not retyped. Verbatim:
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; X=$(grep "^PENNYTTS batt_temp_dC" out/7a_tts_v1_x1x1_00.report | tr -s " " | cut -d" " -f3); TREF=${X#before=}; case "$TREF" in ""|*[!0-9]*) echo "TREF UNREADABLE [$X] - R3 NOT LAUNCHED"; exit 1 ;; esac; TMAX=$((TREF + 15)); echo "LAUNCH R3 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) tref_dC=$TREF tmax_dC=$TMAX out_count=$(ls out | wc -l)"; COOL=1 GATECAP=240 TMAX=$TMAX sh /data/local/tmp/tts/pennyspeak.sh 7a_tts_r3_int8_x1x1 c0 2 all > /dev/null; RCS=$?; echo "DONE R3 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) wrapper_exit=$RCS out_count=$(ls out | wc -l)"; grep -E "^PENNYSPEAKSH (tag=|cool_gate_result)" out/7a_tts_r3_int8_x1x1.report'
+
+Its whole output, verbatim:
+
+    LAUNCH R3 uptime_s=30609.09 wallclock=21:11:57 batt_temp_dC=275 memavail_kB=3281176 tref_dC=270 tmax_dC=285 out_count=642
+    DONE R3 uptime_s=30693.17 wallclock=21:13:21 batt_temp_dC=283 memavail_kB=3263644 wrapper_exit=0 out_count=666
+    PENNYSPEAKSH tag=7a_tts_r3_int8_x1x1 rc=0 mask=c0 threads=2 cool_gate=1 lines=all idle_ms=0
+    PENNYSPEAKSH cool_gate_result GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=275 tmax_dC=285 polls_failed=0 cap=240 wait_s=0.21   (rev 2)
+
+**wrapper_exit=0 is tee's status, NOT pennyspeak's**; it would only mean
+something if it were 9. The authority is the report's `rc=0` and `event=done
+rc=0 lines_ok=18 n_lines=18 failed_gen_lines=none failed_wav_lines=none`.
+
+### Every adb command since R2's entry, in order
+
+1. The R3 string above, 21:11:57-21:13:21, in the foreground, alone.
+2. Read-only: `adb -s 37291JEHN04619 shell "cd /data/local/tmp/tts/out; ls
+   7a_tts_r3_int8_x1x1* | wc -l; sha256sum 7a_tts_r3_int8_x1x1*"` → 24.
+3. 24 × `adb -s 37291JEHN04619 pull /data/local/tmp/tts/out/<file> rows/7a_x/`,
+   one file each, each target checked absent first; none reported a failure.
+4. Read-only, 21:13:36 (uptime 30708.07): `dumpsys power` → mWakefulness=Awake,
+   mStayOn=true; the events buffer's last `screen_toggled` is still `09-21
+   12:41:58.605 … screen_toggled: 1` — no screen-off since boot.
+
+Battery 266 dC at R2's DONE (21:10:23) → 275 dC at R3's LAUNCH (21:11:57),
++9 dC in 1 min 34 s with no pass running. No cause claimed. R3's gate passed
+10 dC under TMAX 285; it read 283 at R3's DONE.
+
+### Integrity
+
+- out/ count 642 → 666, +24 as predicted. No difference.
+- rows/7a_x/7a_x_r3_phone.sha256 and rows/7a_x/7a_x_r3_mac.sha256, 24 lines
+  each, `diff` rc=0. rows/7a_x/ 78 → 104 files.
+- **cmp: 18 of 18 byte-identical** — each rows/7a_x/7a_tts_r3_int8_x1x1_NN.wav
+  against rows/7a_v/7a_tts_v1_x1x1_NN.wav (V1 = W3, 21734), cmp rc=0 on all 18.
+- report rc=0; 18 line records, all status=OK, wav_ok=1 (18); lines_ok=18;
+  .err and .kills empty (e3b0c442…); lmk_kill_lines 0, naming pennyspeak 0;
+  swapfree, pswpin, pswpout, pgmajfault unchanged before → after. No lock or
+  screen-off; no manual intervention; nothing of mine alive during the pass.
+
+### Results — from rows/7a_x/7a_tts_r3_int8_x1x1.report as pulled
+
+Spent boot, model page-cached, NOT a row-boot figure. Beside each, the same
+line's fresh-process **W3** and **V1** figures
+(rows/7a_w/7a_tts_w3_int8_x1x1_NN.report, rows/7a_v/7a_tts_v1_x1x1_NN.report:
+elapsed_ms and the CLI's printed RTF; W3's peak_rss_kB). **W3 ran 3rd of W1-W3
+today, gate 285 dC after 882.75 s; V1 ran 1st of brief V today, gate 270 dC;
+R3 ran 3rd of R1-R4 today, gate 275 dC after 0.21 s; all on the same boot.**
+Close windows, not identical ones (21761): gen_ms includes the C API's sample
+copy; the CLI's Elapsed includes its printf callback and is truncated to whole
+ms. The fresh peak is a DIFFERENT measurement: VmHWM over load plus ONE line.
+
+    n  audio_s  gen_ms     RTF     VmRSS    RssAnon  RssFile  MemAvail |  W3 el  W3 RTF  W3 peak  gen/W3 |  V1 el  V1 RTF  gen/V1
+     0   0.829   1083.610  1.3069   286828   235732   50780   3003804 |  1110   1.339   286684  0.9762 |  1085   1.309   0.9987
+     1   0.758    949.771  1.2535   288464   237368   50780   2990776 |   955   1.260   279876  0.9945 |   947   1.250   1.0029
+     2   0.814   1012.336  1.2443   288684   237588   50780   3002744 |  1023   1.257   280972  0.9896 |  1013   1.245   0.9993
+     3   1.159   1422.154  1.2268   293384   242288   50780   3002032 |  1417   1.222   289528  1.0036 |  1420   1.225   1.0015
+     4   4.545   4594.989  1.0109   363272   312176   50780   2924008 |  4602   1.012   361900  0.9985 |  4568   1.005   1.0059
+     5   6.907   6974.860  1.0098   447440   396344   50780   2836096 |  6976   1.010   440076  0.9998 |  7024   1.017   0.9930
+     6   3.593   3958.066  1.1017   447756   396660   50780   2842208 |  3986   1.110   350348  0.9930 |  3956   1.101   1.0005
+     7   5.815   5955.477  1.0241   449472   398376   50780   2833572 |  5999   1.032   436156  0.9927 |  5911   1.016   1.0075
+     8   4.704   5051.731  1.0740   449636   398540   50780   2841424 |  5060   1.076   401208  0.9984 |  5017   1.067   1.0069
+     9   4.520   4914.431  1.0872   451304   400208   50780   2823184 |  4864   1.076   365216  1.0104 |  4860   1.075   1.0112
+    10   3.450   3704.404  1.0738   451468   400372   50780   2851160 |  3689   1.069   343940  1.0042 |  3672   1.064   1.0088
+    11   3.395   3678.343  1.0833   451504   400408   50780   2828884 |  3664   1.079   344272  1.0039 |  3622   1.067   1.0156
+    12   3.513   3854.269  1.0972   451660   400564   50780   2833196 |  3797   1.081   347640  1.0151 |  3815   1.086   1.0103
+    13   3.065   3373.520  1.1006   451816   400720   50780   2853368 |  3334   1.088   339444  1.0119 |  3297   1.076   1.0232
+    14   7.449   9095.760  1.2210   452424   401328   50780   2832956 |  8947   1.201   326876  1.0166 |  8988   1.207   1.0120
+    15  10.416  10820.401  1.0388   587352   536256   50780   2702552 | 10706   1.028   578896  1.0107 | 10798   1.037   1.0021
+    16   3.109   3908.417  1.2573   587644   536548   50780   2693248 |  3825   1.230   322428  1.0218 |  3820   1.229   1.0231
+    17   4.707   5641.064  1.1986   587916   536820   50780   2688316 |  5522   1.173   350204  1.0216 |  5544   1.178   1.0175
+
+    figure                          R3 (resident)                                   W3 (fresh)                     V1 (fresh)
+    load                            load_ms 1,584.071 (engine create only)          derived median 1,975 ms        derived median 1,982 ms   (derived = process start + load + WAV write + 2 date forks — NOT the same window)
+    generate sum                    79,993.603 ms                                   79,476 → R3/W3 1.0065          79,357 → R3/V1 1.0080
+    RTF min / median / max          1.0098 (line 5) / 1.0989 / 1.3069 (line 0)      1.010 / 1.0845 / 1.339         1.005 / 1.081 / 1.309
+    lines under RTF 1.0             0                                               0                              0
+    line 15                         10,820.401 ms, RTF 1.0388                       10,706 ms, 1.028               10,798 ms, 1.037
+    pass wall                       pass_wall_ms 81,976 (load 1,584.1 + gen 79,993.6 + 398.3 other)   wall sum 115,098 ms   wall sum 114,960 ms
+    X-A4 RTF(0)/median RTF(1,2,3)   1.0503                                          1.0652                         1.0514
+
+gen/W3 is 0.976-1.004 on lines 0-8 and 1.004-1.022 on lines 9-17 (line 3,
+1.0036, is the exception in the first group). Against V1 the per-line ratio is
+0.993-1.006 on lines 0-6 and 1.002-1.023 from line 7 on. The same shape as R1
+against W1: level or faster early, slower late. No cause is claimed.
+
+**RSS (kB)** — pennyspeak's per-line reads and the 0.2 s poll (151 samples):
+
+    point                      VmRSS     RssAnon   RssFile   (VmHWM)
+    at start (before load)      45,328
+    after load                 255,688   205,404    49,968    (load record)
+    per-line max (after 17)    587,916   536,820    50,780    589,460
+    after line 17              587,916   536,820    50,780    589,460
+    poll max                   587,812   536,716    50,780    589,460 (poll's last VmHWM)
+    after destroy               97,288
+
+The resident max (VmHWM 589,460) sits beside the fresh peaks W3 578,896 and V1
+576,772 (both line 15): +10,564 and +12,688 kB. RSS stepped up at lines 4, 5
+and 15 and held. The after-load figure is NOT comparable with a fresh peak.
+
+**Clock ceilings (kHz)** — before / poll-min / after, and where min_at falls:
+
+    policy          R3                                    min_at, placed                          W3 / V1 min over 18 reports
+    policy6 X1      2,850,000 / 2,401,000 / 2,850,000     30634.01 → line 7 (30631.966-30637.922), 22.0 s after load ended (30611.966)   2,507,000 / 2,507,000
+    policy4 A78     2,348,000 / 2,348,000 / 2,348,000     never moved                              never moved / never moved
+    policy0 A55     1,803,000 / 1,803,000 / 1,803,000     never moved                              never moved / never moved
+
+2,401,000 is 84.25% of rated 2,850,000, one step below W3's and V1's 2,507,000.
+
+**Battery** 275 → 283 dC (+8). W3: 285 → 284 (−1). V1: 270 → 272 (+2).
+Battery temperature is not chip temperature.
+
+**MemAvailable (kB)** — wrapper before 3,256,572, after 3,220,956. Lowest
+PENNYSPEAK read 2,688,316 (after line 17). W3's first before 3,287,412; V1's
+3,359,588.
+
+**Kills: 0** (naming pennyspeak 0), with MemAvailable 3,256,572 kB before, on
+a boot 8 h 30 min old. That boot flatters a zero.
+
+**fp32 against int8, resident, X1 pair (X-A3):** R1/R3 generate sum =
+60,004.348 / 79,993.603 = **0.7501**. R1 ran 1st today at 249 dC; R3 ran 3rd,
+2 passes later, at 275 dC. Fresh: 0.7494 (W1/V1) and 0.7483 (W1/W3) (21734).
+
+### Predictions (26c1208, notes.md 22405) judged by its §7 rule
+
+Band inclusive = HIT; points not judged alone. X-A5 is §3's int8 RSS after
+load and X-A6 applies to R1 only; each measurement is counted ONCE.
+
+    #   prediction (22405 section)                          predicted [band]                    measured                          verdict
+    1   load ms (§3)                                        1,580 [1,480-1,750]                 1,584.071                         HIT
+    2   generate sum (§3)                                   77,900 [74,700-81,100]              79,993.603                        HIT
+    3   RTF median (§3)                                     1.063 [1.03-1.10]                   1.0989                            HIT
+    4   line 15 gen ms (§3)                                 10,490 [10,050-10,950]              10,820.401                        HIT
+    5   lines under RTF 1.0 (§3)                            2 [0-5]                             0                                 HIT
+    6   RSS after load, int8 (§3 = X-A5)                    256,000 [248,000-268,000]           255,688                           HIT
+    7   RSS max over pass, int8 (§3)                        580,000 [565,000-650,000]           587,916 (per-line VmRSS max)      HIT
+    8   RSS after line 17, int8 (§3)                        575,000 [450,000-650,000]           587,916                           HIT
+    9   MemAvailable minimum, int8 (§3)                     2,695,000 [2,400,000-2,900,000]     2,688,316                         HIT
+    10  X1 poll-min value (§3)                              2,401,000 [2,188,000-2,630,000]     2,401,000                         HIT
+    11  X1 poll-min line (§3)                               line 14 or 15                       line 7                            MISS
+    12  A78 poll-min (§3)                                   rated                               rated (never moved)               HIT
+    13  A55 poll-min (§3)                                   rated                               rated (never moved)               HIT
+    14  battery rise (§3)                                   +1 [−1..+3]                         +8 (275 → 283)                    MISS HIGH
+    15  gate (§3)                                           PASS, wait ≤30 s                    PASSED, wait_s=0.21               HIT
+    16  cmp (§3), R3's 18                                   all byte-identical                  18 of 18                          HIT
+    17  pass wall (§6)                                      79,930 [76,630-83,300]              81,976                            HIT
+    18  X-A1 R3/W3 (§4)                                     0.980 [0.94-1.02]                   1.0065                            HIT
+    19  X-A3 X1 pair R1/R3 (§4)                             0.748 [0.72-0.78]                   0.7501                            HIT
+    20  X-A4 R3 (§4), and its answer                        1.07 [1.03-1.11], NO                1.0503, NO                        HIT
+    21  X-B1 for R3 (§4)                                    no kill naming pennyspeak; MemAvail never < 1,048,576   0; min 2,688,316   HIT
+
+**R3: 19 of 21 HIT.** §6's wall band from its own rule: 1,480 + 74,700 + 450
+to 1,750 + 81,100 + 450. Points not judged alone: X-A1's R3/V1 0.982 →
+1.0080; RTF min 0.990 → 1.0098; RTF max 1.305 → 1.3069; line 15 RTF 1.007 →
+1.0388.
+
+**Framing, discussed separately, nothing revised.** X-A1 is a HIT on its band
+again, but as in R1 the X1-pair resident pass came out SLOWER in sum than its
+fresh comparisons (0.65% against W3, 0.80% against V1), not 2% faster. The
+line-by-line ratio starts level or below 1.0 and ends above it. On the A78 pair
+(R2) resident was 0.76% faster. The X1 minimum again fell earlier than I
+predicted (line 7, 22.0 s after load; R1's was line 11, 31.0 s).
+
+### What this entry does NOT say
+
+One pass, one shape, spent boot, page-cached model; not a row-boot figure;
+load from flash unmeasured; 1,584.071 ms of load is paid once per process
+start. X-A3's 0.7501 compares a pass run 1st at 249 dC with one run 3rd at 275
+dC. Nothing about time to first audio, chunking, other placements, TTS beside
+the LLM, fp16, the app, AudioTrack, pronunciation, or how int8 sounds against
+fp32. It does not say why the X1-pair resident passes finish slower than the
+fresh ones, or why the battery rose between passes. The resident RSS is a shell
+process's, not the app's. Battery temperature is not chip temperature. A shell
+process over adb on mains with the screen on is not a product process. It does
+not decide which file ships or which cores speak.
