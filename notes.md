@@ -22401,3 +22401,276 @@ the A78 pair, time to first audio, TTS beside the LLM, the app, or how anything
 sounds — nobody has listened. It does not prove which source commit the binary
 was built from. A shell process over adb on mains with the screen on is not a
 product process.
+
+## 2026-09-21 — BRIEF X STEP E: PREDICTIONS, before any row. Resident generate sum R1 fp32 X1 58,300 ms, R2 fp32 A78 93,800, R3 int8 X1 77,900, R4 int8 A78 97,800. X-A1 resident/fresh 0.975-0.98 on every shape: my claim is that about 2-2.5% (band 0-6%) of a fresh-process "Elapsed" was first-run cost. X-A2 NO. X-A3 0.748 (X1) / 0.959 (A78). X-A4 line 0 no slower than in a fresh process. X-A5 fp32 after load ~475,000 kB. NOT BLIND on X-A4, load and RSS after load: the step D2 smoke runs were seen first. Four pass strings, hashed. Nothing sent to the phone for this entry.
+
+Pixel 7a 37291JEHN04619, GrapheneOS 2026091000, Android 17 (CP2A.260705.006),
+spent 21 Sept matrix boot, no reboot in this brief. pennyspeak 9be8e0e4…,
+pennyspeak.sh dc2706fd…, models penny-kokoro-fp32/model.fp32.onnx a0986d39…
+and penny-kokoro-int8/model.int8.onnx a089794d…. Step F order, fixed: R1, R2,
+R3, R4, each pulled, cmp'd and committed before the next.
+
+### 1. DECLARED FIRST — inputs I have already seen (step D2, notes.md 22063)
+
+Every figure in this section is **smoke, spent boot, page-cached**, from
+rows/7a_x/7a_tts_xsmoke_{fp32,int8,fp32_rev}.report:
+
+    load_ms          (i) fp32 1,855.751   (ii) int8 1,581.434   (iii) fp32 1,870.665
+    fp32 line 0      RTF 0.9754 run FIRST (i),  gen_ms 791.497;   RTF 1.0103 run SECOND (iii), gen_ms 819.845
+    fp32 line 4      RTF 0.7320 run SECOND (i), gen_ms 3,260.324; RTF 0.7388 run FIRST (iii),  gen_ms 3,290.306
+    int8 line 0      RTF 1.3050, gen_ms 1,082.000 (first);   int8 line 4  RTF 0.9909, gen_ms 4,504.122 (second)
+    VmRSS after load (i) 475,464   (ii) 255,932   (iii) 474,828 kB
+    poll vmhwm       (i) 586,744   (ii) 362,924   (iii) 585,768 kB
+    MemAvailable     (i) start 3,233,772 -> after line 4 2,702,012 (-531,760) while VmRSS rose 45,108 -> 585,956 (+540,848)
+    pass_wall_ms     (i) 6,327  (ii) 7,557  (iii) 6,409 -> overhead beyond load + gen: 419.4 / 389.5 / 428.1 ms
+
+Set against the fresh-process rows (7a figures, rows/7a_w/ and rows/7a_v/,
+elapsed_ms from each .report):
+
+    fp32 line 0   resident 791.497 vs W1 792 -> 0.9994       fp32 line 4  3,260.324 / 3,290.306 vs W1 3,383 -> 0.9637 / 0.9726
+    int8 line 0   1,082.000 vs V1 1,085 -> 0.9972, vs W3 1,110 -> 0.9748
+    int8 line 4   4,504.122 vs V1 4,568 -> 0.9860, vs W3 4,602 -> 0.9787
+
+**X-A4, every load prediction, and every RSS-after-load prediction below are
+NOT BLIND.** They are informed by exactly the figures above. X-A1 and X-A3
+are informed by the resident/fresh per-line ratios above as well. The bands
+below are NOT reasoned from W alone.
+
+Caveat carried from notes.md 21761: gen_ms includes the C API's sample copy;
+the CLI's Elapsed includes its printf callback and is truncated to whole ms.
+Both effects are well under 1 ms a line; neither is modelled.
+
+### 2. Method
+
+Resident line cost = fresh line cost (the comparison pass, same file, same
+pair) × a factor f. From section 1, f on the lines seen is 0.964-0.999; the
+long lines, which dominate a sum, sit at 0.964-0.986. I take **f = 0.975**
+and add **+0.005 on the X1 pair** for continuous running: a resident pass has no
+~2-3 s load gap between lines, and W1's X1 poll-min already fell to 2,188,000
+with the gaps. So **f = 0.98 on the X1 pair, 0.975 on the A78 pair** (the A78
+ceiling never moved in W2 or V2). Line 0 is the exception: section 1 shows
+line 0 at f ≈ 1.0, so line-0-driven maxima are NOT scaled.
+
+Comparison passes (7a figures; reviewer's closing table, notes.md 21734):
+
+    shape            comparison   ran that day      launched   generate sum   RTF min/median/max        load median (derived, fresh)
+    R1 fp32 X1 c0    W1 (21181)   1st of W1-W3      271 dC     59,468 ms      0.747 / 0.8045 / 0.976    2,248.5 ms
+    R2 fp32 A78 30   W2 (21348)   2nd               285 dC     96,238 ms      1.226 / 1.309 / 1.718     3,132.5 ms
+    R3 int8 X1 c0    W3 (21499)   3rd               285 dC     79,476 ms      1.010 / 1.0845 / 1.339    1,975 ms
+                     V1 (19620)   1st of brief V    270 dC     79,357 ms      1.005 / 1.081 / 1.309     1,982 ms
+    R4 int8 A78 30   V2 (19842)   2nd of brief V    285 dC     100,262 ms     1.280 / 1.367 / 1.740     2,749 ms
+
+No 6a figure is used anywhere in this entry: the 6a never ran fp32 or a
+resident Kokoro. "Other people's number": only the build plan's "~330 MB
+resident" (claude/penny-7a-build-plan-2026-09-18, as quoted in notes.md 21734).
+
+### 3. Per-pass predictions (point, band inclusive)
+
+**Load ms** (PENNYSPEAK event=load load_ms). NOT BLIND.
+- R1 **1,860** [1,750-2,050]. Smoke (i) 1,855.8 and (iii) 1,870.7.
+- R3 **1,580** [1,480-1,750]. Smoke (ii) 1,581.4.
+- R2 **2,590** [2,300-2,900]. That is 1,860 × 1.393, the fresh W2/W1 derived-load ratio (3,132.5 / 2,248.5). Derived load includes process start and the WAV write, so the ratio is a proxy. No resident A78 load has been measured.
+- R4 **2,190** [1,950-2,450]. That is 1,580 × 1.387, the V2/V1 ratio (2,749 / 1,982). Same proxy caveat.
+
+**Generate sum** (sum of the 18 gen_ms):
+- R1 59,468 × 0.98 = 58,278.6 → **58,300** [55,900-60,700 = W1 × 0.94-1.02]
+- R2 96,238 × 0.975 = 93,832 → **93,800** [90,500-97,200 = W2 × 0.94-1.01]
+- R3 79,476 × 0.98 = 77,886.5 → **77,900** [74,700-81,100 = W3 × 0.94-1.02]
+- R4 100,262 × 0.975 = 97,755 → **97,800** [94,200-101,300 = V2 × 0.94-1.01]
+
+**RTF min / median / max** (18 lines). Min and median are scaled by f. The max is line 0 and is NOT scaled (section 2).
+- R1 0.747×0.98 = **0.732** / 0.8045×0.98 = **0.788** [0.76-0.82] / **0.976** (line 0; smoke 0.9754)
+- R2 1.226×0.975 = **1.195** / 1.309×0.975 = **1.276** [1.23-1.32] / **1.71** (line 0, W2 1.718)
+- R3 1.010×0.98 = **0.990** (smoke line 4 0.9909) / 1.0845×0.98 = **1.063** [1.03-1.10] / **1.305** (line 0; smoke 1.3050)
+- R4 1.280×0.975 = **1.248** / 1.367×0.975 = **1.333** [1.29-1.38] / **1.73** (line 0, V2 1.740)
+
+**Line 15** (the longest; audio fp32 10,347 ms, int8 10,416 ms, from W1/V1 and unchanged if the WAVs are identical):
+- R1 8,175×0.98 = **8,010 ms, RTF 0.774** [7,600-8,600 ms]
+- R2 12,764×0.975 = **12,450 ms, RTF 1.203** [12,000-12,900]
+- R3 10,706×0.98 = **10,490 ms, RTF 1.007** [10,050-10,950]
+- R4 13,510×0.975 = **13,170 ms, RTF 1.264** [12,700-13,650]
+
+**Lines under RTF 1.0:**
+- R1 **17** [15-18]. W1 had 18. Line 16 (W1 0.939) follows lines 14-15 with no gap, where W1's X1 minimum fell; I expect it to cross.
+- R2 **0** [0].
+- R3 **2** [0-5]. W3×0.98 puts line 4 at 0.992, line 5 at 0.989, line 15 at 1.007 and line 7 at 1.010.
+- R4 **0** [0].
+
+**RSS** (PENNYSPEAK vmrss_kB). Memory does not depend on the pair, so R1 = R2 and R3 = R4.
+- After load: fp32 **475,000** [465,000-490,000] (smoke 475,464 / 474,828); int8 **256,000** [248,000-268,000] (smoke 255,932). NOT BLIND.
+- Max over the pass: fp32 **710,000** [690,000-780,000]; int8 **580,000** [565,000-650,000]. Inputs: the fresh line-15 peaks, W1 708,252 / W2 708,556 / W3 578,896 / V1 576,772 kB. Smoke (iii) kept its RSS after the long line (584,980 after line 4, still 585,644 after line 0), so I expect a resident process to hold its largest line's working set. The upper band allows allocator growth, which is unmeasured (no data, my reasoning).
+- After line 17: fp32 **705,000** [600,000-780,000]; int8 **575,000** [450,000-650,000]. The low band allows memory being returned (no data, my reasoning).
+
+**MemAvailable minimum.** Only the per-line PENNYSPEAK reads and the wrapper's before/after measure it; the wrapper does not poll MemAvailable. The arithmetic is start ≈ 3,230,000 less the RSS growth above start (~45,000), following the smoke (i) relation (section 1).
+- fp32 3,230,000 − 665,000 = **2,565,000** [2,300,000-2,800,000]
+- int8 3,230,000 − 535,000 = **2,695,000** [2,400,000-2,900,000]
+
+**Policy poll-min, and the line it falls in** (the ceil_*_min_at uptime placed inside a line's up_before/up_after):
+- R1: X1 **2,188,000** [1,950,000-2,401,000], in line 14 or 15. A78 **rated** 2,348,000; A55 **rated** 1,803,000. W1: X1 2,188,000 at lines 14-15; A78 and A55 never moved.
+- R2: X1 **rated**, A78 **rated**, A55 **rated**. W2 moved none; if A78 moves, lines 14-15. U-A1's 63.50% is an LLM load, not comparable.
+- R3: X1 **2,401,000** [2,188,000-2,630,000], in line 14 or 15; A78 and A55 rated. W3 and V1 X1 minimum was 2,507,000, reached with gaps. Continuous running lowers it one step (my reasoning).
+- R4: all three **rated**. V2 moved none.
+
+**Battery rise** (report batt_temp_dC after − before):
+- R1 **+1** [−1..+3]; R2 **+2** [−1..+4]; R3 **+1** [−1..+3]; R4 **+2** [−1..+4].
+- Inputs, fresh passes (first before → last after): W1 0, W2 +3, W3 −1, V1 +2, V2 +1.
+- A resident pass is ~60-100 s against the fresh 100-152 s wall, but denser.
+
+**Gates.** Clocks rated on all three policies AND battery ≤ TMAX = TREF+15 = 285 dC (TREF 270 from the phone's out/7a_tts_v1_x1x1_00.report). The last battery reading was 247 dC (smoke, 20:07).
+- R1 **PASS, wait ≈0.2 s**.
+- R2, R3, R4 **PASS, wait ≤30 s** each. The X1 ceiling was back at rated in every smoke report's after=.
+- Band: all PASS. LAUNCHED WARM would need the unexplained idle battery rise (W: 271 → 283) to reach 285, i.e. +38 dC.
+
+**cmp:** all 72 WAVs byte-identical to their references. R1 and R2 against rows/7a_w/7a_tts_w1_fp32_x1x1_NN.wav (W1 = W2 byte for byte, 21734). R3 and R4 against rows/7a_v/7a_tts_v1_x1x1_NN.wav (V1 = W3). Any difference → STOP.
+
+### 4. The named predictions
+
+**X-A1 — resident/fresh generate-sum ratio.**
+- R1/W1 **0.980** [0.94-1.02]. W1 ran 1st of W1-W3 on 21 Sept, launched 271 dC.
+- R2/W2 **0.975** [0.94-1.01]. W2 ran 2nd, launched 285 dC.
+- R3/W3 **0.980** [0.94-1.02]. W3 ran 3rd, launched 285 dC. Also R3/V1 = 77,900/79,357 = **0.982**; V1 ran 1st of brief V, launched 270 dC.
+- R4/V2 **0.975** [0.94-1.01]. V2 ran 2nd of brief V, launched 285 dC.
+
+**My band IS my claim about how much of a fresh-process "Elapsed" was
+first-run cost: about 2-2.5%, between 0% and 6%.** On the X1 pair the band
+also lets continuous running cost up to 2% the other way. Noise, from one
+repeat: W3/V1 = 1.0015 (21734).
+
+**X-A2 — is any line under RTF 1.0 on the A78 pair, either file?** **NO**, for both R2 and R4. The lowest predicted are R2 line 5 at 1.195 and R4 1.248.
+
+**X-A3 — fp32/int8 generate-sum ratio, resident.**
+- X1 pair R1/R3 = 58,300/77,900 = **0.748** [0.72-0.78]
+- A78 pair R2/R4 = 93,800/97,800 = **0.959** [0.93-0.99]
+- Fresh: 0.7494/0.7483 and 0.9599 (21734). Resident running removes a cost common to both files, so the ratio should not move.
+
+**X-A4 — is line 0 of a resident process slower? NOT BLIND.** The statistic is RTF(line 0) ÷ median RTF(lines 1, 2, 3), the three other lines under 1.2 s of audio, which adjusts for length.
+- Fresh values: W1 1.0597, W2 1.0744, W3 1.0652, V1 1.0514, V2 1.0520. In a fresh process EVERY line is a first inference, so this ~5-7% is line 0's own content, not a first-run cost.
+- Prediction: R1 **1.06** [1.02-1.10], R2 **1.07** [1.03-1.11], R3 **1.07** [1.03-1.11], R4 **1.05** [1.01-1.09]. Each band is the comparison pass ±0.04.
+- Answer: **NO, line 0 is not slower in a resident process than in a fresh one.** Above the band = YES.
+- Informed by: smoke fp32 line 0 at 791.5 ms first against W1's fresh 792; line 0 run second was SLOWER (1.0103), not faster; line 4 0.7320 second vs 0.7388 first.
+
+**X-A5 — resident RSS after load.** fp32 **475,000 kB** [465,000-490,000], int8 **256,000 kB** [248,000-268,000].
+- Against the plan's "~330 MB resident" (≈330,000 kB): **fp32 MISS HIGH** (×1.44), **int8 under it** (×0.78).
+- Against W's fresh-process PEAKS (W1 708,252, W3 578,896 kB): 0.671 and 0.442.
+- **These are DIFFERENT MEASUREMENTS.** W's peak is the VmHWM of a fresh process over load plus ONE line. X's after-load figure is VmRSS after the engine is created, before any line is spoken. The resident process's own max is in section 3 (fp32 710,000, int8 580,000), ≈ W's peaks.
+- NOT BLIND (smoke after-load figures).
+
+**X-A6 — the X1 poll-min in R1, continuous load.** **2,188,000 kHz (76.77% of rated)** [1,950,000-2,401,000], in line 14 or 15. W1 reached 2,188,000 with gaps. I predict the same step or lower.
+
+**X-B1 — no kill line naming pennyspeak in any pass; MemAvailable never under 1 GB (1,048,576 kB)** in any PENNYSPEAK record or wrapper before/after. **HIT** predicted.
+
+### 5. THE FOUR PASS STRINGS, exactly as they will be run
+
+Each string is on ONE line below, with a 4-space indent. "As it sits in
+notes.md" means that whole line: the 4 spaces, the command and the newline.
+"The command alone" means the same line without the indent or the newline,
+which is what is run. To check a string: `sed -n '<line>p' notes.md` gives the
+notes-line figures, and `sed -n '<line>p' notes.md | sed 's/^    //' | tr -d '\n'`
+gives the command-alone figures.
+
+    pass   notes line bytes / sha256                                                       command alone bytes / sha256
+    R1     1,076  9724e9114c933549af8aa47f58627600379e57963eb90ae3eabe280ab7e21a69         1,071  d43d0d180ddc7a2207cd7745eea66c4ede7bdb46af44eddffb70abff31982274
+    R2     1,080  aa1fd83849fd6d0c8b79122b090363c2d0d2c87ff62c55faed8fd506ab4c6151         1,075  9a9a1030b39fbb1529f6f42c3d9522248072f6fd436a005b53c983265a01f37f
+    R3     1,003  074a0e35206267708fdca0b534a0fcd45a4cad57f96ed6616cae3ba58c75bb1c         998  54a96f8b130ae9d034566b1d68590827007bab82b048eafbd8aec47b4e9106e7
+    R4     1,007  54c0af5c87f7e63c23b1400fe7dcfacf47b8f4af03e95d145a28fdd45f4b4695         1,002  3634db0ad7a4a231d7763eafa79d2fdf4ce316992cfaf307a9c85076b07a51ee
+
+R1 (fp32, X1 pair, mask c0, tag 7a_tts_r1_fp32_x1x1):
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; X=$(grep "^PENNYTTS batt_temp_dC" out/7a_tts_v1_x1x1_00.report | tr -s " " | cut -d" " -f3); TREF=${X#before=}; case "$TREF" in ""|*[!0-9]*) echo "TREF UNREADABLE [$X] - R1 NOT LAUNCHED"; exit 1 ;; esac; TMAX=$((TREF + 15)); echo "LAUNCH R1 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) tref_dC=$TREF tmax_dC=$TMAX out_count=$(ls out | wc -l)"; MODELDIR=/data/local/tmp/tts/penny-kokoro-fp32 MODELFILE=model.fp32.onnx COOL=1 GATECAP=240 TMAX=$TMAX sh /data/local/tmp/tts/pennyspeak.sh 7a_tts_r1_fp32_x1x1 c0 2 all > /dev/null; RCS=$?; echo "DONE R1 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) wrapper_exit=$RCS out_count=$(ls out | wc -l)"; grep -E "^PENNYSPEAKSH (tag=|cool_gate_result)" out/7a_tts_r1_fp32_x1x1.report'
+
+R2 (fp32, A78 pair, mask 30, tag 7a_tts_r2_fp32_a78a78):
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; X=$(grep "^PENNYTTS batt_temp_dC" out/7a_tts_v1_x1x1_00.report | tr -s " " | cut -d" " -f3); TREF=${X#before=}; case "$TREF" in ""|*[!0-9]*) echo "TREF UNREADABLE [$X] - R2 NOT LAUNCHED"; exit 1 ;; esac; TMAX=$((TREF + 15)); echo "LAUNCH R2 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) tref_dC=$TREF tmax_dC=$TMAX out_count=$(ls out | wc -l)"; MODELDIR=/data/local/tmp/tts/penny-kokoro-fp32 MODELFILE=model.fp32.onnx COOL=1 GATECAP=240 TMAX=$TMAX sh /data/local/tmp/tts/pennyspeak.sh 7a_tts_r2_fp32_a78a78 30 2 all > /dev/null; RCS=$?; echo "DONE R2 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) wrapper_exit=$RCS out_count=$(ls out | wc -l)"; grep -E "^PENNYSPEAKSH (tag=|cool_gate_result)" out/7a_tts_r2_fp32_a78a78.report'
+
+R3 (int8, X1 pair, mask c0, tag 7a_tts_r3_int8_x1x1):
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; X=$(grep "^PENNYTTS batt_temp_dC" out/7a_tts_v1_x1x1_00.report | tr -s " " | cut -d" " -f3); TREF=${X#before=}; case "$TREF" in ""|*[!0-9]*) echo "TREF UNREADABLE [$X] - R3 NOT LAUNCHED"; exit 1 ;; esac; TMAX=$((TREF + 15)); echo "LAUNCH R3 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) tref_dC=$TREF tmax_dC=$TMAX out_count=$(ls out | wc -l)"; COOL=1 GATECAP=240 TMAX=$TMAX sh /data/local/tmp/tts/pennyspeak.sh 7a_tts_r3_int8_x1x1 c0 2 all > /dev/null; RCS=$?; echo "DONE R3 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) wrapper_exit=$RCS out_count=$(ls out | wc -l)"; grep -E "^PENNYSPEAKSH (tag=|cool_gate_result)" out/7a_tts_r3_int8_x1x1.report'
+
+R4 (int8, A78 pair, mask 30, tag 7a_tts_r4_int8_a78a78):
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; X=$(grep "^PENNYTTS batt_temp_dC" out/7a_tts_v1_x1x1_00.report | tr -s " " | cut -d" " -f3); TREF=${X#before=}; case "$TREF" in ""|*[!0-9]*) echo "TREF UNREADABLE [$X] - R4 NOT LAUNCHED"; exit 1 ;; esac; TMAX=$((TREF + 15)); echo "LAUNCH R4 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) tref_dC=$TREF tmax_dC=$TMAX out_count=$(ls out | wc -l)"; COOL=1 GATECAP=240 TMAX=$TMAX sh /data/local/tmp/tts/pennyspeak.sh 7a_tts_r4_int8_a78a78 30 2 all > /dev/null; RCS=$?; echo "DONE R4 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) wrapper_exit=$RCS out_count=$(ls out | wc -l)"; grep -E "^PENNYSPEAKSH (tag=|cool_gate_result)" out/7a_tts_r4_int8_a78a78.report'
+
+**Checks, Mac only.** The inner command of each string (between the single
+quotes): `sh -n` rc=0 and `bash --posix -n` rc=0 on all four. There is no `&`
+in any of them (grep -c '&' = 0). A Mac pass proves syntax only.
+
+**Variable names.** The outer shell assigns B, X, TREF, TMAX and RCS, all of
+which ran on this phone in W2's string (21081). The env prefixes (MODELDIR,
+MODELFILE, COOL, GATECAP, TMAX) are names the scripts already read on the
+phone. No new name is introduced; `WX` was drafted and replaced by RCS for this
+reason.
+
+**Diff against W2's string (notes.md 21081), split on "; ".** Identical: the
+cd, B=, X=, TREF=, the TREF UNREADABLE refusal (label W2 → Rn) and TMAX=$((TREF
++ 15)). What changed:
+- LAUNCH echo: the label, plus `out_count=$(ls out | wc -l)` at the end.
+- W2's 18-iteration `for N …` loop, with its per-line COOL=$C and pennytts.sh
+  call, is replaced by ONE call: `[MODELDIR=… MODELFILE=…] COOL=1 GATECAP=240
+  TMAX=$TMAX sh /data/local/tmp/tts/pennyspeak.sh <tag> <mask> 2 all > /dev/null`.
+  GATECAP=240 is explicit (it was the default in W2). The gate runs once,
+  before the pass. **stderr is NOT discarded** (W2 had `2> /dev/null`), so a
+  REFUSED or usage message is visible.
+- `RCS="$RCS $T:$?"` becomes `RCS=$?`. This is the WRAPPER's exit: 2, 9, or
+  tee's status. pennyspeak's own rc is the report's rc=, which the string greps.
+- DONE echo: the label; `rcs=` becomes `wrapper_exit=$RCS out_count=…`.
+- New last command: `grep -E "^PENNYSPEAKSH (tag=|cool_gate_result)" out/<tag>.report`,
+  which prints rc= and the gate line.
+
+**Gate, each pass:** clocks at rated on all three policies AND battery ≤ TMAX,
+with TMAX = TREF + 15. TREF is read INSIDE the string from the phone's
+out/7a_tts_v1_x1x1_00.report (270 → 285), and the pass refuses to launch if it
+is unreadable. GATECAP 240 × 5 s. If the gate times out, the pass is LAUNCHED
+WARM and is labelled so everywhere. **The D2 smoke runs used TMAX unset; step F
+does not.**
+
+**out/ count:** each pass writes 6 files plus 18 WAVs = 24. The count goes
+594 → 618 → 642 → 666 → 690.
+
+### 6. Predicted wall time
+
+pass_wall_ms ≈ load + generate sum + ~450 ms. The ~450 ms comes from the smoke
+overhead of 389-428 ms, plus 16 more line records and WAV writes.
+
+    R1  1,860 +  58,300 + 450 =  60,610 ms
+    R2  2,590 +  93,800 + 450 =  96,840 ms
+    R3  1,580 +  77,900 + 450 =  79,930 ms
+    R4  2,190 +  97,800 + 450 = 100,440 ms
+    total pass wall 337,820 ms ≈ 5.6 min, plus gate waits (predicted ≤ 1.5 min in all)
+
+Each band is the sum of the load and generate bands plus 450. The launch-to-DONE
+time also includes the gate, the logcat read and the report, about 1-2 s. The
+pulls, cmp's, entries and commits between passes are not predicted.
+
+### 7. THE JUDGING RULE, written before the rows
+
+- Every figure is read from out/<tag>.report and .raw as pulled to rows/7a_x/,
+  never from scrollback.
+- A banded figure is a **HIT** if the measured value is inside the band,
+  inclusive; otherwise it is a **MISS LOW** or **MISS HIGH**. Points are never
+  judged alone.
+- Counts and yes/no predictions are HIT only on the stated value or inside the
+  stated band.
+- Ratios are computed from the report figures as defined above: generate sum =
+  the sum of the 18 gen_ms; X-A4 = RTF(0) ÷ median RTF(1,2,3).
+- "The line it fell in" is judged by placing ceil_*_min_at inside that line's
+  up_before..up_after.
+- **STOP, and judge nothing for timing,** if report rc≠0, done rc≠0,
+  lines_ok≠18, any cmp differs, or any kill line names pennyspeak.
+- A LAUNCHED WARM pass is judged, and labelled LAUNCHED WARM in every table
+  and ratio that uses it.
+- Nothing in this entry is revised once the first row has run. A prediction
+  that turns out badly framed is judged as written, and the framing is
+  discussed separately.
+- Scores are reported per pass as HIT/total.
+
+### What this entry does NOT say
+
+These are predictions, not results. Nothing has run for them. They are NOT
+blind where section 1 says so. One pass per shape, in a fixed order, on a spent
+boot with the model page-cached: load from flash is unmeasured. It says nothing
+about time to first audio (the harness returns whole lines), chunking, other
+thread placements, TTS beside the LLM, fp16, the app or AudioTrack. Nothing
+about how fp32 sounds against int8, because nobody has listened. A resident RSS
+in a shell process is not the app's. Battery temperature is not chip
+temperature. A shell process over adb on mains with the screen on is not a
+product process. It does not decide which file ships or which cores speak.
