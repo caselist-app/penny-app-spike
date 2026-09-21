@@ -21177,3 +21177,170 @@ matched only against a third-party mirror (fastrtc/kokoro-onnx).**
 
 What this entry does NOT say: nothing new measured; it changes how RSS is
 reported, not any prediction's number or band.
+
+## 2026-09-21 — BRIEF W, W1 `7a_tts_w1_fp32_x1x1`: Kokoro fp32, the X1 pair (mask c0), 2 threads, 18 lines, RUN FIRST today. GATE PASSED polls_failed=0 wait_s=0.19. 18 reports, 18 × rc=0, ZERO kill lines, phone never slept. RTF 0.747-0.976, median 0.804, 18 of 18 under 1.0; elapsed sum 59,468 ms. X1 ceiling fell to 2,188,000 (76.77%) — predicted 2,401,000, MISSED LOW. Peak RSS 708,252 kB on l15 — MISSED LOW. 15 of 17 W1 figures HIT. Spent boot, model page-cached, NOT a row-boot figure.
+
+**Every figure here: spent boot (21 Sept matrix boot, ~12:41:48), model
+page-cached, NOT a row-boot figure. Every RSS figure: peak of a fresh process
+for one line — NOT a resident process's RSS (step 3).**
+**Input kokoro-v1.0.onnx has no hash published by its originating project;
+matched only against a third-party mirror (fastrtc/kokoro-onnx).** Model
+path /data/local/tmp/tts/penny-kokoro-fp32/model.fp32.onnx, model_bytes
+325534862 on all 18 reports.
+
+### Before the pass
+
+One adb shell (the step F read):
+
+    adb -s 37291JEHN04619 shell 'echo "uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat /sys/class/power_supply/battery/temp) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) p0=$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq) p4=$(cat /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq) p6=$(cat /sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq) out_files=$(ls /data/local/tmp/tts/out | wc -l)"'
+    uptime_s=15642.92 wallclock=17:02:31 batt_temp_dC=271 memavail_kB=3376368 p0=1803000 p4=2348000 p6=2850000 out_files=246
+
+Nothing of mine alive: `ps -axo pid,etime,command` on the Mac showed no
+`adb -s` and no pennytts process. It showed ONE `caffeinate -i -t 300`
+(pid 30704, 00:29) that I did not start; its parent (`ps -o ppid`) is pid
+10805, `claude` — the Claude Code CLI running this session, up 1:04:53.
+**This is very likely the source of brief V's two unexplained
+`caffeinate -i -t 300` processes (notes.md 20053 §7):** Claude Code keeps
+the Mac awake itself. It sends nothing to the phone.
+
+### The string as run
+
+The command was read from notes.md line 21077, the 4-space indent stripped,
+hashed, and run only if it matched:
+
+    CMD=$(sed -n '21077p' notes.md | sed 's/^    //'); H=$(printf '%s' "$CMD" | shasum -a 256 | cut -c1-64); [ "$H" = 20ad08ab… ] || exit 1; eval "$CMD"
+    W1 cmd sha256=20ad08abebe25570b9957a6c600bc62d06eed8a7c0da4fcf5207e17e58e8f4d6 bytes=1088
+
+(run from the Mac in the background, output to a file; no other adb command
+ran until it returned.)
+
+    LAUNCH W1 uptime_s=15658.45 wallclock=17:02:47 batt_temp_dC=271 memavail_kB=3373792 tref_dC=270 tmax_dC=285
+    DONE W1 uptime_s=15792.71 wallclock=17:05:01 batt_temp_dC=271 memavail_kB=3337452 rcs= 00:0 01:0 02:0 03:0 04:0 05:0 06:0 07:0 08:0 09:0 10:0 11:0 12:0 13:0 14:0 15:0 16:0 17:0
+
+Gate, verbatim from line 00's report:
+
+    PENNYTTS cool_gate_result GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=271 tmax_dC=285 polls_failed=0 cap=240 wait_s=0.19   (rev 2)
+
+After, in one adb shell at uptime 15809.34 (17:05:18): `dumpsys power` —
+mWakefulness=Awake, **mLastSleepTime=0 (15809384 ms ago), i.e. never slept
+since boot**; `dumpsys window` — isKeyguardShowing=false,
+mDreamingLockscreen=false; out_files=354 (246 + 108). The same command hashed
+the 18 WAVs and 18 reports on the phone. All 108 files pulled (one `adb pull`
+per file — a first attempt passed the whole list as one argument under zsh and
+pulled nothing). Phone hash list rows/7a_w/7a_tts_w1_phone.sha256 (36 lines)
+= the Mac's hashes of the pulled files, diff rc=0.
+
+### The 18 lines (from rows/7a_w/7a_tts_w1_fp32_x1x1_NN.report; Mac = abtest-penny-fp32/NN-fp32.wav)
+
+    ln rc audio s elapsed    RTF  load  peakRSS   X1 min  A78 min  A55 min    batt phone smp   mac smp  diff ms
+    00  0   0.811     792  0.976  2222   493736  2704000  2348000  1803000 271>271     19475     19475   +0.000
+    01  0   0.759     699  0.921  2238   495048  2630000  2348000  1803000 271>271     18218     18218   +0.000
+    02  0   0.819     746  0.910  2207   496256  2630000  2348000  1803000 271>271     19665     19665   +0.000
+    03  0   1.124    1056  0.939  2252   507544  2630000  2348000  1803000 271>271     26980     26980   +0.000
+    04  0   4.454    3383  0.760  2172   584892  2401000  2348000  1803000 271>271    106892    106892   +0.000
+    05  0   6.963    5202  0.747  2323   642888  2401000  2348000  1803000 271>271    167103    167124   -0.875
+    06  0   3.599    2914  0.810  2237   570784  2252000  2348000  1803000 271>270     86374     86374   +0.000
+    07  0   5.924    4534  0.765  2309   628972  2252000  2348000  1803000 270>270    142185    142182   +0.125
+    08  0   4.632    3698  0.798  2318   581816  2401000  2348000  1803000 270>270    111163    111163   +0.000
+    09  0   4.545    3630  0.799  2264   575900  2401000  2348000  1803000 270>270    109088    109088   +0.000
+    10  0   3.505    2772  0.791  2263   565584  2401000  2348000  1803000 270>270     84117     84124   -0.292
+    11  0   3.345    2684  0.802  2209   554192  2401000  2348000  1803000 270>270     80284     80284   +0.000
+    12  0   3.659    2877  0.786  2220   567012  2401000  2348000  1803000 270>270     87808     87808   +0.000
+    13  0   3.090    2493  0.807  2256   551012  2401000  2348000  1803000 270>270     74162     74162   +0.000
+    14  0   7.401    6736  0.910  2245   541564  2188000  2348000  1803000 270>271    177635    177635   +0.000
+    15  0  10.348    8175  0.790  2259   708252  2188000  2348000  1803000 271>271    248349    248348   +0.042
+    16  0   3.114    2925  0.939  2214   523160  2401000  2348000  1803000 271>271     74732     74732   +0.000
+    17  0   4.645    4152  0.894  2290   571072  2252000  2348000  1803000 271>271    111477    111476   +0.042
+
+"X1 min" etc. are each line's poll-loop `min=`. "batt" is before>after.
+
+### Summary
+
+    rc=0 / kill lines         18 of 18 / 0 (every .kills 0 bytes)
+    RTF min / median / max    0.747 (l05) / 0.804 / 0.976 (l00)
+    RTF line 15               0.790
+    lines under 1.0           18 of 18
+    elapsed_ms sum            59,468
+    wall_ms sum               99,966
+    audio sum                 72.737 s
+    derived load              median 2,248.5 ms, range 2,172 (l04) - 2,323 (l05)
+    peak RSS                  max 708,252 kB (l15), min 493,736 (l00)   — peak of a fresh process for one line, NOT resident RSS
+    MemAvailable min          3,307,936 kB (l03 after), over 36 readings
+    policy6 X1                before 2,850,000 / min 2,188,000 (76.77%; first l14, also l15) / after 2,850,000
+                              path: 2,704,000 l00, 2,630,000 l01, 2,401,000 l04, 2,252,000 l06, 2,188,000 l14
+    policy4 A78               2,348,000 on every line, never moved
+    policy0 A55               1,803,000 on every line, never moved
+    battery                   271 -> 271 dC (dipped to 270 l06-l14)
+    span (uptime)             15659.10 -> 15791.83 = 132.73 s
+    samples vs Mac fp32       equal on 13 of 18; all 18 within 5 ms; largest l05 −21 samples = −0.875 ms
+    WAVs l00, l04             byte-identical to the step D smoke's fp32 l00 (dbc2c6e9…) and l04 (d50a8cc1…)
+
+### Predictions judged (notes.md 20935-20955, 21039)
+
+    figure              predicted [band]                        measured                  verdict
+    gate                PASSED 0 polls [0-2] (21039)             PASSED 0 polls, 0.19 s    HIT
+    RTF min             0.764 l04 [0.68-0.85]                    0.747 l05                 HIT
+    RTF median          0.822 [0.74-0.91]                        0.804                     HIT
+    RTF max             0.995 l00 [0.90-1.10]                    0.976 l00                 HIT
+    RTF line 15         0.788 [0.70-0.87]                        0.790                     HIT
+    lines under 1.0     18 [15-18]                               18                        HIT
+    elapsed sum         60,300 [54,000-67,000]                   59,468                    HIT
+    wall_ms sum         100,100 [92,000-109,000]                 99,966                    HIT
+    load median         2,210 [2,080-2,400]                      2,248.5                   HIT
+    peak RSS max        795,000 l15 [760,000-840,000]            708,252 l15               MISS (LOW)
+    MemAvailable min    3,300,000 [3,100,000-3,420,000]          3,307,936                 HIT
+    X1 poll-min         2,401,000 first l05 [2,252,000-2,507,000; l04-09]   2,188,000 first l14   MISS (LOW; and its line outside l04-09)
+    A78 poll-min        2,348,000 [2,253,000-2,348,000]          2,348,000                 HIT
+    A55 poll-min        1,803,000 [1,704,000-1,803,000]          1,803,000                 HIT
+    battery rise        +3 [0-8]                                 0                         HIT
+    span                132 s [115-150]                          132.73                    HIT
+    W-B1, W1 limb       HIT (21031)                              0 kill lines; min 3,307,936   HIT
+
+**15 of 17 W1 figures HIT.** The two misses:
+- **Peak RSS, LOW.** The step E arithmetic added the line-0/line-4 smoke delta
+  (~+218,000 kB) to V1's l15 576,772. Per line, W1 − V1 peak RSS is +180,728 to
+  +223,164 kB on lines 00-14 and 16-17 — but **+131,480 on line 15**. So fp32's
+  extra over int8 is NOT a constant on the longest line. No cause claimed.
+- **X1 ceiling, LOW.** 2,401,000 was reached at l04 as predicted in value, but
+  the ceiling kept falling: 2,252,000 at l06, 2,188,000 at l14. Two steps
+  below the point, one below the band.
+
+### W1 beside V1 — the int8 side is BRIEF V's V1
+
+Order and heat: **V1 ran first on 21 Sept in brief V, launched at 270 dC
+(line 00 before=). W1 ran first today, launched at 271 dC.** Both on the same
+spent boot, W1 ~3,640 s of uptime later.
+
+    W1 / V1 elapsed_ms sum    59,468 / 79,357 = 0.7494     (W-A1 (a), judged below)
+    per line RTF W1/V1        0.724 (l12) - 0.767 (l03)
+    W1 / V1 wall_ms sum       99,966 / 114,960 = 0.8696
+    per line wall W1/V1       0.816 (l15) - 1.017 (l01, l02) — on l01, l02 fp32's longer load outweighs its faster generation
+    derived load median       2,248.5 (W1) vs 1,982 (V1): +266.5 ms per line
+    peak RSS                  +131,480 (l15) to +223,164 (l04) kB over V1, line by line
+    X1 poll-min               2,188,000 (W1) vs 2,507,000 (V1)
+
+**W-A1 (a), W1 / V1: predicted 0.760 [0.68-0.85] (21009). Measured 0.7494. HIT.**
+W-A1 (b), W1 / W3, waits for W3.
+
+### The plan's "~330 MB resident" for fp32 (notes.md 21153)
+
+On these figures: **MISS.** W1's peak RSS was 493,736-708,252 kB on every
+line — every figure above 330 MB however "MB" is read. **But these are peaks of
+a fresh process for one line, NOT a resident process's RSS (step 3)**; the
+plan's figure is about a resident process, which W did not measure. What is
+measured: the fp32 process peaks ~181,000-223,000 kB above the int8 process
+on 17 of 18 lines, and 131,480 kB above on line 15.
+
+### What this entry does NOT say
+
+- Nothing about real-time speech in a product: each line ALSO paid a derived
+  load of 2,172-2,323 ms outside RTF, and a fresh process per line is not a
+  product process.
+- Nothing about sound. Sample counts agree with the Mac to within 0.875 ms;
+  that is length, not audio.
+- Nothing about a resident Kokoro's RSS.
+- W1/V1 compares a pass today with one from brief V: same boot, different
+  hour, launch 271 vs 270 dC. W1/W3 (same session) comes after W3.
+- The X1 ceiling fell further in W1 than in V1; W1 did the same audio faster,
+  so it ran the X1 pair harder. No cause is claimed beyond that.
+- Battery temperature is not chip temperature.

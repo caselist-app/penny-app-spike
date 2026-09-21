@@ -1,0 +1,8 @@
+/Users/mattstevenson/Documents/sherpa-onnx/sherpa-onnx/csrc/parse-options.cc:Read:374 /data/local/tmp/tts/sherpa-onnx-offline-tts --num-threads=2 --kokoro-model=/data/local/tmp/tts/penny-kokoro-fp32/model.fp32.onnx --kokoro-voices=/data/local/tmp/tts/penny-kokoro-fp32/voices.bin --kokoro-tokens=/data/local/tmp/tts/penny-kokoro-fp32/tokens.txt --kokoro-data-dir=/data/local/tmp/tts/penny-kokoro-fp32/espeak-ng-data --kokoro-lexicon=/data/local/tmp/tts/penny-kokoro-fp32/lexicon-gb-en.txt --kokoro-lang=en --sid=22 --speed=1.0 --output-filename=/data/local/tmp/tts/out/7a_tts_w1_fp32_x1x1_14.wav "Three things. First, the contract needs signing. Second, the invoice is overdue. Third, your 2 o'clock has moved to 4." 
+
+Number of threads: 2
+Elapsed seconds: 6.736 s
+Audio duration: 7.401 s
+Real-time factor (RTF): 6.736/7.401 = 0.910
+The text is: Three things. First, the contract needs signing. Second, the invoice is overdue. Third, your 2 o'clock has moved to 4.. Speaker ID: 22
+Saved to /data/local/tmp/tts/out/7a_tts_w1_fp32_x1x1_14.wav successfully!
