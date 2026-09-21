@@ -16538,3 +16538,159 @@ instructions executed.
 (1,056,782,912 B), `llama-bench`, `llama-bench-new`, `pennyload-new`, and
 `out/vlog_llama-bench*.err`. **The Q4_0 file must be gone before Step D's
 reboot, and deleting it is Matt's call — it has not been asked yet.**
+
+## 2026-09-21 — BRIEF U, CORRECTION to the Step A2 entry (notes.md 16241) and to the predictions (16057): "a year-newer" IS WRONG. The two commits are FIVE DAYS AND SIXTEEN HOURS apart — 38a5b42d9 is 15 Sept 2026, 711f60b is 21 Sept 2026. Plus the deletion record: the four extra files are gone, the original six re-hash unchanged, and every A2 output file is on the Mac and hash-confirmed.
+
+Append-only: **notes.md 16241, 16153 and 16183 are NOT edited.** This entry is
+the correction and it wins.
+
+### 1. THE CORRECTION — the dates, read
+
+`git log -1 --format='%H%n%cd%n%s'`, read-only, in each tree:
+
+    OLD  38a5b42d9a3e82e0a586bcd1caed121f36c87a73
+         Tue Sep 15 20:57:41 2026 +0200      =  15 Sept 18:57:41 UTC
+         "HIP: Enable AllReduce for ROCm (#27825)"
+    NEW  711f60beeb9e983f6d8e01bda25302dee9226c8d
+         Mon Sep 21 13:38:48 2026 +0300      =  21 Sept 10:38:48 UTC
+         "tests : remove stale comment (#29140)"
+
+    difference = 5 days 15 h 41 min 07 s
+
+**"A year-newer llama.cpp" appears in the 16241 header and twice in the
+predictions entry (16153, 16183) and rests on nothing.** Nothing was ever read
+that dated either commit; the phrase was the builder's assumption, carried
+unexamined into a header and into two prediction rationales. The old tree's
+own commit date was sitting one read-only `git log` away the whole time and was
+not asked for.
+
+**THE CONCLUSION, REWORDED:** a build **5 days 16 hours newer** gives nothing
+on `pp407` at this shape (Qwen3-1.7B-Q4_K_M, `c0`, `-t 2`, `-p 407 -n 64 -r 3`,
+one boot), **because the dotprod repack path was already live at 38a5b42d9**.
+**IT DOES NOT SAY NOTHING UPSTREAM WILL EVER HELP.** Six days of upstream
+change is a small sample of upstream, and no claim is made about any other
+commit, model, quant, thread count, mask or prompt length.
+
+Two supporting readings, and one thing that was NOT read:
+
+- PR numbers `#27825` -> `#29140` — 1,315 apart over those 5 days 16 hours, as
+  printed in the two subject lines. Quoted as read; no rate is derived.
+- **The build strings are not comparable.** `out/*.bench` prints
+  `build: 38a5b42d9 (10989)` for the old and `build: 711f60b (1)` for the new.
+  The `(1)` is an artefact of `git clone --depth 1` — the number is a commit
+  count and the new tree has a one-commit history on this Mac. **It does not
+  mean the new tree is one commit old.**
+- **The old tree's ggml version was NOT read.** The new tree's configure
+  printed `-- ggml version: 0.24.0` (notes.md 16241); getting the same line out
+  of the old tree would mean configuring it, which this brief forbids. The
+  reviewer states both report 0.24.0; **that is the reviewer's reading, not
+  one taken here.** Neither `CMakeLists.txt`'s `project()` line carries a
+  version in either tree.
+
+### 2. WHOSE ERROR WAS WHICH — recorded because the brief's premise was wrong
+
+**The brief's premise — that the dotprod repack path was NEWER than our build
+and might speed up prompt processing — came from the reviewer's research and
+was never checked against our own load log before the step was written. That is
+a reviewer-side error, not the builder's.** One `-v` invocation of the binary
+already on the phone would have shown `CPU_REPACK model buffer size = 1049.96
+MiB` at any point since 16 Sept.
+
+**The "a year-newer" wording is the builder's error**, separately. Both are
+recorded so neither is quietly absorbed.
+
+### 3. MATT'S STATEMENTS ON THE REBOOT — the second, verbatim, beside the first
+
+    first   (notes.md 16066)   I didn't reboot the phone.
+    second                     I think I might have unlocked the phone this morning.
+
+**Unlocking is not rebooting, so the first statement stands.** The second
+explains a thing this session did not remark on at the time: `adb` answered at
+11:31 on a boot that began ~07:39 with no PIN prompt, which GrapheneOS would
+not allow before first unlock (CLAUDE.md's trap: USB stays charging-only while
+locked). **The cause of the reboot remains NOT established, and was not
+investigated.**
+
+### 4. THE PULL — every A2 output file on the Mac, hash-confirmed
+
+42 files pulled with `adb -s 37291JEHN04619 pull -a`: `.report .bench .err
+.series .kills` for the eight A2 tags, plus the two `vlog_*.err`. Confirmed by
+hashing all 42 **on the phone** and all 42 **on the Mac**, sorting both lists
+and diffing them:
+
+    phone lines: 42   mac lines: 42
+    diff <phone> <mac>  ->  empty.  ALL 42 MATCH.
+
+The eight `.bench` files every headline figure is quoted from, and the two
+verbose logs section 5 of 16241 quotes:
+
+    ae575071d083bf9833ae484f6e0728ecbef801c163382af92f7b20ae48a8ad4c  7a_a2_old1_pp407.bench
+    6564a77d537179cc6e335aac43af6baa146b9521a025124f167500f8758c1035  7a_a2_new_pp407.bench
+    496404d23c00bf3783d69a791b9ec21eb931afd841949b6152ae7620340cda40  7a_a2_old2_pp407.bench
+    3d73afbffb756ce3da9da7f0d655ab2856845faccb8e9d058803e43d643a6c65  7a_a2_pnew_single.bench
+    3766a105f1e6d2a0b6f43547b11c080b249f4ea0176318a28fac0e883025870d  7a_a2_pnew_t3.bench
+    42329ca4a15ced6cb9d3624b42c9aa14f87cd2e12cc9a582eccf818c9b88dbaa  7a_a2_q40_old1.bench
+    d04dc4b3633b90bdc5241d1d323a5faa25fb523bfd232f6fa840b2347b1f7c1f  7a_a2_q40_new.bench
+    b238d373b80438afe176969ab65e86ff90ea19ea73b3bc83386f850953b0b437  7a_a2_q40_old2.bench
+    30fda0f5e6d682241941a8a878afa94aa9d23e9966651141a1b5aa5a150d02be  vlog_llama-bench.err
+    a55853158e7c4a60e1962a1f6f58d61b5be27ef99b46cb63c1f5e125545b771f  vlog_llama-bench-new.err
+
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` appears
+against ten of the 42 — it is the sha256 of the empty string, i.e. the
+zero-byte `.err` and `.kills` files of rows that produced no stderr and no
+kills. **It is a real match on an empty file, not a failed read.**
+
+**WHERE THEY ARE: the session scratchpad**, `<scratchpad>/a2out/`, which is
+**session-scoped and will not survive this session.** No `7a_*` file has ever
+been kept on the Mac in this repo — brief T's rows were hash-recorded and the
+pulled copies are gone. **If these 42 should live somewhere durable, Matt says
+where; they are not committed.**
+
+### 5. THE DELETION — Matt's authorisation, exactly the four named files
+
+One invocation, run verbatim as authorised:
+
+    adb -s 37291JEHN04619 shell 'cd /data/local/tmp && rm Qwen3-1.7B-Q4_0.gguf llama-bench llama-bench-new pennyload-new && ls -la . && ls out | wc -l'
+
+    drwxrwx--x 3 shell shell       3452 2026-09-21 12:02 .
+    drwxr-x--x 5 root  root        3452 2026-09-19 13:30 ..
+    -rw-rw-rw- 1 shell shell 1107409472 2026-09-15 20:25 Qwen3-1.7B-Q4_K_M.gguf
+    drwxrwxrwx 2 shell shell       8192 2026-09-21 11:54 out
+    -rw-rw-rw- 1 shell shell       1911 2026-09-16 16:48 penny_system.txt
+    -rw-rw-rw- 1 shell shell         95 2026-09-16 17:05 penny_user.txt
+    -rwxrwxrwx 1 shell shell      13820 2026-09-19 13:52 pennybench.sh
+    -rwxrwxrwx 1 shell shell    3836992 2026-09-18 13:07 pennyload
+    -rw-rw-rw- 1 shell shell   46685237 2026-09-19 13:56 q17_state.bin
+    67
+    uptime_s=15751.54 wallclock=12:02:04
+
+**`/data/local/tmp` holds the original six files plus `out/` and nothing
+else.** `out/` was not touched: **67 files**, the count it had before the `rm`.
+**ONE MODEL ON THE PHONE AGAIN.**
+
+Re-hash of the six, one invocation, against CLAUDE.md's 7a block:
+
+    f52fc60411b55e5ed9eb34e8307f32b45d6bed6f06de85a5347bc02ec2f4ffe9  pennyload
+    ddb39f3c68c32f4a8cc30fc4aa0cf6d374b8377e805cf062e0318fdd34a8aa24  pennybench.sh
+    b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897  Qwen3-1.7B-Q4_K_M.gguf
+    9496977025bffba32886e447cf10ab2281c439dc7c4811124827762fdb730ff4  penny_system.txt
+    b61e0a992e5e8b4cd479c8596c63381b95372ee8b0c3982b895259f9b7a4121b  penny_user.txt
+    707e0ea3c1cc490187616a67ba0097747c8b8c58fcd2dcf38e1870a31a8f6f4d  q17_state.bin
+    uptime_s=15758.81 wallclock=12:02:11 memavail_kB=3850764 batt_temp_dC=288
+
+**All six unchanged.** Battery 288 dC at 12:02:11 against 246 dC at 11:32:13
+when Step A read it (notes.md 15860) — **the chassis is 4.2 C warmer than
+before A2 began**, which is a reading about this boot and a reason Step D's
+own boot is not shortened.
+
+### WHAT THIS ENTRY DOES NOT SAY
+
+It does not change a single measured value in 16241 — no row was re-run,
+nothing on the phone was recomputed except the six hashes. **Only the words
+"a year" change, and what they change is how large a sample of upstream the
+result speaks for.**
+
+It does not say the newer build is equivalent in general: six days apart, one
+model, one quant, one prompt length, one mask, one thread count, one boot.
+It does not establish what rebooted the phone. It does not say where the 42
+pulled files should live, and they are not durable as things stand.
