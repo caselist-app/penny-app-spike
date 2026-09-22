@@ -23671,3 +23671,42 @@ moved text is as it stood at 9413698, including anything already out of date
 in it. The shortened Answered rows are summaries — the docs file's rows are
 the record. docs/ is not read at session start, so a session that needs a
 moved fact must open the file.
+
+## 2026-09-22 — CLAUDE.md CORRECTION: the pennybench.sh series interval is 7 s in rev 7, not 10 s. Two lines changed (the Traps bullet and the Benchmark protocol's wrapper bullet); nothing else. No measurement, nothing on the phone, no script changed.
+
+Why. After the slimming (notes.md 23581) CLAUDE.md contradicted itself: the
+7a table's pennybench.sh line said "series interval 7 s", while the Traps
+bullet said "A 10 s series misses sub-10 s ceiling dips" and the Benchmark
+protocol said "a 10 s `.series`". Found by Matt. The authority is the script,
+not CLAUDE.md: pennybench.sh (rev 7, sha256 ca3f8414…, the repo copy) line 22
+reads "THE SERIES SAMPLE INTERVAL IS NOW 7 s, NOT 10 s." and line 177 reads
+"REV 7: SER_INT is 7, was 10."
+
+The two corrections (CLAUDE.md line numbers as of this commit):
+
+    252  was: - **A 10 s series misses sub-10 s ceiling dips.** Never quote a series
+         now: - **A SERIES GRID MISSES DIPS SHORTER THAN ITS INTERVAL.** Revs 5 and 6
+              sampled every 10 s and missed sub-10 s ceiling dips; rev 7 samples every
+              7 s and still misses sub-7 s ones. Never quote a series
+         The lesson is kept (a grid coarser than the dip is blind to it); the rest
+         of the bullet is unchanged. Matt's suggested wording said "Rev 5"; it says
+         "Revs 5 and 6" because rev 6 also sampled at 10 s (rev 7's header: "NOW
+         7 s, NOT 10 s").
+    470  was: a 10 s `.series` (14 columns,
+         now: a 7 s `.series` (rev 7; 10 s in rev 5 and 6) (14 columns,
+         Nothing else in that sentence changed.
+
+Older figures are not wrong, only older. Rows run under pennybench.sh rev 5
+and rev 6 were genuinely sampled every 10 s, and their .series files and the
+entries quoting them stand as recorded. Compare rates, not raw sample counts,
+across the rev 6 / rev 7 boundary (rev 7's own header says the same).
+
+Size. CLAUDE.md is now 35,121 bytes (wc -c), 35,008 characters (wc -m): 121
+bytes OVER the 35,000-byte target set for the slimming, because the two
+corrected lines are longer. Nothing else was trimmed to pay for it, by
+instruction. Still under Claude Code's 40,000 warning on either count.
+
+What this does NOT say. It does not re-check the "14 columns" or any other
+claim in the wrapper bullet against rev 7. It does not change the docs/ copies
+(docs/6a-frozen-device-state.md names the 6a's rev 5, which was 10 s and is
+correct for the 6a). It does not re-read any series file.

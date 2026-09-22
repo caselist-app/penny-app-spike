@@ -249,7 +249,7 @@ Do not work ahead of the current rung.
 - **An unclosed quote in an `adb shell` poll loop reads nothing and spins
   silently.** Dry-run the exact invocation once in the foreground before
   arming any loop. (notes.md 12015)
-- **A 10 s series misses sub-10 s ceiling dips.** Never quote a series
+- **A SERIES GRID MISSES DIPS SHORTER THAN ITS INTERVAL.** Revs 5 and 6 sampled every 10 s and missed sub-10 s ceiling dips; rev 7 samples every 7 s and still misses sub-7 s ones. Never quote a series
   "fraction at rated" without the poll-loop `ceil_*_kHz min=` beside it.
   (notes.md 12639)
 - **The last `.series` line can be a teardown sample.** If `VmRSS` is far below
@@ -467,7 +467,7 @@ The rules only. How each was found is in the notes.md entry cited beside it.
   `ca3f8414c3295ff953c96591dd61b46de2008fac7563311703d8491826e484d7`, 17,519 B.
   It supplies every column except pp/tg tok/s: `VmHWM` polled at 5 Hz, meminfo
   and uptime either side, clock ceilings `before=`/`min=`/`after=` with
-  `min_at`, `pswpin`/`pswpout`/`pgmajfault`, a 10 s `.series` (14 columns,
+  `min_at`, `pswpin`/`pswpout`/`pgmajfault`, a 7 s `.series` (rev 7; 10 s in rev 5 and 6) (14 columns,
   `ceil_a55` = policy0, battery from sysfs), and the kill grep
   (`am_kill|lowmemorykiller| lmkd : |has died`, **excluding `am_cpu`**). Push it
   beside the binary; the phone copy must hash to the repo copy. **Every row's
