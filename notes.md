@@ -24876,3 +24876,104 @@ resampled. It does not settle the output-level question. It says nothing
 about the join, int8, generation, which file ships or which cores speak.
 /sdcard/Music/pennyz_ysmoke_1_00.wav and pennyz_ysmoke_1_04.wav remain on
 the phone.
+
+## 2026-09-22 — BRIEF Z, CLOSED. The reviewer's entry. THE PHONE SPEAKS, AND PLAYBACK COST REMAINS COMPLETELY UNMEASURED — this brief could not answer its own central question, and no brief on this phone can.
+
+THE QUESTION ASKED: what on this phone can play a WAV at all, and what does playback cost.
+
+ANSWER, PART 1 — WHAT CAN PLAY A WAV. Route (b) for the shell, and it is
+closed, not merely unfound. /dev/snd holds 36 devices, all crw-rw----
+system:audio with SELinux label audio_device, and the shell user is not in
+group 1005. No tinyalsa binary exists anywhere on the device (/system,
+/system_ext, /product, /vendor, /odm, /apex/*), and bringing one in would be
+an install, which the brief forbids and which would still hit the group wall.
+The only audio binaries present are system services that do not play files.
+Route (c) exists: the preinstalled com.android.music/.AudioPreview holds
+READ_MEDIA_AUDIO and READ_EXTERNAL_STORAGE by default and needs no grant and
+no install; its only blocker is a file copy into shared storage. Matt
+approved that copy once, for the listen.
+
+ANSWER, PART 2 — WHAT PLAYBACK COSTS. UNANSWERED, AND UNANSWERABLE FROM THE
+SHELL. Step C was CANCELLED by the reviewer before it ran. A clock around
+`am start` would have measured a preinstalled app's cold start, which is
+dominated by process launch and is not AudioTrack, not our app, and not the
+product. A figure like that is worse than no figure because it reads like an
+answer. Stage 4 measures playback cost from our own app, calling AudioTrack
+directly, or it stays unmeasured.
+
+THE ONLY AudioTrack-ADJACENT NUMBER IN THE PROJECT, and it is not a latency:
+`dumpsys media.audio_flinger` shows every speaker output at 48,000 Hz with
+HAL periods of 128 to 960 frames — 2.667 ms to 20.000 ms. That is a HAL
+PERIOD. The full path adds the client buffer, the mixer and the output stage
+on top. A 128-frame period INDICATES that a fast output path exists on lynx;
+it does not say how long sound takes to arrive. Nothing may be built on it.
+
+THE PRODUCT FINDINGS — the first in this project that came from Matt's ears
+rather than a report file:
+- THE PHONE SPOKE. Kokoro's "On it." (ysmoke_1_00, 0.811 s, 24,000 Hz mono
+  16-bit) played from /sdcard/Music through AudioPreview, heard at media
+  index 11 of 25 and again at 17 of 25.
+- IT SOUNDED NORMAL. Matt, verbatim: "it sounded normal". Our files are
+  24,000 Hz and the speaker runs at 48,000 Hz; had the rate conversion not
+  happened, it would have been fast and high-pitched. So Android's normal
+  playback stack resamples 24 kHz for us. BY EAR ONLY — which component
+  resampled, how well, and at what cost were not observed, and stage 4
+  must confirm it rather than assume it.
+- A LONG ACK PLAYS CLEANLY. ysmoke_1_04 (4.454 s, the long-ack stand-in)
+  played once at index 17 of 25. Matt, verbatim: "this sounded great and
+  played fully".
+- 11 of 25 was audible. The listen was deliberately NOT done at maximum
+  volume, so that the corpus's −14.85 to −18.29 dBFS RMS could be judged
+  against a known mid-slider setting. It is one data point, not a
+  normalisation decision.
+
+THE JOIN TEST WAS CANCELLED, and the reason is a finding. On play 2 a second
+VIEW intent went to the already-open AudioPreview activity instead of
+starting the file. Playing _00 then _04 back to back would do the same.
+Making it work would mean driving a preinstalled player with activity flags
+into a sequence Penny will never perform. The gap between an ack and the
+speech that follows is STAGE 4's to measure, from our own app.
+
+WHAT THIS DECIDES, AND WHAT IT DOES NOT. Stage 4 owns the entire audio
+output layer — there is no shell fallback, no partial route and nothing to
+inherit but the sample-rate finding. THE PRE-RENDERED-ACK DECISION OF 22
+SEPT IS NEITHER CONFIRMED NOR REFUTED and stands unchanged: its stated
+reopen condition was "if AudioTrack's own latency makes file playback no
+faster than generating", and AudioTrack latency is exactly what remains
+unmeasured. The ~3.2 s ack-length rule is likewise untouched — none of the
+four ack files reaches 3.2 s and _04 is a corpus line standing in, so the
+rule has still never been heard as designed. The ack pool's real contents
+and wording do not exist yet and are Matt's.
+
+NEW STANDING RULE: no figure derived from a shell command or a preinstalled
+app may ever be quoted as AudioTrack's latency, as the ack's latency, or as
+the product's. Only a measurement taken inside our own app counts.
+
+BUILDER DEVIATIONS, both self-reported, neither material: an `&` in a
+discarded /dev/snd probe, forbidden by the brief's rules, which left nothing
+running (ps rc=1); and a redirect that wrote /data/local/tmp/.x (22,919 B),
+a new file outside tts/ that overwrote nothing and therefore broke no stated
+rule, deleted by Matt by hand and confirmed absent at entry 24785. The
+builder also asserted in chat that .x was still present without having
+checked; the assertion never reached notes.md and was corrected by reading
+the device.
+
+LEFT ON THE PHONE FOR MATT TO DELETE: /sdcard/Music/pennyz_ysmoke_1_00.wav
+(38,994 B) and /sdcard/Music/pennyz_ysmoke_1_04.wav (213,828 B). Nothing in
+/data/local/tmp/tts/ was touched, nothing was overwritten anywhere, no
+setting was changed, no install, no download, no reboot. The boot is the
+21 Sept matrix boot and remains spent.
+
+COMMITS: dd19355 (step A, route (b), CLAUDE.md +2 / notes.md +568),
+4887029 (step B, the phone spoke, +1 / +99), cd9d7a3 (second listen and
+_04, +1 / +95), plus this entry. All pushed; origin/main equals local main.
+
+WHAT THIS DOES NOT SAY: nothing about how long playback takes on any route,
+from the shell or from an app; nothing about the gap between two clips;
+nothing about which component resampled 24 kHz to 48 kHz, how well, or at
+what cost; nothing about how loud Penny should play or whether the corpus
+needs normalisation; nothing about int8, which file ships, which cores
+speak, the ack pool's wording, STT, the LLM, or routing latency. "Sounded
+normal" and "sounded great" are one listener's judgements on one play each,
+through a preinstalled player rather than through our own code, and are not
+a quality measurement.
