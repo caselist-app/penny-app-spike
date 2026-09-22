@@ -640,8 +640,8 @@ The rules only. How each was found is in the notes.md entry cited beside it.
   **`examples/simple` (`llama-simple`) IS buildable offline** — build it: a
   tok/s figure with no printed text cannot show the model produces sensible
   output. (notes.md 5023)
-- **The wrapper is `pennybench.sh` at the repo root**, revision 5, sha256
-  `96163d047d7a91cd3f937cba71c4bce9270e6f84afcb4d700fe7a1513e0889af`, 12,790 B.
+- **The wrapper is `pennybench.sh` at the repo root**, revision 7, sha256
+  `ca3f8414c3295ff953c96591dd61b46de2008fac7563311703d8491826e484d7`, 17,519 B.
   It supplies every column except pp/tg tok/s: `VmHWM` polled at 5 Hz, meminfo
   and uptime either side, clock ceilings `before=`/`min=`/`after=` with
   `min_at`, `pswpin`/`pswpout`/`pgmajfault`, a 10 s `.series` (14 columns,
