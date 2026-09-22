@@ -24781,3 +24781,98 @@ play 2 made any sound. It does not say AudioPreview can or cannot read
 reasoning). It says nothing about _04, the join between two acks, which
 file ships, or which cores speak. /sdcard/Music/pennyz_ysmoke_1_00.wav is
 still on the phone.
+
+## 2026-09-22 — BRIEF Z STEP B, SECOND LISTEN: "On it." SOUNDED NORMAL — Matt's words, so the 24,000 Hz file was not played at the speaker's 48,000 Hz as if it were native (that would be fast and high-pitched). The long-ack stand-in ysmoke_1_04 (4.454 s) played once through AudioPreview at media index 17 of 25; Matt: "this sounded great and played fully". Join test CANCELLED by the reviewer. No clock, no duration.
+
+Spent boot (the 21 Sept matrix boot). Phone unlocked, on the cable. No
+wall-clock times were read with any command below.
+
+### Correction to a builder message (not to any notes.md entry)
+
+In a chat message the builder said /data/local/tmp/.x was still on the
+phone without having read it. Read this session before the _04 copy:
+
+    $ adb -s 37291JEHN04619 shell 'ls -la /sdcard/Music; ls -la /data/local/tmp/.x; ls -a /data/local/tmp'
+    total 43
+    drwxrws--- 2 u0_a184 media_rw  3452 2026-09-19 13:31 .thumbnails
+    -rw-rw---- 1 u0_a184 media_rw 38994 2026-09-22 13:19 pennyz_ysmoke_1_00.wav
+    ls: /data/local/tmp/.x: No such file or directory
+    .
+    ..
+    Qwen3-1.7B-Q4_K_M.gguf
+    out
+    penny_system.txt
+    penny_user.txt
+    pennybench.sh
+    pennyload
+    q17_state.bin
+    tts
+
+.x is gone (Matt deleted it by hand, per the reviewer); /data/local/tmp holds
+the same eight entries as before it was written.
+
+### THE RESAMPLE QUESTION — the one product finding of this step
+
+Asked of Matt before _04 played: did "On it." sound like normal speech, or
+fast and high-pitched? Our WAVs are 24,000 Hz; every speaker output runs at
+48,000 Hz (entry 24118). Matt, verbatim: **"it sounded normal. player
+closed. please play the next one"**.
+
+By ear, then, the 24 kHz file was converted to the output rate rather than
+played at double speed. Which stage converted it (MediaPlayer's decoder
+path, AudioTrack, AudioFlinger's resampler) was not observed, and nothing
+about the conversion's quality or cost was measured.
+
+### The _04 copy (approved named step)
+
+    $ adb -s 37291JEHN04619 push /Users/mattstevenson/Documents/penny-app-spike/rows/7a_y/7a_tts_ysmoke_1_04.wav /sdcard/Music/pennyz_ysmoke_1_04.wav
+    /Users/mattstevenson/Documents/penny-app-spike/rows/7a_y/7a_tts_ysmoke_1_04.wav: 1 file pushed, 0 skipped. 412.1 MB/s (213828 bytes in 0.000s)
+    push_rc=0
+    $ adb -s 37291JEHN04619 shell 'sha256sum /sdcard/Music/pennyz_ysmoke_1_04.wav; ls -la /sdcard/Music'
+    d50a8cc136d055c3967340b4ffd48806af1fc3dd9d6bc363945781abf4560bb5  /sdcard/Music/pennyz_ysmoke_1_04.wav
+    total 255
+    drwxrws--- 2 u0_a184 media_rw   3452 2026-09-19 13:31 .thumbnails
+    -rw-rw---- 1 u0_a184 media_rw  38994 2026-09-22 13:19 pennyz_ysmoke_1_00.wav
+    -rw-rw---- 1 u0_a184 media_rw 213828 2026-09-22 13:19 pennyz_ysmoke_1_04.wav
+
+Read-back = the Mac file's hash (reviewer-confirmed independently). Nothing
+replaced. The 13:19 mtime is the Mac file's, preserved by adb push.
+
+### The _04 play (once; Matt closed the previous player first)
+
+    $ adb -s 37291JEHN04619 shell 'dumpsys audio' 2>/dev/null | grep -A6 "^- STREAM_MUSIC"; adb -s 37291JEHN04619 shell 'am start -a android.intent.action.VIEW -d file:///sdcard/Music/pennyz_ysmoke_1_04.wav -t audio/wav -n com.android.music/.AudioPreview'; echo "rc=$?"
+    - STREAM_MUSIC:
+       Muted: false
+       Muted Internally: false
+       Min: 0
+       Max: 25
+       streamVolume:17
+       Current: 2 (speaker): 17, 40000000 (default): 8
+    Starting: Intent { act=android.intent.action.VIEW dat=file:///... typ=audio/wav cmp=com.android.music/.AudioPreview }
+    rc=0
+
+Speaker stream 3, index 17 of 25, not muted. Matt, verbatim: **"this
+sounded great and played fully"**.
+
+### STAGE 4 INPUT — cancelled here, not attempted
+
+- **The join (ack then speech).** Cancelled by the reviewer: a second VIEW
+  intent goes to the already-open AudioPreview (play 2, entry 24686), so
+  _00-then-_04 would need activity flags driving a preinstalled player into
+  a sequence Penny never performs — inventing a route. Stage 4 measures the
+  gap from our own app.
+- **Playback cost.** As entry 24118: cannot be measured from the shell.
+  Stage 4 measures it from our own app, starting from the 48,000 Hz,
+  128-960-frame HAL reading.
+
+### WHAT THIS DOES NOT SAY
+
+No duration, latency or gap measured or claimed. "Sounded normal" and
+"sounded great" are Matt's listening judgements on one play each, through a
+preinstalled player at one volume index — not a quality measurement, not a
+comparison against anything, and not evidence about our own app's playback
+path, which may resample differently. It does not say which stage
+resampled. It does not settle the output-level question. It says nothing
+about the join, int8, generation, which file ships or which cores speak.
+/sdcard/Music/pennyz_ysmoke_1_00.wav and pennyz_ysmoke_1_04.wav remain on
+the phone.

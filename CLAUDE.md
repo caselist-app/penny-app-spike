@@ -197,6 +197,7 @@ cmake and no download. `pennytts.sh` is TTS rung 1's wrapper.
 - **Brief Y CLOSED** (notes.md 24104): Kokoro reports once per sentence; sentence streaming starves; acks are pre-rendered and run to the end (Matt).
 - **Brief Z step A** (notes.md 24118): NOTHING plays a WAV from the shell — /dev/snd is system:audio 0660, shell not in group 1005. Only route is preinstalled com.android.music/.AudioPreview via a copy into /sdcard. Speaker HAL 48,000 Hz, periods 128-960 frames — a HAL period, NOT a latency. Playback cost cannot be measured from the shell; stage 4 measures it from our app. Step C cancelled.
 - **Brief Z step B** (notes.md 24686): THE PHONE SPOKE — ysmoke_1_00 via AudioPreview, heard by Matt at media index 11 and 17 of 25. No timing taken. On the phone: `/sdcard/Music/pennyz_ysmoke_1_00.wav`, 38,994 B, sha256 dbc2c6e9…c529b42.
+- **Brief Z second listen** (notes.md 24785): Matt — "On it." "sounded normal" (24 kHz file, 48 kHz speaker: resampled by ear, stage not observed); _04 "sounded great and played fully" at 17/25. Also on the phone: `/sdcard/Music/pennyz_ysmoke_1_04.wav`, 213,828 B, sha256 d50a8cc1…60bb5. Join test cancelled — stage 4 input.
 - **Not done, in the order Brief S left them:** the `-ub` test that separates
   batch size from micro-batch size; the on-device VOICE bake-off — Kokoro-82M
   `bf_isabella` and `kokoro-onnx` int8 under sherpa-onnx (**Matt's decision,
