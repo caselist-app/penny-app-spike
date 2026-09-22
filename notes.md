@@ -23846,3 +23846,55 @@ splitting rule for lines 5 and 15. It says nothing about how anything
 sounds, about splitting text, about int8, or about any product latency —
 every figure brief Y will produce excludes AudioTrack, buffering and every
 playback path.
+
+## 2026-09-22 — BRIEF Y STEP D, BEFORE THE PASS: pennyspeak2 and pennyspeak2.sh pushed under new names, nothing overwritten; the Y1 pass string, not yet run.
+
+pennyspeak2.sh committed alone as a7a7810 (18,715 B, sha256 0faf2ebe…;
+reviewed as a diff -u against pennyspeak.sh: BIN=$TTSDIR/pennyspeak2, a
+header note, two usage strings; the assigned-variable name sets are
+identical, so no device echo-back test was needed).
+
+### Every adb command of this step, in order (run by the builder, as the
+### reviewer directed on 22 Sept: step D names the push)
+
+1. 13:14:54 (uptime 88,385.77), read-only: uptime, wallclock, battery 280 dC,
+   MemAvailable 3,155,752 kB, three ceilings at rated, ls -la tts (8 entries),
+   out/ 690, pennyspeak 9be8e0e4…, pennyspeak.sh dc2706fd…, pennyspeak2
+   absent, pennyspeak2.sh absent.
+2. Read-only re-check immediately before the push: out/ 690; both names absent.
+3. `adb -s 37291JEHN04619 push build/pennyspeak2/pennyspeak2-stripped /data/local/tmp/tts/pennyspeak2`
+   → "1 file pushed, 0 skipped. (2468088 bytes)".
+4. `adb -s 37291JEHN04619 shell 'chmod 755 /data/local/tmp/tts/pennyspeak2'`.
+5. `adb -s 37291JEHN04619 push pennyspeak2.sh /data/local/tmp/tts/pennyspeak2.sh`
+   → "1 file pushed, 0 skipped. (18715 bytes)". NOT made executable; run as
+   `sh /data/local/tmp/tts/pennyspeak2.sh`.
+6. 13:16:45 (uptime 88,496.42), read-only: battery 280 dC; out/ 690; ls -la
+   shows 10 entries (8 before + the 2 new); sha256sum on the phone:
+
+       pennyspeak2      2,468,088 B  -rwxr-xr-x  6081ce8107f34579a5521954edb890decd15fc9833ec053d98008c3e029ebf23  (= build/pennyspeak2/pennyspeak2-stripped, shasum on the Mac)
+       pennyspeak2.sh      18,715 B  -rw-rw-rw-  0faf2ebe7cb6f0d372c116639509de061aaa9894093320f564de77a32af38c2a  (= repo pennyspeak2.sh)
+       pennyspeak       2,466,712 B  unchanged   9be8e0e44d868460f6408209c9590ea7c1291ce6823b4a2c60352d6d540ba14f
+       pennyspeak.sh       18,157 B  unchanged   dc2706fdd1b497fbc2528a00a90e71a936ef014c08c4ed723ce3f598ba48c698
+
+7. Read-only: `ls out | grep -c "^7a_tts_ysmoke"` → 0, so the wrapper's
+   no-overwrite guard will not refuse.
+
+out/ count 690 before and after the push. Nothing on the phone was
+overwritten or deleted.
+
+### THE Y1 PASS STRING — not yet run
+
+Made from R1's string (notes.md 22579) by sed on the Mac, changing only:
+R1 → Y1 in the three labels; pennyspeak.sh → pennyspeak2.sh; tag
+7a_tts_r1_fp32_x1x1 → 7a_tts_ysmoke_1 in the launch and the report grep.
+Everything else is R1's: fp32 (MODELDIR/MODELFILE), mask c0, 2 threads, all
+18 lines, COOL=1, GATECAP=240, TMAX = TREF + 15 with TREF read inside the
+string from out/7a_tts_v1_x1x1_00.report. Extract it with
+`CMD=$(sed -n 'Np' notes.md | sed 's/^    //' | tr -d '\n')` where N is the
+line below, then `printf '%s' "$CMD" | wc -c` and `| shasum -a 256`.
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; X=$(grep "^PENNYTTS batt_temp_dC" out/7a_tts_v1_x1x1_00.report | tr -s " " | cut -d" " -f3); TREF=${X#before=}; case "$TREF" in ""|*[!0-9]*) echo "TREF UNREADABLE [$X] - Y1 NOT LAUNCHED"; exit 1 ;; esac; TMAX=$((TREF + 15)); echo "LAUNCH Y1 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) tref_dC=$TREF tmax_dC=$TMAX out_count=$(ls out | wc -l)"; MODELDIR=/data/local/tmp/tts/penny-kokoro-fp32 MODELFILE=model.fp32.onnx COOL=1 GATECAP=240 TMAX=$TMAX sh /data/local/tmp/tts/pennyspeak2.sh 7a_tts_ysmoke_1 c0 2 all > /dev/null; RCS=$?; echo "DONE Y1 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) wrapper_exit=$RCS out_count=$(ls out | wc -l)"; grep -E "^PENNYSPEAKSH (tag=|cool_gate_result)" out/7a_tts_ysmoke_1.report'
+
+**wrapper_exit is tee's status and reads 0 whatever pennyspeak2 did; the
+report's rc= is the authority.** If the gate times out the pass is LAUNCHED
+WARM and is labelled so everywhere.
