@@ -24682,3 +24682,102 @@ resamples 24 kHz well, or at all well, or at what cost. It says nothing
 about what Kokoro sounds like from the phone — nobody has heard it yet. It
 says nothing about generation, int8, splitting text, STT or the LLM, about
 the ack pool's contents or wording, which file ships or which cores speak.
+
+## 2026-09-22 — BRIEF Z STEP B: THE PHONE SPOKE. Kokoro's "On it." (ysmoke_1_00, 0.811 s, 24,000 Hz mono 16-bit) played through the preinstalled com.android.music/.AudioPreview from a copy in /sdcard/Music. Matt heard it on play 1 (media index 11 of 25) and on play 3 (index 17 of 25). No clock, no duration — by the reviewer's order.
+
+First sound from either phone in this project. Spent boot (the 21 Sept
+matrix boot). Phone unlocked by Matt before play 1, on the cable
+(stay_on_while_plugged_in=15). No wall-clock times were read with any
+command below, so none is quoted.
+
+### The copy (approved by the reviewer as a named step; the one new file in shared storage)
+
+    $ adb -s 37291JEHN04619 shell 'ls -la /sdcard/Music'
+    total 3
+    drwxrws--- 2 u0_a184 media_rw 3452 2026-09-19 13:31 .thumbnails
+    $ adb -s 37291JEHN04619 push /Users/mattstevenson/Documents/penny-app-spike/rows/7a_y/7a_tts_ysmoke_1_00.wav /sdcard/Music/pennyz_ysmoke_1_00.wav
+    /Users/mattstevenson/Documents/penny-app-spike/rows/7a_y/7a_tts_ysmoke_1_00.wav: 1 file pushed, 0 skipped. 343.9 MB/s (38994 bytes in 0.000s)
+    push_rc=0
+    $ adb -s 37291JEHN04619 shell 'sha256sum /sdcard/Music/pennyz_ysmoke_1_00.wav; ls -la /sdcard/Music'
+    dbc2c6e9b7d124aa8624b97d3caafc1cb87785c14aa6da8303c5aa701c529b42  /sdcard/Music/pennyz_ysmoke_1_00.wav
+    total 43
+    drwxrws--- 2 u0_a184 media_rw  3452 2026-09-19 13:31 .thumbnails
+    -rw-rw---- 1 u0_a184 media_rw 38994 2026-09-22 13:19 pennyz_ysmoke_1_00.wav
+
+Read-back hash = the Mac file's (dbc2c6e9…c529b42, computed by the builder
+and independently by the reviewer). Nothing in /sdcard/Music replaced. The
+13:19 mtime is the Mac file's, preserved by adb push — not the copy time.
+Nothing in /data/local/tmp touched; the tts/out/ copy was not used.
+
+### Volume before play 1 (read-only; not set by the builder)
+
+`dumpsys audio`, STREAM_MUSIC: `Muted: false`, `Muted Internally: false`,
+`Min: 0`, `Max: 25`, `streamVolume:11`, `Current: 2 (speaker): 11,
+40000000 (default): 8`. `settings get global zen_mode` = 0; ringer mode
+affected streams 0x1a6 (not STREAM_MUSIC), muted streams 0x0.
+**Play 1 at: speaker stream 3, index 11 of 25, not muted, zen_mode=0** — held
+at mid-slider by Matt's decision, as evidence for the open output-level
+question (corpus RMS −14.85 to −18.29 dBFS, 3.4 dB spread).
+
+### Three sends of the same command
+
+    $ adb -s 37291JEHN04619 shell 'am start -a android.intent.action.VIEW -d file:///sdcard/Music/pennyz_ysmoke_1_00.wav -t audio/wav -n com.android.music/.AudioPreview'
+
+Play 1, index 11 of 25:
+
+    Starting: Intent { act=android.intent.action.VIEW dat=file:///... typ=audio/wav cmp=com.android.music/.AudioPreview }
+    rc=0
+
+Matt, verbatim: **"the phone spoke! but i'm going to turn it up and lets
+play it again please"**. Matt then raised the volume by hand. Read-only
+before play 2: STREAM_MUSIC `streamVolume:17`, `Current: 2 (speaker): 17`,
+`Muted: false`.
+
+Play 2, index 17 of 25 — delivered to the still-open player, not a new start:
+
+    Starting: Intent { act=android.intent.action.VIEW dat=file:///... typ=audio/wav cmp=com.android.music/.AudioPreview }
+    Warning: Activity not started, intent has been delivered to currently running top-most instance.
+    rc=0
+
+Whether play 2 made a sound was not reported by Matt and is not recorded.
+Matt then closed the player by hand: "I have cancelled the player. send
+again".
+
+Play 3, index 17 of 25 (a fresh start, no warning):
+
+    Starting: Intent { act=android.intent.action.VIEW dat=file:///... typ=audio/wav cmp=com.android.music/.AudioPreview }
+    rc=0
+
+Matt, verbatim: **"great! the phone spoke"**.
+
+A builder error on the volume read before play 3: `dumpsys audio | grep
+"Current: 2 (speaker)" | head -1` returned `Current: 2 (speaker): 5,
+40000000 (default): 5` — the FIRST stream in the dump, not STREAM_MUSIC. The
+correct read straight after play 3 (`grep -A6 "^- STREAM_MUSIC"`) gave
+`streamVolume:17`, `Current: 2 (speaker): 17, 40000000 (default): 8`. The 5
+is not the media volume and is not quoted as one.
+
+### What it shows
+
+- AudioPreview opens a `file:///sdcard/Music/...` URI launched by `am start`
+  from the shell on this build, and a 24,000 Hz mono 16-bit Kokoro WAV comes
+  out of the 7a's speaker, whose outputs all run at 48,000 Hz (entry 24118).
+  Some stage converted the rate; which one was not observed.
+- `am start` into an already-open AudioPreview does not start a new
+  activity (play 2's warning). A replay through this route needs the player
+  closed first.
+
+### WHAT THIS DOES NOT SAY
+
+No duration, latency or gap was measured or is claimed — no clock was put
+round any command, by the reviewer's order; this route measures a
+preinstalled app's start, not AudioTrack, and stage 4 measures playback
+cost from our own app. Matt's words say the phone spoke; they are not a
+quality judgement, and Matt gave no description of clarity, loudness or
+artefacts at either index, so none is recorded. Nothing here settles the
+output-level question beyond: audible at 11 and at 17 of 25. It does not say
+play 2 made any sound. It does not say AudioPreview can or cannot read
+/data/local/tmp (still untested), nor that it plays via AudioTrack (still
+reasoning). It says nothing about _04, the join between two acks, which
+file ships, or which cores speak. /sdcard/Music/pennyz_ysmoke_1_00.wav is
+still on the phone.
