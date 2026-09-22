@@ -23577,3 +23577,97 @@ the phone's copies or with any earlier hash list in this step; they are
 committed as they sat on the Mac. .DS_Store, "Claude outputs/", build/ and
 probe2a/.DS_Store stay untracked. Nothing here was pushed at the time of
 this entry.
+
+## 2026-09-22 — CLAUDE.md SLIMMED: 48,729 → 34,963 bytes (wc -c), 48,575 → 34,850 characters (wc -m). Text moved verbatim to six files in docs/, one correction made first in its own commit, one rule amended. No rule's substance changed; nothing on the phone; no script changed.
+
+Why. Claude Code warns when CLAUDE.md passes 40,000 characters; it was 48,575
+(wc -m) / 48,729 bytes (wc -c). Matt set the target at UNDER 35,000 BYTES by
+wc -c: neither of us has verified whether the warning counts bytes or
+characters, so the bigger number is the one beaten, and the headroom is for
+the briefs still to come. The full text before this entry is
+`git show 9413698:CLAUDE.md` (CLAUDE.md is unchanged at 9413698, confirmed by
+Matt). Line numbers below are 9413698's, which the correction did not shift.
+
+THE CORRECTION, before any move (commit 11a58c2, CLAUDE.md only, labelled a
+correction). The Benchmark protocol's wrapper bullet named pennybench.sh
+"revision 5, sha256 96163d04…, 12,790 B" — the 6a's copy. The repo copy and
+the 7a's copy are rev 7: shasum -a 256 pennybench.sh on the Mac gave
+ca3f8414c3295ff953c96591dd61b46de2008fac7563311703d8491826e484d7, wc -c
+17519, = the 7a table's line and = Matt's own hash this session. The bullet
+now says revision 7 with that hash and size. The rev 5 line inside the frozen
+6a block (old line 92) is correct for the 6a and was NOT changed. NOT
+corrected, flagged only: the same bullet still says "a 10 s `.series`";
+pennybench.sh rev 7's own header says the series interval is now 7 s.
+
+THE RULE AMENDED. Constraints said "Do not create new markdown files.
+`notes.md` and this file are all there is." Job B needed new files, so the
+bullet now carries ONE exception, in Matt's wording: `docs/` holds verbatim
+text moved out of CLAUDE.md, is created only by a slimming brief, is never
+edited afterwards (corrections go in notes.md), is not a place for new prose,
+and nothing in it is read at session start. Matt's brief first said this job
+"changes no rule"; it does change this one, deliberately.
+
+THE MOVES (old lines at 9413698 → new file; every file checked with cmp
+against those exact old lines, all identical):
+
+    1   55-133  LIVE DEVICE STATE — Pixel 6a (frozen)  → docs/6a-frozen-device-state.md
+        byte for byte; sha256 effd849c2f3f0414369b926bf9035cebb6c644c93284b36ce2e99d885d0b619d
+        (= sed -n '55,133p' CLAUDE.md | shasum -a 256 at 9413698). CLAUDE.md keeps
+        the file, its hash, and "never plugged in during 7a work".
+    2a  38-53   State of play — Pixel 6a               → docs/6a-record.md (first part)
+        CLAUDE.md keeps a four-line "Pixel 6a — finished with" section: model,
+        OS build, locked with yellow correct, OEM unlocking ENABLED.
+    2b  236-259 the 24 Answered rows 1 to TTS 1 (6a)   → docs/6a-record.md (second part,
+        with the table header 234-235 COPIED so it renders; the header also
+        stays in CLAUDE.md). CLAUDE.md keeps them as 16 shortened rows, some
+        rungs merged (2a/2b/2d, 3/3d/3g-i, 3e-i/ii, 3e-iii to v, 3f/3h, 1/API),
+        every notes.md line kept; the `scope` row kept verbatim because it
+        is a rule.
+    2c  267-291 TTS rung 1 paragraph                   → docs/6a-record.md (third part)
+        CLAUDE.md keeps one line under the table pointing at the file.
+    3   148     the 7a Boot line                       → docs/7a-boot-history.md
+        CLAUDE.md keeps: every boot so far is SPENT; last, the 21 Sept matrix
+        boot (~12:41:48), spent by briefs U, V, W and X; left at X R4 DONE,
+        uptime 32119.25, 21:37:08, battery 285 dC (notes.md 23273). That
+        brief X ran on the matrix boot is from notes.md 22066 ("Spent boot:
+        the 21 Sept matrix boot … No reboot") and 22678; the old Boot line
+        stopped at W3 and never named X's boot.
+    4   295-301, 310-314  What is next: T/U/stage 1b, V, W → docs/7a-closed-briefs.md
+        CLAUDE.md keeps one line each for T (15557), U (18705), V (20053),
+        W (21734) and a NEW line for X (23543), which names brief Y (time to
+        first audio) as next, as X's closing entry does. Old line 314's
+        "NEXT: stage 3a step 3" was out of date once X closed; it is in the
+        docs file, not in CLAUDE.md. The "DECIDED 21 Sept" bullet (302-309)
+        stays unchanged, and so does old 296 ("PREDICTION for the 7a, never a
+        baseline, and stays that way"), which is a rule.
+    A   434-476 VM-era traps + guest shell block       → docs/vm-era-traps.md
+        all of 434-473 and line 474 up to "a third place."; EXCEPT the
+        sentence "`adb`, `fastboot`, `git` and all Android build tooling exist
+        **only on the Mac**.", which is true today and STAYS in CLAUDE.md.
+        CLAUDE.md keeps a two-line pointer that still says: before ANY VM work
+        (stage 8), read it, then git show 121dc4b:CLAUDE.md lines 1603-2150.
+    B   586-611 Benchmark protocol, the build command   → docs/llama-build-command.md
+        (586-587 copied; they also stay). The command lines are also, by diff
+        ignoring indentation, identical to notes.md 5036-5057. CLAUDE.md keeps
+        the commit, "configured from nothing", the notes.md 5030-5057 pointer
+        and the docs file name. The build-flags bullet and its reasons (old
+        613-642) were NOT moved (Matt's decision: option C refused).
+
+NOT moved, by decision: no trap (2d) and no benchmark rule (2e); nothing in
+Reporting rules, Constraints (other than the amendment), Do not, Decisions —
+CLOSED, the current Traps list or the 7a block's file/hash tables. The diff
+of 9413698's text against the new CLAUDE.md touches only old lines 38,
+40-42, 44-50, 52-53, 55-133, 148, 236-241, 243-259, 267-291, 295, 297-301,
+310-314, 434-476, 498, 588, 590-612.
+
+For reviewers. A check written as "sed -n '55,133p' CLAUDE.md | shasum -a 256"
+now reads "shasum -a 256 docs/6a-frozen-device-state.md"; the expected value
+is unchanged (effd849c…). "How to read this repo" in CLAUDE.md names
+`git show 9413698:CLAUDE.md` and this entry.
+
+What this does NOT say. It does not say whether Claude Code's warning counts
+bytes or characters. It does not re-check any 6a or 7a fact that moved; the
+moved text is as it stood at 9413698, including anything already out of date
+in it. The shortened Answered rows are summaries — the docs file's rows are
+the record. docs/ is not read at session start, so a session that needs a
+moved fact must open the file.

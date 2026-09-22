@@ -35,101 +35,19 @@ end to end — it is 2,298 lines. Grep it.
 rung's story and every trap in long form, is at `git show 121dc4b:CLAUDE.md`.
 Every line below that cites "notes.md N" points at the entry heading at line N.
 
-## State of play — Pixel 6a
+**Slimmed again on 22 Sept** (notes.md 23581): moved text sits verbatim in
+`docs/`, never read at session start. The full text before that is
+`git show 9413698:CLAUDE.md`.
 
-Pixel 6a (bluejay), refurbished, 6GB Micron DRAM, 128GB Micron UFS.
-Bootloader **LOCKED**, verified boot against a custom key. OEM unlocking
-deliberately left **ENABLED** so the device can be returned to stock.
+## Pixel 6a — finished with
 
-    GrapheneOS     2026091001
-    Android        17, build ID CP2A.260705.006, patch 2026-09-01
-    Bootloader     bluejay-17.0-15199431, locked, verifiedbootstate=yellow
-    Debian guest   13.7 trixie, kernel 6.12.92-android16-6-...-4k
-                   (13.6 in earlier entries; it updates itself)
-    Claude Code    2.1.270 in the guest, native install, ~317MiB resident
-    VM resources   3.9GB slider max -> 3.6Gi in guest, 8 cores, 104G disk
+Pixel 6a (bluejay), GrapheneOS 2026091001, bootloader LOCKED against a custom
+key (`verifiedbootstate=yellow` is correct), OEM unlocking left ENABLED so it
+can go back to stock. Full state of play: `docs/6a-record.md`.
 
-`verifiedbootstate=yellow` is CORRECT here: locked, verifying against a
-custom key. `green` would mean Google's key, i.e. stock.
-
-## LIVE DEVICE STATE — Pixel 6a (FROZEN 19 Sept; the 6a is finished with)
-
-As last recorded. Nothing below was re-read on 19 Sept: at that session's
-start `adb devices` listed no phone. Check any line before relying on it.
-
-    Boot          boot 4, rebooted 18 Sept 13:17:19, unlocked by hand. SPENT: S0, S1, S2 and TTS rung 1 (4a/4b/4c/a2) all ran on it. S3 NOT run.
-    Last read     uptime 17544.65 s, 18:09:58 on 18 Sept: policy0 1,803,000 / policy4 2,253,000 / policy6 2,802,000, all rated (notes.md 13870).
-    Before that   uptime 17039.79 s, 18:01:33 on 18 Sept: MemAvailable 2,078,096 kB, SwapFree 811,612 kB, battery 301 dC (notes.md 13753).
-    adb           not connected at the start of the 19 Sept session. GrapheneOS keeps the port charging-only while locked.
-    logcat buffer not read since the 18 Sept 13:17 reboot; logcat -G does not survive a reboot.
-
-**OUR APP IS DISABLED** — `adb shell pm disable-user --user 0
-com.pennyspike.probe2a`, 15 Sept ~19:57. Nothing of ours starts at boot, no
-data was cleared, every store survives. Reverse with `adb shell pm enable
-com.pennyspike.probe2a`. **WARNING — DO NOT `pm enable` AS THINGS STAND.** The
-installed APK starts SIX boot services, and two of them each ask for 2048MB on
-the next boot (`PennySoakService` immediately, `Penny3giService` after
-~15-45s) — the two-2GB-VM trap, which on 15 Sept evening took
-`com.android.launcher3` and our own app at **adj 100**, 50 kills. Under that
-pressure `Penny3evService.java` ~345-352 DELETES the `penny3ev` store on ANY
-`run()` failure (`STORE WAS RESET`). **Neutralise one of the two 2GB services
-before enabling.** Whether the five pm grants and four assistant preconditions
-survive disable/enable is UNTESTED. (notes.md 4457, 4802)
-
-    installed APK sha256  9efe27cb0aa802243123be26bcc0ee5ff9da52f6685a20831a699daf699902fe  156,613 B = probe2a/build/probe2a.apk (notes.md 4802)
-    APK path              /data/app/~~AfIhpIXq9pYEyRdOP2bSQw==/com.pennyspike.probe2a-nou1Eur-h0XqviaxcCE9ww==
-    All VMs               DOWN as of 15 Sept (vm list not run since). Terminal app / Debian VM DOWN; it holds ~3.6GB when open. adb forward tcp:2222 DEAD.
-    penny3ev store        PROBABLY STRANDED by the 15 Sept 16:51 reinstall — no result may rest on it; ck64 0x757b795dd5138044 is re-creatable (notes.md 4802)
-    pennysoak store       CONTAMINATED; that run is VOID (notes.md 4457)
-    penny3f / penny3eiii  GONE. penny3gi/penny3gic: no store, runs once per process.
-
-`/data/local/tmp` on the 6a, as read 18 Sept 13:11 plus TTS rung 1's `tts/`:
-
-    Qwen3-1.7B-Q4_K_M.gguf  1,107,409,472 B  sha256 b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897  (= MANIFEST.txt's HF-LFS value)
-    q17_state.bin           46,685,237 B     sha256 707e0ea3c1cc490187616a67ba0097747c8b8c58fcd2dcf38e1870a31a8f6f4d  (re-creatable from penny_system.txt; deterministic across binaries and boots)
-    token_fnv1a64           0xcba17a2fcbba49f4  (the reference: rows 1/2/3/5, S0 and all 260 S restores produced it; notes.md 12639)
-    pennyload               3,836,992 B      sha256 f52fc60411b55e5ed9eb34e8307f32b45d6bed6f06de85a5347bc02ec2f4ffe9  (= build/pennyload-stripped)
-    pennybench.sh rev 5     12,790 B         sha256 96163d047d7a91cd3f937cba71c4bce9270e6f84afcb4d700fe7a1513e0889af
-    llama-bench             4,708,216 B      sha256 44015c0614b3f1c0f4ee3240fb8f3a37503420ab7285a36a10ad14abaaaeb84e
-    llama-simple            3,805,208 B      sha256 3d6b6afa…
-    penny_system.txt        1,911 B          sha256 9496977025bffba32886e447cf10ab2281c439dc7c4811124827762fdb730ff4
-    penny_user.txt          95 B             hash not on record
-    out/, microdroid/       left alone
-    tts/                    TTS rung 1: sherpa-onnx-offline-tts, libonnxruntime.so, penny-kokoro-int8/, pennytts.sh, help.txt, out/, 41 *.sherr (notes.md 13753)
-
-Qwen3.5-2B-Q4_K_M.gguf and q35_state.bin are DELETED (q35_state.bin is not
-re-creatable without a row). One model at a time: delete before pushing the
-next. `adb push` preserves the SOURCE mtime, so a phone-side mtime dates the
-Mac's copy, never the transfer. **The Q4_0 repack path has NEVER executed on
-this phone.** (notes.md 9675, 9875, 11824, 12015)
-
-Models on the Mac: `~/Documents/penny-models`, 10 GGUF files, 19,771,681,856
-bytes, every one verified against Hugging Face's published LFS sha256. See
-MANIFEST.txt there. (notes.md 4693)
-
-**6a CPU layout, taskset masks and ceiling paths** (pennybench.sh:53-58,
-notes.md 13840):
-
-    policy0  cpus 0-3  4x Cortex-A55  rated 1,803,000 kHz  /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
-    policy4  cpus 4-5  2x Cortex-A76  rated 2,253,000 kHz  /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
-    policy6  cpus 6-7  2x Cortex-X1   rated 2,802,000 kHz  /sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq
-    masks    c0 = cpus 6-7 (X1 pair)   30 = cpus 4-5 (A76 pair)   f0 = cpus 4-7 (X1+A76)
-
-Swap is zram, 3,145,724 kB total (`dumpsys meminfo`; `/proc/swaps` and
-`/sys/block/zram0/*` are Permission denied). `/sys/class/thermal/` is
-Permission denied to shell; battery temperature is read from
-`/sys/class/power_supply/battery/temp` in dC and is never SoC temperature.
-An `adb shell` process has `oom_score_adj` **-1000**. (notes.md 6282, 11427)
-
-**6a native memory baseline** — MemTotal 5,718,280 kB. On ONE boot, no VM, app
-disabled: MemAvailable **940,640 kB at 5.8 min, 2,119,020 at 25.3 min,
-2,012,348 at 60.5 min, 1,929,032 at 120.6 min, 1,771,920 at 973.2 min.** At ~25
-min across five boots: **2,135,144 to 2,284,200 kB**. Boot 4: **2,218,088 kB at
-303.84 s** and **2,347,476 kB at 1501.63 s**. **THERE IS NO SINGLE IDLE NUMBER.
-Never quote one without its uptime.** The 5-minute mark is not a stable point.
-(notes.md 4457, 4589, 4802, 5227, 12015)
-
-Verify with: `adb shell pm path com.pennyspike.probe2a`.
+Frozen device state: `docs/6a-frozen-device-state.md`,
+sha256 effd849c2f3f0414369b926bf9035cebb6c644c93284b36ce2e99d885d0b619d.
+The 6a is finished with and never plugged in during 7a work.
 
 ## LIVE DEVICE STATE — Pixel 7a (from 19 Sept; the Brief T row phone)
 
@@ -145,7 +63,7 @@ one), 14252 (stay awake, rev 6), 14306 (gate, push, smoke tests).
     Boot key      508d75dea10c5cbc3e7632260fc0b59f6055a8a49dd84e693b6d8899edbb01e4 — compared on screen by Matt; not read by the builder
     OEM unlocking ON per Matt's on-screen reading; not readable from shell (sys.oem_unlock_allowed empty, dumpsys oem_lock empty)
     Memory        MemTotal 7,640,308 kB; SwapTotal 3,820,148 kB, zram
-    Boot          bring-up boot SPENT (push, smoke a, smoke b; smoke a met the Cached contamination limb). ROW BOOT SPENT: T1 (notes.md 15016), T2 (15163), T3 (15333), the pulls and the post-T3 re-hash (15521). Brief T is CLOSED (15557). THAT ROW BOOT ENDED UNOBSERVED — on 21 Sept the phone was found on a NEW boot of ~07:39, cause not established, Matt states he did not reboot it (notes.md 15860, 16057). That 21 Sept boot is SPENT by brief U step A2 (notes.md 16241) and by the step D rehearsal (17317). MATRIX BOOT, 21 Sept ~12:41:48, IS SPENT: protocol readings (notes.md 17433, 17531), U1 (17584), U2 (17821), U3 (18087), U4 (18353). U2, U3 and U4 were all LAUNCHED WARM — each gate ran its full 240 polls without reaching TMAX=267. Left at uptime 8617.02, battery 361 dC, 15:05:25; caffeinate stopped. Brief V step B smoke (notes.md 19086), V1 (19620) and V2 (19842) also ran on it — Brief V CLOSED (20053); left at uptime 12825.46, battery 288 dC, 16:15:34. Brief W step D smoke (notes.md 20666), W1 (21181), W2 (21348) and W3 (21499) also ran on it; left at uptime 17685.06, 17:36:33 (battery 284 dC at W3 DONE, 17:36:14).
+    Boot          every boot so far is SPENT (history: docs/7a-boot-history.md). Last: the 21 Sept matrix boot (~12:41:48), spent by briefs U, V, W and X; left at X R4 DONE, uptime 32119.25, 21:37:08, battery 285 dC (notes.md 23273).
     Stay awake    stay_on_while_plugged_in=15 (set by Matt by hand), screen_off_timeout=30000
     Charging      no charge-limit settings key; dumpsys battery "Charging policy: 1" (= default, builder's memory)
     adb shell     oom_score_adj -1000
@@ -233,30 +151,21 @@ cmake and no download. `pennytts.sh` is TTS rung 1's wrapper.
 
 | Rung | Question | Answer | Date | notes.md |
 |---|---|---|---|---|
-| 1 | Can the shell user boot microdroid? | YES (penny-box d5a8371); stock `EmptyPayloadApp`, sample DICE values — no attestation claim rests on anything here | 14 Sept | 9 |
-| API | Is `android.system.virtualmachine` reachable? | `@SystemApi`; compile-only stubs signed off the device's dex; `getSystemService(VirtualMachineManager.class)`, no `getInstance` | 14 Sept | 173, 422 |
-| 2a | Can a sideloaded app touch the API? | YES, uid 10192, after two `pm grant`s | 14 Sept | 422 |
-| 2b | Does it own a VM with Google's payload? | YES, `requesterUid: 10192` | 14 Sept | 582 |
-| 2c | Does it own a VM running OUR guest image? | NO — every custom-image member is on the hidden-API blocklist | 14 Sept | 854 |
-| 2d | Does our own code run inside microdroid? | YES, exit 42 | 15 Sept | 2034 |
+| 1, API | Shell boots microdroid? API reachable? | YES; `@SystemApi` via stubs | 14 Sept | 9, 173, 422 |
+| 2a, 2b, 2d | Sideloaded app owns a VM, runs our code? | YES, after two `pm grant`s | 14-15 Sept | 422, 582, 2034 |
+| 2c | Owns a VM, OUR image? | NO, hidden-API blocklist | 14 Sept | 854 |
 | scope | What rung 2 buys | `pm grant` is adb-only and cannot ship. **Never mistake a working `pm grant` prototype for a product.** | 14 Sept | 232, 854 |
-| 3 | Does the app wake its VM at boot, locked? | YES, 15-16 s after power-on, `userUnlocked=false`; restart after kill ~1.5 s | 14 Sept | 979, 1225 |
-| 3b | Can it take the microphone at boot, locked? | YES, via the assistant role — but only survives a reboot with `voice_recognition_service` set, which no user screen sets | 15 Sept | 1626, 1900 |
-| 3c | Can bytes and audio get INTO the guest? | YES, over vsock; the console is outbound-only | 15 Sept | 2243 |
-| 3d | Does the whole chain run at boot, locked? | YES, on two reboots | 15 Sept | 2574 |
-| 3e-i | Will microdroid give a VM big enough for a model? | 2GB/8 vCPU YES; 4GB kills our own app | 15 Sept | 2748 |
-| 3e-ii | Is the memory real? | YES to 1792MB of 2048MB; ceiling is a zram live-lock | 15 Sept | 2921 |
-| 3e-iii | Where does a model FILE live? | encrypted ext4 via `setEncryptedStorageBytes`, no RAM cost | 15 Sept | 3096 |
-| 3e-iv | Does the store survive a reboot? | YES (size); pre-unlock unaskable over adb | 15 Sept | 3433 |
-| 3e-v | Is the store readable before first unlock? | YES, content checksummed | 15 Sept | 4001 |
-| 3f | Is the guest CPU real? | YES, parity with Debian; 8 unpinned threads, not a topology | 15 Sept | 3629 |
-| 3h | Can a gigabyte be pushed in? | YES, 1.5GB at 99 MB/s | 15 Sept | 3629 |
-| 3g-i | Will a 2GB VM start at boot, locked? | YES, two reboots | 15 Sept | 4001 |
-| 3g-ii | What happens on a phone in use? | the killer stops at adj 201; the app on screen survives | 15 Sept | 4285 |
-| native | Can the 6a run a 1.7-2B model natively? | YES, 10-15 t/s at 1.35-1.74 GiB | 16 Sept | 7543 |
-| Q-A/Q-B | Cold load and cached-prefix TTFT | 11 of 12 pass; 4.099 s to first token from cold with a cached prefix (1.7B) | 16-18 Sept | 10995 |
-| S | Sustained: one turn a minute for an hour, then 200 back to back | S1 no decay; S2 loses 45% in ~4 min then holds at 54.77%; nothing killed above adj 935 | 18 Sept | 12639 |
-| TTS 1 | Does Kokoro int8 run on the 6a? | runs, RTF 1.067-1.570, never real time — see below | 18 Sept | 13753 |
+| 3, 3d, 3g-i | Wakes at boot, locked? | YES | 14-15 Sept | 979, 1225, 2574, 4001 |
+| 3b | Microphone at boot, locked? | YES, assistant role | 15 Sept | 1626, 1900 |
+| 3c | Bytes and audio into guest? | YES, vsock | 15 Sept | 2243 |
+| 3e-i, ii | VM big enough? Memory real? | 2GB YES, real to 1792MB; 4GB kills our app | 15 Sept | 2748, 2921 |
+| 3e-iii to v | Model file store? | encrypted ext4; survives reboot; readable before unlock | 15 Sept | 3096, 3433, 4001 |
+| 3f, 3h | CPU real? 1GB in? | YES, cannot pin cores; 1.5GB at 99 MB/s | 15 Sept | 3629 |
+| 3g-ii | Phone in use? | killer stops at adj 201 | 15 Sept | 4285 |
+| native | Native 1.7-2B? | YES, 10-15 t/s | 16 Sept | 7543 |
+| Q-A/Q-B | Cold load, cached TTFT | 11 of 12 pass; 4.099 s | 16-18 Sept | 10995 |
+| S | Sustained, 6a | S1 no decay; S2 holds 54.77% | 18 Sept | 12639 |
+| TTS 1 | Kokoro int8 on the 6a? | RTF 1.067-1.570, never real time | 18 Sept | 13753 |
 | T1 | 7a, one turn a minute for an hour: does it decay? | NO — settled gen_tps 0.96% slower, ttft 0.07%, 60/60, no kills | 19 Sept | 15016 |
 | T2 | 7a, 200 turns back to back: where does it settle? | 57.51% of turn 1, at an X1 ceiling of 984,000 kHz; 1 cached kill at load | 19 Sept | 15163 |
 | T3 | 7a, does it recover after T2 with no cooling gate? | YES — settled 99.01% of T1's; within 6.1% by turn 3; X1 rated within 150 s | 19 Sept | 15333 |
@@ -264,41 +173,13 @@ cmake and no download. `pennytts.sh` is TTS rung 1's wrapper.
 | U-A1 | Is the A78 pair spared by the thermal limiter? | NO — loaded it falls to 63.50% of rated (56.56% in U4). T2's "policy4 never moved" was an IDLE cluster | 21 Sept | 17821 |
 | U-A4 | Is `token_fnv1a64` stable across thread counts? | NO — `-t 2`/`-t 3`/`-t 4` give three values, identical first token, `fnv_all_equal=1` within every row. It is a reproducibility check WITHIN a thread count only | 21 Sept | 18353 |
 
-**TTS rung 1 — CLOSED on the 6a, 18 Sept (branch `tts-kokoro`, merged 19
-Sept).** Kokoro int8 (`penny-kokoro-int8`, sid 22) under sherpa-onnx
-`sherpa-onnx-offline-tts` sha256 bd7d26e8f1cca82da2596fce2fe1957b2a2ed139f772a7655ec5983cb83c4f2d, NDK r30, android-24, a fresh process
-per line. **Every row ran on spent boot 4, model page-cached; nothing here is
-a baseline.** Quoted from the write-up at **notes.md 13753** and the A76 row
-at **notes.md 13870**:
-RTF **1.067-1.570 on all 41 rows, none under 1.0** — X1 pair 2 threads: 4a
-1.324-1.401, 4b 1.067-1.373; unpinned 4 threads (4c) 1.174-1.570. Peak RSS
-283,656-577,488 kB, the top only on line 15 (10.416 s of audio). Derived load,
-cached (wall minus elapsed, includes process start and WAV write)
-1,875-2,139 ms. X1 ceiling fell to 2,048,000 kHz, 73.09% of rated, inside
-4b. Sample counts within 3.625 ms of the Mac's. **P-T5 HELD; P-T2, P-T3,
-P-T4 MISSED; P-T1 NOT JUDGED.** Product assumption: 2 threads pinned to the
-X1 pair (4c's 4 threads unpinned was slower on 18 of 18 lines, but ran after
-4b with its X1 ceiling lower — not controlled for heat).
-A76 pair, 2 threads (row a2): RTF **1.822-2.523, 7 of 18 lines above 2.0 —
-P-T6 MISSED**; neither ceiling moved; 18-line elapsed sum 143,543 ms against
-4b's 85,431 ms (ratio 1.680); derived load 3,137-3,279 ms.
-**NOT measured:** load from flash, resident RSS (rung 2), TTS beside the LLM
-(rung 3), the app / AudioTrack / time-to-first-audio (rung 4), a fresh boot,
-`policy0` during a row, pronunciation, the 7a.
-The twelve entries sit at notes.md 12868-13943, moved verbatim from
-`notes-tts.md` (now removed). **References inside them of the form
-`notes-tts.md:N` mean notes.md line N+12859.** `pennytts.sh` is at the repo
-root.
+6a rows shortened; full rows and TTS rung 1: `docs/6a-record.md`.
 
 ## What is next
 
-- **Briefs T and U are CLOSED** (notes.md 15557, 18705). Every 6a number was a
+- **Brief T CLOSED** (notes.md 15557): on the 7a one turn a minute does not decay; 200 back to back settle at 57.51% of turn 1. Every 6a number was a
   PREDICTION for the 7a, never a baseline, and stays that way.
-- **Stage 1b is DONE.** Brief U closed it: step A OpenCL present and public but
-  NOTHING BUILT OR LOADED against it (15860); step A2 a build 5 days 16 h newer
-  buys this chip nothing on pp407 at this shape, so **there is no llama.cpp
-  adoption brief** (16241, corrected 16542); step B `pennybench.sh` rev 7;
-  step D the U1-U4 matrix (18705).
+- **Brief U CLOSED** (notes.md 18705): closed stage 1b; row shape `c0`, `-t 2`; no llama.cpp adoption brief.
 - **DECIDED 21 Sept, via the reviewer (notes.md 18705 section 5):** the row
   shape for stages 2-4 stays **mask `c0`, `-t 2`** — reopens only if a
   one-boot-per-row U1-vs-U4 comparison puts U4 ahead once settled, or if
@@ -307,11 +188,9 @@ root.
   X1 pair. **`settled_pct_of_turn1` is retired as a headline metric** for any
   row whose turn 1 is not its peak; absolute last-10 medians and wall times
   lead.
-- **Brief V (stage 3a step 1, Kokoro int8 on the 7a) is CLOSED** (notes.md 20053).
-  V1 X1 pair c0 2t, spent boot, model page-cached, NOT a row-boot figure: RTF 1.005-1.309, median 1.081, 0 of 18 under 1.0, elapsed sum 79,357 ms, X1 min 87.96%.
-  V2 A78 pair 30 2t, spent boot, model page-cached, NOT a row-boot figure, RAN SECOND 1.5 C warmer: RTF 1.280-1.740, median 1.367, elapsed sum 100,262 ms (1.263x V1, not a full-clock ratio), A78 never left rated.
-  Phone WAVs differ from the Mac's on line 12 (-170 ms) and line 17 (+12 ms); P-T5 held on 3 lines only; a listen to line 12 is owed.
-- **NEXT: stage 3a step 2 (fp32).** It needs a download, and **Matt approves each file** before it is fetched. **DONE — Brief W CLOSED (notes.md 21734).** fp32 0.75× int8's generate time on the X1 pair (all 18 lines under RTF 1.0), 0.96× on the A78 pair (over 1.0 on every line); ~130 MB more fresh-process peak RSS, ~270-380 ms more load. **NEXT: stage 3a step 3 (resident Kokoro)** — reviewer recommends fp32 with int8 run beside it, and says the A78-pair-for-voice allocation reopens (step 5 weighs more); both are Matt's decisions.
+- **Brief V CLOSED** (notes.md 20053): Kokoro int8 on the 7a, fresh process, X1 pair RTF median 1.081, 0 of 18 lines under 1.0.
+- **Brief W CLOSED** (notes.md 21734): fp32 0.75× int8's generate time on the X1 pair, all 18 lines under RTF 1.0; over 1.0 on every A78 line.
+- **Brief X CLOSED** (notes.md 23543): resident Kokoro within 1% of fresh; Kokoro needs the X1 pair; fp32 goes to steps 4-5. **NEXT: brief Y, time to first audio.**
 - **Not done, in the order Brief S left them:** the `-ub` test that separates
   batch size from micro-batch size; the on-device VOICE bake-off — Kokoro-82M
   `bf_isabella` and `kokoro-onnx` int8 under sherpa-onnx (**Matt's decision,
@@ -431,48 +310,10 @@ Do not work ahead of the current rung.
   **unlocked**, before flashing. Getting this order wrong is the one way
   to strand the device.
 
-**VM-era traps: see notes.md 422, 529, 854, 979, 2034, 2243, 2574, 2748, 2921,
-3096, 3629, 4001, 4457.** Hidden-API members, over-granted VM memory, two 2GB
-VMs reaching adj 100, guards in the intent, `am force-stop` restarting sticky
-services (use `pm disable-user`), zram live-lock, incompressible fill, memory
-taken at VM creation, no writable guest filesystem, `getOrCreate` stale config,
-payload `memcpy`/`memset` and `-nostdlib`, generator-bound transfer figures,
-guest cpuinfo and `clone`, same-source host control, CPU count not in the
-console, `setCallback` and a watchdog on one executor, Debian-built payloads,
-`apt-get update` cost, `getConsoleInput` blocked, one console line per write,
-changing payload thread ids, `specialUse|microphone`, `libvm_payload.so`
-unreadable, `getInstance` absent, `adb install -r` not restarting an activity.
-**Before ANY VM work (stage 8), read the full trap text: git show 121dc4b:CLAUDE.md, lines 1603-2150.**
+**VM-era traps** are verbatim in `docs/vm-era-traps.md`. **Before ANY VM work
+(stage 8), read it, then git show 121dc4b:CLAUDE.md, lines 1603-2150.**
 
-VM-era traps with no home in notes.md, kept here:
-
-- The Terminal app is **hidden** until enabled at Settings > System >
-  Developer options > "Linux development environment". Not in the app
-  drawer. Absence of an icon proves nothing.
-- Port forwarding does **not** survive a VM restart. Symptom is
-  `Connection closed by 127.0.0.1 port 2222` with every indicator looking
-  healthy. Fix is `adb shell am force-stop com.android.virtualization.terminal`,
-  reopen the app by hand, then rebuild `adb forward`.
-- The VM's whole subnet is rebuilt on every device reboot. Never pin an
-  address, the gateway's included.
-- VM CIDs are allocated in creation order and swap between runs. Never
-  pin one.
-- SSH needs `-i ~/.ssh/penny-box -o IdentitiesOnly=yes` or it fails with
-  a misleading `Permission denied (publickey)`.
-- A non-interactive SSH command does not source `.bashrc`, so `claude`
-  must be called as `/home/droid/.local/bin/claude`.
-- `adb shell ss -ltn` is refused by SELinux. Use the guest's own journal.
-- `git` is ABSENT from the guest image, as are node, npm, pip3 and unzip.
-
-The shell from the Mac, both commands, in this order:
-
-    adb forward tcp:2222 tcp:2222
-    ssh -i ~/.ssh/penny-box -o IdentitiesOnly=yes droid@localhost -p 2222
-
-Which prompt is which — say it every time, or Matt will run it in the
-wrong place. The Mac is `mattstevenson@Matts-MacBook-Pro-2`. The VM is
-`droid@debian`. Claude Code inside the VM is a third place. `adb`,
-`fastboot`, `git` and all Android build tooling exist **only on the Mac**.
+`adb`, `fastboot`, `git` and all Android build tooling exist **only on the Mac**.
 
 ## Findings
 
@@ -495,7 +336,12 @@ for hours.
 ## Constraints
 
 - Do not create new markdown files. `notes.md` and this file are all
-  there is.
+  there is. ONE exception, added 22 Sept: `docs/` holds verbatim text
+  moved out of this file to keep it under Claude Code's 40,000-character
+  warning. A `docs/` file is created only by a slimming brief, contains
+  only text that was already in this file, and is never edited
+  afterwards — corrections go in `notes.md` like everything else. It is
+  not a place for new prose, and nothing in it is read at session start.
 - Do not propose architecture, folder structures, or abstractions.
   Product and architecture thinking belongs in the Penny project, not in
   this repo. Say so if Matt starts blurring the two.
@@ -585,30 +431,7 @@ The rules only. How each was found is in the notes.md entry cited beside it.
 
 - **Build.** llama.cpp at commit `38a5b42d9a3e82e0a586bcd1caed121f36c87a73`,
   configured from nothing; the exact working line is **notes.md 5030-5057**
-  (entry at 5023):
-
-      NDK=/opt/homebrew/share/android-commandlinetools/ndk/30.0.16248370
-      SDKCM=/opt/homebrew/share/android-commandlinetools/cmake/3.22.1/bin
-
-      "$SDKCM/cmake" \
-        -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
-        -DANDROID_ABI=arm64-v8a \
-        -DANDROID_PLATFORM=android-28 \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DBUILD_SHARED_LIBS=OFF \
-        -DGGML_NATIVE=OFF \
-        -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16 \
-        -DGGML_OPENMP=OFF \
-        -DGGML_LLAMAFILE=OFF \
-        -DLLAMA_OPENSSL=OFF \
-        -DLLAMA_BUILD_EXAMPLES=OFF \
-        -DLLAMA_BUILD_SERVER=OFF \
-        -DLLAMA_BUILD_TESTS=OFF \
-        -G Ninja \
-        -DCMAKE_MAKE_PROGRAM="$SDKCM/ninja" \
-        -B build-android
-
-      "$SDKCM/cmake" --build build-android --target llama-bench -j 8
+  (entry at 5023), also verbatim in `docs/llama-build-command.md`.
 
 - **Build flags: `-DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16`, NEVER
   `armv8.7a`, and never as a global `-march`.** (llama.cpp commit
