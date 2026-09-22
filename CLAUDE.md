@@ -101,6 +101,8 @@ one), 14252 (stay awake, rev 6), 14306 (gate, push, smoke tests).
     pennytts.sh rev 3       20,351 B         sha256 90cbeea1eb05e3857a5702ca97ab9439d7cae94a34b6a7a0e66a5fa69c784b88  OVERWROTE rev 2 on the phone 21 Sept ~16:50 (brief W step D, notes.md 20666). MODELDIR/MODELFILE env, defaults = rev 2's; keys model_path, model_bytes last (notes.md 20593)
     pennyspeak              2,466,712 B      sha256 9be8e0e44d868460f6408209c9590ea7c1291ce6823b4a2c60352d6d540ba14f  (= build/pennyspeak/pennyspeak-stripped; resident Kokoro over sherpa-onnx's C API, brief X, notes.md 21761; pushed 21 Sept ~18:36, chmod 755; = the Mac build by sha256 only)
     pennyspeak.sh           18,157 B         sha256 dc2706fdd1b497fbc2528a00a90e71a936ef014c08c4ed723ce3f598ba48c698  -rw-rw-rw-, run as `sh pennyspeak.sh`; OVERWROTE 9a306482… (Matt's named exception) 21 Sept ~19:18 (brief X step D2, notes.md 22063)
+    pennyspeak2             2,468,088 B      sha256 6081ce8107f34579a5521954edb890decd15fc9833ec053d98008c3e029ebf23  (= build/pennyspeak2/pennyspeak2-stripped; pennyspeak + counting progress callback, brief Y, notes.md 23714; pushed 22 Sept ~13:16, chmod 755, NEW name)
+    pennyspeak2.sh          18,715 B         sha256 0faf2ebe7cb6f0d372c116639509de061aaa9894093320f564de77a32af38c2a  -rw-rw-rw-, run as `sh pennyspeak2.sh`; = pennyspeak.sh with BIN=pennyspeak2; pushed 22 Sept ~13:16, NEW name (notes.md 23850)
     penny-kokoro-int8/      360 files, 38 dirs, 150,880,597 B; every file hashed, list at rows/7a_v/7a_tts_push_phone.sha256
       model.int8.onnx       92,363,779 B     sha256 a089794d1293b91e82f3f2b8bed5417d04ac64447d6ada5f21045cde0799bf99
       voices.bin            28,200,960 B     sha256 1c5a5b983d3d50d8586d437a51f3faa2da7919ce76a013c081e65671a3447c29
@@ -112,6 +114,7 @@ one), 14252 (stay awake, rev 6), 14306 (gate, push, smoke tests).
       voices.bin, tokens.txt, both lexicons, espeak-ng-data/   byte-identical copies of penny-kokoro-int8's (hashes above)
     tts/out/                7a_tts_smoke_00.*, 7a_tts_smoke_04.*, 7a_tts_v1_x1x1_00..17.* and 7a_tts_v2_a78a78_00..17.* (108 files each, pulled to rows/7a_v/, notes.md 19620, 19842); 7a_tts_wsmoke_{int8_00,fp32_00,fp32_04}.*, 7a_tts_w1_fp32_x1x1_*, 7a_tts_w2_fp32_a78a78_*, 7a_tts_w3_int8_x1x1_* (570 files in out/ after W3; pulled to rows/7a_w/, notes.md 20666, 21181, 21348, 21499)
     tts/out/ (brief X)      7a_tts_xsmoke_fp32.*, 7a_tts_xsmoke_int8.*, 7a_tts_xsmoke_fp32_rev.* (8 files each; 594 files in out/ after step D2; pulled to rows/7a_x/, notes.md 22063)
+    tts/out/ (brief Y)      7a_tts_ysmoke_1.* (24 files; 714 files in out/ after Y1; pulled to rows/7a_y/, notes.md 23902)
 
 Verify with: `adb -s 37291JEHN04619 shell 'pm path com.pennyspike.probe2a'` (expect empty).
 

@@ -23898,3 +23898,205 @@ line below, then `printf '%s' "$CMD" | wc -c` and `| shasum -a 256`.
 **wrapper_exit is tee's status and reads 0 whatever pennyspeak2 did; the
 report's rc= is the authority.** If the gate times out the pass is LAUNCHED
 WARM and is labelled so everywhere.
+
+## 2026-09-22 — BRIEF Y STEP D, Y1: fp32, X1 pair (c0), 2 threads, pennyspeak2, 18 lines. Clean: report rc=0, lines_ok=18, 0 kill lines, 18 of 18 WAVs byte-identical to W1's. THE COUNT: callbacks per line = 1 on 15 lines, 4 on line 14, 2 on 16 and 17 — 18 of 18 as predicted. First audio on the multi-sentence lines: line 14 1,134.694 ms, line 16 1,321.185 ms, line 17 1,182.070 ms. On a single-sentence line first audio IS gen_ms (0.051-0.923 ms apart). Spent boot, model page-cached, NOT a row-boot figure.
+
+Pixel 7a 37291JEHN04619, GrapheneOS 2026091000, Android 17 (CP2A.260705.006),
+spent 21 Sept matrix boot, unlocked, screen on, Stay awake on, on mains; the
+Mac on AC. pennyspeak2 6081ce81… and pennyspeak2.sh 0faf2ebe… (sha256 on the
+phone at 13:16:45 = repo, notes.md 23850). Model penny-kokoro-fp32/model.fp32.onnx,
+325,534,862 B (report model_bytes). sherpa_version 1.13.8, git 8c8e275d,
+onnxruntime 1.28.2 (event=start). **Every figure below: spent boot, model
+page-cached, NOT a row-boot figure.** This is a smoke pass and the step D
+reference test; its timings are smoke figures, declared as such, compared
+with R1 (notes.md 22678) but not judged against any committed prediction
+except the callback count.
+
+### THE STRING AS RUN
+
+Copied out of notes.md line 23896 on the Mac by
+`CMD=$(sed -n '23896p' notes.md | sed 's/^    //' | tr -d '\n')`, checked
+(1,064 B, sha256 be83606f1eb724ab91026adbdfd2eb0457dcc6781208cbd50c605d33994e9613
+= the committed value in 23850, and = the reviewer's own extraction), then run
+with `eval "$CMD"`. Not retyped. It is, verbatim:
+
+    caffeinate -i adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts; B=/sys/class/power_supply/battery/temp; X=$(grep "^PENNYTTS batt_temp_dC" out/7a_tts_v1_x1x1_00.report | tr -s " " | cut -d" " -f3); TREF=${X#before=}; case "$TREF" in ""|*[!0-9]*) echo "TREF UNREADABLE [$X] - Y1 NOT LAUNCHED"; exit 1 ;; esac; TMAX=$((TREF + 15)); echo "LAUNCH Y1 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) tref_dC=$TREF tmax_dC=$TMAX out_count=$(ls out | wc -l)"; MODELDIR=/data/local/tmp/tts/penny-kokoro-fp32 MODELFILE=model.fp32.onnx COOL=1 GATECAP=240 TMAX=$TMAX sh /data/local/tmp/tts/pennyspeak2.sh 7a_tts_ysmoke_1 c0 2 all > /dev/null; RCS=$?; echo "DONE Y1 uptime_s=$(cut -d" " -f1 /proc/uptime) wallclock=$(date +%H:%M:%S) batt_temp_dC=$(cat $B) memavail_kB=$(grep ^MemAvailable: /proc/meminfo | tr -s " " | cut -d" " -f2) wrapper_exit=$RCS out_count=$(ls out | wc -l)"; grep -E "^PENNYSPEAKSH (tag=|cool_gate_result)" out/7a_tts_ysmoke_1.report'
+
+Its whole output, verbatim:
+
+    LAUNCH Y1 uptime_s=88615.54 wallclock=13:18:44 batt_temp_dC=281 memavail_kB=3148300 tref_dC=270 tmax_dC=285 out_count=690
+    DONE Y1 uptime_s=88681.86 wallclock=13:19:50 batt_temp_dC=282 memavail_kB=3234580 wrapper_exit=0 out_count=714
+    PENNYSPEAKSH tag=7a_tts_ysmoke_1 rc=0 mask=c0 threads=2 cool_gate=1 lines=all idle_ms=0
+    PENNYSPEAKSH cool_gate_result GATE PASSED p0=1803000/1803000 p4=2348000/2348000 p6=2850000/2850000 batt_dC=281 tmax_dC=285 polls_failed=0 cap=240 wait_s=0.20   (rev 2)
+
+GATE PASSED on the first poll at 281 dC (limit 285); NOT launched warm.
+**wrapper_exit=0 is tee's status, NOT pennyspeak2's.** The authority is the
+report's rc=0 and `event=done rc=0 lines_ok=18 n_lines=18
+failed_gen_lines=none failed_wav_lines=none cb_overflow_lines=none`.
+
+### Every adb command of this pass, in order
+
+1. The Y1 string above, 13:18:44-13:19:50, in the foreground, alone. Nothing
+   else of mine was alive.
+2. Read-only: `adb -s 37291JEHN04619 shell 'cd /data/local/tmp/tts/out; ls
+   7a_tts_ysmoke_1* | wc -l; sha256sum 7a_tts_ysmoke_1*'` → 24 files.
+3. 24 × `adb -s 37291JEHN04619 pull /data/local/tmp/tts/out/<file> rows/7a_y/`,
+   one file each, each "1 file pulled, 0 skipped"; rows/7a_y/ did not exist
+   before and each target was checked absent.
+4. Read-only, 13:20:47 (uptime 88738.45): `dumpsys power` → mWakefulness=Awake,
+   mStayOn=true, mIsPowered=true; the events buffer's last two
+   `screen_toggled` lines are `09-21 21:55:07.255 … 0` and `09-22
+   09:53:39.022 … 1` — the screen was off overnight, BEFORE this session, and
+   on throughout the pass.
+
+### Integrity
+
+- out/ 690 → 714, +24 (6 files + 18 WAVs). No difference.
+- Hashes: rows/7a_y/7a_y_ysmoke1_phone.sha256 (sha256sum on the phone) and
+  rows/7a_y/7a_y_ysmoke1_mac.sha256 (shasum -a 256 of the pulled copies), 24
+  lines each; identical after sorting by name (the two tools list in
+  different orders; unsorted diff shows only the order).
+- **cmp: 18 of 18 byte-identical** — rows/7a_y/7a_tts_ysmoke_1_NN.wav against
+  rows/7a_w/7a_tts_w1_fp32_x1x1_NN.wav, cmp rc=0 on all 18 (W1's WAVs are
+  committed, e5bad03). **The callback changed no audio.** samples= equals
+  R1's on all 18 lines.
+- report rc=0; 18 event=line records, all status=OK, wav_ok=1; .err empty
+  (e3b0c442…); lmk_kill_lines 0, naming pennyspeak 0, with MemAvailable
+  3,118,160 kB before (wrapper) on a boot 24 h 36 min old — that boot
+  flatters a zero. No lock, no screen-off (item 4), no manual intervention.
+- **cb_sum_eq_n=1 on all 18 lines; cb_overflow=0 on all 18;
+  cb_overflow_lines=none.**
+
+### THE COUNT, against the prediction committed in d6b3dd2 (notes.md 23714)
+
+    line  sentences by punctuation  predicted  n_callbacks  verdict
+     0-4        1                      1           1        HIT (5 lines)
+     5          1 (named: not callable from reading)  1  1  HIT
+     6-13       1                      1           1        HIT (8 lines)
+    14          4                      4           4        HIT
+    15          1 (named: not callable from reading; 208 chars)  1  1  HIT
+    16          2                      2           2        HIT
+    17          2                      2           2        HIT
+
+**18 of 18 HIT.** The full stops inside "£12,480.50" and "17.5%" do not split
+line 5, and line 15's 208 characters do not reach max_len. Every p= on a
+single-callback line is 1.000000; lines 14, 16 and 17 step 0.25/0.5/0.75/1.0
+and 0.5/1.0. The remainder block (:335-347) never fired: no line has an extra
+callback.
+
+### First audio on the multi-sentence lines — the figure this brief exists for
+
+From the event=chunk records, rows/7a_y/7a_tts_ysmoke_1.report. t_ms is from
+the line's t0 to the callback's entry; gap_ms from the previous callback;
+audio_ms is that sentence's own duration at 24,000 Hz.
+
+    line 14 "Three things. First, … Second, … Third, …"   gen_ms 7,041.446, audio 7,401.458 ms
+      cb  samples   t_ms       gap_ms     audio_ms
+       1   24,502   1,134.694  1,134.694  1,020.917
+       2   48,314   3,014.481  1,879.786  2,013.083
+       3   48,305   4,895.744  1,881.263  2,012.708
+       4   56,514   7,040.653  2,144.909  2,354.750
+    line 16 "That's everything. Nothing else needs you tonight."   gen_ms 3,090.385, audio 3,113.833 ms
+       1   31,237   1,321.185  1,321.185  1,301.542
+       2   43,495   3,090.229  1,769.044  1,812.292
+    line 17 "Morning Matt. Two things need you today, …"   gen_ms 4,355.613, audio 4,644.875 ms
+       1   26,856   1,182.070  1,182.070  1,119.000
+       2   84,621   4,355.365  3,173.295  3,525.875
+
+first_audio / gen_ms: line 14 0.1611, line 16 0.4275, line 17 0.2714.
+The first sentence of each (1,020.917-1,301.542 ms of audio) took
+1,134.694-1,321.185 ms to generate: over real time for that sentence alone
+(RTF 1.111, 1.015, 1.056), where the whole lines are under it (0.9514,
+0.9925, 0.9377).
+
+**Arithmetic, not a measurement — would each later sentence be ready before
+the one before it finished playing?** Assuming playback starts the instant a
+sentence arrives and sentences play back to back with zero overhead (NO
+playback path was measured; this is generate timing only):
+
+    line 14  cb2 arrives 3,014.481; cb1's audio would end 2,155.611 → STALL 858.870 ms
+             cb3 arrives 4,895.744; cb2's audio would end 5,027.564 → ready 131.820 ms early
+             cb4 arrives 7,040.653; cb3's audio would end 7,040.272 → STALL 0.381 ms
+    line 16  cb2 arrives 3,090.229; cb1's audio would end 2,622.727 → STALL 467.502 ms
+    line 17  cb2 arrives 4,355.365; cb1's audio would end 2,301.070 → STALL 2,054.295 ms
+
+So on all three lines a short first sentence finishes playing before the
+second is generated. Once a long sentence is playing, the next one keeps up
+or nearly does (line 14 cb3, cb4).
+
+### Single-callback lines: first audio IS the whole line
+
+    n   gen_ms     first_audio_ms  gen − first (ms)
+    0     805.118     805.067      0.051
+    1     698.481     698.406      0.075
+    2     747.044     746.966      0.078
+    3   1,060.414   1,060.360      0.054
+    4   3,424.882   3,424.563      0.319
+    5   5,278.634   5,278.078      0.556
+    6   2,986.785   2,986.500      0.285
+    7   4,659.537   4,658.707      0.830
+    8   3,814.332   3,813.980      0.352
+    9   3,787.416   3,786.780      0.636
+   10   2,903.268   2,902.959      0.309
+   11   2,824.424   2,824.219      0.205
+   12   3,016.592   3,016.092      0.500
+   13   2,647.022   2,646.785      0.237
+   15   8,488.357   8,487.434      0.923
+
+first/gen 0.9998-0.9999 on all 15. The remainder (0.051-0.923 ms) is what
+follows the last callback inside the call — chiefly the C API's copy of the
+samples (c-api.cc:1719-1722), growing with line length. On these lines route
+(a) can do no better, as step A said.
+
+### Beside R1 — smoke figures, not judged
+
+    figure                 Y1 (pennyspeak2)              R1 (pennyspeak, 22678)
+    load_ms                1,898.705                     1,847.546
+    generate sum           61,629.750 ms                 60,004.348 ms  → Y1/R1 1.0271
+    RTF min/median/max     0.7581 / 0.8388 / 0.9925      0.7428 / 0.8128 / 0.9771
+    lines under RTF 1.0    18                            18
+    per-line gen Y1/R1     1.0050 (line 2) to 1.0360 (line 11); every line slower
+    pass_wall_ms           64,000                        62,289
+    gate battery           281 dC                        249 dC
+    X1 poll-min            1,745,000 kHz (61.23%) at 88649.97 = line 11   2,188,000 (76.77%), line 11
+    VmRSS after load       475,684 kB                    475,824
+    VmHWM (poll)           719,272 kB                    719,236
+
+Y1 was 2.71% slower in sum than R1 and slower on every line. **No cause is
+claimed.** Beside it: Y1 launched 32 dC warmer (battery) than R1, and the X1
+ceiling fell further (1,745,000 against 2,188,000). The callback's added work
+(23714: one clock read and a few stores per sentence, one std::function per
+call) was reasoned at well under 0.01 ms per line; 2.71% of 61.6 s is ~1.6 s,
+and one pass cannot separate heat from anything else.
+
+**Memory — readings, flagged for the reviewer.** Wrapper before → after:
+Cached 3,437,432 → 2,807,596 kB (−629,836), SwapFree 2,017,724 → 1,907,900
+(−109,824; 49.9% of SwapTotal 3,820,148), pswpout +27,380, pswpin +7,
+pgmajfault +8, MemFree 221,432 → 976,756. R1's pass moved none of these
+(Cached +3,564, swap and pgmajfault unchanged). pgmajfault +8 says the model
+was not re-read from flash. The Cached drop is about twice the model's size;
+the protocol's contamination rule (Cached falling by ~ the model size inside a
+row) was written for the LLM matrix, and this boot is already spent, so no
+row-boot figure was at stake. No cause is claimed.
+
+### CLAUDE.md, in this commit — additions only
+
+Three lines added to the 7a tts block: pennyspeak2 (6081ce81…), pennyspeak2.sh
+(0faf2ebe…), and tts/out/ (brief Y) 7a_tts_ysmoke_1.* (714 in out/). Nothing
+else changed. CLAUDE.md 35,121 → 35,760 B. docs/6a-frozen-device-state.md
+re-hashed: effd849c2f3f0414369b926bf9035cebb6c644c93284b36ce2e99d885d0b619d,
+79 lines, unchanged.
+
+### What this entry does NOT say
+
+One pass, one shape, spent boot, page-cached model, launched at 281 dC: not a
+row-boot figure. It says nothing about any product latency: first_audio_ms is
+the time until a sentence's samples exist in this process's memory, and it
+excludes AudioTrack, buffering and every playback path, none of which has
+been measured on this phone. The stall figures are arithmetic on generate
+times under an assumption of zero playback overhead, not a measurement of
+anything heard. It says nothing about splitting text (not built), int8 (not
+run), other thread placements, TTS beside the LLM, or how anything sounds. It
+does not say why Y1 was slower than R1 or why Cached fell. It does not decide
+which file ships or which cores speak. BRIEF Y is not closed; that entry is
+the reviewer's.
