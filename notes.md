@@ -23549,3 +23549,31 @@ WHAT IT SHOWED. Resident/fresh generate sums: R1/W1 1.0090, R2/W2 0.9924, R3/W3 
 WHAT WAS DECIDED. The A78 pair is CLOSED AGAIN for voice: a resident process does not rescue it, and every line is over real time there with either file. fp32 goes to steps 4-5. E3's open question is ANSWERED — Kokoro needs the X1 pair, so E3's design must assume voice occupies it and the A78 pair is not free while the X1s speak. pennyspeak.cpp and pennyspeak.sh are the stage 4 harness, reviewed line by line against the C API with byte-identical output proven 78 times (6 smoke plus 72 row WAVs).
 
 WHAT THIS DOES NOT SAY. Nothing about time to first audio — every figure here is whole-line, and pennyspeak returns a line only when all of it is generated, so a median RTF of 0.8128 says nothing about when the first sample arrives; that is brief Y. Nothing about long speech, about Kokoro beside STT or the LLM, or about thread placement beyond the X1 pair. Nothing about how either file SOUNDS: the line 12 listen happened separately on 22 Sept and is recorded in the project memory, not here. A shell process over adb on mains with the screen on is not the product, and none of these figures include AudioTrack, buffering or any playback path. It does not decide which file ships.
+
+## 2026-09-22 — BRIEFS V AND W: THE 90 ROW WAVs COMMITTED (e5bad03). No new measurement; nothing on the phone.
+
+What was done. The row WAVs of briefs V and W had been pulled to the Mac but
+never committed: 90 files, 17,462,572 B, 18 per row — rows/7a_v/
+7a_tts_v1_x1x1_00..17 and 7a_tts_v2_a78a78_00..17 (36), rows/7a_w/
+7a_tts_w1_fp32_x1x1_*, 7a_tts_w2_fp32_a78a78_* and 7a_tts_w3_int8_x1x1_*
+(54). They were committed on 22 Sept in e5bad03, which contains those 90
+files and nothing else (git show --stat: 90 files changed). Before the
+commit the staged list was checked against the untracked list: 90 files,
+0 outside rows/7a_v/ or rows/7a_w/. After it, 0 untracked .wav remain in
+rows/.
+
+Why. They are brief Y's reference set: its reference test compares against
+rows/7a_w/7a_tts_w1_fp32_x1x1_*.wav and rows/7a_v/7a_tts_v1_x1x1_*.wav. The
+repo went to a remote for the first time on 22 Sept and these files did not
+go with it; until this commit they existed on this Mac only.
+
+Already in, not touched. Brief X's WAVs were committed with its rows: 78
+tracked under rows/7a_x/ (72 row WAVs R1-R4 plus 6 xsmoke). The five smoke
+WAVs in rows/7a_v/ and rows/7a_w/ (7a_tts_smoke_00/04, 7a_tts_wsmoke_
+fp32_00/04, 7a_tts_wsmoke_int8_00) were already tracked.
+
+What this does NOT say. The 90 files were not re-hashed or compared with
+the phone's copies or with any earlier hash list in this step; they are
+committed as they sat on the Mac. .DS_Store, "Claude outputs/", build/ and
+probe2a/.DS_Store stay untracked. Nothing here was pushed at the time of
+this entry.
