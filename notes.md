@@ -23710,3 +23710,139 @@ What this does NOT say. It does not re-check the "14 columns" or any other
 claim in the wrapper bullet against rev 7. It does not change the docs/ copies
 (docs/6a-frozen-device-state.md names the 6a's rev 5, which was 10 s and is
 correct for the 6a). It does not re-read any series file.
+
+## 2026-09-22 — BRIEF Y STEPS A AND B: Kokoro reports once per SENTENCE, so first audio for a one-sentence line is its whole-line time. The brief was cut back on that basis. pennyspeak2 (pennyspeak + a counting progress callback) built; no measurement yet.
+
+Pixel 7a 37291JEHN04619, same spent boot as brief X (uptime 85,185.93 s at
+12:21:34 on 22 Sept, read-only session-start read; all three ceilings rated;
+battery 273 dC; MemAvailable 3,156,136 kB; out/ 690 files; pennyspeak
+9be8e0e4… and pennyspeak.sh dc2706fd… by sha256sum on the phone = repo). Nothing
+was pushed, run or changed on the phone in this entry.
+
+### Step A — what the source says (clone a5b4a944c5186a68bcdc0ac3011e4c541781ac84)
+
+All in sherpa-onnx/csrc/offline-tts-kokoro-impl.h unless named:
+
+- Text → one token list per sentence at :243-244
+  (`frontend_->ConvertTextToTokenIds(text, lang)`). For our model the frontend
+  is KokoroMultiLangLexicon (:383); its rule, in kokoro-multi-lang-lexicon.cc,
+  closes a sentence at `.` `!` `?` `;` (:345-351) or when `max_len` is reached
+  (:336-341, :355-356), and rewrites `:` to `,` first (:75). Which internal
+  path our lines take was NOT settled by reading (the reviewer said not to).
+- Batch size is hard-coded to 1 (:284); `max_num_sentences` ≠ 1 is ignored
+  with a warning (:267-278). num_batches = sentences (:286).
+- The callback fires once after each sentence's Process() (:308-326), with
+  that sentence's samples, n, and p = (b+1)/num_batches. It fires AFTER the
+  samples are appended to the line (:316-318 before :319-321), so it cannot
+  change the audio. Its return value is read: 0 stops the sentence loop
+  (:308, :320).
+- **Correction to the reviewer's first reading:** the remainder block at
+  :335-347 never runs with batch size 1 (the main loop consumes every
+  sentence; :329 adds nothing), so callbacks per line = sentences per line,
+  not sentences + 1.
+- The C API passes our `arg` through a lambda (c-api/c-api.cc:1925-1932);
+  signature c-api.h:2513-2514.
+
+Consequence: for a one-sentence line the only callback arrives when the
+whole line is done, so first audio = whole-line generate time (less the C
+API's sample copy). By punctuation 15 of 18 lines are one sentence; 14, 16
+and 17 are not.
+
+### The brief, amended by the reviewer (22 Sept) — recorded, not my finding
+
+Y-A1 (first audio under 300 ms on the X1 pair, fp32?) is ANSWERED from brief
+X's R1 without a new run: the four shortest lines' whole-line gen_ms were
+687.217 ("Done."), 743.295 ("Yes?"), 792.912 ("On it."), 1040.281 ("One
+second.") ms (notes.md 22678, rows/7a_x/7a_tts_r1_fp32_x1x1.report), so no
+single-sentence line can reach first audio under 300 ms. The reviewer also
+recorded ~45 ms of leading silence to trim (their figure, not re-measured
+here). Matt's product decision: short acks are PRE-RENDERED and played from
+disk. So route (b), splitting text ourselves, is NOT built; step D2 is
+dropped; the int8 pass is dropped unless the count surprises. Brief Y is now:
+build pennyspeak2, one pass (fp32, X1 pair c0, 2 threads, all 18 lines,
+tags 7a_tts_ysmoke_*) that is both the byte-identity reference test against
+W1's 18 WAVs and the callback count, then the write-up.
+
+### PREDICTION, committed before any run
+
+Callbacks per line: 1 on lines 0-13 and 15; 4 on line 14; 2 on line 16;
+2 on line 17. Named as NOT callable from reading: line 5 (full stops inside
+"£12,480.50" and "17.5%") and line 15 (208 characters; may reach max_len).
+cb_sum_eq_n=1 on all 18; cb_overflow=0 on all 18; 18 of 18 WAVs
+byte-identical to rows/7a_w/7a_tts_w1_fp32_x1x1_NN.wav.
+
+### Step B — pennyspeak2.cpp and build-pennyspeak2.sh
+
+    pennyspeak2.cpp        23,993 B  sha256 b4934f9bfa6f70a0877d74198ed94b86fb26903a3430b8d26d03f9825c0d95f4
+    build-pennyspeak2.sh    6,605 B  sha256 7a09f5ad5f2fc7f52e37e06947476e98aa88daf6afb65001d756ccb4b4966b9d
+
+pennyspeak2.cpp = pennyspeak.cpp (6bce6d7a…) plus: on_progress() passed in
+place of NULL, NULL; a 64-slot per-line record zeroed before up0; after the
+call, one `event=chunk` record per stored callback (cb, of, samples, p, t_ms
+from t0, gap_ms from the previous callback, audio_ms of that chunk); five
+keys appended to `event=line` before text= (n_callbacks, cb_overflow,
+cb_samples_sum, cb_sum_eq_n, first_audio_ms); `cb_overflow_lines` in the
+done record; the usage string renamed. The 18-line block extracted from both
+files: diff rc=0. build-pennyspeak2.sh = build-pennyspeak.sh (960a9d75…)
+with only the source, object and binary names and the output directory
+(build/pennyspeak2/) changed. Code reviewed by the reviewer against c-api.h
+and the Kokoro impl before the build.
+
+on_progress(): one return path, `return 1`, including overflow (a 0 would stop
+generation after that sentence and still write a valid-looking, shorter WAV
+with status=OK); all three array writes guarded by count < 64, counting and
+summing continue past it; `samples` is never read (Kokoro frees it on
+return); the clock read is its first statement.
+
+**WHAT IS ADDED INSIDE THE gen_ms CLOCK PAIR, and nothing else:**
+1. Per SENTENCE: on_progress() itself — one clock_gettime(CLOCK_MONOTONIC),
+   three array stores, a counter increment and a 64-bit add — reached
+   through the C API's lambda and a std::function call.
+2. Per GENERATE CALL: passing a non-NULL callback makes c-api.cc:1926
+   construct a std::function wrapper around the lambda, where pennyspeak
+   passed nullptr.
+Expected cost (my reasoning, NOT measured): well under 0.01 ms per line even
+on line 14's four sentences, against a smallest R1 gen_ms of 687.217 ms and a
+per-line R1-vs-W1 spread of about ±3% (22678). Not separable from run-to-run
+spread, so gen_ms from the pass is compared with R1 as a smoke figure only.
+Neither addition can change the audio; step D shows it by cmp, not by
+argument.
+
+### Build, 22 Sept ~13:10, on the Mac
+
+`sh build-pennyspeak2.sh` — its four input checks all CHECK OK (clone HEAD
+a5b4a944…, c-api.h 84756826…, c-api.cc 6ec0fb56…, libonnxruntime.so
+33847ad4…). Commands run: git rev-parse, shasum, NDK r30 clang++ ×3 (two
+compiles, one link), llvm-strip. **No download, no install, no cmake
+configure**: the clone's git status is unchanged (only the known
+build-android-arm64-v8a.sh edit, notes.md 13027), and
+build-android-arm64-v8a/CMakeCache.txt is still dated 18 Sept 17:40.
+
+    build/pennyspeak2/pennyspeak2-stripped   2,468,088 B    sha256 6081ce8107f34579a5521954edb890decd15fc9833ec053d98008c3e029ebf23
+    build/pennyspeak2/pennyspeak2          108,835,040 B    sha256 f4b03dbb77f9c991d90a6456ebf102f82d72429d50ac5d2a215819363653482c
+    llvm-readelf -h    ELF64, DYN, AArch64
+    NEEDED             libandroid.so liblog.so libonnxruntime.so libm.so libdl.so libc.so
+    RUNPATH            $ORIGIN/../lib:$ORIGIN/../../../sherpa_onnx/lib
+                       (NEEDED + RUNPATH diff against pennyspeak-stripped: identical)
+    symbol             on_progress(float const*, int, float, void*) present (llvm-nm, unstripped)
+
+build/pennyspeak/ is untouched: its four files hashed before the build and
+after, diff empty; pennyspeak-stripped still 9be8e0e4…, dated 21 Sept 18:01.
+
+c-api.cc.o is 5,213,304 B here against 5,212,104 B in build/pennyspeak/,
+from the same source and flags. With debug info stripped (llvm-strip
+--strip-debug) both are byte-identical (b00f4676… each), and their
+disassembly hashes are equal (e871bd60… each). The difference is debug info
+only: DW_AT_comp_dir reads /Users/mattstevenson/documents/penny-app-spike
+(lower-case "documents", the path this session's shell resolved) against
+…/Documents/… in brief X's build.
+
+### What this entry does NOT say
+
+No measurement: the callback counts above are a prediction from source, and
+the cost inside the clock is reasoning, not a figure. Nothing is on the
+phone; the wrapper (step C) is not written. It does not settle Kokoro's
+splitting rule for lines 5 and 15. It says nothing about how anything
+sounds, about splitting text, about int8, or about any product latency —
+every figure brief Y will produce excludes AudioTrack, buffering and every
+playback path.
