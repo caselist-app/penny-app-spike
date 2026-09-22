@@ -194,6 +194,8 @@ cmake and no download. `pennytts.sh` is TTS rung 1's wrapper.
 - **Brief V CLOSED** (notes.md 20053): Kokoro int8 on the 7a, fresh process, X1 pair RTF median 1.081, 0 of 18 lines under 1.0.
 - **Brief W CLOSED** (notes.md 21734): fp32 0.75× int8's generate time on the X1 pair, all 18 lines under RTF 1.0; over 1.0 on every A78 line.
 - **Brief X CLOSED** (notes.md 23543): resident Kokoro within 1% of fresh; Kokoro needs the X1 pair; fp32 goes to steps 4-5. **NEXT: brief Y, time to first audio.**
+- **Brief Y CLOSED** (notes.md 24104): Kokoro reports once per sentence; sentence streaming starves; acks are pre-rendered and run to the end (Matt).
+- **Brief Z step A** (notes.md 24118): NOTHING plays a WAV from the shell — /dev/snd is system:audio 0660, shell not in group 1005. Only route is preinstalled com.android.music/.AudioPreview via a copy into /sdcard. Speaker HAL 48,000 Hz, periods 128-960 frames — a HAL period, NOT a latency. Playback cost cannot be measured from the shell; stage 4 measures it from our app. Step C cancelled.
 - **Not done, in the order Brief S left them:** the `-ub` test that separates
   batch size from micro-batch size; the on-device VOICE bake-off — Kokoro-82M
   `bf_isabella` and `kokoro-onnx` int8 under sherpa-onnx (**Matt's decision,
